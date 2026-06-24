@@ -1,0 +1,30 @@
+<footer class="site-footer" role="contentinfo">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>{{ site.title | default: "Cloud-Native Design Patterns" }}</h4>
+        <p>{{ site.description }}</p>
+      </div>
+      <div class="footer-col">
+        <h4>The book</h4>
+        <ul>
+          <li><a href="{{ '/docs/00-setting-up/' | relative_url }}">Setting up</a></li>
+          <li><a href="{{ '/docs/04-data/' | relative_url }}">Data &amp; the outbox</a></li>
+          <li><a href="{{ '/plans/iteration-plan/' | relative_url }}">Roadmap</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Reference</h4>
+        <ul>
+          <li><a href="https://github.com/{{ site.github_username }}/{{ site.github_repo }}" rel="noopener">View on GitHub &#8599;</a></li>
+          <li><a href="https://github.com/{{ site.github_username }}/{{ site.github_repo }}/tree/main/lgtm-presentation" rel="noopener">Source decks &#8599;</a></li>
+          <li><a href="https://github.com/{{ site.github_username }}/{{ site.github_repo }}/issues" rel="noopener">Issues &#8599;</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-meta">
+      <span>Open source &middot; {{ site.license | default: "Apache 2.0" }}</span>
+      <span>Last built {{ site.time | date: "%Y-%m-%d" }}</span>
+    </div>
+  </div>
+</footer>
