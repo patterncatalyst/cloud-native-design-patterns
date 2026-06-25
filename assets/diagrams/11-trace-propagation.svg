@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 230" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="20" y="48" width="760" height="132" rx="12" fill="#f4f7fb" stroke="#ddd"/>
+<text x="32" y="68" font-size="12" font-weight="700" fill="#1d1d1d">one trace_id — constant across every hop (W3C traceparent header)</text>
+<rect x="34" y="92" width="160" height="56" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="114.0" y="118.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">order-service</text>
+<text x="114.0" y="135.0" font-size="11.5" fill="#555555" text-anchor="middle">POST /orders span</text>
+<rect x="238" y="92" width="150" height="56" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="313.0" y="118.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">inventory</text>
+<text x="313.0" y="135.0" font-size="11.5" fill="#555555" text-anchor="middle">ReserveStock span</text>
+<rect x="432" y="92" width="150" height="56" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="507.0" y="118.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Kafka</text>
+<text x="507.0" y="135.0" font-size="11.5" fill="#555555" text-anchor="middle">order.placed</text>
+<rect x="626" y="92" width="150" height="56" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="701.0" y="118.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">notification</text>
+<text x="701.0" y="135.0" font-size="11.5" fill="#555555" text-anchor="middle">consume span</text>
+<path d="M194,120 L238,120" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
+<text x="222.0" y="114.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">traceparent</text>
+<text x="222.0" y="114.0" font-size="11" fill="#b8650a" text-anchor="middle">traceparent</text>
+<path d="M388,120 L432,120" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
+<path d="M582,120 L626,120" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
+<text x="400" y="204" font-size="11" fill="#1d1d1d" text-anchor="middle">five services, one readable waterfall — you can see which span dominated the latency</text>
+</svg>
