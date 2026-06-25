@@ -1,5 +1,5 @@
 ---
-title: "11 · Observability"
+title: "Observability"
 order: 11
 part: "The operational platform"
 description: "Traces, metrics, and logs from OpenTelemetry, joined by a shared trace id across the LGTM stack."

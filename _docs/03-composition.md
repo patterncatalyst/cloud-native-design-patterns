@@ -1,5 +1,5 @@
 ---
-title: "03 · Composition"
+title: "Composition"
 order: 3
 part: "Foundations & the system"
 description: "Composing many back-ends behind one schema without coupling them — a GraphQL gateway that fans out to REST and gRPC, the resolver that makes it concrete, and the three places aggregation belongs."

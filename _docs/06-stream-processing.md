@@ -1,5 +1,5 @@
 ---
-title: "06 · Stream Processing"
+title: "Stream Processing"
 order: 6
 part: "Foundations & the system"
 description: "Deriving new streams from streams — stateful, changelog-backed windowed aggregation, and KEDA scaling workers on consumer lag rather than CPU, down to zero when the topic is quiet."

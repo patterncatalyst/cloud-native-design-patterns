@@ -1,5 +1,5 @@
 ---
-title: "10 · API Metadata"
+title: "API Metadata"
 order: 10
 part: "The operational platform"
 description: "Cataloguing and lineage so you can answer 'if I change this field, who breaks?' before you change it."

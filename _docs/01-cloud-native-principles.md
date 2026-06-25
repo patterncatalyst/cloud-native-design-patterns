@@ -1,5 +1,5 @@
 ---
-title: "01 · Cloud-Native Principles"
+title: "Cloud-Native Principles"
 order: 1
 part: "Foundations & the system"
 description: "Cloud-native as a set of runtime properties, not a stack of tools — the six pillars, leaning on the platform, design-first contracts, and the twelve-factor app reframed by who owns each factor."

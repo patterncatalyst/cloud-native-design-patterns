@@ -1,5 +1,5 @@
 ---
-title: "04 · Data"
+title: "Data"
 order: 4
 part: "Foundations & the system"
 description: "Read/write model separation, change data capture, and the transactional outbox that makes 'save the state and publish the event' a single atomic act."

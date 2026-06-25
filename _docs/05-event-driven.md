@@ -1,5 +1,5 @@
 ---
-title: "05 · Event-Driven"
+title: "Event-Driven"
 order: 5
 part: "Foundations & the system"
 description: "Decoupled facts that fan out — the event backbone, producing and consuming with commit-after-side-effect, schemas as the enforced contract, and the difference between event sourcing and event streaming."

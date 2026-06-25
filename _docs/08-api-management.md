@@ -1,5 +1,5 @@
 ---
-title: "08 · API Management"
+title: "API Management"
 order: 8
 part: "The operational platform"
 description: "Gateways, rate limiting, versioning and evolution, and the lifecycle controls around a published API."

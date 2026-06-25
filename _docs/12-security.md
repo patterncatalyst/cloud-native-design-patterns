@@ -1,5 +1,5 @@
 ---
-title: "12 · Security"
+title: "Security"
 order: 12
 part: "Security & anti-patterns"
 description: "The four concentric layers - cloud, cluster, container, code - and the patterns that secure each."

@@ -1,5 +1,5 @@
 ---
-title: "02 · Communications"
+title: "Communications"
 order: 2
 part: "Foundations & the system"
 description: "Four interaction styles and four defaults — REST at the edge, gRPC for internal calls, GraphQL for composed reads, async events for facts — and pushing resilience onto the mesh instead of into your code."

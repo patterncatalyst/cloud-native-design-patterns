@@ -1,5 +1,5 @@
 ---
-title: "13 · Anti-Patterns"
+title: "Anti-Patterns"
 order: 13
 part: "Security & anti-patterns"
 description: "The recurring ways coupling sneaks back in, and the heuristics that keep you out of them."
