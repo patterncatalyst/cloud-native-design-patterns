@@ -1,5 +1,7 @@
 ---
-title: "Appendix E · API Error Handling"
+title: "API Error Handling"
+marker: "E"
+label: "Appendix E"
 order: 18
 part: "Deep-dive appendices"
 description: "Consistent, machine-readable API error handling and the retry behaviour it implies."

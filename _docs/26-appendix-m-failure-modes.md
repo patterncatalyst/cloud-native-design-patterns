@@ -1,5 +1,7 @@
 ---
-title: "Appendix M · Failure Modes"
+title: "Failure Modes"
+marker: "M"
+label: "Appendix M"
 order: 26
 part: "Deep-dive appendices"
 description: "A taxonomy of failure modes, six worked modes, and a defensive toolkit mapped to each."

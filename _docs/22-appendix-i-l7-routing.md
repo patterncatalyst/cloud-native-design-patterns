@@ -1,5 +1,7 @@
 ---
-title: "Appendix I · L7 Routing"
+title: "L7 Routing"
+marker: "I"
+label: "Appendix I"
 order: 22
 part: "Deep-dive appendices"
 description: "Layer-7 routing and content-based dispatch at the gateway and the mesh, including rule-driven routing."

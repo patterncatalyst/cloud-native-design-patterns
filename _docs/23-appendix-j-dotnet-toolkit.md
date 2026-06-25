@@ -1,5 +1,7 @@
 ---
-title: "Appendix J · .NET 10 Toolkit & Migration"
+title: ".NET 10 Toolkit & Migration"
+marker: "J"
+label: "Appendix J"
 order: 23
 part: "Deep-dive appendices"
 description: ".NET-specific: the .NET 10 toolkit and migration reference for teams moving from older stacks."

@@ -1,5 +1,7 @@
 ---
-title: "Appendix G · Balancing Coupling"
+title: "Balancing Coupling"
+marker: "G"
+label: "Appendix G"
 order: 20
 part: "Deep-dive appendices"
 description: "The kinds of coupling, how to measure them, and when looser is not automatically better."

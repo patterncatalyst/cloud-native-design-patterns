@@ -1,5 +1,7 @@
 ---
-title: "Appendix B · Versioning & Evolution"
+title: "Versioning & Evolution"
+marker: "B"
+label: "Appendix B"
 order: 15
 part: "Deep-dive appendices"
 description: "Four ways to version a REST API, from URI paths to media-type negotiation, and how to evolve additively."

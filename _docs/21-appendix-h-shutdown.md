@@ -1,5 +1,7 @@
 ---
-title: "Appendix H · Graceful Shutdown"
+title: "Graceful Shutdown"
+marker: "H"
+label: "Appendix H"
 order: 21
 part: "Deep-dive appendices"
 description: "Draining in-flight work, flipping readiness, and shutting down without dropping requests."

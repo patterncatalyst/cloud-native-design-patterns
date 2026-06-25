@@ -1,5 +1,7 @@
 ---
-title: "Appendix L · Caching Patterns"
+title: "Caching Patterns"
+marker: "L"
+label: "Appendix L"
 order: 25
 part: "Deep-dive appendices"
 description: "Where caching helps, the read-through, write-through, and cache-aside patterns, and the invalidation traps."

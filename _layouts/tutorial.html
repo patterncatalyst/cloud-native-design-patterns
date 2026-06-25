@@ -48,7 +48,7 @@ layout: default
     </nav>
 
     <header class="tutorial__header">
-      <div class="tutorial__num" aria-hidden="true">{{ order_padded }}</div>
+      <div class="tutorial__num" aria-hidden="true">{{ page.marker | default: order_padded }}</div>
       <div class="tutorial__title-group">
         <h1>{{ page.title }}</h1>
         {%- if page.description -%}
@@ -58,7 +58,7 @@ layout: default
           {%- if page.duration -%}
             <span class="chip">⏱ {{ page.duration }}</span>
           {%- endif -%}
-          <span class="chip">Chapter {{ page.order }}</span>
+          <span class="chip">{% if page.label %}{{ page.label }}{% elsif page.order == 0 %}Overview{% else %}Chapter {{ page.order }}{% endif %}</span>
           {%- if page.part -%}<span class="chip chip--accent">{{ page.part }}</span>{%- endif -%}
         </div>
       </div>

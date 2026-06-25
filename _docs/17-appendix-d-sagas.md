@@ -1,5 +1,7 @@
 ---
-title: "Appendix D · Saga State & Compensation"
+title: "Saga State & Compensation"
+marker: "D"
+label: "Appendix D"
 order: 17
 part: "Deep-dive appendices"
 description: "Long-running transactions as a state machine with compensation, in-process and with a workflow engine."

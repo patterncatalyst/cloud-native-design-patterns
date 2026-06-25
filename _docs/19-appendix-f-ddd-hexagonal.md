@@ -1,5 +1,7 @@
 ---
-title: "Appendix F · DDD & Hexagonal Architecture"
+title: "DDD & Hexagonal Architecture"
+marker: "F"
+label: "Appendix F"
 order: 19
 part: "Deep-dive appendices"
 description: "Bounded contexts, anticorruption layers, aggregates, and ports-and-adapters mapped onto the platform."
