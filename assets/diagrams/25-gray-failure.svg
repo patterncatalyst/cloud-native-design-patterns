@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 286" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="340" y="96" width="220" height="86" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="450.0" y="129.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Pod</text>
+<text x="450.0" y="146.5" font-size="11.5" fill="#555555" text-anchor="middle">slow / dropping 5%</text>
+<text x="450.0" y="161.5" font-size="11.5" fill="#555555" text-anchor="middle">liveness handler trivially OK</text>
+<rect x="40" y="104" width="190" height="54" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="135.0" y="129.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Liveness probe</text>
+<text x="135.0" y="146.0" font-size="11.5" fill="#555555" text-anchor="middle">GET /healthz → 200</text>
+<rect x="670" y="104" width="190" height="54" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="765.0" y="129.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Real client traffic</text>
+<text x="765.0" y="146.0" font-size="11.5" fill="#555555" text-anchor="middle">errors + latency</text>
+<path d="M230,131 L340,135" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="291.0" y="125.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">sees healthy</text>
+<text x="291.0" y="125.0" font-size="11" fill="#555" text-anchor="middle">sees healthy</text>
+<path d="M560,135 L670,131" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
+<text x="621.0" y="125.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">sees failure</text>
+<text x="621.0" y="125.0" font-size="11" fill="#b8650a" text-anchor="middle">sees failure</text>
+<text x="450" y="214" font-size="11" fill="#333" text-anchor="middle" font-weight="700">differential observability: the observer that decides (the probe) sees something different from the observer that matters (the client)</text>
+<text x="450" y="238" font-size="11" fill="#2f6db5" text-anchor="middle">fix from the right vantage point: deep health checks, RED on real traffic, SLO burn alerts, and Istio outlier detection (ejects the host)</text>
+</svg>

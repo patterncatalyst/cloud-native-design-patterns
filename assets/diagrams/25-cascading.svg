@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 286" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="40" y="110" width="150" height="64" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="115.0" y="140.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Edge</text>
+<text x="115.0" y="157.0" font-size="11.5" fill="#555555" text-anchor="middle">fails for users</text>
+<rect x="250" y="110" width="150" height="64" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="325.0" y="140.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Service B</text>
+<text x="325.0" y="157.0" font-size="11.5" fill="#555555" text-anchor="middle">pool fills</text>
+<rect x="460" y="110" width="150" height="64" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="535.0" y="140.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Service C</text>
+<text x="535.0" y="157.0" font-size="11.5" fill="#555555" text-anchor="middle">threads block</text>
+<rect x="670" y="110" width="190" height="64" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5"/>
+<text x="765.0" y="140.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Slow database</text>
+<text x="765.0" y="157.0" font-size="11.5" fill="#555555" text-anchor="middle">the trigger</text>
+<path d="M670,142 L610,142" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
+<text x="646.0" y="134.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">slow</text>
+<text x="646.0" y="134.0" font-size="11" fill="#b8650a" text-anchor="middle">slow</text>
+<path d="M460,142 L400,142" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
+<text x="436.0" y="134.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">blocks</text>
+<text x="436.0" y="134.0" font-size="11" fill="#b8650a" text-anchor="middle">blocks</text>
+<path d="M250,142 L190,142" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
+<text x="226.0" y="134.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">blocks</text>
+<text x="226.0" y="134.0" font-size="11" fill="#b8650a" text-anchor="middle">blocks</text>
+<text x="450" y="212" font-size="11" fill="#a11" text-anchor="middle" font-weight="700">a slow dependency fills the caller&#x27;s threads/pool; with resources exhausted it fails for ALL callers, and the wave propagates up the graph</text>
+<text x="450" y="236" font-size="11" fill="#2f6db5" text-anchor="middle">each pattern breaks one link: timeouts free threads · bulkheads isolate the pool · breakers stop calling · shedding rejects at the edge</text>
+</svg>
