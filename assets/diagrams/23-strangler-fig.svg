@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 326" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="20" y="44" width="860" height="232" rx="12" fill="#fbfbfb" stroke="#ddd"/>
+<text x="32" y="64" font-size="12" font-weight="700" fill="#1d1d1d">Identify → move → redirect — one bounded asset at a time, system live throughout</text>
+<rect x="44" y="120" width="120" height="60" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="104.0" y="148.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Clients</text>
+<text x="104.0" y="165.0" font-size="11.5" fill="#555555" text-anchor="middle">one URL</text>
+<rect x="250" y="120" width="160" height="60" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="330.0" y="148.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Proxy</text>
+<text x="330.0" y="165.0" font-size="11.5" fill="#555555" text-anchor="middle">routing layer</text>
+<rect x="520" y="72" width="250" height="58" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="645.0" y="99.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">New service</text>
+<text x="645.0" y="116.0" font-size="11.5" fill="#555555" text-anchor="middle">the extracted slice</text>
+<rect x="520" y="182" width="250" height="58" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="645.0" y="209.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Shrinking monolith</text>
+<text x="645.0" y="226.0" font-size="11.5" fill="#555555" text-anchor="middle">everything else</text>
+<path d="M164,150 L250,150" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M410,135 L520,101" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
+<text x="471.0" y="110.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">widen 1% → 100%</text>
+<text x="471.0" y="110.0" font-size="11" fill="#b8650a" text-anchor="middle">widen 1% → 100%</text>
+<path d="M410,165 L520,211" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="471.0" y="204.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">default</text>
+<text x="471.0" y="204.0" font-size="11" fill="#555" text-anchor="middle">default</text>
+<text x="330" y="205" font-size="10" fill="#8a4b06" text-anchor="middle">step zero: add the proxy first</text>
+<text x="450" y="300" font-size="11" fill="#2f6db5" text-anchor="middle">redirect is a proxy config change, not a client release — widen to roll forward, narrow to roll back, every step reversible</text>
+</svg>
