@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 404" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="20" y="52" width="860" height="262" rx="12" fill="#fbfbfb" stroke="#ddd"/>
+<text x="32" y="72" font-size="12" font-weight="700" fill="#1d1d1d">Hexagonal architecture — adapters plug into ports around an isolated domain core</text>
+<rect x="44" y="96" width="150" height="48" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="119.0" y="125.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">REST adapter</text>
+<rect x="44" y="156" width="150" height="48" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="119.0" y="185.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">gRPC adapter</text>
+<rect x="44" y="216" width="150" height="48" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="119.0" y="245.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">GraphQL adapter</text>
+<rect x="336" y="108" width="232" height="150" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="452.0" y="166.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Domain core</text>
+<text x="452.0" y="183.0" font-size="11.5" fill="#555555" text-anchor="middle">entities · aggregates · logic</text>
+<text x="452.0" y="198.0" font-size="11.5" fill="#555555" text-anchor="middle">declares the ports it needs</text>
+<text x="452.0" y="213.0" font-size="11.5" fill="#555555" text-anchor="middle">depends on nothing</text>
+<rect x="706" y="112" width="162" height="56" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="787.0" y="138.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Postgres repository</text>
+<text x="787.0" y="155.0" font-size="11.5" fill="#555555" text-anchor="middle">implements a port</text>
+<rect x="706" y="200" width="162" height="56" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="787.0" y="226.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Kafka publisher</text>
+<text x="787.0" y="243.0" font-size="11.5" fill="#555555" text-anchor="middle">implements a port</text>
+<path d="M194,120 L336,150" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M194,180 L336,183" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="271.0" y="173.5" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">inbound port</text>
+<text x="271.0" y="173.5" font-size="11" fill="#555" text-anchor="middle">inbound port</text>
+<path d="M194,240 L336,216" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M568,160 L706,140" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="643.0" y="142.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">outbound port</text>
+<text x="643.0" y="142.0" font-size="11" fill="#555" text-anchor="middle">outbound port</text>
+<path d="M568,206 L706,228" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="450" y="342" font-size="11" fill="#8a4b06" text-anchor="middle">dependencies point inward — adapters depend on the domain, never the reverse</text>
+<text x="450" y="362" font-size="11" fill="#2f6db5" text-anchor="middle">add or swap any adapter without touching a line of domain logic</text>
+</svg>
