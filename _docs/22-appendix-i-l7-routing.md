@@ -5,7 +5,7 @@ label: "Appendix I"
 order: 22
 part: "Deep-dive appendices"
 description: "Layer-7 routing as a four-layer stack of software — edge, gateway, mesh, and in-app — that decides on every HTTP and gRPC envelope, north/south and east/west, including rule-driven routing pushed inside the service."
-duration: 24 minutes
+duration: 32 minutes
 ---
 
 This is the longest appendix in the book, large enough to be a talk of its own. The
@@ -28,6 +28,11 @@ one nuance worth holding onto is TLS: an L4 balancer can route by SNI *without* 
 TLS (cheap, opaque), while an L7 router typically terminates TLS so it can read everything
 else (richer, slightly slower).
 
+{% include excalidraw.html
+   file="22-l4-vs-l7"
+   alt="Two columns. L4 transport sees source and destination IP and port, TCP/UDP protocol, and TLS SNI hostname only; it can pick a backend by IP or port and load-balance by the 5-tuple, but cannot read URLs or headers or route per user or cookie. L7 application sees the host header, URL path, HTTP method, query params, request and response headers, cookies, JWT claims, and the gRPC service.method; it can route by path, header, or cookie, branch by header to a canary, version, or user, and inject or rewrite headers and rate-limit."
+   caption="Figure I.1 — L4 sees connections (IPs, ports, the 5-tuple); L7 sees the whole HTTP/gRPC conversation and can route on any of it" %}
+
 ## The four-layer stack
 
 L7 routing lives in four layers, and each is the right home for a *different kind* of
@@ -36,7 +41,7 @@ decision. A request is really a chain of independent L7 decisions across them.
 {% include excalidraw.html
    file="22-l7-layers"
    alt="North/south: a client passes through edge/ingress (TLS, host/path), then the API gateway (auth, rate limit), then a mesh sidecar (mTLS, retries), then the service (in-app rules). East/west: service A and service B talk through mesh sidecars that add mTLS, outlier detection, and locality routing. Each layer makes a different kind of decision and emits a trace span."
-   caption="Figure I.1 — L7 routing is a four-layer stack; the mesh applies the same routing to every internal call, not just at the edge" %}
+   caption="Figure I.2 — L7 routing is a four-layer stack; the mesh applies the same routing to every internal call, not just at the edge" %}
 
 The **edge / ingress** layer (HAProxy, Nginx, Envoy, Traefik) is where TLS terminates and
 coarse host/path routing happens. The **API gateway** (Kong, Apigee, an Istio gateway,
@@ -47,6 +52,11 @@ locality-aware load balancing. And when a decision depends on business rules the
 cannot know, routing pushes into the **app** itself. Each box can refuse, transform, or
 branch the request, and each emits a trace span — so the journey from the Observability
 chapter, viewed through the L7 lens, is observable end to end.
+
+{% include excalidraw.html
+   file="22-l7-journey"
+   alt="A request's L7 journey across five components: Client (request), Edge LB (TLS, host and path), API Gateway (auth, rate-limit), Mesh sidecar (mTLS, retry, locality), and the Service (in-app routing). Each box can refuse, transform, or branch the request and emits a trace span for the next layer."
+   caption="Figure I.3 — A request's journey: Client → Edge LB → API Gateway → Mesh sidecar → Service, each making its own L7 decision" %}
 
 ## Content-based routing
 
@@ -107,6 +117,11 @@ for a known constraint, never a default, and prefer to externalise state (Redis 
 data, JWT claims for identity, the backplane from the WebSockets appendix for fan-out) so
 the balancer can return to no-affinity.
 
+{% include excalidraw.html
+   file="22-sticky-sessions"
+   alt="Three affinity modes. No affinity: any pod gets any request, load is even, client state lives elsewhere — the preferred default. Cookie-based: the LB sets a session cookie so the client returns to the same pod, works behind any L7 LB, but ties the session to the pod's life. IP-hash: hash the client IP to a pod, no cookies needed, but NAT and mobile NAT break it and load can skew badly. The cost of stickiness is uneven load, painful pod restarts, broken scale-to-zero, and every restart re-balancing all sessions."
+   caption="Figure I.4 — Affinity modes: no-affinity is the default; cookie and IP-hash stickiness both fight elastic scaling" %}
+
 ## Intelligent traffic steering
 
 Six familiar release shapes are all the same L7 primitive with different inputs and weights:
@@ -154,6 +169,11 @@ claims downstream). Body transformation is the expensive one: it forces the rout
 the full payload, killing streaming and risking memory under load. The rule of thumb: if you
 can do it in the headers, do it in the headers.
 
+{% include excalidraw.html
+   file="22-traffic-steering"
+   alt="Six release shapes built from the same L7 primitive. Canary: 90% v1, 10% v2, watch metrics and ramp. Blue/Green: all v1 to all v2, flip atomically with fast rollback. A/B test: a cohort maps to a variant, stable per user, measure. Header-based: an x-internal header routes to v2 for dark launches and betas. Geo/latency: EU users to EU pods for lower RTT and data residency. Shadow: copy traffic to v2 to test under load with no user impact."
+   caption="Figure I.5 — Six familiar release shapes, all the same weighted/header L7 rule with different deploy-and-rollback discipline" %}
+
 ## Routing inside the app by business rules
 
 There is a threshold where routing leaves the network and enters the service. If the decision
@@ -163,6 +183,11 @@ intersecting conditions — think routing a healthcare message by patient class 
 type — push it into a rule engine inside the app, behind the mesh, not in a network CRD. The
 discipline is "data, not code": the routing logic lives in an externalised ruleset the domain
 experts own, separate from the dispatcher, and changes without redeploying the service.
+
+{% include excalidraw.html
+   file="22-business-rule-routing"
+   alt="Routing by business rules inside the service. Inputs from REST, WebSocket, or Kafka reach a FastAPI/Starlette router that enriches the order with context, evaluates an externalised durable-rules ruleset (a Rete forward-chaining engine), and dynamically dispatches to a list of destinations. The router fans out to service A on a Kafka topic, service B over HTTP, and a DLQ/audit topic. The durable-rules engine sits beside the router and is consulted per request."
+   caption="Figure I.6 — When routing depends on a business rule, a FastAPI front evaluates an externalised durable-rules ruleset and dispatches to services A, B, or a DLQ" %}
 
 Each ecosystem composes this from its own rule engine — a Rete forward-chaining engine in
 most cases — feeding a small dispatcher. First the **ruleset**, read as a set of "when … then …"
@@ -465,6 +490,11 @@ under load; and timeout misalignment, which is the gateway-to-mesh-to-service ve
 retry storm from the Error Handling appendix. The fix is identical — bound retries, align
 timeouts top-down, and give the deepest layer the strictest budget.
 
+{% include excalidraw.html
+   file="22-hop-cost"
+   alt="A latency budget per L7 stage: TLS termination 0.5 to 2 ms, L7 path/header routing under 1 ms, Auth/JWT validation 1 to 5 ms, WAF inspection 2 to 5 ms, mesh sidecar 0.5 to 2 ms per hop, rate-limit Redis lookup 1 to 3 ms, body/payload inspection 5 to 50 ms, and in-app rule eval under 1 ms cached. The rule of thumb is to stay under about 10 ms of total L7 on hot paths, so every hop must earn its place."
+   caption="Figure I.7 — Each L7 stage adds latency; stay under ~10 ms of total L7 on hot paths, so every hop must earn its place" %}
+
 ## East / west — L7 between services
 
 Most L7 decisions in a microservices system are not at the edge; they happen east/west, every
@@ -473,6 +503,11 @@ mTLS (encryption *and* identity), HTTP/2 multiplexing, native gRPC, retries with
 jitter, outlier detection that ejects misbehaving pods, locality-aware load balancing that
 prefers same-zone pods, and per-call traces. The same Istio CRDs as the edge, pointed at an
 internal host:
+
+{% include excalidraw.html
+   file="22-east-west"
+   alt="East/west L7 between services. Service A talks to service B through a sidecar pair (Envoy or Linkerd) over mTLS, HTTP/2, and gRPC. What the sidecars do per call with no app code: mTLS, retries with backoff and jitter, outlier detection, locality-aware load balancing, header-based routing and canary weights, rich traces and per-call metrics, circuit breakers, and rate limits."
+   caption="Figure I.8 — East/west L7: a sidecar pair gives every service-to-service call mTLS, retries, locality, and traces with no app code" %}
 
 ```yaml
 apiVersion: networking.istio.io/v1
