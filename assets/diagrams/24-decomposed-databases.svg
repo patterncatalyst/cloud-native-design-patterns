@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 440" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="200" y="55" width="780" height="150" rx="12" fill="#fdf3e3" stroke="#ddd"/>
+<text x="212" y="75" font-size="12" font-weight="700" fill="#1d1d1d">The application — one process</text>
+<rect x="230" y="90" width="230" height="92" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="345.0" y="141.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Orders module</text>
+<rect x="480" y="90" width="230" height="92" rx="9" fill="#f4f4f4" stroke="#888888" stroke-width="1.5"/>
+<text x="595.0" y="141.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Inventory module</text>
+<rect x="730" y="90" width="230" height="92" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="845.0" y="141.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Payments module</text>
+<rect x="230" y="290" width="230" height="92" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="345.0" y="326.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Orders DB</text>
+<text x="345.0" y="343.5" font-size="11.5" fill="#555555" text-anchor="middle">own Postgres</text>
+<text x="345.0" y="358.5" font-size="11.5" fill="#555555" text-anchor="middle">own schema · own pool</text>
+<rect x="480" y="290" width="230" height="92" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="595.0" y="326.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Inventory DB</text>
+<text x="595.0" y="343.5" font-size="11.5" fill="#555555" text-anchor="middle">own Postgres / Mongo</text>
+<text x="595.0" y="358.5" font-size="11.5" fill="#555555" text-anchor="middle">own schema · own pool</text>
+<rect x="730" y="290" width="230" height="92" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="845.0" y="326.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Payments DB</text>
+<text x="845.0" y="343.5" font-size="11.5" fill="#555555" text-anchor="middle">own Postgres</text>
+<text x="845.0" y="358.5" font-size="11.5" fill="#555555" text-anchor="middle">encrypted at rest · PII boundary</text>
+<path d="M345,182 L345,290" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M595,182 L595,290" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M845,182 L845,290" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="590" y="408" font-size="12" fill="#2e7d32" text-anchor="middle">cross-module data is now async / event-driven — the same discipline as microservices, without the operational cost</text>
+<text x="590" y="430" font-size="12" fill="#555" text-anchor="middle">promoting one module to a process is now a deployment change, not a data-migration project</text>
+</svg>

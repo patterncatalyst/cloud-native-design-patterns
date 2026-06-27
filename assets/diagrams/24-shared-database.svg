@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 440" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="40" y="180" width="160" height="84" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="120.0" y="227.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Clients</text>
+<rect x="240" y="172" width="200" height="100" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="340.0" y="227.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Proxy</text>
+<rect x="500" y="78" width="290" height="92" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="645.0" y="114.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Orders service (new)</text>
+<text x="645.0" y="131.5" font-size="11.5" fill="#555555" text-anchor="middle">reads / writes the same DB</text>
+<text x="645.0" y="146.5" font-size="11.5" fill="#555555" text-anchor="middle">owns the API but not the data</text>
+<rect x="500" y="288" width="290" height="92" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="645.0" y="332.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Monolith</text>
+<text x="645.0" y="349.0" font-size="11.5" fill="#555555" text-anchor="middle">still reads / writes same DB</text>
+<rect x="850" y="182" width="270" height="94" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="985.0" y="219.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Shared DB</text>
+<text x="985.0" y="236.5" font-size="11.5" fill="#555555" text-anchor="middle">tables both apps know</text>
+<text x="985.0" y="251.5" font-size="11.5" fill="#555555" text-anchor="middle">no schema-change isolation</text>
+<path d="M200,222 L240,222" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M440,200 L500,124" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M440,244 L500,320" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M790,124 L850,210" fill="none" stroke="#555" stroke-width="2" marker-start="url(#a)" marker-end="url(#a)"/>
+<path d="M790,334 L850,250" fill="none" stroke="#555" stroke-width="2" marker-start="url(#a)" marker-end="url(#a)"/>
+<text x="590" y="408" font-size="12" fill="#a23" text-anchor="middle">two apps writing the same tables is a coordination tax — schema changes need both sides to agree</text>
+<text x="590" y="430" font-size="12" fill="#555" text-anchor="middle">move on: the next step is to give the new service its OWN store (the decomposed-DB state)</text>
+</svg>
