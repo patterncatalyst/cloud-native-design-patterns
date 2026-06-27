@@ -3,7 +3,7 @@ title: "Workflows & Jobs"
 order: 7
 part: "The operational platform"
 description: "Coordinating multi-step processes — orchestration versus choreography and when each fits — and where non-request work lives on Kubernetes: Jobs, CronJobs, and KEDA-scaled queue workers."
-duration: 14 minutes
+duration: 17 minutes
 ---
 
 Part 1 built the synchronous surface and the asynchronous backbone. Part 2 is the
@@ -26,6 +26,15 @@ event and emits its own. It is maximally decoupled — adding a step means addin
 subscriber. Its failure mode is the opposite: the end-to-end flow is *emergent*,
 so nobody owns it and nobody can answer "where is order 42 stuck?".
 
+The deeper distinction is the direction of control. Orchestration moves **commands**
+outward from a coordinator that holds the workflow state explicitly — which is why
+you can query that state and answer where any instance is. Choreography moves
+**events** between peers that each hold only their own slice, so the workflow exists
+only as the sum of their reactions: cheaper to extend, harder to see. Neither is more
+"correct"; they trade *visibility and central ownership* against *coupling*, and most
+large systems use both — orchestration for the few flows that need an auditable
+lifecycle, choreography for the many simple fan-outs around them.
+
 {% include excalidraw.html
    file="07-orchestration-vs-choreography"
    alt="Top: a saga orchestrator commands payment, shipping, and notification in turn. Bottom: payment, shipping, and notification react to each other's events in a chain with no central coordinator"
@@ -45,8 +54,7 @@ The heuristic:
 The trap is using choreography for a process that's actually complex, then
 discovering six months later that no single place describes what the process *is*.
 When the flow has compensations and a lifecycle, that lifecycle wants to live
-somewhere explicit — which is exactly the persisted saga state machine in **17 ·
-Appendix D**.
+somewhere explicit — which is exactly the persisted saga state machine in **Appendix D · Sagas**.
 
 ## Where non-request work lives
 
@@ -55,10 +63,19 @@ belongs on the request path.** Doing heavy work inside an HTTP handler blocks th
 request and times out the client. Kubernetes gives you three homes for it:
 
 - A **Job** runs a task to completion and exits — a data migration, a one-off
-  export.
-- A **CronJob** schedules Jobs — the reconciliation that runs at 02:00.
+  export. It retries on failure up to a `backoffLimit` and is the right home for
+  anything that must run once and finish.
+- A **CronJob** schedules Jobs on a cron expression — the reconciliation that runs
+  at 02:00 — and its `concurrencyPolicy` decides what happens when a run is still
+  going as the next is due (skip it, replace it, or allow the overlap).
 - A **queue worker** continuously drains a topic and is scaled by KEDA on lag,
-  exactly as in the stream-processing chapter.
+  exactly as in the stream-processing chapter; it scales to zero when the topic is
+  quiet.
+
+{% include excalidraw.html
+   file="07-jobs-cronjobs"
+   alt="Three columns of non-request work on Kubernetes. Job: run-to-completion, data backfill, schema migration, retries with backoffLimit. CronJob: scheduled with a cron expression, nightly reconcile, report generation, concurrencyPolicy. Queue worker: long-lived consumer scaled by KEDA, image resize and email, off the request path."
+   caption="Figure 7.2 — Three homes for non-request work: run-once Jobs, scheduled CronJobs, and KEDA-scaled queue workers" %}
 
 ```yaml
 # A CronJob schedules a Job; the Job runs to completion and exits.
@@ -82,6 +99,14 @@ A queue worker isn't a Job at all — it's an ordinary Deployment that loops on 
 topic, with the `ScaledObject` from the stream-processing chapter giving it
 scale-to-zero. The shape of the work picks the home: run-once is a Job, scheduled
 is a CronJob, continuous is a scaled Deployment.
+
+One discipline ties all three together: **idempotency**. A Job retries on failure, a
+CronJob can re-run or overlap, and a redelivered message re-invokes a queue worker —
+so each must be safe to run more than once. Re-running last night's reconciliation
+must not double-count; reprocessing a message must not charge a card twice. This is
+the same at-least-once-plus-idempotent rule from the event-driven chapter, applied to
+scheduled and background work — design the task so a second run is a no-op, and the
+platform's retries become a safety net instead of a hazard.
 
 ### Cross-check it yourself
 
