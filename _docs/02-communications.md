@@ -3,7 +3,7 @@ title: "Communications"
 order: 2
 part: "Foundations & the system"
 description: "Four interaction styles and four defaults — REST at the edge, gRPC for internal calls, GraphQL for composed reads, async events for facts — and pushing resilience onto the mesh instead of into your code."
-duration: 18 minutes
+duration: 20 minutes
 ---
 
 A service talks to the world and to its peers, and the mistake is using one wire
@@ -15,6 +15,20 @@ one.
 - **gRPC** for internal service-to-service calls — latency and streaming matter.
 - **GraphQL** for client-driven reads that compose many sources in one round trip.
 - **Async events** for decoupled facts that fan out to whoever cares.
+
+{% include excalidraw.html
+   file="02-pick-protocol"
+   alt="Four columns of interaction styles, each tagged sync or async: REST/HTTP (public and edge surface, wide reach, cacheable, resource-shaped, FastAPI) — sync; gRPC (internal service-to-service, low latency, streaming, schema-first proto) — sync; GraphQL (client-driven reads, compose many sources, one round-trip, Strawberry/Graphene) — sync; and Async/events (fire-and-forget facts, decoupled in time, fan-out to many, Kafka/Pulsar) — async."
+   caption="Figure 2.1 — Four interaction styles, four defaults — three synchronous, one asynchronous" %}
+
+Read it by the sync/async tags along the bottom: REST, gRPC, and GraphQL are all
+request/response — the caller waits — while events are fire-and-forget. Three of the
+four couple the caller to the callee's availability for the duration of the call; only
+the fourth breaks that coupling. Choosing a style is therefore choosing how much
+availability you are willing to inherit — the thread the rest of the chapter pulls on.
+REST wins where reach and caching matter; gRPC where an internal hop must be fast and
+strongly typed; GraphQL where one client read would otherwise be a handful of round
+trips; and events wherever immediacy is not strictly required.
 
 ## REST at the edge
 
@@ -173,9 +187,90 @@ message ReserveRequest { string sku = 1; int32 quantity = 2; }
 message ReserveReply   { bool reserved = 1; int32 remaining = 2; }
 ```
 
-The field numbers (`= 1`, `= 2`) are the wire contract, not cosmetic — **15 ·
-Appendix B** explains exactly why they can never be reused. Generate stubs with
-`protoc` or `buf`, and both sides share types.
+The field numbers (`= 1`, `= 2`) are the wire contract, not cosmetic — **Appendix B**
+explains exactly why they can never be reused. Generate stubs with `protoc` or `buf`,
+and both sides share types.
+
+The server side is generated too: you implement the service interface the `.proto`
+produces and fill in the one method, never touching the wire format itself.
+
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+
+```java
+@GrpcService                                    // grpc-spring-boot-starter
+public class InventoryService extends InventoryGrpc.InventoryImplBase {
+  private final Stock stock;
+  public InventoryService(Stock stock) { this.stock = stock; }
+
+  @Override                                      // generated base method
+  public void reserveStock(ReserveRequest req, StreamObserver<ReserveReply> obs) {
+    int remaining = stock.reserve(req.getSku(), req.getQuantity());   // generated getters
+    obs.onNext(ReserveReply.newBuilder()
+        .setReserved(remaining >= 0)
+        .setRemaining(Math.max(remaining, 0)).build());
+    obs.onCompleted();
+  }
+}
+```
+
+```java
+@GrpcService                                    // Quarkus gRPC
+public class InventoryService implements Inventory {   // generated interface
+  @Inject Stock stock;
+
+  @Override @Blocking                            // run the blocking reserve on a worker
+  public Uni<ReserveReply> reserveStock(ReserveRequest req) {
+    int remaining = stock.reserve(req.getSku(), req.getQuantity());
+    return Uni.createFrom().item(ReserveReply.newBuilder()
+        .setReserved(remaining >= 0)
+        .setRemaining(Math.max(remaining, 0)).build());
+  }
+}
+```
+
+```csharp
+public class InventoryService : Inventory.InventoryBase   // generated base
+{
+    private readonly IStock _stock;
+    public InventoryService(IStock stock) => _stock = stock;
+
+    public override Task<ReserveReply> ReserveStock(
+        ReserveRequest req, ServerCallContext ctx)
+    {
+        var remaining = _stock.Reserve(req.Sku, req.Quantity);
+        return Task.FromResult(new ReserveReply {
+            Reserved = remaining >= 0, Remaining = Math.Max(remaining, 0) });
+    }
+}
+```
+
+```python
+# server.py — generated stubs from protoc / buf
+class InventoryServicer(inventory_pb2_grpc.InventoryServicer):
+    def ReserveStock(self, request, context):
+        remaining = stock.reserve(request.sku, request.quantity)
+        return inventory_pb2.ReserveReply(
+            reserved=remaining >= 0, remaining=max(remaining, 0))
+```
+
+```cpp
+// inventory_service.cc — grpc++ sync API; generated Inventory::Service base
+class InventoryServiceImpl final : public Inventory::Service {
+  grpc::Status ReserveStock(grpc::ServerContext* ctx,
+                            const ReserveRequest* req,
+                            ReserveReply* reply) override {
+    int remaining = stock_.reserve(req->sku(), req->quantity());  // generated accessors
+    reply->set_reserved(remaining >= 0);
+    reply->set_remaining(std::max(remaining, 0));
+    return grpc::Status::OK;
+  }
+  Stock stock_;
+};
+```
+
+There is no socket code, no serialisation, no HTTP/2 framing — the generated base class
+handles all of it. Your method receives a typed `ReserveRequest` and returns a typed
+`ReserveReply`, and every language fills in the same one `ReserveStock` contract.
 
 ## Synchronous coupling vs. asynchronous facts
 
@@ -188,7 +283,7 @@ that were down catch up from the log later.
 {% include excalidraw.html
    file="02-sync-vs-async"
    alt="Top row: order makes a synchronous call to payment and blocks on it, so if payment is down the order fails. Bottom row: order emits an order.placed fact to Kafka, and consumers catch up from the log independently"
-   caption="Figure 2.1 — A blocking call couples availability; a published fact decouples it" %}
+   caption="Figure 2.2 — A blocking call couples availability; a published fact decouples it" %}
 
 The rule: reach for async wherever immediacy isn't strictly required. A call you
 *must* wait for is a call whose availability you have inherited.
@@ -200,6 +295,18 @@ intercepts and adds mTLS, retries, timeouts, and telemetry **on the wire** —
 uniformly, for every service, with zero application code. This ties straight back
 to the principles chapter: resilience and security become platform defaults, not
 per-service reimplementations.
+
+{% include excalidraw.html
+   file="02-mesh-handles-wire"
+   alt="Two pods, each containing an app (FastAPI or grpc server, speaking plain localhost) beside an istio-proxy Envoy sidecar that handles mTLS, retries, timeouts, and traces. The two sidecars communicate over mutual TLS, encrypted and authenticated. Below, the istiod control plane distributes policy, SPIFFE identity, and telemetry config to both pods."
+   caption="Figure 2.3 — The mesh moves cross-cutting concerns off your code: sidecars handle mTLS, retries, timeouts, and telemetry, configured by istiod" %}
+
+Each pod runs your service next to an Envoy sidecar. Your code talks plain HTTP or gRPC
+to localhost; the sidecar intercepts every call, adds mutual TLS so traffic between pods
+is encrypted and authenticated by SPIFFE identity, and applies the retry and timeout
+policy. The istiod control plane distributes that policy and identity to every sidecar,
+so the behaviour is uniform and centrally configured rather than coded per service. The
+`VirtualService` below is how that policy is expressed:
 
 ```yaml
 # Istio VirtualService — retries and timeout for inventory, as config not code

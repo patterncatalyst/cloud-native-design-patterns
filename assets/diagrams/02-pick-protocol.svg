@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 360" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="20" y="60" width="215" height="205" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="127.5" y="138.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">REST / HTTP</text>
+<text x="127.5" y="155.0" font-size="11.5" fill="#555555" text-anchor="middle">public &amp; edge surface</text>
+<text x="127.5" y="170.0" font-size="11.5" fill="#555555" text-anchor="middle">wide reach, cacheable</text>
+<text x="127.5" y="185.0" font-size="11.5" fill="#555555" text-anchor="middle">resource-shaped</text>
+<text x="127.5" y="200.0" font-size="11.5" fill="#555555" text-anchor="middle">FastAPI</text>
+<rect x="70" y="285" width="115" height="34" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="127.5" y="307.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">sync</text>
+<rect x="260" y="60" width="215" height="205" rx="9" fill="#f4f4f4" stroke="#888888" stroke-width="1.5"/>
+<text x="367.5" y="138.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">gRPC</text>
+<text x="367.5" y="155.0" font-size="11.5" fill="#555555" text-anchor="middle">internal service-to-service</text>
+<text x="367.5" y="170.0" font-size="11.5" fill="#555555" text-anchor="middle">low latency, streaming</text>
+<text x="367.5" y="185.0" font-size="11.5" fill="#555555" text-anchor="middle">schema-first (proto)</text>
+<text x="367.5" y="200.0" font-size="11.5" fill="#555555" text-anchor="middle">grpc + protobuf</text>
+<rect x="310" y="285" width="115" height="34" rx="9" fill="#f4f4f4" stroke="#888888" stroke-width="1.5"/>
+<text x="367.5" y="307.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">sync</text>
+<rect x="500" y="60" width="215" height="205" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="607.5" y="138.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">GraphQL</text>
+<text x="607.5" y="155.0" font-size="11.5" fill="#555555" text-anchor="middle">client-driven reads</text>
+<text x="607.5" y="170.0" font-size="11.5" fill="#555555" text-anchor="middle">compose many sources</text>
+<text x="607.5" y="185.0" font-size="11.5" fill="#555555" text-anchor="middle">one round-trip</text>
+<text x="607.5" y="200.0" font-size="11.5" fill="#555555" text-anchor="middle">Strawberry / Graphene</text>
+<rect x="550" y="285" width="115" height="34" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="607.5" y="307.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">sync</text>
+<rect x="740" y="60" width="215" height="205" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="847.5" y="138.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Async / events</text>
+<text x="847.5" y="155.0" font-size="11.5" fill="#555555" text-anchor="middle">fire-and-forget facts</text>
+<text x="847.5" y="170.0" font-size="11.5" fill="#555555" text-anchor="middle">decoupled in time</text>
+<text x="847.5" y="185.0" font-size="11.5" fill="#555555" text-anchor="middle">fan-out to many</text>
+<text x="847.5" y="200.0" font-size="11.5" fill="#555555" text-anchor="middle">Kafka / Pulsar</text>
+<rect x="790" y="285" width="115" height="34" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="847.5" y="307.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">async</text>
+<text x="490" y="342" font-size="12" fill="#2f6db5" text-anchor="middle">pick the protocol for the interaction, not the org chart — most systems use all four; the skill is matching each call to the right style</text>
+</svg>
