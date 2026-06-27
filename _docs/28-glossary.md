@@ -2,7 +2,7 @@
 title: "Acronyms"
 marker: "★"
 label: "Glossary"
-order: 27
+order: 28
 part: "Deep-dive appendices"
 description: "The acronyms used across the book - protocols, data, events, platform, security, observability."
 ---
