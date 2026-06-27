@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1140 410" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="20" y="150" width="120" height="72" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="80.0" y="184.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Client</text>
+<text x="80.0" y="201.0" font-size="11.5" fill="#555555" text-anchor="middle">commands</text>
+<rect x="190" y="120" width="210" height="120" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="295.0" y="155.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Command handler</text>
+<text x="295.0" y="172.5" font-size="11.5" fill="#555555" text-anchor="middle">validates</text>
+<text x="295.0" y="187.5" font-size="11.5" fill="#555555" text-anchor="middle">loads aggregate</text>
+<text x="295.0" y="202.5" font-size="11.5" fill="#555555" text-anchor="middle">applies invariants</text>
+<text x="295.0" y="217.5" font-size="11.5" fill="#555555" text-anchor="middle">writes new state</text>
+<rect x="190" y="275" width="210" height="72" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5"/>
+<text x="295.0" y="301.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Write store</text>
+<text x="295.0" y="318.5" font-size="11.5" fill="#555555" text-anchor="middle">normalized, transactional</text>
+<text x="295.0" y="333.5" font-size="11.5" fill="#555555" text-anchor="middle">(Postgres)</text>
+<rect x="470" y="155" width="165" height="85" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="552.5" y="188.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Events / WAL</text>
+<text x="552.5" y="205.0" font-size="11.5" fill="#555555" text-anchor="middle">domain events</text>
+<text x="552.5" y="220.0" font-size="11.5" fill="#555555" text-anchor="middle">or CDC stream</text>
+<rect x="705" y="120" width="210" height="110" rx="9" fill="#f4f4f4" stroke="#888888" stroke-width="1.5"/>
+<text x="810.0" y="158.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Projection</text>
+<text x="810.0" y="175.0" font-size="11.5" fill="#555555" text-anchor="middle">consumes events</text>
+<text x="810.0" y="190.0" font-size="11.5" fill="#555555" text-anchor="middle">denormalizes</text>
+<text x="810.0" y="205.0" font-size="11.5" fill="#555555" text-anchor="middle">updates read model</text>
+<rect x="705" y="275" width="210" height="72" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5"/>
+<text x="810.0" y="301.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Read store</text>
+<text x="810.0" y="318.5" font-size="11.5" fill="#555555" text-anchor="middle">wide tables · ES · Mongo</text>
+<text x="810.0" y="333.5" font-size="11.5" fill="#555555" text-anchor="middle">shaped for the query</text>
+<rect x="985" y="155" width="135" height="72" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="1052.5" y="189.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Client</text>
+<text x="1052.5" y="206.0" font-size="11.5" fill="#555555" text-anchor="middle">queries</text>
+<path d="M140,182 L190,180" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="171.0" y="173.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">state change</text>
+<text x="171.0" y="173.0" font-size="11" fill="#555" text-anchor="middle">state change</text>
+<path d="M295,240 L295,275" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M400,185 L470,192" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
+<text x="441.0" y="180.5" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">emit</text>
+<text x="441.0" y="180.5" font-size="11" fill="#b8650a" text-anchor="middle">emit</text>
+<path d="M400,300 L470,225" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<text x="441.0" y="276.5" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">or CDC tail</text>
+<text x="441.0" y="276.5" font-size="11" fill="#555" text-anchor="middle">or CDC tail</text>
+<path d="M635,190 L705,180" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M810,230 L810,275" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M915,300 L985,195" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="956.0" y="261.5" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">queries</text>
+<text x="956.0" y="261.5" font-size="11" fill="#555" text-anchor="middle">queries</text>
+<text x="570" y="392" font-size="12" fill="#8a4b06" text-anchor="middle">write side optimises for invariants; read side for query patterns — eventually consistent, a small lag between them. Use only when the shapes genuinely differ.</text>
+</svg>

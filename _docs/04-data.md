@@ -3,7 +3,7 @@ title: "Data"
 order: 4
 part: "Foundations & the system"
 description: "Read/write model separation, change data capture, and the transactional outbox that makes 'save the state and publish the event' a single atomic act."
-duration: 20 minutes
+duration: 24 minutes
 ---
 
 A cloud-native service rarely owns its data in isolation. The moment an order is
@@ -16,6 +16,31 @@ when more than one system has to agree on what just happened: separating the
 read and write models, capturing change from the database itself, and the
 transactional outbox that turns "save the state **and** publish the event" into
 one atomic act.
+
+## A database per service
+
+The first rule of data in a microservice system is the one most often broken:
+**each service owns its data, and no other service touches its tables.** Peers reach
+an owned dataset only through the owning service's API, never by connecting to its
+database. Sharing a database may look like reuse, but it silently couples every
+consumer to the owner's schema — a column rename becomes a cross-team migration, and
+two services' deploys can no longer move independently. A shared database is the
+single most common way a nominally microservice system collapses back into a
+distributed monolith.
+
+{% include excalidraw.html
+   file="04-db-per-service"
+   alt="Four services — order, inventory, payment, shipping — each owning its data, each backed by its own PostgreSQL with a private schema run by CloudNativePG. A band below reads: polyglot persistence, pick the store per workload (relational, key-value, search, object)."
+   caption="Figure 4.1 — A database per service: private schemas, reached only through the owning API" %}
+
+Ownership also frees each service to pick the store that fits its workload —
+**polyglot persistence**. Most of our services are relational on PostgreSQL (run
+in-cluster by CloudNativePG, no managed cloud), but nothing stops a search-heavy
+service from using an index or a session store from using a key-value store. The
+contract a service exposes is its API; the database behind it is a private
+implementation detail it is free to change. Everything else in this chapter assumes
+this boundary — the outbox, CDC, and sagas all exist precisely because each service
+keeps its own store and they must still agree on what happened.
 
 ## Two models, one stream of truth
 
@@ -32,6 +57,25 @@ independently. Reach for it when reads and writes genuinely have different
 shapes and access patterns; skip it when a single store handles both happily,
 because the separation is not free.
 
+{% include excalidraw.html
+   file="04-cqrs"
+   alt="A client sends commands (state changes) to a command handler that validates, loads the aggregate, applies invariants, and writes to a normalized transactional write store. The handler emits to an Events/WAL stream (or the write store is CDC-tailed); a projection consumes those events, denormalizes, and updates a read store (wide tables, Elasticsearch, or Mongo) shaped for the query, which serves read-optimised queries back to the client."
+   caption="Figure 4.2 — CQRS: commands flow into the write model; events project into a read model shaped for queries" %}
+
+Concretely: a **command** is a request to change state — place an order, reserve
+stock. The command handler validates it, loads the relevant aggregate, applies the
+business invariants, and writes the new state to a normalised, transactional store. A
+**query** is read-only and answers a question — list a customer's recent orders with
+their shipment status. Rather than assemble that from the normalised write tables on
+every call, a *projection* consumes the stream of changes and maintains a read model
+already shaped like the answer. The arrow from write side to read side is exactly the
+change stream of Change Data Capture — log tailing is the cleanest way to drive a
+projection. The price is the eventual-consistency window, usually milliseconds; the
+payoff is that a read-heavy surface can be denormalised and scaled without distorting
+the write model's integrity. The discipline is to resist applying CQRS everywhere:
+when one store answers both the writes and the reads happily, a second model is pure
+overhead.
+
 ## Capturing change without a second write
 
 What carries a committed change to the read model — or to any other service —
@@ -44,6 +88,19 @@ replication protocol, turns each row-level change into an event, and publishes
 it with commit ordering preserved. The application does not know Debezium
 exists. There is no dual write: the commit is the single source of truth and the
 event is a strictly downstream consequence of it.
+
+{% include excalidraw.html
+   file="04-log-tailing"
+   alt="An application issues ordinary INSERT/UPDATE SQL to a database (Postgres, MySQL, or SQL Server). Tables and rows commit into the write-ahead log (WAL), which is commit-ordered and durable. A Debezium connector tails the WAL through a logical replication slot, converts row deltas into events, and publishes them to Kafka topics (orders.public, orders.outbox, and others)."
+   caption="Figure 4.3 — Change Data Capture: Debezium tails the WAL and turns every committed row into an ordered event" %}
+
+Two uses dominate. The first is the **outbox** below — shipping integration events
+safely. The second is **CQRS projections** — the change stream that drives a CQRS read model is most cleanly produced this way, so the read model is updated from the same
+committed log that everything else trusts. In both cases the property is identical:
+the commit is the only truth, and every event is a consequence of it, emitted in
+commit order, with no second write that can be lost. Debezium runs as an open-source
+Kafka Connect connector (Apache 2.0), so this is reproducible on the same plain
+Kubernetes the rest of the stack runs on.
 
 > **WAL — Write-Ahead Log.** The database's commit-ordered, durable log. It
 > already exists so the database can replicate and recover from a crash;
@@ -67,7 +124,7 @@ guaranteed, ordered consequence of it.
 {% include excalidraw.html
    file="04-data-outbox"
    alt="The REST handler writes the order and an outbox row in one local transaction to Postgres; Debezium tails the write-ahead log and publishes the order.placed event to Kafka, which fans out to consumers"
-   caption="Figure 4.1 — One local transaction; CDC turns the committed outbox row into an ordered event" %}
+   caption="Figure 4.4 — One local transaction; CDC turns the committed outbox row into an ordered event" %}
 
 ### The code, in your language
 
@@ -210,6 +267,33 @@ on, and C++ leans on RAII so a thrown exception unwinds the transaction without 
 > the message key or an idempotency key. "Exactly-once" in practice is
 > at-least-once plus idempotent consumers. We return to this in **05 ·
 > Event-Driven**.
+
+## Consistency without distributed transactions: the saga
+
+The outbox makes a *single* service's state-and-event atomic. But a business
+transaction often spans several services — placing an order must take payment, reserve
+stock, and book shipping, each owning its own database. There is no shared transaction
+across those services, and a two-phase commit across the network is exactly the
+distributed coupling this book avoids. The answer is the **saga**: model the workflow
+as a sequence of *local* transactions, each committing in one service and emitting the
+event that triggers the next.
+
+{% include excalidraw.html
+   file="04-saga"
+   alt="A happy-path chain: order-service (order created) triggers payment-service (payment taken), which triggers inventory-service (stock reserved), which triggers shipping-service (shipment booked) — each local commit emits the event that triggers the next. On failure, payment fails and emits order.cancelled, which drives order-service to compensate by cancelling. No two-phase commit; failures trigger compensating actions, not rollbacks."
+   caption="Figure 4.5 — A saga: local transactions chained by events, with compensations instead of rollbacks" %}
+
+When a step fails, there is nothing to roll back — earlier steps already committed in
+their own services. Instead the saga runs **compensating actions**: if payment fails
+after the order was created, the order service does not un-commit; it performs a new
+local transaction that cancels the order and emits `order.cancelled`. Each forward
+step therefore needs a defined compensation, and because events are delivered
+at-least-once, every step and every compensation must be idempotent. Each local step
+is itself made atomic by the outbox pattern above — the saga is the multi-service
+layer built on top of single-service atomicity. This is only the shape of the
+pattern; the choreography-versus-orchestration trade-off, how a saga holds its state,
+and how a later step gets an earlier step's data are taken up in depth in **Appendix D
+· Sagas**.
 
 ### Cross-check it yourself
 
