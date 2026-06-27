@@ -3,7 +3,7 @@ title: "API Management"
 order: 8
 part: "The operational platform"
 description: "API management as four cooperating planes rather than one gateway product — runtime, contract, discovery, and signal — and versioning and evolution as a managed lifecycle, not an afterthought."
-duration: 12 minutes
+duration: 15 minutes
 ---
 
 "API management" is sold as a product — one box that does gateways, keys, docs,
@@ -31,33 +31,48 @@ monolith.
   happening to the APIs in production.
 
 The point is the separation. A single "API gateway product" that tries to own all
-four becomes exactly the god-service the previous chapter warned about. Distinct
-planes have distinct owners and evolve independently.
+four becomes exactly the god-service the workflows chapter warned about — runtime
+policy, contract storage, discovery UX, and telemetry pipelines have genuinely
+different owners and release cadences, and fusing them into one box recreates the
+monolith at the edge. Distinct planes have distinct owners and evolve independently;
+this chapter's job is largely to insist they stay distinct.
 
 ## Versioning and evolution are part of management
 
 Versioning is a management concern, not an afterthought bolted on when something
-breaks. The core discipline is to **evolve additively**: add optional fields and
-new endpoints; never repurpose a field's meaning and never silently remove one. A
-consumer written against last year's contract should still work.
+breaks. The core discipline is to **evolve additively**: add optional fields and new
+endpoints; never repurpose a field's meaning and never silently remove one. This
+works because well-behaved consumers ignore fields they do not recognise, so a new
+optional field is invisible to old clients while available to new ones. A consumer
+written against last year's contract should still work against this year's service
+without a single change.
 
 When you genuinely must break compatibility, you don't mutate the existing
 contract — you stand up a new major version beside the old one. Carry the major in
 the path (`/v2`) or in the media type, run both side by side, publish a **sunset
 date**, and migrate consumers off before retiring the old one. The mechanics —
 four ways to version, additive evolution, deprecation headers — are the subject of
-**15 · Appendix B**.
+**Appendix B**.
 
 What makes this more than good intentions is that the registry enforces it
 **mechanically**. Its compatibility rules — `BACKWARD`, `FORWARD`, `FULL` — are
-checked at publish time, so a change that would break existing consumers is
-rejected before it ships. Every contract therefore moves through one lifecycle:
+checked at publish time, so a change that would break existing consumers is rejected
+before it ships. Every contract therefore moves through one managed lifecycle:
 
-> design → register → publish → consume → deprecate → retire
+{% include excalidraw.html
+   file="08-contract-lifecycle"
+   alt="A six-stage horizontal lifecycle: design, register, publish, consume, deprecate, retire. Each stage flows into the next; the last two transitions (deprecate, retire) are highlighted as the wind-down."
+   caption="Figure 8.2 — One managed contract lifecycle; each arrow is an owned transition, not an accident" %}
 
-Each arrow is a managed transition with an owner, not an accident. The next two
-chapters are the registry and the metadata catalog that make the middle of that
-lifecycle real.
+Each arrow is a managed transition with an owner, not an accident. A contract is
+*designed* against the domain, *registered* in the schema registry, *published* once
+CI's compatibility check passes, *consumed* by services that code against it, and —
+when a successor exists — *deprecated* with headers and a sunset date before it is
+finally *retired*. Skipping a step is where breakage comes from: publishing without
+the registry check ships an incompatible schema, and retiring without a deprecation
+window strands consumers who never got the signal to move. The registry and the
+metadata catalog — the next two chapters — are what make the middle of this lifecycle
+real and observable.
 
 ### Cross-check it yourself
 

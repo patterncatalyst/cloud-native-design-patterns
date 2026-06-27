@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 200" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="20" y="70" width="150" height="70" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="95.0" y="110.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">design</text>
+<rect x="200" y="70" width="150" height="70" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="275.0" y="110.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">register</text>
+<rect x="380" y="70" width="150" height="70" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="455.0" y="110.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">publish</text>
+<rect x="560" y="70" width="150" height="70" rx="9" fill="#f4f4f4" stroke="#888888" stroke-width="1.5"/>
+<text x="635.0" y="110.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">consume</text>
+<rect x="740" y="70" width="150" height="70" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5"/>
+<text x="815.0" y="110.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">deprecate</text>
+<rect x="920" y="70" width="150" height="70" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="995.0" y="110.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">retire</text>
+<path d="M170,105 L200,105" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M350,105 L380,105" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M530,105 L560,105" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M710,105 L740,105" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
+<path d="M890,105 L920,105" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
+<text x="550" y="180" font-size="12" fill="#2f6db5" text-anchor="middle">every contract moves through one managed lifecycle — each arrow is an owned transition, not an accident</text>
+</svg>
