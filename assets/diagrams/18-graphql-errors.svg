@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 400" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="40" y="55" width="520" height="275" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5"/>
+<text x="300.0" y="153.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">response (HTTP 200)</text>
+<text x="300.0" y="170.0" font-size="11.5" fill="#555555" text-anchor="middle"></text>
+<text x="300.0" y="185.0" font-size="11.5" fill="#555555" text-anchor="middle">data:</text>
+<text x="300.0" y="200.0" font-size="11.5" fill="#555555" text-anchor="middle">  order:</text>
+<text x="300.0" y="215.0" font-size="11.5" fill="#555555" text-anchor="middle">    id: 1037</text>
+<text x="300.0" y="230.0" font-size="11.5" fill="#555555" text-anchor="middle">    total: 59.90</text>
+<text x="300.0" y="245.0" font-size="11.5" fill="#555555" text-anchor="middle">    stock: null   (this field failed)</text>
+<rect x="620" y="55" width="520" height="275" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="880.0" y="145.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">errors: [ … ]</text>
+<text x="880.0" y="162.5" font-size="11.5" fill="#555555" text-anchor="middle"></text>
+<text x="880.0" y="177.5" font-size="11.5" fill="#555555" text-anchor="middle">message: inventory unavailable</text>
+<text x="880.0" y="192.5" font-size="11.5" fill="#555555" text-anchor="middle">path: [ order, stock ]</text>
+<text x="880.0" y="207.5" font-size="11.5" fill="#555555" text-anchor="middle">extensions:</text>
+<text x="880.0" y="222.5" font-size="11.5" fill="#555555" text-anchor="middle">  code: UNAVAILABLE</text>
+<text x="880.0" y="237.5" font-size="11.5" fill="#555555" text-anchor="middle">  retryable: true</text>
+<text x="880.0" y="252.5" font-size="11.5" fill="#555555" text-anchor="middle">  traceId: 4af9c…</text>
+<text x="590" y="388" font-size="12" fill="#2f6db5" text-anchor="middle">return the data you have, null the field that failed, and put a machine code in extensions — don&#x27;t blanket-fail a whole query</text>
+</svg>

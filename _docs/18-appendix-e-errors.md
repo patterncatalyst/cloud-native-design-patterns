@@ -5,7 +5,7 @@ label: "Appendix E"
 order: 18
 part: "Deep-dive appendices"
 description: "One error contract — a stable code, a safe message, a trace id, a retryable flag, field details — mapped onto REST, gRPC, Kafka and GraphQL, plus the retry-storm controls that keep a single failure from becoming an outage."
-duration: 18 minutes
+duration: 24 minutes
 ---
 
 Cloud-native systems rarely fall apart on the happy path; they fall apart on the
@@ -40,6 +40,11 @@ the model once as a shared contract, and never leak a stack trace, a SQL fragmen
 or an internal class name past the boundary: those are both a security exposure and
 a coupling that lets a callee's internals constrain a caller.
 
+{% include excalidraw.html
+   file="18-one-error-model"
+   alt="One error model maps to four wire formats. Every error carries five facts: a stable machine code like STOCK_UNAVAILABLE, a human-readable message safe to show, a correlation or trace id, a retryable flag with a retry-after when known, and field-level details. Those same facts map onto REST as application/problem+json (RFC 9457), gRPC as a status code plus google.rpc.Status details, Kafka as headers plus a dead-letter record, and GraphQL as an errors array with extensions and a code."
+   caption="Figure E.1 — One error contract, four wire formats: agree the facts once, then map them per protocol" %}
+
 ## REST — status is the category, the body is the specifics
 
 REST error handling works on two layers, and conflating them is the usual mistake.
@@ -58,6 +63,11 @@ ad-hoc error JSON never spreads across endpoints. Notice what every version belo
 deliberately omits — no stack trace, no exception class name, no SQL. The status
 matches the category (`409`, a conflict the client can act on), and the body carries
 the code and the trace id for correlation.
+
+{% include excalidraw.html
+   file="18-rest-errors"
+   alt="REST error handling in two layers. Choose the status class first: 4xx is a client error, fix the request and do not retry as-is; 429 or 503 means busy, back off and honour the Retry-After header; 5xx is a server error, retry idempotent calls with backoff. The body is an application/problem+json document (RFC 9457) carrying type, title, status 409, detail, instance, the machine code STOCK_UNAVAILABLE, and a traceId for correlation."
+   caption="Figure E.2 — REST errors: the HTTP status class is the category; an RFC 9457 problem+json body carries the specifics" %}
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
 
@@ -219,6 +229,11 @@ how long to wait) — so a gRPC caller receives the same five facts as a REST ca
 `UNAVAILABLE` below tells both the client and the mesh "transient, retryable," and
 the `RetryInfo` tells them precisely how long to back off.
 
+{% include excalidraw.html
+   file="18-grpc-errors"
+   alt="gRPC error handling. The canonical status code is the contract: INVALID_ARGUMENT and NOT_FOUND are client bugs, don't retry; FAILED_PRECONDITION and ALREADY_EXISTS are state issues, don't retry; UNAVAILABLE and ABORTED are transient, retry with backoff; RESOURCE_EXHAUSTED means honour the RetryInfo delay; DEADLINE_EXCEEDED means tune the timeout and maybe retry. A google.rpc.Status in the trailers carries the rich details: code UNAVAILABLE 14, a message, an ErrorInfo with reason and domain, and a RetryInfo delay."
+   caption="Figure E.3 — gRPC errors: a canonical status code drives retry behaviour, with google.rpc.Status details in the trailers" %}
+
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
 
 ```java
@@ -362,6 +377,11 @@ The frameworks differ in how much they do for you. Spring Kafka, SmallRye Reacti
 Messaging, and MassTransit express the policy declaratively; with `aiokafka` and
 `modern-cpp-kafka` you write the loop yourself — which makes the invariant explicit:
 the commit happens on *every* branch.
+
+{% include excalidraw.html
+   file="18-kafka-dlq"
+   alt="A Kafka consumer reads from the orders topic main partition and processes each record. On success it acks and commits, the happy path. On failure it routes the record to a retry.5s delayed-retry topic, then a retry.30s topic, and after N tries to an orders.DLQ dead-letter queue for alerting and tooling. The offset is committed either way, so a poison record never blocks head-of-line processing."
+   caption="Figure E.4 — Kafka: route failures to delayed-retry topics then a DLQ, and commit the offset on every branch so the partition never stalls" %}
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
 
@@ -519,6 +539,11 @@ returning a `500`) when only one field broke — that discards data the client a
 successfully fetched. The right move is to raise from the *single field's* resolver
 and let the framework null just that field; partial success is a feature, and the
 client decides whether to retry only the part that failed.
+
+{% include excalidraw.html
+   file="18-graphql-errors"
+   alt="A GraphQL partial-success response. The HTTP 200 response carries a data object where the order has id 1037 and total 59.90 but stock is null because that field failed. Alongside it an errors array entry names the failure: message inventory unavailable, the path to order then stock, and an extensions object with code UNAVAILABLE, retryable true, and a traceId. Every other field still returns."
+   caption="Figure E.5 — GraphQL: one HTTP 200, the failed field nulled, and an errors[] entry carrying the machine code in extensions" %}
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
 
@@ -684,7 +709,7 @@ the amplifier.
 {% include excalidraw.html
    file="18-retry-storm"
    alt="Top: a feedback loop between clients and a struggling order service — clients retry three times, tripling load, which produces more timeouts, which produces more retries. Bottom: six controls that break the loop — timeout, bounded retries, backoff plus jitter, circuit breaker, retry budget, and shed load."
-   caption="Figure E.1 — Unbounded retries amplify a struggling service; each control removes one multiplier from the loop" %}
+   caption="Figure E.6 — Unbounded retries amplify a struggling service; each control removes one multiplier from the loop" %}
 
 The controls that break the loop are the lower band of the figure, and they compose:
 
