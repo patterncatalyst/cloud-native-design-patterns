@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 280" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="30" y="110" width="120" height="60" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="90.0" y="145.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Pull request</text>
+<rect x="185" y="110" width="120" height="60" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="245.0" y="145.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Build image</text>
+<rect x="340" y="100" width="160" height="80" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5"/>
+<text x="420.0" y="130.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">podman compose up</text>
+<text x="420.0" y="147.5" font-size="11.5" fill="#555555" text-anchor="middle">order, payment,</text>
+<text x="420.0" y="162.5" font-size="11.5" fill="#555555" text-anchor="middle">inventory …</text>
+<rect x="535" y="110" width="150" height="60" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="610.0" y="138.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">newman run</text>
+<text x="610.0" y="155.0" font-size="11.5" fill="#555555" text-anchor="middle">collection</text>
+<rect x="720" y="110" width="170" height="60" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="805.0" y="130.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">gate</text>
+<text x="805.0" y="147.5" font-size="11.5" fill="#555555" text-anchor="middle">pass → merge</text>
+<text x="805.0" y="162.5" font-size="11.5" fill="#555555" text-anchor="middle">fail → block</text>
+<path d="M150,140 L185,140" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M305,140 L340,140" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M500,140 L535,140" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M685,140 L720,140" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
+<text x="460" y="250" font-size="11" fill="#2f6db5" text-anchor="middle">the services run on Podman in CI exactly as on a laptop — no managed cloud — and a failed assertion fails the build</text>
+</svg>
