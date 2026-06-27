@@ -133,7 +133,7 @@ shape is identical everywhere: open one local transaction, persist the state
 change, persist the outbox row in the *same* transaction, commit. No broker call
 sits on the request path.
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // Spring Data JPA: the state change AND the outbox row in one @Transactional.
@@ -232,6 +232,30 @@ Task<Order> Orders::create_impl(OrderIn body) {
 }
 // PgTxn is RAII: the destructor rolls back if commit() was never called, so any
 // exception thrown inside the handler unwinds the transaction cleanly.
+```
+
+```go
+// orders.go — pgx; the state change and the outbox row commit in ONE local txn
+func (s *Orders) Create(ctx context.Context, in OrderIn) (Order, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return Order{}, fmt.Errorf("begin: %w", err)
+	}
+	defer tx.Rollback(ctx) // no-op after Commit; rolls back on any early return
+
+	o, err := insertOrder(ctx, tx, in)
+	if err != nil {
+		return Order{}, err
+	}
+	// same txn → atomic with the state change
+	if err := insertOutbox(ctx, tx, "order.placed", o.ID, toJSON(o)); err != nil {
+		return Order{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Order{}, fmt.Errorf("commit: %w", err)
+	}
+	return o, nil // Debezium tails the WAL and publishes; no broker on the request path
+}
 ```
 
 ### How the code works

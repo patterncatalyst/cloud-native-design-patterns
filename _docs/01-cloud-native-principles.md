@@ -104,7 +104,7 @@ Two factors dominate the code you actually write: **config from the environment*
 (factor III) and **health and readiness probes** the platform calls. Here it is
 in each stack — pick your tab.
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 # application.yml — config from the environment (factor III)
@@ -223,6 +223,41 @@ int main() {
   });
   app.addListener("0.0.0.0", 8080).run();  // factor VII · port binding
 }{% endraw %}
+```
+
+```go
+// main.go — config from the environment (factor III); two probes, not one
+type Settings struct {
+	DatabaseURL    string // DATABASE_URL
+	KafkaBootstrap string // KAFKA_BOOTSTRAP
+}
+
+func load() Settings { // config from env, never a baked-in file
+	return Settings{
+		DatabaseURL:    os.Getenv("DATABASE_URL"),
+		KafkaBootstrap: os.Getenv("KAFKA_BOOTSTRAP"),
+	}
+}
+
+func main() {
+	cfg := load()
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"}) // liveness
+	})
+	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
+		// readiness drains traffic on failure; it never restarts the pod
+		if err := errors.Join(checkDB(r.Context()), checkKafka(r.Context())); err != nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "down"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
+	})
+
+	slog.Info("starting", "version", "1.4.0", "kafka", cfg.KafkaBootstrap)
+	_ = http.ListenAndServe(":8080", mux) // factor VII · port binding
+}
 ```
 
 ### How the code works

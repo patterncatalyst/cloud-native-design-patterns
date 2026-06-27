@@ -58,7 +58,7 @@ calls `order-service` over REST; the `Order.stock` field resolves *on demand* by
 calling `inventory` over gRPC. **Each field resolves against its owning service** —
 the gateway is only the composition layer.
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 @Controller                                   // spring-boot-starter-graphql
@@ -159,6 +159,22 @@ class OrderResolver : public object::Order {
   Order o_;
   InventoryClient& inv_;
 };
+```
+
+```go
+// schema.resolvers.go — gqlgen generates the resolver stubs from schema.graphql:
+//   type Query { order(id: ID!): Order }
+//   type Order { id: ID!  sku: String!  status: String!  stock: Int! }
+
+func (r *queryResolver) Order(ctx context.Context, id string) (*Order, error) {
+	return r.Orders.Get(ctx, id) // REST call to order-service
+}
+
+// Order.stock is resolved on demand; the dataloader batches N orders into one
+// gRPC call per request, which is how the N+1 fan-out is killed.
+func (r *orderResolver) Stock(ctx context.Context, obj *Order) (int, error) {
+	return loaders.For(ctx).InventoryStock.Load(ctx, obj.Sku) // via gRPC, batched
+}
 ```
 
 ### How the code works

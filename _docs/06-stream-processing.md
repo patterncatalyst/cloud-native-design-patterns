@@ -43,7 +43,7 @@ windows — in each ecosystem. The JVM stacks use Kafka Streams; .NET uses Strea
 (a native Kafka Streams port); Python uses Faust; C++ keeps bounded state
 in-process and reaches for Flink only when the state outgrows a single worker.
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // spring-kafka: the topology is built via a StreamsBuilder bean
@@ -147,6 +147,31 @@ while (!stop_token.stop_requested()) {
     }
     current.revenue[o.merchant_id] += o.total;        // stateful, in-process
   }
+}
+```
+
+```go
+// In-process windowed aggregation: revenue-per-merchant, 5-minute tumbling.
+// Stateful but bounded — fits in-process. Go has no Faust/Flink-class framework;
+// for joins or large state, use Flink and treat Go as the producer/consumer.
+type window struct {
+	start   time.Time
+	revenue map[string]float64 // per merchant
+}
+
+func aggregate(ctx context.Context, cl *kgo.Client) {
+	cur := window{floorTo5Min(time.Now()), map[string]float64{}}
+	for {
+		cl.PollFetches(ctx).EachRecord(func(r *kgo.Record) {
+			o := deserialize(r.Value)
+			start := floorTo5Min(o.PlacedAt)
+			if start != cur.start { // window rolled over
+				emitWindow(cur)                            // flush to revenue.by-merchant
+				cur = window{start, map[string]float64{}}
+			}
+			cur.revenue[o.MerchantID] += o.Total // stateful, in-process
+		})
+	}
 }
 ```
 

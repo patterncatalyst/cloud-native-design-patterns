@@ -32,7 +32,7 @@ not before** — do the work, then acknowledge. Second, because you commit after
 crash mid-handler means redelivery, so delivery is **at-least-once** and your
 handlers **must be idempotent** (dedupe by message key or an idempotency key).
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // producer — order-service (or the Debezium relay) emits the fact
@@ -147,6 +147,44 @@ for (;;) {
     send_email(deserialize(rec.value()));   // do the work first
     consumer.commitSync();                  // at-least-once; handler idempotent
   }
+}
+```
+
+```go
+// franz-go — pure-Go client; producer made once, consumer commits AFTER the work
+func newProducer(cfg Settings) (*kgo.Client, error) {
+	return kgo.NewClient(
+		kgo.SeedBrokers(cfg.Brokers...),
+		kgo.RequiredAcks(kgo.AllISRAcks()), // durable — wait for the ISR ack
+		kgo.ProducerLinger(0),
+	)
+}
+
+// producer — order-service (CDC relay or direct)
+func publish(ctx context.Context, cl *kgo.Client, topic string, o Order) error {
+	rec := &kgo.Record{Topic: topic, Key: []byte(o.ID), Value: serialize(o)} // serde
+	return cl.ProduceSync(ctx, rec).FirstErr()
+}
+
+// consumer — notification-service, Kafka-only by design
+func consume(ctx context.Context, cfg Settings) error {
+	cl, err := kgo.NewClient(
+		kgo.SeedBrokers(cfg.Brokers...),
+		kgo.ConsumerGroup("notification"), // offset tracked per group
+		kgo.ConsumeTopics("order.placed"),
+		kgo.DisableAutoCommit(), // commit AFTER the side-effect
+	)
+	if err != nil {
+		return err
+	}
+	defer cl.Close()
+	for {
+		fs := cl.PollFetches(ctx)
+		fs.EachRecord(func(r *kgo.Record) { sendEmail(deserialize(r.Value)) }) // work first
+		if err := cl.CommitUncommittedOffsets(ctx); err != nil { // at-least-once; idempotent
+			slog.Error("commit failed", "err", err)
+		}
+	}
 }
 ```
 

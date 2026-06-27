@@ -40,10 +40,10 @@ the other five language stacks. Chosen to parallel the existing per-language pic
 
 | Concern | Go choice | Parallels |
 |---|---|---|
-| HTTP / REST | `net/http` (1.22+ `ServeMux`) + `go-chi/chi` middleware | FastAPI / minimal API |
+| HTTP / REST | `net/http` stdlib (1.22+ `ServeMux`) — no router dep | FastAPI / minimal API |
 | gRPC | `google.golang.org/grpc` + `google.golang.org/protobuf` | Grpc.* / grpc++ |
 | GraphQL | `99designs/gqlgen` (schema-first) | HotChocolate / Strawberry |
-| Kafka | **decision needed** — `confluent-kafka-go` (librdkafka, parallels C++ `modern-cpp-kafka`) **or** `twmb/franz-go` (pure Go) | modern-cpp-kafka / MassTransit |
+| Kafka | `twmb/franz-go` (pure Go, no cgo) — **LOCKED** | modern-cpp-kafka / MassTransit |
 | Postgres | `jackc/pgx` v5 (direct, no ORM) | C++ `libpq` direct |
 | Redis | `redis/go-redis` v9 | sw/redis++ |
 | JWT | `golang-jwt/jwt` v5 | jwt-cpp |
@@ -66,11 +66,11 @@ the other five language stacks. Chosen to parallel the existing per-language pic
 **Canonical codetab order (now six):**
 `Spring Boot | Quarkus | .NET | Python | C++ | Go` → fences `java, java, csharp, python, cpp, go`.
 
-## Open decisions for Robert
-- **Kafka client**: `confluent-kafka-go` (cgo/librdkafka, matches the C++ stack) vs
-  `franz-go` (pure Go, more idiomatic). Default assumption unless told otherwise:
-  `franz-go` (pure Go, no cgo — better fit for "plain Kubernetes, simple images").
-- Any house Go libraries to pin/avoid (the C++ list had hard exclusions like libpqxx).
+## Decisions — LOCKED (Robert, r55 review)
+- REST baseline: **stdlib `net/http`** (1.22+ `ServeMux`), no router dependency (chi).
+- Kafka: **`franz-go`** (pure Go, no cgo).
+- Style: idiomatic Go, "Idiomatic Go" book conventions — clean, small, error-as-value.
 
 ## Progress
-- (pending) r55 — Go added to `02-communications` as the proof-of-pattern; PAUSE for stack sign-off.
+- r55 — `02-communications` Go proof-of-pattern shipped; stack signed off.
+- (in progress) Go rollout across remaining 18 docs / 33 codetabs, batched core → appendices.
