@@ -5,7 +5,7 @@ label: "Appendix J"
 order: 23
 part: "Deep-dive appendices"
 description: ".NET-only reference: the pinned .NET 10 library and platform bill of materials, a Windows-to-Kubernetes migration table, an honest list of ecosystem gaps, and a six-library recipe for a new cloud-native service."
-duration: 16 minutes
+duration: 18 minutes
 ---
 
 > **This appendix is .NET-specific.** It exists only in the .NET edition of the source
@@ -110,6 +110,11 @@ the pattern: you still have request handlers, background workers, scheduled jobs
 distributed locks, health checks, configuration sources, and telemetry. What changes is who
 owns the substrate — IIS owned the host, Kubernetes does now; the substrate becomes
 open-source and cluster-native.
+
+{% include excalidraw.html
+   file="23-strangler-fig"
+   alt="The strangler-fig migration approach. Clients hit one URL through a proxy routing layer — step zero is adding the proxy first. The proxy sends a widening 1% to 100% slice of traffic to a new service (the extracted slice) while everything else defaults to the shrinking monolith. Identify, move, redirect one bounded asset at a time, with the system live throughout; redirect is a proxy config change, not a client release, so every step is reversible."
+   caption="Figure J.1 — Migrate incrementally with a strangler-fig proxy: redirect a widening slice to the new service while the monolith shrinks, system live throughout" %}
 
 | Concern | Coming from (Windows / .NET 4.x) | Going to (.NET 10 / Kubernetes) | What changes most |
 |---|---|---|---|
