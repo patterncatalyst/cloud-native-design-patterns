@@ -39,7 +39,7 @@ logic, correct status codes (**201** on create, not 200), and **cursor**
 pagination rather than offset (offset breaks under concurrent writes and slows
 down at depth).
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 @RestController
@@ -164,6 +164,48 @@ Task<> Orders::place(HttpRequestPtr req, auto cb) {
 }
 ```
 
+```go
+// orders.go — net/http (Go 1.22+ ServeMux); validated input, 201 on create
+type OrderIn struct {
+	SKU      string `json:"sku"`
+	Quantity int    `json:"quantity"`
+}
+type Order struct {
+	ID       string `json:"id"`
+	SKU      string `json:"sku"`
+	Quantity int    `json:"quantity"`
+	Status   string `json:"status"`
+}
+
+func (s *Server) place(w http.ResponseWriter, r *http.Request) {
+	var in OrderIn // request contract, validated before logic
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil ||
+		in.SKU == "" || in.Quantity < 1 {
+		http.Error(w, "invalid order", http.StatusBadRequest)
+		return
+	}
+	o, err := s.orders.Create(r.Context(), in)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	s.events.Publish(r.Context(), "order.placed", o) // emit (made safe in ch. 04)
+	w.Header().Set("Location", "/orders/"+o.ID)
+	writeJSON(w, http.StatusCreated, o) // 201, not 200
+}
+
+func (s *Server) list(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query() // cursor pagination, not offset
+	page := s.orders.Page(r.Context(), q.Get("after"), atoiOr(q.Get("limit"), 50))
+	writeJSON(w, http.StatusOK, page)
+}
+
+func (s *Server) routes() {
+	s.mux.HandleFunc("POST /orders", s.place) // method-aware patterns (1.22+)
+	s.mux.HandleFunc("GET /orders", s.list)
+}
+```
+
 The `events.publish("order.placed", …)` line is shown simply here so the focus
 stays on the edge concerns; **04 · Data** makes that emission transactionally safe
 with the outbox. FastAPI, Spring, and the others also emit an OpenAPI document
@@ -194,7 +236,7 @@ and both sides share types.
 The server side is generated too: you implement the service interface the `.proto`
 produces and fill in the one method, never touching the wire format itself.
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 @GrpcService                                    // grpc-spring-boot-starter
@@ -266,6 +308,24 @@ class InventoryServiceImpl final : public Inventory::Service {
   }
   Stock stock_;
 };
+```
+
+```go
+// inventory_server.go — embed the generated UnimplementedInventoryServer base
+type inventoryServer struct {
+	pb.UnimplementedInventoryServer // forward-compatible
+	stock *Stock
+}
+
+func (s *inventoryServer) ReserveStock(
+	ctx context.Context, req *pb.ReserveRequest) (*pb.ReserveReply, error) {
+
+	remaining := s.stock.Reserve(req.GetSku(), req.GetQuantity()) // generated getters
+	return &pb.ReserveReply{
+		Reserved:  remaining >= 0,
+		Remaining: max(remaining, 0), // Go 1.21+ builtin
+	}, nil
+}
 ```
 
 There is no socket code, no serialisation, no HTTP/2 framing — the generated base class
