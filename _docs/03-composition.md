@@ -3,7 +3,7 @@ title: "Composition"
 order: 3
 part: "Foundations & the system"
 description: "Composing many back-ends behind one schema without coupling them — a GraphQL gateway that fans out to REST and gRPC, the resolver that makes it concrete, and the three places aggregation belongs."
-duration: 16 minutes
+duration: 18 minutes
 ---
 
 A client rarely wants what a single service holds. It wants an order *and* its
@@ -176,14 +176,25 @@ a per-field resolver that calls another service, assume you will need batching.
 ## Three ways to compose — and where each belongs
 
 The resolver above is one shape of a more general idea. There are three, and all
-three push aggregation outward:
+three push aggregation outward — toward the client as coupling needs loosen.
 
-- **API gateway** — one composed schema for everyone. Simple, central, one contract.
+{% include excalidraw.html
+   file="03-three-ways"
+   alt="Three columns with tags: API Gateway (routing, auth, rate-limit; no business logic; Istio ingress) tagged thin edge; Backend-for-Frontend (one BFF per client type; client-specific shaping; owns aggregation) tagged client-shaped; and GraphQL federation (schema stitched across domains that own subgraphs; gateway plans query) tagged read-optimised. Aggregation moves toward the client as coupling needs loosen."
+   caption="Figure 3.2 — Three places to compose: a thin API gateway, a client-shaped BFF, or a read-optimised GraphQL federation" %}
+
+- **API gateway** — one composed schema for everyone. Simple, central, one contract;
+  it routes, authenticates, and rate-limits at the edge (our Istio ingress) but holds
+  no business logic.
 - **Backend-for-frontend (BFF)** — a tailored aggregate per client type, so the
   web and mobile apps each get a surface shaped for them rather than a
-  lowest-common-denominator one.
+  lowest-common-denominator one. The BFF owns the aggregation for its client.
 - **GraphQL federation** — a distributed graph, where each service owns its slice
-  of one logical schema and a gateway composes them.
+  of one logical schema and a gateway plans and stitches the query across subgraphs.
+
+Pick by how much each client's needs diverge: a gateway when one shape serves everyone,
+a BFF when clients differ enough to deserve their own surface, and federation when many
+domains must present as one graph and reads dominate.
 
 The anti-pattern to name explicitly is the opposite of all three:
 **service-to-service call chains**, where `order` calls `inventory` calls
