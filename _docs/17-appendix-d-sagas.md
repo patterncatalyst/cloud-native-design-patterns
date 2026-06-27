@@ -5,7 +5,7 @@ label: "Appendix D"
 order: 17
 part: "Deep-dive appendices"
 description: "The deep mechanics behind the saga — where the orchestrator keeps state so it survives a crash, how compensation unwinds committed steps in reverse, and how to thread one step's output to the next without coupling the services."
-duration: 16 minutes
+duration: 20 minutes
 ---
 
 The Data chapter drew the happy path of a saga. This appendix is the three hard
@@ -22,6 +22,11 @@ instance holding its `status`, a `step_index`, and a `context` blob, with *you*
 owning the transitions. Crucially, the state update and the next command commit
 **together** in one transaction — the same outbox discipline from the Data chapter,
 applied to the saga's own progress.
+
+{% include excalidraw.html
+   file="17-saga-state"
+   alt="Four ways a saga can keep its state. In-memory: a dict or object only, lost on pod restart, never for real sagas. DB state machine: one row per saga instance with status and context JSON, and you own the transitions. Event-sourced: append step events and rebuild by replay, with full audit history. Workflow engine: Temporal or Camunda, durable execution with retries and timers built in. Whatever the store, the state transition and the outbound command must commit together."
+   caption="Figure D.1 — Where saga state can live; the DB-backed state machine is the workhorse, but the commit-together rule is the same for all" %}
 
 ```python
 STEPS = ["charge_payment", "reserve_stock", "book_shipping"]
@@ -54,7 +59,7 @@ finished.
 {% include excalidraw.html
    file="17-saga-compensation"
    alt="Forward path: charge_payment then reserve_stock then book_shipping, which fails. On failure the saga compensates in reverse: release_stock then refund_payment — only the steps that completed, newest first"
-   caption="Figure D.1 — On failure, run each completed step's inverse, newest first" %}
+   caption="Figure D.2 — On failure, run each completed step's inverse, newest first" %}
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
 
@@ -159,6 +164,11 @@ context into B. The data flows *through the orchestrator*, the only component th
 legitimately knows the whole flow. B stays unaware of A, and because the context is
 persisted with the saga state, it survives a crash too — resume rehydrates it for
 free.
+
+{% include excalidraw.html
+   file="17-saga-context"
+   alt="The orchestrator owns the saga context. It calls service A, which returns a reservation_id and warehouse region; that output is persisted into the saga context (reservation_id r-77, region eu-1) written after A and read before B; the orchestrator then calls service B with the context, which supplies the reservation_id B needs. If the orchestrator crashes between persisting A's output and calling B, on restart it loads the saga context, sees A is done, and resumes at B without re-calling A."
+   caption="Figure D.3 — A's output flows to B through the orchestrator's persisted context — B never calls A, and a crash resumes cleanly" %}
 
 ### Cross-check it yourself
 
