@@ -5,7 +5,7 @@ label: "Appendix G"
 order: 20
 part: "Deep-dive appendices"
 description: "Coupling has three dimensions — integration strength, distance, and volatility — and it only hurts when all three are high at once, which is why looser is not automatically better and why splitting a system can make coupling worse."
-duration: 16 minutes
+duration: 20 minutes
 ---
 
 This book has used "coupled" and "decoupled" throughout as if loose were always the
@@ -50,6 +50,11 @@ A strong, distant coupling on something that *never* changes still costs nothing
 is why all three dimensions have to be weighed together rather than chasing "loose
 coupling" in the abstract.
 
+{% include excalidraw.html
+   file="20-three-dimensions"
+   alt="Khononov's balanced-coupling model has three dimensions, multiplied together. Integration strength: how much knowledge two parts share, from intrusive to contract. Distance: how far apart they sit, from method to class to module to service to system. Volatility: how often the coupled part changes, core versus generic subdomain. The cost of a coupling is that strong plus distant equals global complexity, a distributed monolith — but it only bites when the code is volatile."
+   caption="Figure G.1 — Coupling has three dimensions; a coupling only hurts when strength, distance, and volatility are all high at once" %}
+
 ## Integration strength is a ladder
 
 Strength is not binary; it is a ladder with four rungs, worst to best:
@@ -72,6 +77,11 @@ independently-deployed services, only contract coupling is appropriate, because 
 the loosest strength that still lets services collaborate; reaching for shared state
 across that distance is how the distributed monolith forms.
 
+{% include excalidraw.html
+   file="20-strength-ladder"
+   alt="Integration strength as a four-rung ladder, worst to best, each with its example in our system. Intrusive coupling reaches into another's private internals — a shared database or scraping internals. Functional coupling shares business logic and rules — duplicated or co-owned domain logic. Model coupling shares a data model or DTOs — a shared library of types. Contract coupling integrates via an explicit, stable contract — REST, gRPC, or GraphQL plus a registry schema. Across services, aim for contract coupling."
+   caption="Figure G.2 — The integration-strength ladder; across services, aim for the bottom rung — contract coupling" %}
+
 ## Strength × distance, and volatility as the trigger
 
 Put strength and distance on two axes and the design space resolves into four
@@ -80,7 +90,7 @@ quadrants — only one of which is dangerous.
 {% include excalidraw.html
    file="20-coupling-quadrant"
    alt="A two-by-two of integration strength (vertical) against distance (horizontal). Strong and close is a cohesive module (healthy); strong and distant is the distributed monolith (the trap); weak and close is needless indirection; weak and distant is healthy microservices. A note states that volatility is the trigger — even the trap quadrant is harmless on code that never changes."
-   caption="Figure G.1 — Balance means having strength or distance, not both; volatility decides whether an imbalance actually bites" %}
+   caption="Figure G.3 — Balance means having strength or distance, not both; volatility decides whether an imbalance actually bites" %}
 
 The two healthy quadrants are a cohesive module (strong, close) and contract-integrated
 services (weak, distant). The bottom-left, weak-and-close, is merely needless
