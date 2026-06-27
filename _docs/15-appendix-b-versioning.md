@@ -5,7 +5,7 @@ label: "Appendix B"
 order: 15
 part: "Deep-dive appendices"
 description: "How to change an API without breaking everyone — the four ways to version REST, what counts as a breaking change in protobuf, GraphQL's evolve-don't-version stance, and the principles common to all three."
-duration: 16 minutes
+duration: 20 minutes
 ---
 
 The question every team fights about: how do we change this without breaking
@@ -26,6 +26,11 @@ Ordered coarse to fine:
 - **Media type** (`Accept: application/vnd.acme.order.v2+json`) — keeps the URL
   stable and versions the *representation*, which is the most RESTful choice.
 
+{% include excalidraw.html
+   file="15-rest-versioning"
+   alt="Four ways to version a REST API, coarse to fine. URI path: a v2 orders path, visible and trivial to route, couples the version to the URL, most widely used. Query param: an orders path with a version query, easy to default, muddies caching keys, least recommended. Custom header: an X-API-Version header, keeps the URL clean but is invisible and easy to miss, needs discipline. Media type: an Accept header naming the v2 representation, content negotiation, the URL still identifies the resource, the RESTful way."
+   caption="Figure B.1 — Four ways to version REST, from coarse URI paths to RESTful media-type negotiation" %}
+
 ```http
 # Media-type versioning: the URL stays the same; the version lives in Accept
 GET /orders/A-1001
@@ -43,6 +48,11 @@ add a field with a *new* number, add an rpc method, add an enum value, rename a
 field (the number is what matters), mark fields deprecated, and **reserve** removed
 tags. Breaking: changing a field's type, moving a field to a different number, or
 reusing a retired tag.
+
+{% include excalidraw.html
+   file="15-grpc-breaking"
+   alt="Two columns for protobuf changes. Safe and wire-compatible: add a field with a new number, add a new rpc method, add a value to an enum, rename a field since the number is unchanged, deprecate with the deprecated option, and widen with reserved for old tags. Breaking and rejected by the gate: change a field's number or type, reuse a removed field number, remove a field without reserving its tag, change an rpc between unary and streaming, rename or move a service or package, or change the request or response message type."
+   caption="Figure B.2 — protobuf: safe wire-compatible changes versus breaking ones the registry rejects" %}
 
 ```proto
 syntax = "proto3";
@@ -74,6 +84,11 @@ continuously. Add new fields and types (additive is always safe — existing que
 don't ask for the new field, so they're unaffected), mark superseded fields
 `@deprecated` with a reason, watch usage drop, then retire.
 
+{% include excalidraw.html
+   file="15-graphql-evolution"
+   alt="A four-step GraphQL evolution flow with no version number. Add: a new field or type, additive and safe, clients opt in. Deprecated: mark the old field with a reason and replacement, still served. Watch usage: field-level metrics show who still queries it and drive migration. Retire: at zero usage, remove the field — the only breaking step."
+   caption="Figure B.3 — GraphQL evolves rather than versions: add, deprecate, watch usage, then retire" %}
+
 ```python
 import strawberry
 
@@ -104,7 +119,7 @@ The protocol-specific rules are all faces of four ideas:
 {% include excalidraw.html
    file="15-deprecation-lifecycle"
    alt="A four-step lifecycle: ADD (additive, always safe), DEPRECATE (with reason, replacement, and sunset), MEASURE (who is still using it), then RETIRE after migration"
-   caption="Figure B.1 — The same lifecycle for every protocol: add, deprecate, measure, retire" %}
+   caption="Figure B.4 — The same lifecycle for every protocol: add, deprecate, measure, retire" %}
 
 ### Cross-check it yourself
 
