@@ -5,7 +5,7 @@ label: "Appendix F"
 order: 19
 part: "Deep-dive appendices"
 description: "Where service boundaries and API contracts come from — strategic DDD to place the lines, tactical DDD to model inside them, and hexagonal architecture to keep REST, gRPC, GraphQL and Kafka out of the domain."
-duration: 18 minutes
+duration: 22 minutes
 ---
 
 The rest of this book assumes the boundaries are already drawn: that each service
@@ -55,6 +55,11 @@ in DDD terms. And by Conway's law, a boundary that does not match a team's owner
 generates constant cross-team coordination, so put the lines where a team can own a
 context end to end.
 
+{% include excalidraw.html
+   file="19-strategic-ddd"
+   alt="Strategic DDD classifies the business into three kinds of subdomain by value and rate of change. Core: your competitive edge, complex and volatile, your best people — order and pricing. Supporting: necessary but not a differentiator, built simply — inventory and shipping. Generic: a solved problem you buy or adopt off the shelf — auth and notification. Each subdomain becomes one or more bounded contexts, a model boundary with its own ubiquitous language, and the API is that boundary: one context's order is not another's, and the contract translates between models rather than sharing internals."
+   caption="Figure F.1 — Subdomains classified by value and volatility; each becomes a bounded context whose API is the boundary" %}
+
 ## Context mapping — how contexts integrate
 
 Context mapping catalogues the ways two contexts relate, and three of those patterns
@@ -80,6 +85,11 @@ at all. The payoff of this section is recognition: the registry-backed contract 
 already have is a Published Language, and the gateway or consumer-edge translation you
 already do is an Anticorruption Layer — now they have names and a theory behind them.
 
+{% include excalidraw.html
+   file="19-context-mapping"
+   alt="The eight context-mapping patterns for how two bounded contexts integrate. The three API-relevant ones are starred: Open-Host Service, publish a stable API for all comers; Published Language, a shared schema in OpenAPI, proto, or Avro; and Anticorruption Layer, translate a foreign model at your edge. The others are Conformist, accept the upstream model as-is; Customer and Supplier, upstream serves a negotiated downstream; Shared Kernel, share a model with high coupling used sparingly; Partnership, two contexts evolve together; and Separate Ways, don't integrate at all."
+   caption="Figure F.2 — The context-mapping patterns; the starred three are the ones an API actually implements" %}
+
 ## Hexagonal architecture — protocols are adapters
 
 Hexagonal architecture (ports and adapters) is the structural answer to "keep the
@@ -95,7 +105,7 @@ points inward: adapters depend on the domain, never the reverse.
 {% include excalidraw.html
    file="19-hexagonal-ports"
    alt="A central domain core that depends on nothing, declaring ports. On the left, three driving adapters — REST, gRPC, GraphQL — call inward through an inbound port. On the right, two driven adapters — a Postgres repository and a Kafka publisher — implement outbound ports. All dependency arrows point inward toward the core."
-   caption="Figure F.1 — The domain core is isolated; the four protocols are interchangeable adapters around it" %}
+   caption="Figure F.3 — The domain core is isolated; the four protocols are interchangeable adapters around it" %}
 
 The consequence is the one this book cares about: the four protocols are
 *interchangeable adapters*. You can add gRPC alongside REST, or a Kafka consumer, or
