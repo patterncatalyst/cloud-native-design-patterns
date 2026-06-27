@@ -66,7 +66,7 @@ spans for the business operations that matter.
 Here is auto-instrumentation plus one custom business span, per stack. Point it at
 the Collector; the framework integrations do the rest.
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 # application.yml — Micrometer Tracing + OTLP exporter
@@ -170,6 +170,28 @@ span->End();
 // trace_id flows: REST -> gRPC -> Kafka -> consumer
 ```
 
+```go
+// otel.go — init once in main(); otelhttp auto-instruments, add a custom span
+func main() {
+	shutdown := initTracer(context.Background()) // OTLP exporter + batch processor
+	defer shutdown()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /orders", placeOrder)
+	// NewHandler turns every request into a span; context propagates onto Kafka
+	_ = http.ListenAndServe(":8080", otelhttp.NewHandler(mux, "order-service"))
+}
+
+var tracer = otel.Tracer("order-service")
+
+func placeOrder(w http.ResponseWriter, r *http.Request) {
+	ctx, span := tracer.Start(r.Context(), "reserve_stock") // custom span
+	defer span.End()
+	inventory.ReserveStock(ctx, body.SKU, body.Quantity)
+	// trace_id flows: REST -> gRPC -> Kafka -> consumer
+}
+```
+
 ### How the code works
 
 Every tab does two things: turn on auto-instrumentation for the frameworks (one
@@ -188,7 +210,7 @@ Auto-instrumentation gives you trace spans for free, but the **metric** and the
 `trace_id` is stamped onto the line — that stamp is what lets you jump from a log
 straight to its trace:
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // Micrometer meter + SLF4J; the OTel logback appender puts trace_id in the MDC
@@ -259,6 +281,24 @@ void record_order(const Order& o) {
 }{% endraw %}
 ```
 
+```go
+// metric via the OTel SDK; log via log/slog with the trace_id stamped on
+var (
+	meter        = otel.Meter("order-service")
+	ordersPlaced metric.Int64Counter
+)
+
+func init() { ordersPlaced, _ = meter.Int64Counter("orders.placed") }
+
+func recordOrder(ctx context.Context, o Order) {
+	ordersPlaced.Add(ctx, 1, metric.WithAttributes(attribute.String("sku", o.SKU))) // metric
+	sc := trace.SpanContextFromContext(ctx)
+	slog.InfoContext(ctx, "order placed", // trace-correlated log
+		"trace_id", sc.TraceID().String(),
+		"order_id", o.ID)
+}
+```
+
 The metric feeds the RED/USE dashboards and SLO alerts; the log carries the
 `trace_id` so Loki can filter to exactly the request you are chasing. Same operation,
 three correlated signals from one place in the code.
@@ -292,7 +332,7 @@ hop in the W3C `baggage` header, so a value like `tenant.id` is available to eve
 service and can be attached to their spans and logs without threading it through each
 call signature:
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // OpenTelemetry Baggage rides the same context propagation as the trace
@@ -334,6 +374,16 @@ auto ctx      = otel::context::RuntimeContext::GetCurrent();
 auto with_bag = otel::baggage::SetBaggage(ctx, "tenant.id", request.tenant_id);
 auto token    = otel::context::RuntimeContext::Attach(with_bag);
 // downstream gRPC / Kafka calls carry tenant.id until token goes out of scope
+```
+
+```go
+// set baggage once at the edge; it rides every downstream hop on the context
+func withTenant(ctx context.Context, tenantID string) context.Context {
+	m, _ := baggage.NewMember("tenant.id", tenantID)
+	b, _ := baggage.New(m)
+	return baggage.ContextWithBaggage(ctx, b)
+}
+// any gRPC / Kafka call made with this ctx carries tenant.id downstream
 ```
 
 Use baggage sparingly — it is copied onto every span and every downstream request, so

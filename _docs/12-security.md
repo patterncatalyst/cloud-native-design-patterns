@@ -64,7 +64,7 @@ signature — the sidecar already did, and re-doing it duplicates trust and drif
    alt="Clients reach a Kubernetes pod whose app container holds business logic only — no TLS, auth, rate-limit, or audit code — talking over localhost to an Envoy/OPA sidecar that terminates mTLS, validates JWTs, rate-limits, audits, enforces policy, and emits metrics and traces before egress. The app trusts the sidecar's headers."
    caption="Figure 12.2 — Security concerns move out of the app and into an Envoy/OPA sidecar in the same pod" %}
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // Istio sidecar already did mTLS + JWT validation. Trust its headers;
@@ -139,6 +139,21 @@ class TrustSidecar : public drogon::HttpFilter<TrustSidecar> {
     next();                                                   // never re-validate sig
   }
 };
+```
+
+```go
+// trustSidecar — trust the headers the Istio sidecar sets after mTLS; never re-validate
+func trustSidecar(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// set ONLY by the sidecar after mTLS — the app never sees raw certs
+		if r.Header.Get("X-Forwarded-Client-Cert") == "" {
+			http.Error(w, "no validated identity", http.StatusForbidden) // deny
+			return
+		}
+		_ = r.Header.Get("X-Jwt-Claim-Sub") // claims, pre-validated upstream
+		next.ServeHTTP(w, r)                // do NOT re-validate the signature
+	})
+}
 ```
 
 The `X-Forwarded-Client-Cert` carries the validated caller identity from mTLS —
