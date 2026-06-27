@@ -5,7 +5,7 @@ label: "Appendix C"
 order: 16
 part: "Deep-dive appendices"
 description: "The protocol we left out of the main interaction styles, because it behaves so differently on Kubernetes — why long-lived sockets fight stateless scaling, and the pub/sub backplane plus resume-don't-restart posture that fix it."
-duration: 16 minutes
+duration: 20 minutes
 ---
 
 WebSockets were deliberately left out of the main interaction-styles discussion
@@ -126,6 +126,11 @@ for its whole lifetime. Two problems follow:
 And because the registry is per-pod, a message for user X is undeliverable from any
 pod that doesn't happen to hold X's socket.
 
+{% include excalidraw.html
+   file="16-ws-scaling-problem"
+   alt="Clients hold long-lived ws connections through a Service or load balancer that is sticky per connection. ws-pod-1 holds 120 connections and ws-pod-2 holds 118, but a newly added ws-pod-3 holds 0 — the scale-up problem, since a new pod gets no existing connections, only new ones. Killing a pod is the scale-down or rollout problem: it drops every connection it was holding at once."
+   caption="Figure C.1 — A WebSocket pins to a pod, so scale-up leaves new pods idle and scale-down drops every connection at once" %}
+
 ## Scaling out: a pub/sub backplane
 
 The fix keeps the part that's fine — each pod still owns only its own sockets — and
@@ -138,7 +143,7 @@ know where any client lives.
 {% include excalidraw.html
    file="16-ws-backplane"
    alt="Three WebSocket pods each own only their own sockets; all subscribe and publish to a shared Redis or Kafka backplane. A message for client X arrives at ws-pod-1, which publishes to the backplane; the backplane delivers it to ws-pod-2, which holds X's socket"
-   caption="Figure C.1 — Externalised fan-out: the backplane routes each message to whichever pod holds the client" %}
+   caption="Figure C.2 — Externalised fan-out: the backplane routes each message to whichever pod holds the client" %}
 
 For the payload itself, frame messages as **binary protobuf** rather than JSON
 text: smaller and faster on a hot socket, and versioned by the same field-number
@@ -156,6 +161,11 @@ its loss:
 - The client **resumes from the last acknowledged sequence number** — a monotonic
   per-connection counter — so the server replays only what was missed instead of
   restarting the stream. Resume, don't restart.
+
+{% include excalidraw.html
+   file="16-ws-resume"
+   alt="A sequence between a client and a ws-pod. A ping/pong heartbeat detects a dead link; the connection is lost; the client reconnects with backoff and jitter; it resumes by sending its last acknowledged sequence number (1042); the pod replays only the missed events (1043 to 1050), which are idempotent; the stream is live again, at-least-once and deduplicated by sequence."
+   caption="Figure C.3 — Resume, don't restart: detect the drop, reconnect with backoff, and replay only what was missed from the last acked sequence" %}
 
 ## A cloud-native WebSocket checklist
 
