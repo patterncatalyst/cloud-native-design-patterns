@@ -3,7 +3,7 @@ title: "Stream Processing"
 order: 6
 part: "Foundations & the system"
 description: "Deriving new streams from streams — stateful, changelog-backed windowed aggregation, and KEDA scaling workers on consumer lag rather than CPU, down to zero when the topic is quiet."
-duration: 16 minutes
+duration: 18 minutes
 ---
 
 A consumer reacts to one event at a time. A *stream processor* does something more:
@@ -16,6 +16,18 @@ chapter builds standing computations on top of it.
 A stream-processing app is a **topology**: sources (input topics), stateful
 processors (filter, join, window, aggregate), and sinks (output topics or stores).
 The output of one topology is just another stream that other services consume.
+
+{% include excalidraw.html
+   file="06-derive-streams"
+   alt="A streaming topology: the orders and payments topics feed a join-and-window operator (keyed by orderId, 5-minute tumbling, with a local state store); its output feeds an aggregate operator (count, sum, rate per merchant); that emits a derived revenue topic, which a Grafana dashboard reads."
+   caption="Figure 6.1 — A streaming app is a topology of sources, processors, and sinks; each output is just another stream" %}
+
+Reading the topology left to right makes the pattern concrete: two input topics
+(`orders` and `payments`) are joined and bucketed into five-minute tumbling windows
+keyed by order id; the windowed result is aggregated into per-merchant counts, sums,
+and rates; and that aggregate is published as a brand-new `revenue` topic that a
+dashboard — or any other service — can consume. Nothing here calls another service
+synchronously; each stage only reads a stream and writes a stream.
 
 The word that matters is **stateful**. Unlike a simple consumer, these processors
 keep local state — running totals, window buffers — and that state must survive
@@ -160,7 +172,7 @@ One mechanism, two signals.
 {% include excalidraw.html
    file="06-scale-on-lag"
    alt="KEDA reads the consumer lag on the order.placed topic and scales the payment-consumer pods up when lag grows and down to zero when the topic is idle"
-   caption="Figure 6.1 — Scale on lag, not CPU — and to zero when the topic is quiet" %}
+   caption="Figure 6.2 — Scale on lag, not CPU — and to zero when the topic is quiet" %}
 
 ```yaml
 # event-driven: scale consumers on Kafka lag
