@@ -3,7 +3,7 @@ title: "Event-Driven"
 order: 5
 part: "Foundations & the system"
 description: "Decoupled facts that fan out — the event backbone, producing and consuming with commit-after-side-effect, schemas as the enforced contract, and the difference between event sourcing and event streaming."
-duration: 18 minutes
+duration: 22 minutes
 ---
 
 The Data chapter ended with `order.placed` leaving the database through the
@@ -166,12 +166,26 @@ identical.
 
 ## Schemas are the contract
 
-Events need contracts as much as REST and gRPC do — arguably more, because
-consumers are anonymous and you can't call them to coordinate a change. The schema
-(Avro, Protobuf, or JSON Schema) lives in the registry. Producers and consumers
-fetch it, and **compatibility is checked at publish time**, so a breaking change is
-rejected before it ever reaches the topic. That enforcement is what makes
-"add a consumer safely" actually safe.
+Events need contracts as much as REST and gRPC do — arguably more, because consumers
+are anonymous and you can't call them to coordinate a change. The schema (Avro,
+Protobuf, or JSON Schema) lives in a registry; in our stack that is **Apicurio**, run
+in-cluster.
+
+{% include excalidraw.html
+   file="05-schemas-registry"
+   alt="An Apicurio Registry at top holds versioned schemas with FORWARD/BACKWARD compatibility. The order-service producer serialises with a schema-id and sends id+bytes through Kafka to a consumer that resolves the id and deserialises; both resolve the schema by id from the registry. A CI publish gate rejects incompatible schemas before merge."
+   caption="Figure 5.2 — Apicurio holds versioned schemas; producer and consumer resolve by schema-id on the hot path, and a CI gate rejects incompatible changes before merge" %}
+
+The mechanics matter. The producer serialises a record and prefixes it with a small
+**schema-id**; only the id plus the encoded bytes travel on the wire, never the schema
+itself. The consumer reads the id, fetches the matching schema from the registry
+(cached after the first lookup), and deserialises. Because the registry enforces a
+compatibility policy — **FORWARD** so old consumers tolerate new producers, or
+**BACKWARD** so new consumers tolerate old data — a change that would break the other
+side is refused. Best of all, that check runs in CI at publish time: a breaking schema
+is **rejected before it merges**, not discovered in production when an anonymous
+consumer falls over. That enforcement is what makes "add a consumer safely" actually
+safe.
 
 ## Event sourcing vs. event streaming
 
@@ -185,14 +199,63 @@ the integration mechanism, while current state still lives in ordinary tables.
 Most systems do streaming; reserve sourcing for domains where the full history is
 itself the valuable asset (ledgers, audit).
 
+{% include excalidraw.html
+   file="05-sourcing-vs-streaming"
+   alt="Two columns. Event sourcing: events are the state — aggregate state is a fold of events from t0, the event log is the database, current state is rebuilt by replaying; fit is audit-heavy, financial, temporal; tools Marten, EventStoreDB, Axon. Event streaming: events are the transport — current state lives in a database, events are facts about changes, consumers react and propagate; fit is integration, fan-out, decoupling; tools Kafka, Pulsar, NATS JetStream."
+   caption="Figure 5.3 — Event sourcing makes events the state; event streaming uses events as transport — and full CQRS often combines both" %}
+
+The two are not rivals and not mutually exclusive. A common full-CQRS design is
+event-sourced on the write side — the log *is* the system of record — while the read
+side is a set of streaming projections fed from that same log. The question that
+disambiguates them in any given design is simple: is the **event itself** the source
+of truth (sourcing), or is it a **fact propagated** from a store that still holds the
+truth (streaming)? Sourcing tools cluster around Marten, EventStoreDB, and Axon;
+streaming runs on Kafka, Pulsar, and NATS JetStream.
+
+## The event-driven tools landscape
+
+The ecosystem is large and easy to cargo-cult, so it helps to sort the major
+open-source tools by the job they do rather than by reputation.
+
+{% include excalidraw.html
+   file="05-tools-landscape"
+   alt="Three categories. Substrate (the durable log): Kafka and Pulsar. Compute (transform and aggregate): Flink, with alternatives Kafka Streams and Spark Structured Streaming. Movement (data in and out): NiFi and Debezium. Arrows show substrate feeding compute feeding movement; a typical pipeline runs source DB to Debezium/NiFi to Kafka/Pulsar to Flink to sink."
+   caption="Figure 5.4 — Three jobs: substrate (the durable log), compute (transform & aggregate), and movement (data in & out)" %}
+
+Three categories cover almost everything. **Substrate** is the durable log itself —
+**Kafka** (the de facto event spine: partitioned, ordered, offset-tracked) or
+**Pulsar** (pub/sub plus queue plus log, with tiered storage and a Kafka-protocol
+shim). **Compute** transforms and aggregates the streams — **Flink** is the heavyweight
+stateful engine with windowed aggregations and exactly-once checkpointing, sitting on
+top of Kafka or Pulsar; lighter alternatives are Kafka Streams (JVM-only) and Spark
+Structured Streaming. **Movement** gets data in and out — **NiFi** for visual ETL with
+hundreds of connectors and back-pressure, and **Debezium** for CDC, tailing the
+database commit log (the same mechanism the Data chapter builds the outbox on). A
+typical pipeline threads all three: source DB → Debezium or NiFi → Kafka or Pulsar →
+Flink for windowed compute → sink. These tools complement each other far more often
+than they compete, and all are Apache 2.0, so the whole pipeline runs on the same
+plain Kubernetes as everything else.
+
 ## The log is the source of truth
 
 The mental-model correction most people need: **Kafka is a log, not a queue.**
-Messages aren't deleted when read — they're retained, and each consumer group
-tracks its own offset. So replay is just rewinding an offset: a new consumer can
-process all of history, and a fixed consumer can re-run it. That is the foundation
-for event sourcing and for rebuilding stream-processing state — the subject of **06 · Stream
-Processing**.
+
+{% include excalidraw.html
+   file="05-log-truth"
+   alt="A partitioned append-only log with offsets 0 through 9, head at the latest. Three consumers track independent offsets: a payment consumer at offset 9 (live), an analytics replay reset to offset 0, and a new consumer reading history from the middle with no producer impact."
+   caption="Figure 5.5 — A partitioned, append-only log: each consumer tracks its own offset, so replay is just rewinding" %}
+
+Messages aren't deleted when read — they're retained by time or size, and each
+consumer group tracks **its own offset** into the partition. That one fact has large
+consequences. A live consumer sits at the head, processing new records as they arrive.
+An analytics job can reset to offset zero and replay the entire history. A brand-new
+consumer can join later and read all of history to build its state, with **no impact
+on the producer or on existing consumers** — nobody is draining a queue, so nobody
+contends for the messages. Replay is simply moving an offset backward. That is the
+foundation for event sourcing, for rebuilding a stream processor's state after a
+crash, and for the windowed computation taken up in **06 · Stream Processing**. Both
+Kafka (run by Strimzi in our cluster) and Pulsar give you this durable, replayable,
+partitioned log — not a queue you drain.
 
 ### Cross-check it yourself
 

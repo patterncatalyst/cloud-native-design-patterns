@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 500" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="350" y="40" width="300" height="82" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="500.0" y="71.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Apicurio Registry</text>
+<text x="500.0" y="88.5" font-size="11.5" fill="#555555" text-anchor="middle">versioned schemas</text>
+<text x="500.0" y="103.5" font-size="11.5" fill="#555555" text-anchor="middle">FORWARD / BACKWARD compat</text>
+<rect x="40" y="205" width="230" height="90" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="155.0" y="240.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">order-service</text>
+<text x="155.0" y="257.5" font-size="11.5" fill="#555555" text-anchor="middle">producer</text>
+<text x="155.0" y="272.5" font-size="11.5" fill="#555555" text-anchor="middle">serialize w/ schema-id</text>
+<rect x="330" y="220" width="110" height="60" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="385.0" y="255.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Kafka</text>
+<rect x="500" y="205" width="230" height="90" rx="9" fill="#f4f4f4" stroke="#888888" stroke-width="1.5"/>
+<text x="615.0" y="240.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">consumer</text>
+<text x="615.0" y="257.5" font-size="11.5" fill="#555555" text-anchor="middle">resolve id</text>
+<text x="615.0" y="272.5" font-size="11.5" fill="#555555" text-anchor="middle">deserialize</text>
+<rect x="350" y="380" width="300" height="82" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5"/>
+<text x="500.0" y="411.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">CI publish gate</text>
+<text x="500.0" y="428.5" font-size="11.5" fill="#555555" text-anchor="middle">reject incompatible</text>
+<text x="500.0" y="443.5" font-size="11.5" fill="#555555" text-anchor="middle">before merge</text>
+<path d="M270,250 L330,250" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
+<text x="306.0" y="242.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">id+bytes</text>
+<text x="306.0" y="242.0" font-size="11" fill="#b8650a" text-anchor="middle">id+bytes</text>
+<path d="M440,250 L500,250" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
+<path d="M210,205 L420,122" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<text x="321.0" y="157.5" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">resolve by id</text>
+<text x="321.0" y="157.5" font-size="11" fill="#555" text-anchor="middle">resolve by id</text>
+<path d="M600,205 L540,122" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<path d="M500,380 L500,122" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<text x="500" y="488" font-size="12" fill="#2f6db5" text-anchor="middle">compatibility is checked at publish time, so a breaking change is rejected before it ships</text>
+</svg>
