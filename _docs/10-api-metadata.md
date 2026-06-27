@@ -3,7 +3,7 @@ title: "API Metadata"
 order: 10
 part: "The operational platform"
 description: "The discovery and trust plane — a searchable catalog of every API, topic, and table with ownership, automated lineage, and quality signals, so you can answer 'if I change this field, who breaks?' before you change it."
-duration: 12 minutes
+duration: 14 minutes
 ---
 
 A contract that is enforced but undiscoverable is half useless. If a consumer
@@ -33,11 +33,19 @@ production:
 > if I change this field, who breaks?
 
 — and answer it *before* you make the change, not after a downstream team's
-dashboard goes blank.
+dashboard goes blank. OpenMetadata derives this graph automatically from what it
+ingests — parsing schemas, topic configurations, and query history — so the lineage
+stays accurate as the system changes, with no one drawing a dependency diagram by
+hand.
 
 ## What the catalog gives every consumer
 
 Four concrete payoffs, each replacing a thing teams currently do by asking around:
+
+{% include excalidraw.html
+   file="10-catalog-payoffs"
+   alt="Four columns of what the catalog gives every consumer. Discovery: search across APIs, topics, and tables, find the owning team and how to get access. Trust: published SLOs, data-quality results, freshness, and a criticality tier. Lineage: column- and topic-level impact analysis answering who breaks if I change this. Ownership: tags and PII classification, an accountable owner, and compliance-readiness."
+   caption="Figure 10.2 — Four payoffs the catalog gives every consumer: discovery, trust, lineage, and ownership" %}
 
 - **Discovery** — search across APIs, topics, and tables, and find the owning team
   and how to get access. No more hunting through Slack for who owns `inventory`.
