@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 490" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="20" y="55" width="370" height="120" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="205.0" y="105.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Distributed monolith</text>
+<text x="205.0" y="122.5" font-size="11.5" fill="#555555" text-anchor="middle">services deploy together;</text>
+<text x="205.0" y="137.5" font-size="11.5" fill="#555555" text-anchor="middle">one change ripples everywhere</text>
+<rect x="405" y="55" width="370" height="120" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="590.0" y="105.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Shared database</text>
+<text x="590.0" y="122.5" font-size="11.5" fill="#555555" text-anchor="middle">two services, one schema —</text>
+<text x="590.0" y="137.5" font-size="11.5" fill="#555555" text-anchor="middle">coupled deploys and blast radius</text>
+<rect x="790" y="55" width="370" height="120" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="975.0" y="105.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Chatty / N+1 APIs</text>
+<text x="975.0" y="122.5" font-size="11.5" fill="#555555" text-anchor="middle">a screen makes 40 calls;</text>
+<text x="975.0" y="137.5" font-size="11.5" fill="#555555" text-anchor="middle">latency and failure compound</text>
+<rect x="20" y="190" width="370" height="120" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="205.0" y="240.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Sync call chains</text>
+<text x="205.0" y="257.5" font-size="11.5" fill="#555555" text-anchor="middle">A→B→C→D; availability</text>
+<text x="205.0" y="272.5" font-size="11.5" fill="#555555" text-anchor="middle">multiplies down to near zero</text>
+<rect x="405" y="190" width="370" height="120" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="590.0" y="240.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">No contract / no registry</text>
+<text x="590.0" y="257.5" font-size="11.5" fill="#555555" text-anchor="middle">breaking changes ship silently</text>
+<text x="590.0" y="272.5" font-size="11.5" fill="#555555" text-anchor="middle">and break consumers</text>
+<rect x="790" y="190" width="370" height="120" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="975.0" y="240.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Smart pipes, dumb endpoints</text>
+<text x="975.0" y="257.5" font-size="11.5" fill="#555555" text-anchor="middle">business logic creeps into</text>
+<text x="975.0" y="272.5" font-size="11.5" fill="#555555" text-anchor="middle">the gateway / ESB</text>
+<rect x="20" y="325" width="370" height="120" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="205.0" y="375.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Missing observability</text>
+<text x="205.0" y="392.5" font-size="11.5" fill="#555555" text-anchor="middle">no traces; debugging by</text>
+<text x="205.0" y="407.5" font-size="11.5" fill="#555555" text-anchor="middle">guesswork across services</text>
+<rect x="405" y="325" width="370" height="120" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="590.0" y="375.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Retry storms / no backoff</text>
+<text x="590.0" y="392.5" font-size="11.5" fill="#555555" text-anchor="middle">retries amplify an incident</text>
+<text x="590.0" y="407.5" font-size="11.5" fill="#555555" text-anchor="middle">into an outage</text>
+<rect x="790" y="325" width="370" height="120" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="975.0" y="375.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Leaky internal models</text>
+<text x="975.0" y="392.5" font-size="11.5" fill="#555555" text-anchor="middle">DB rows exposed as the</text>
+<text x="975.0" y="407.5" font-size="11.5" fill="#555555" text-anchor="middle">public API; can&#x27;t evolve</text>
+<text x="590" y="472" font-size="12" fill="#2f6db5" text-anchor="middle">each one re-couples what the architecture worked to separate — most outages trace back to one of these</text>
+</svg>

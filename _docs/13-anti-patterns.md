@@ -3,7 +3,7 @@ title: "Anti-Patterns"
 order: 13
 part: "Security & anti-patterns"
 description: "Nearly every cloud-native failure is coupling sneaking back in — the recurring anti-patterns that reintroduce it, the five heuristics that catch them in review, and the whole book compressed to five lines."
-duration: 14 minutes
+duration: 16 minutes
 ---
 
 Here is the most useful framing in the book, and the one to remember for code
@@ -17,6 +17,11 @@ ways that happens and gives you heuristics to catch them.
 Each of these is a callback to an earlier chapter — and each one reintroduces
 exactly the coupling the architecture worked to remove:
 
+{% include excalidraw.html
+   file="13-antipatterns-grid"
+   alt="A grid of nine anti-patterns, each re-coupling what the architecture worked to separate: distributed monolith (services deploy together), shared database (two services one schema), chatty N+1 APIs (a screen makes 40 calls), sync call chains (A to B to C to D, availability multiplies down), no contract or registry (breaking changes ship silently), smart pipes and dumb endpoints (business logic creeps into the gateway), missing observability (debugging by guesswork), retry storms with no backoff (retries amplify an incident into an outage), and leaky internal models (DB rows exposed as the public API)."
+   caption="Figure 13.1 — The recurring anti-patterns; each one re-couples what the platform worked to separate" %}
+
 - **Distributed monolith** — services that must be deployed together. You paid all
   the cost of distribution and kept all the coupling.
 - **Shared database** — two services reading and writing one table. The table is
@@ -25,6 +30,9 @@ exactly the coupling the architecture worked to remove:
   synchronous hops that couple availability and latency end to end.
 - **No contract / leaky internal models** — exposing database rows as the public
   API, so every internal change is a breaking change.
+- **Smart pipes, dumb endpoints** — business logic creeping into the gateway or an
+  ESB, so the routing layer becomes the new monolith and no single team can change a
+  flow safely.
 - **Missing observability** — debugging distributed systems by guesswork.
 - **Retry storms** — retries with no backoff or bound, turning a blip into an
   outage.
@@ -34,7 +42,7 @@ If you keep one diagram for review, keep the pairing below.
 {% include excalidraw.html
    file="13-antipattern-heuristics"
    alt="Five anti-patterns on the left — distributed monolith, shared database, chatty call chains, no contract or leaky models, missing observability and retry storms — each paired with the review heuristic on the right that catches it"
-   caption="Figure 13.1 — Every anti-pattern is coupling returning; every heuristic is a test you can apply in a PR" %}
+   caption="Figure 13.2 — Every anti-pattern is coupling returning; every heuristic is a test you can apply in a PR" %}
 
 ## The heuristics that keep you out of them
 

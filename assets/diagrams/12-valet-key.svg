@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 450" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="40" y="210" width="170" height="90" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="125.0" y="260.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Client</text>
+<rect x="300" y="100" width="290" height="120" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="445.0" y="143.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Application</text>
+<text x="445.0" y="160.0" font-size="11.5" fill="#555555" text-anchor="middle">mints a valet key:</text>
+<text x="445.0" y="175.0" font-size="11.5" fill="#555555" text-anchor="middle">scoped, time-bound,</text>
+<text x="445.0" y="190.0" font-size="11.5" fill="#555555" text-anchor="middle">operation-restricted</text>
+<rect x="700" y="195" width="300" height="110" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="850.0" y="240.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Resource (S3, blob, file)</text>
+<text x="850.0" y="257.5" font-size="11.5" fill="#555555" text-anchor="middle">client uploads / downloads</text>
+<text x="850.0" y="272.5" font-size="11.5" fill="#555555" text-anchor="middle">directly — no app hop</text>
+<rect x="300" y="300" width="290" height="110" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5"/>
+<text x="445.0" y="338.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Storage / KMS</text>
+<text x="445.0" y="355.0" font-size="11.5" fill="#555555" text-anchor="middle">validates the token,</text>
+<text x="445.0" y="370.0" font-size="11.5" fill="#555555" text-anchor="middle">permits the named op,</text>
+<text x="445.0" y="385.0" font-size="11.5" fill="#555555" text-anchor="middle">rejects everything else</text>
+<path d="M210,235 L300,175" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="261.0" y="199.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">1. request key</text>
+<text x="261.0" y="199.0" font-size="11" fill="#555" text-anchor="middle">1. request key</text>
+<path d="M300,195 L210,258" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="261.0" y="242.5" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">2. signed token</text>
+<text x="261.0" y="242.5" font-size="11" fill="#555" text-anchor="middle">2. signed token</text>
+<path d="M210,270 L700,250" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<text x="461.0" y="252.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">3. PUT / GET with token</text>
+<text x="461.0" y="252.0" font-size="11" fill="#555" text-anchor="middle">3. PUT / GET with token</text>
+<path d="M760,305 L520,355" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="646.0" y="324.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">4. validate</text>
+<text x="646.0" y="324.0" font-size="11" fill="#555" text-anchor="middle">4. validate</text>
+<text x="600" y="438" font-size="12" fill="#2f6db5" text-anchor="middle">the app never proxies the bytes — no long-lived credentials at the client (S3 pre-signed URLs, Azure SAS tokens, GCS signed URLs, STS AssumeRole)</text>
+</svg>

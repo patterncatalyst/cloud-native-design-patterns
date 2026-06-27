@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1220 400" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="30" y="150" width="160" height="80" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="110.0" y="195.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Developer</text>
+<rect x="230" y="145" width="190" height="90" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="325.0" y="180.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Git / CI</text>
+<text x="325.0" y="197.5" font-size="11.5" fill="#555555" text-anchor="middle">conftest, kyverno</text>
+<text x="325.0" y="212.5" font-size="11.5" fill="#555555" text-anchor="middle">pre-merge gate</text>
+<rect x="460" y="150" width="180" height="80" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="550.0" y="188.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">kubectl apply</text>
+<text x="550.0" y="205.0" font-size="11.5" fill="#555555" text-anchor="middle">or ArgoCD / Flux</text>
+<rect x="680" y="120" width="260" height="140" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5"/>
+<text x="810.0" y="165.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Admission controller</text>
+<text x="810.0" y="182.5" font-size="11.5" fill="#555555" text-anchor="middle">OPA Gatekeeper / Kyverno</text>
+<text x="810.0" y="197.5" font-size="11.5" fill="#555555" text-anchor="middle"></text>
+<text x="810.0" y="212.5" font-size="11.5" fill="#555555" text-anchor="middle">evaluates ConstraintTemplates</text>
+<text x="810.0" y="227.5" font-size="11.5" fill="#555555" text-anchor="middle">against incoming objects</text>
+<rect x="980" y="150" width="210" height="80" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="1085.0" y="180.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">API server</text>
+<text x="1085.0" y="197.5" font-size="11.5" fill="#555555" text-anchor="middle">accepts or rejects</text>
+<text x="1085.0" y="212.5" font-size="11.5" fill="#555555" text-anchor="middle">based on policy</text>
+<rect x="680" y="300" width="260" height="80" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="810.0" y="330.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Policy (Rego / Kyverno YAML)</text>
+<text x="810.0" y="347.5" font-size="11.5" fill="#555555" text-anchor="middle">&quot;images must be signed&quot;</text>
+<text x="810.0" y="362.5" font-size="11.5" fill="#555555" text-anchor="middle">&quot;no privileged containers&quot;</text>
+<path d="M190,190 L230,190" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M420,190 L460,190" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M640,190 L680,190" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M940,190 L980,190" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M810,300 L810,260" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<text x="850.0" y="274.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">loaded</text>
+<text x="850.0" y="274.0" font-size="11" fill="#555" text-anchor="middle">loaded</text>
+<text x="610" y="392" font-size="12" fill="#2f6db5" text-anchor="middle">policy lives in Git, reviewed like code, applied by the cluster — no human runs a checklist (OPA/Gatekeeper, Kyverno, Conftest, Kubescape)</text>
+</svg>
