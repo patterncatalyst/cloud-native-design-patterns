@@ -5,7 +5,7 @@ label: "Appendix H"
 order: 21
 part: "Deep-dive appendices"
 description: "Shutting a pod down without dropping work — a short protocol between the app and Kubernetes: fail readiness first, cover the deregistration race, drain HTTP and consumers inside the grace budget, and stay idempotent for the inevitable hard kill."
-duration: 18 minutes
+duration: 21 minutes
 ---
 
 This appendix is the operational flip side of factor IX, disposability, from the
@@ -65,6 +65,11 @@ plus the per-connection sequence and backplane. **Jobs and schedulers** stop sta
 new work and either let running jobs finish or checkpoint so they resume after restart.
 Underneath all of it is the safety net: because a hard `SIGKILL` is always possible,
 **idempotent handlers** make a redelivered request or message harmless.
+
+{% include excalidraw.html
+   file="21-per-workload"
+   alt="Graceful shutdown means something different per workload, in four columns. HTTP REST/gRPC: stop accepting new, finish in-flight requests bounded by a timeout — the one that's automatic. Kafka consumer: stop polling, finish current records, commit offsets, leave the group. WebSocket: send a close or go-away, clients reconnect elsewhere, lean on the per-connection sequence and backplane. Jobs and scheduler: don't start new work, let running jobs finish or checkpoint progress, resume after restart. Underneath: make every handler idempotent, because a hard SIGKILL is always possible."
+   caption="Figure H.2 — Only HTTP drains automatically; consumers, sockets, and jobs each need their own shutdown logic, all backed by idempotency" %}
 
 ## The application side
 
