@@ -3,7 +3,7 @@ title: "API Registry"
 order: 9
 part: "The operational platform"
 description: "One authoritative, versioned home for every contract — OpenAPI, .proto, AsyncAPI, and event schemas — with Apicurio's compatibility rules gating breaking changes in CI before code ships."
-duration: 14 minutes
+duration: 17 minutes
 ---
 
 The Communications chapter kept insisting that the contract is the boundary. A
@@ -21,6 +21,17 @@ stubs from the registered version, so no one hand-writes parsing and everyone is
 reading the same source of truth. The Kafka serde libraries do this automatically:
 a producer's serializer registers the schema, a consumer's deserializer fetches
 it.
+
+{% include excalidraw.html
+   file="09-one-registry"
+   alt="REST design (OpenAPI), gRPC (.proto), and events (AsyncAPI) all register into one Apicurio Registry that holds OpenAPI, AsyncAPI, proto, Avro, and JSON Schema artifacts with versions and compatibility rules. The registry fans out to three consumers: a CI gate that blocks breaking changes, client codegen for typed stubs, and runtime resolution that serdes by schema-id."
+   caption="Figure 9.1 — One registry for every contract type, feeding the CI gate, code generation, and runtime serde" %}
+
+Read it design-first: every contract type — REST, gRPC, and events alike — is
+registered *before* code depends on it, and three different consumers read from that
+one home. CI gates breaking changes against it, client builds generate typed stubs
+from it, and at runtime the Kafka serde resolves the exact schema by the id carried on
+each message. One authoritative source, three jobs.
 
 Because every artifact is just bytes addressed by group and id, you talk to the
 registry over plain HTTP — the same `curl` you already use, from any language or a
@@ -41,6 +52,24 @@ curl -s -o /dev/null -w "%{http_code}" -X POST \
   --data-binary @order-placed.avsc        # → 200 if compatible, 409 if not
 ```
 
+The same call works from application or pipeline code in any language — here in
+Python, returning exactly the status code the CI gate keys off:
+
+```python
+# registry_client.py — register a new version; the registry enforces the rule
+import requests
+
+REGISTRY = "http://apicurio.registry.svc/apis/registry/v3"
+
+def publish(group: str, artifact_id: str, schema: bytes) -> int:
+    r = requests.post(
+        f"{REGISTRY}/groups/{group}/artifacts/{artifact_id}/versions",
+        headers={"Content-Type": "application/json"},
+        data=schema,
+    )
+    return r.status_code        # 200 if compatible, 409 if the rule rejects it
+```
+
 ## Gate breaking changes in CI
 
 This is the guardrail that makes the whole contract story real. The CI pipeline
@@ -52,7 +81,7 @@ discovered broken in production by a downstream team three days later.
 {% include excalidraw.html
    file="09-registry-gate"
    alt="A pull request with a schema change posts the new version to the Apicurio registry; the registry checks it against the compatibility rule and either allows merge and publish, or returns 409 and blocks the merge; consumers then fetch the published schema and generate stubs"
-   caption="Figure 9.1 — The registry checks compatibility at publish time and blocks the merge on a breaking change" %}
+   caption="Figure 9.2 — The registry checks compatibility at publish time and blocks the merge on a breaking change" %}
 
 ```yaml
 # .github/workflows/contracts.yml — block breaking changes before merge
