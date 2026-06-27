@@ -3,7 +3,7 @@ title: "Cloud-Native Principles"
 order: 1
 part: "Foundations & the system"
 description: "Cloud-native as a set of runtime properties, not a stack of tools — the six pillars, leaning on the platform, design-first contracts, and the twelve-factor app reframed by who owns each factor."
-duration: 15 minutes
+duration: 17 minutes
 ---
 
 Before any pattern, the principles that justify them. "Cloud-native" is not a
@@ -12,7 +12,15 @@ and every later choice in this book either earns or spends one of them.
 
 ## Six pillars
 
-A cloud-native service is:
+A cloud-native service exhibits six runtime properties — and the platform exists to
+make each of them the default:
+
+{% include excalidraw.html
+   file="01-six-pillars"
+   alt="A two-by-three grid of the six cloud-native pillars: Disposable (12-factor processes, fast start and clean stop, no local state), Observable (traces, metrics, logs; health and readiness; RED/USE signals), Resilient (timeouts, retries; circuit breakers; graceful degradation), Elastic (scale to load; scale to zero with KEDA; no fixed capacity), Automatable (declarative config; GitOps and CRDs; self-healing), and Loosely coupled (contracts not calls; async where it fits; independent deploy)."
+   caption="Figure 1.1 — Cloud-native in six pillars: the runtime properties an API must exhibit on Kubernetes" %}
+
+Read each as a behaviour you design toward, not a product you install:
 
 - **Disposable** — twelve-factor: fast start, clean stop, no local state, so the
   platform can move or restart it at will.
@@ -45,10 +53,17 @@ is what actually delivers independent deployability: the contract *is* the
 service boundary. Skip it and you get distributed coupling — the worst of both
 worlds.
 
-## The twelve-factor app, reframed by ownership
+## The twelve-factor app, revisited
 
 The twelve-factor app is the 2011 Heroku methodology that first codified what we
 now call cloud-native. It predates Kubernetes yet maps onto it almost perfectly.
+Here are all twelve, one line each.
+
+{% include excalidraw.html
+   file="01-twelve-factors"
+   alt="A grid of the twelve factors, each with a number, name, and one-line summary: 01 codebase (one repo, many deploys), 02 dependencies (declare and isolate), 03 config (read from the environment), 04 backing services (treat as attached resources), 05 build/release/run (keep the stages separate), 06 processes (stateless, share-nothing), 07 port binding (export a service via a port), 08 concurrency (scale out with processes), 09 disposability (fast start, graceful stop), 10 dev/prod parity (keep environments alike), 11 logs (treat as event streams), 12 admin processes (run as one-off tasks)."
+   caption="Figure 1.2 — The twelve factors at a glance" %}
+
 The useful way to read it today is not to recite all twelve, but to split them by
 **who owns each one** — the few you still write, versus the many the platform now
 provides for free.
@@ -56,11 +71,32 @@ provides for free.
 {% include excalidraw.html
    file="01-twelve-factor-ownership"
    alt="Two columns: the factors you still write per service (config from the environment, stateless processes, fast clean start and stop, logs as event streams, health and readiness probes) versus the factors the platform provides (build/release/run, concurrency and scaling, disposability, port binding, backing services, retries and timeouts)"
-   caption="Figure 1.1 — The twelve factors, split by who owns them" %}
+   caption="Figure 1.3 — The twelve factors, split by who owns them" %}
 
 The left column is your job; the right column is the platform's. The whole point
 of a cloud-native service is to do the left column well and trust the right
 column — which is exactly what the code below does.
+
+## Twelve factors, mapped to our system
+
+Grouped by what each factor *asks of you*, the twelve land on concrete choices in
+the running example — and most resolve to a platform default rather than code you
+write.
+
+{% include excalidraw.html
+   file="01-factors-mapped"
+   alt="Five rows mapping groups of factors to the system: build and ship becomes built once, run anywhere (one repo, Poetry, one image per release); configure becomes config from the environment (pydantic-settings, per-profile, secrets injected); run on the platform becomes disposable, stateless, scaled (KEDA scale-out and to-zero, fast start/stop, behind Istio); attach resources becomes backing services as swappable URLs (Postgres, Kafka via Strimzi, Apicurio, never in-process); operate becomes signals and admin off the hot path (OpenTelemetry to LGTM, admin as Jobs and CronJobs). Each row carries a section reference."
+   caption="Figure 1.4 — The twelve factors grouped by ask, mapped to where each lives in the system" %}
+
+Five groups cover all twelve. *Build & ship* (codebase, dependencies, build/release/run,
+parity) becomes one repo and one image per release. *Configure* (config) is read from
+the environment. *Run on the platform* (stateless processes, concurrency, disposability,
+port binding) is the runtime's job — KEDA scales it, Istio fronts it, the platform
+disposes of it. *Attach resources* (backing services) makes Postgres, Kafka, and the
+schema registry swappable URLs, never libraries compiled in. And *operate* (logs, admin
+processes) pushes telemetry and one-off tasks off the request hot path, into
+OpenTelemetry and Kubernetes Jobs. The section tags on each row point to where that
+group is treated in depth — most of the twelve are now adopted, not authored.
 
 ## A twelve-factor service, ready for the platform
 
@@ -164,7 +200,7 @@ async def readyz():
 ```
 
 ```cpp
-// conanfile.py pins everything; config comes from the environment
+{% raw %}// conanfile.py pins everything; config comes from the environment
 #include <drogon/drogon.h>
 #include <cstdlib>
 
@@ -186,7 +222,7 @@ int main() {
     cb(drogon::HttpResponse::newHttpJsonResponse({{"status","ready"}}));
   });
   app.addListener("0.0.0.0", 8080).run();  // factor VII · port binding
-}
+}{% endraw %}
 ```
 
 ### How the code works
@@ -209,7 +245,7 @@ The same two ideas appear in every tab:
    way.
 
 Notice what *isn't* here: no retry logic, no scaling code, no port-binding
-plumbing. Those are the right column of Figure 1.1 — the platform's job.
+plumbing. Those are the right column of Figure 1.3 — the platform's job.
 
 ### Cross-check it yourself
 
