@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 290" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="20" y="114" width="162" height="60" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="101.0" y="142.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">input log</text>
+<text x="101.0" y="159.0" font-size="11.5" fill="#555555" text-anchor="middle">offset 0 → head</text>
+<rect x="232" y="104" width="162" height="80" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="313.0" y="142.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">processor</text>
+<text x="313.0" y="159.0" font-size="11.5" fill="#555555" text-anchor="middle">local state + offset</text>
+<rect x="462" y="56" width="200" height="58" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="562.0" y="83.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">checkpoint store</text>
+<text x="562.0" y="100.0" font-size="11.5" fill="#555555" text-anchor="middle">snapshot { state, offset }</text>
+<rect x="462" y="168" width="200" height="58" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="562.0" y="195.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">recovery</text>
+<text x="562.0" y="212.0" font-size="11.5" fill="#555555" text-anchor="middle">restore + seek + replay</text>
+<path d="M182,144 L232,144" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="213.0" y="137.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">consume</text>
+<text x="213.0" y="137.0" font-size="11" fill="#555" text-anchor="middle">consume</text>
+<path d="M394,128 L462,92" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="434.0" y="103.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">periodic snapshot</text>
+<text x="434.0" y="103.0" font-size="11" fill="#555" text-anchor="middle">periodic snapshot</text>
+<path d="M562,114 L562,168" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<text x="598.0" y="143.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">on crash</text>
+<text x="598.0" y="143.0" font-size="11" fill="#555" text-anchor="middle">on crash</text>
+<path d="M462,196 L394,168" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="434.0" y="176.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">resume</text>
+<text x="434.0" y="176.0" font-size="11" fill="#555" text-anchor="middle">resume</text>
+<text x="380" y="272" font-size="10.5" fill="#777" text-anchor="middle">snapshot state and input offset together; on failure restore and replay from there — and rewind on purpose to reprocess and rebuild</text>
+</svg>

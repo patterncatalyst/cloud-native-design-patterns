@@ -3,7 +3,7 @@ title: "Event-Driven"
 order: 5
 part: "Foundations & the system"
 description: "Decoupled facts that fan out — the event backbone, producing and consuming with commit-after-side-effect, schemas as the enforced contract, and the difference between event sourcing and event streaming."
-duration: 54 minutes
+duration: 60 minutes
 ---
 
 The Data chapter ended with `order.placed` leaving the database through the
@@ -900,6 +900,116 @@ if !ok || e.Version > cur.Version {                    // highest version wins
 	views.Upsert(OrderView{ID: e.ID, Status: e.Status, Version: e.Version})
 }
 ```
+
+## Event time, processing time, and determinism
+
+A stream processor sees two clocks. **Processing time** is when the consumer happens to
+handle an event; **event time** is when the thing actually happened, carried *in* the
+event. They drift apart — an event can be produced at 10:00, sit in a partition, and be
+processed at 10:05 — and they drift by different amounts after a backlog or a replay. The
+rule that keeps results stable is to compute on **event time, never the wall clock**. Do
+that and reprocessing the same input — after a bug fix, or to rebuild a consumer — is
+**deterministic**: it yields the same output it did the first time. Anchor a computation
+to processing time and a replay tomorrow produces different windows than it did today.
+
+Event time forces a decision about **late and out-of-order events**, since the network
+delivers neither in order nor on time. A **watermark** is the processor's running
+estimate that "event time has reached T; expect nothing older." It lets time-based
+computation know when it is safe to act: windows up to T can close, and an event older
+than T that shows up afterwards is **late** — held within a grace period, or routed to a
+side output rather than silently corrupting a closed result.
+
+{% include excalidraw.html
+   file="05-event-time-watermark"
+   alt="Events arrive in processing-time order with event-times 12, then 10 (out of order), then 9 (late). A handler orders them by event time with a watermark at T equals 11. Windows up to 11 close into a deterministic result; the event with event-time 9, which is older than T, is late and goes to a side output. A note: key computation off event time, not the wall clock, so replaying the log yields the same answer."
+   caption="Figure 5.15 — Event time plus a watermark: close windows by event time and handle late events deliberately" %}
+
+The deep mechanics of windows and watermarks — tumbling, sliding, and session windows,
+and how a stateful engine like Flink advances them — are the subject of **06 · Stream
+Processing**; here the point is the discipline that makes an event-driven system
+replayable: deterministic, event-time computation.
+
+## Checkpoints, recovery, and reprocessing
+
+The changelog rebuilds a *state store*; a **checkpoint** does the same for a whole
+processor. At intervals the engine snapshots its processing state **together with the
+input offsets that produced it**, atomically. On a crash, recovery is exact: restore the
+state from the last checkpoint, seek the input back to the offsets that checkpoint
+recorded, and replay forward. Because state and position move as a unit, no event is
+skipped and none is double-counted.
+
+{% include excalidraw.html
+   file="05-checkpoint-recovery"
+   alt="A processor consumes from an input log, holding local state and an offset, and periodically snapshots state and offset together to a checkpoint store. On a crash, recovery restores from the checkpoint, seeks the input to the saved offset, and resumes the processor by replaying forward. A note: snapshot state and input offset together so on failure you restore and replay from there — and rewind on purpose to reprocess and rebuild."
+   caption="Figure 5.16 — A checkpoint snapshots state and offset as a unit, so recovery restores both and replays the gap" %}
+
+The last piece is making the *output* survive recovery too. Replaying after a crash
+re-emits events, so either every downstream consumer is idempotent (the last-writer-wins
+discipline from the stateful section) or the produce and the offset commit are wrapped in
+a **transaction** so they land **exactly once**. The transactional consume-process-produce
+looks like this:
+
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+// Spring Kafka transactions — produce and offset commit are one atomic unit
+@KafkaListener(topics = "order.placed")
+@Transactional("kafkaTxManager")
+public void process(Order o) {
+  kafka.send("order.validated", o.id(), validate(o));   // exactly-once on replay
+}
+```
+
+```java
+// SmallRye KafkaTransactions — produce inside the transaction, offsets bound on commit
+@Inject @Channel("order.validated") KafkaTransactions<OrderValidated> tx;
+
+@Incoming("order.placed")
+public Uni<Void> process(Order o) {
+  return tx.withTransaction(em -> {
+    em.send(validate(o));                               // produce in-transaction
+    return Uni.createFrom().voidItem();
+  });
+}
+```
+
+```csharp
+// Confluent.Kafka transactions — output + consumed offsets commit together
+producer.BeginTransaction();
+producer.Produce("order.validated", Msg(Validate(o)));         // produce
+producer.SendOffsetsToTransaction(offsets, groupMeta, timeout); // + offsets
+producer.CommitTransaction();                                   // atomic
+```
+
+```python
+# aiokafka transaction — produce and offsets commit atomically
+async with producer.transaction():
+    await producer.send("order.validated",
+        value=serialize(validate(o)), key=o.id.encode())
+    await producer.send_offsets_to_transaction(offsets, group_id)
+```
+
+```cpp
+// modern-cpp-kafka transactions
+producer.beginTransaction();
+producer.send(record("order.validated", o.id, validate(o)));   // produce
+producer.sendOffsetsToTransaction(offsets, groupMeta, timeout);
+producer.commitTransaction();                                   // atomic
+```
+
+```go
+// franz-go transactions — a transactional id is configured on the client
+cl.BeginTransaction()
+cl.Produce(ctx, &kgo.Record{Topic: "order.validated",
+	Key: []byte(o.ID), Value: serialize(validate(o))}, nil)    // produce
+cl.EndTransaction(ctx, kgo.TryCommit)                          // commit output + offsets
+```
+
+Reprocessing is the same machinery used on purpose. Because the log retains history and
+the processor keys off event time, you can **rewind the offsets** — to a checkpoint, or
+all the way to zero — and reprocess: to fix a bug in the logic, to rebuild a consumer's
+state from scratch, or to populate a brand-new view. Replay is not only a recovery path;
+it is how an event-driven system evolves without migrations.
 
 ### Cross-check it yourself
 
