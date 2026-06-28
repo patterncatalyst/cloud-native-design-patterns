@@ -26,7 +26,7 @@ content enhancements (items 4–9). Item 1 (audit) runs alongside / informs the 
 
    > Items 4–6 currently carry prose/diagrams but no `codetabs.html` blocks; add
    > `Spring Boot|Quarkus|.NET|Python|C++|Go` samples for each new concept they introduce.
-7. **Appendix G (coupling)** — module coupling, connascence, semantic / temporal /
+7. **Appendix G (coupling)** ✅ **(r66).** — module coupling, connascence, semantic / temporal /
    lifecycle / runtime coupling, afferent & efferent coupling, Cynefin, coupling in DDD.
    (ref: coupling.dev/posts/core-concepts/)
 8. **Chapter 05 (Event-Driven)** — Core Benefits (loose coupling, real-time
@@ -102,6 +102,10 @@ the other five language stacks. Chosen to parallel the existing per-language pic
 - **r65 — item 6 (Appendix B) DONE.** Added Kafka API versioning (key vs version, registry
   compatibility, Fig B.5, six-language producer codetab) and a REST where-to-start section
   with its HATEOAS + security impact.
+- **r66 — item 7 (Appendix G) DONE.** Added the classical coupling vocabulary mapped to the
+  model (module/connascence/semantic/temporal/lifecycle/runtime, afferent-efferent + the
+  instability metric; Fig G.4 connascence), a Cynefin coupling-strategy section (Fig G.5),
+  and a DDD context-mapping bridge; coupling.dev + connascence.io references added.
 - **GitHub-link 404 root cause:** `github_username` in `_config.yml` is a placeholder
   (flagged in `_plans/iteration-plan.md` open decisions). Link is built correctly in 5
   places (header, footer ×3, homepage); awaiting the real GitHub owner/repo to set it.

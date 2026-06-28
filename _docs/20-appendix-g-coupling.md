@@ -5,7 +5,7 @@ label: "Appendix G"
 order: 20
 part: "Deep-dive appendices"
 description: "Coupling has three dimensions — integration strength, distance, and volatility — and it only hurts when all three are high at once, which is why looser is not automatically better and why splitting a system can make coupling worse."
-duration: 20 minutes
+duration: 30 minutes
 ---
 
 This book has used "coupled" and "decoupled" throughout as if loose were always the
@@ -109,6 +109,73 @@ stronger or more distant coupling on stable, generic areas. Khononov's full bala
 condition: **balance = (strength XOR distance) OR low volatility** — route any
 unavoidable strong-and-distant coupling to the code that rarely changes.
 
+## The classical coupling vocabulary, mapped to the model
+
+Khononov's three dimensions are not the only vocabulary for coupling — decades of
+practitioner writing named the same forces from different angles. They are not rivals;
+each is a finer lens on **strength** or **distance**, and mapping them onto the model
+keeps you making decisions instead of collecting terms.
+
+| Term | What it names | Where it lands in the model |
+|---|---|---|
+| **Module coupling** (content → common → control → stamp → data) | the classic structured-design ladder, content worst, data best | integration **strength**, at the code level |
+| **Connascence** (static + dynamic) | the specific way two parts must change together | **strength**, finer-grained — with *locality* = distance |
+| **Semantic coupling** | sharing the *meaning* of a concept (what an "order status" is) | strength — shared functional knowledge |
+| **Temporal coupling** | one step must happen before another in time | a runtime sequencing dependency |
+| **Lifecycle coupling** | parts must be built, released, or scaled together | **distance** collapsing — the distributed-monolith smell |
+| **Runtime coupling** | at runtime, one part's availability or latency depends on another | operational distance — synchronous call chains (**Appendix M**) |
+| **Afferent / efferent** (Ca / Ce) | who depends on you (Ca) versus whom you depend on (Ce) | a *measurable* proxy for fan-in, fan-out, and distance |
+
+**Connascence** is worth drawing out because it is the most precise of these. It comes
+in two families — *static* forms visible in the code and *dynamic* forms that surface
+only at runtime — each ordered weakest to strongest, and it carries one rule that is
+the three-dimension model in miniature: the stronger the connascence, the more *local*
+it must stay. Connascence of position across a service boundary (relying on field
+order) is fragile; the same thing inside one function is fine. Protobuf field numbers
+are connascence of position made explicit and frozen, which is exactly why you never
+renumber a field.
+
+{% include excalidraw.html
+   file="20-connascence"
+   alt="Connascence in two families, each weaker at the top and stronger at the bottom. Static connascence, visible in the code: Name (agree on an identifier), Type (agree on a type or shape), Meaning (a shared convention or magic value), Position (the same order of arguments or fields), Algorithm (the same algorithm on both sides). Dynamic connascence, only at runtime: Execution order (A must run before B), Timing (race-sensitive), Value (values must stay in agreement), Identity (the same instance or entity). The rule: the stronger the connascence between two parts, the more local they must stay."
+   caption="Figure G.4 — Connascence: static and dynamic forms, weakest to strongest — keep stronger forms more local" %}
+
+The **afferent / efferent** entry is the one you can actually measure. Afferent
+coupling (Ca) counts who depends on a module; efferent (Ce) counts what it depends on.
+Their ratio gives an *instability* score, `I = Ce / (Ca + Ce)`, running from 0 (nothing
+depends outward — maximally stable) to 1 (depends on everything, depended on by nothing
+— maximally unstable). The guidance that falls out is the stable-abstractions idea:
+things many others depend on (low instability, high Ca) should change rarely and expose
+abstractions, not concretions — which is just "keep strong, distant coupling on stable
+code," restated as a number you can compute from an import graph.
+
+## Choosing a coupling strategy with Cynefin
+
+How much coupling is "right" depends on how well you understand the domain, and the
+Cynefin framework names the four situations you might be in. The mistake it guards
+against is applying a mature-domain answer — standardise everything on tidy contracts —
+to a domain you don't yet understand, where the boundaries themselves are still guesses.
+
+{% include excalidraw.html
+   file="20-cynefin-coupling"
+   alt="The four Cynefin domains, each with its coupling posture. Complex (probe, sense, respond): keep coupling loose and reversible — favour events and contracts, and don't split prematurely. Complicated (sense, analyse, respond): design boundaries deliberately with DDD context mapping and invest in the right contracts. Chaotic (act, sense, respond): stabilise first with strong, local coupling, even a monolith, then refactor as it clarifies. Clear (sense, categorise, respond): standardise on contract coupling and codify the known-good with registry-checked schemas."
+   caption="Figure G.5 — Cynefin and coupling: match the posture to how well you understand the domain" %}
+
+The throughline with the rest of the appendix: in a **complex** domain you keep
+strength low and reversibility high because you *will* move the boundaries; once the
+domain becomes **clear**, you can afford to standardise on the loosest workable strength
+— contract coupling — and freeze it. The anti-pattern is treating an early, complex
+domain as if it were clear, splitting it into services with contracts you then break
+repeatedly. That is the model's "don't split prematurely" lesson dressed as a
+sense-making framework.
+
+Domain-Driven Design's context-mapping patterns (**Appendix F**) are this same choice,
+catalogued. A *shared kernel* is high strength at low distance; *conformist* and
+*anti-corruption layer* are ways to survive someone else's strength across distance; an
+*open host service* with a *published language* is contract coupling by another name.
+Picking a context-map relationship is picking where on the strength ladder a boundary
+sits.
+
 ## Coupling and the APIs in this book
 
 Read through this lens, every protocol decision in the book was secretly a coupling
@@ -140,10 +207,17 @@ The design-review checklist, drawn straight from the model:
   distance is small.
 - Use DDD subdomain types to **predict volatility**, and put your weakest couplings
   around the parts that change most.
+- Name the **connascence** before you move code: stronger forms (position, algorithm,
+  value, identity) must stay local — weaken them to a contract before they cross a
+  service boundary.
+- Match coupling to **certainty**: in an unclear, complex domain keep it loose and
+  reversible; standardise on contracts only once the domain is clear.
 
 The two references behind this appendix and the DDD one are Vlad Khononov's *Learning
 Domain-Driven Design* (O'Reilly) for the boundary tools and *Balancing Coupling in
-Software Design* (Addison-Wesley) for this model.
+Software Design* (Addison-Wesley) for this model. The classical vocabulary in this appendix draws on
+Khononov's `coupling.dev` core-concepts series, Meilir Page-Jones's connascence
+(`connascence.io`), and Robert C. Martin's afferent/efferent stability metrics.
 
 ### Cross-check it yourself
 
@@ -151,7 +225,8 @@ This appendix has no code to run, so cross-check it against your own system in a
 review. Pick one real cross-service integration and score its connection on all three
 dimensions: rate the **strength** by naming the rung — does the consumer touch a shared
 table (intrusive), import a shared model (model), or speak only a registered schema
-(contract)? Rate the **distance** — same module, or two services owned by two teams?
+(contract)? Then name the strongest **connascence** that crosses the boundary — if it is
+position, algorithm, value, or identity, that is your first thing to weaken. Rate the **distance** — same module, or two services owned by two teams?
 Rate the **volatility** — is the thing being shared in a core subdomain that changes
 weekly, or a generic one that has not moved in a year? A connection that scores high on
 all three is your distributed-monolith risk, and the model tells you which lever is
