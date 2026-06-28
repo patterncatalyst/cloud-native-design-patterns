@@ -135,6 +135,11 @@ the other five language stacks. Chosen to parallel the existing per-language pic
   idempotency, co-partitioned joins (Fig 5.14). Two six-language codetabs (a deliberately
   heterogeneous aggregation: Kafka Streams / Streamiz / Faust / goka / manual-store-plus-changelog;
   and a uniform LWW guarded-upsert). Figures now 5.1–5.14; duration 48→54.
+- **r74 — Ch05 tranche 5 (deterministic stream processing).** Added event-time-vs-processing-time
+  + watermarks/late-events with the determinism-on-replay rule (Fig 5.15), and checkpoints +
+  exact recovery + intentional reprocessing (Fig 5.16) with a six-language transactional
+  exactly-once codetab. Windowing mechanics cross-referenced to Ch06, not duplicated. Figures now
+  5.1–5.16; duration 54→60.
 - **item 3 — Go deck COMPLETE (deck-side r01.0).** In-place retarget of the canonical
   Python deck; `Designing-Cloud-Native-APIs-Go.pptx` (272 slides) added to
   `lgtm-presentation/` with `BUILD.md`. The five language decks stay frozen at r32.
@@ -157,8 +162,9 @@ house diagram (and code where it illustrates) per concept.
 - **Tranche 4 ✅ (r73)** — Stateful EDMs: local state store + compacted changelog with
   replay-to-recover (Fig 5.13, heterogeneous aggregation codetab) and order-independent state
   via last-writer-wins / commutativity / idempotency + co-partitioned joins (Fig 5.14, LWW codetab).
-- **Tranche 5** — Deterministic stream processing: event time vs processing time,
-  out-of-order handling, **checkpoints**, recovery from failure, reprocessing/replay. Diagram + code.
+- **Tranche 5 ✅ (r74)** — Deterministic stream processing: event time vs processing time +
+  watermarks/late events (Fig 5.15), and checkpoints/recovery/reprocessing (Fig 5.16) with a
+  transactional exactly-once codetab. Windowing depth deferred to Ch06 by cross-reference.
 - **Tranche 6** — Workflows: choreography vs orchestration vs **saga** (bridges Appendix D).
   Diagram(s).
 - **Tranche 7** — Integrating EDA into existing systems (strangler + CDC + outbox);
