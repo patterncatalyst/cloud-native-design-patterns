@@ -18,7 +18,7 @@ content enhancements (items 4–9). Item 1 (audit) runs alongside / informs the 
 4. **Appendix A** ✅ **(r63).** — protocol-differences table; when-to-choose guidance; streaming &
    bidirectional-communication impacts; gRPC performance advantages; a diagram of how RPC
    works client ↔ server. **+ six-language code samples** (house codetabs).
-5. **Appendix C** — protobuf over WebSockets; failover without interruption; performance.
+5. **Appendix C** ✅ **(r64).** — protobuf over WebSockets; failover without interruption; performance.
    **+ six-language code samples** (house codetabs).
 6. **Appendix B** — versioning a Kafka API (key/version); which REST versioning scheme to
    start with and its impact on HATEOAS and security. **+ six-language code samples**
@@ -96,6 +96,9 @@ the other five language stacks. Chosen to parallel the existing per-language pic
 - **r63 — item 4 (Appendix A) DONE.** Added the RPC stub-to-stub mechanism (Fig A.4),
   streaming & bidirectional modes (Fig A.5), a gRPC-performance section, and two
   six-language gRPC codetabs (unary client call + server-streaming handler).
+- **r64 — item 5 (Appendix C) DONE.** Added protobuf-over-WebSockets (envelope proto,
+  Fig C.4, six-language binary-frame codetab), failover-without-interruption (Fig C.5),
+  and a performance-levers section; checklist + duration updated.
 - **item 3 — Go deck COMPLETE (deck-side r01.0).** In-place retarget of the canonical
   Python deck; `Designing-Cloud-Native-APIs-Go.pptx` (272 slides) added to
   `lgtm-presentation/` with `BUILD.md`. The five language decks stay frozen at r32.

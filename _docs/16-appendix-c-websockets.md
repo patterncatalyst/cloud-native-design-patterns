@@ -5,7 +5,7 @@ label: "Appendix C"
 order: 16
 part: "Deep-dive appendices"
 description: "The protocol we left out of the main interaction styles, because it behaves so differently on Kubernetes — why long-lived sockets fight stateless scaling, and the pub/sub backplane plus resume-don't-restart posture that fix it."
-duration: 20 minutes
+duration: 28 minutes
 ---
 
 WebSockets were deliberately left out of the main interaction-styles discussion
@@ -191,6 +191,146 @@ its loss:
    alt="A sequence between a client and a ws-pod. A ping/pong heartbeat detects a dead link; the connection is lost; the client reconnects with backoff and jitter; it resumes by sending its last acknowledged sequence number (1042); the pod replays only the missed events (1043 to 1050), which are idempotent; the stream is live again, at-least-once and deduplicated by sequence."
    caption="Figure C.3 — Resume, don't restart: detect the drop, reconnect with backoff, and replay only what was missed from the last acked sequence" %}
 
+## Binary framing with protobuf over WebSockets
+
+The backplane section said to frame messages as binary protobuf; here is what that
+means on the wire. Every message is one versioned **Envelope** — a thin protobuf
+wrapper carrying a `version`, the per-connection `seq` that resume already relies on,
+a `type` discriminator, and the actual event as nested `payload` bytes. It is sent
+as a WebSocket *binary* frame, not a text frame.
+
+```proto
+// envelope.proto — one versioned wrapper for every WebSocket message
+message Envelope {
+  uint32 version = 1;   // bump for an incompatible payload change
+  uint64 seq     = 2;   // per-connection monotonic counter — drives resume
+  string type    = 3;   // payload discriminator, e.g. "OrderPlaced"
+  bytes  payload = 4;   // a nested protobuf message, already serialised
+}
+```
+
+{% include excalidraw.html
+   file="16-ws-protobuf-envelope"
+   alt="A producer encodes to bytes; the bytes travel inside a WebSocket binary frame (opcode 0x2) made of four fields — version (uint32 = 2), seq (uint64 = 1043), type (the string OrderPlaced), and payload (protobuf bytes, highlighted); a consumer decodes and dispatches. The envelope is versioned by field number like gRPC: add fields, never renumber."
+   caption="Figure C.4 — A versioned protobuf Envelope carried in one binary WebSocket frame" %}
+
+The wins are the same three gRPC gets from protobuf: the frame is **smaller** (no
+field names on the wire), **cheaper to parse** than re-parsing JSON on every hot
+message, and **versioned by field number** — add a field, never renumber, exactly as
+in **Appendix B**. Encoding and sending the envelope looks like this in each stack;
+the receive side is the mirror image — read the binary frame, parse the `Envelope`,
+and dispatch on `type`.
+
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+// BinaryWebSocketHandler — protobuf frames, not text
+public class OrderSocket extends BinaryWebSocketHandler {
+  void push(WebSocketSession s, long seq, OrderPlaced event) throws IOException {
+    Envelope env = Envelope.newBuilder()
+        .setVersion(2).setSeq(seq).setType("OrderPlaced")
+        .setPayload(event.toByteString())             // nested protobuf
+        .build();
+    s.sendMessage(new BinaryMessage(env.toByteArray()));   // one binary frame
+  }
+}
+```
+
+```java
+@WebSocket(path = "/ws/{userId}")                     // quarkus-websockets-next
+public class OrderSocket {
+  @Inject WebSocketConnection connection;
+  void push(long seq, OrderPlaced event) {
+    Envelope env = Envelope.newBuilder()
+        .setVersion(2).setSeq(seq).setType("OrderPlaced")
+        .setPayload(event.toByteString()).build();
+    connection.sendBinaryAndAwait(Buffer.buffer(env.toByteArray()));
+  }
+}
+```
+
+```csharp
+// raw System.Net.WebSockets — a protobuf binary frame, not SignalR text
+async Task Push(WebSocket socket, ulong seq, OrderPlaced ev)
+{
+    var env = new Envelope {
+        Version = 2, Seq = seq, Type = "OrderPlaced",
+        Payload = ev.ToByteString() };                // nested protobuf
+    await socket.SendAsync(env.ToByteArray(),
+        WebSocketMessageType.Binary, endOfMessage: true, ct);
+}
+```
+
+```python
+async def push(sock: WebSocket, seq: int, event: OrderPlaced):
+    env = Envelope(
+        version=2, seq=seq, type="OrderPlaced",
+        payload=event.SerializeToString())            # nested protobuf
+    await sock.send_bytes(env.SerializeToString())     # one binary frame
+```
+
+```cpp
+// Drogon — send a protobuf Envelope as a binary frame
+void push(const WebSocketConnectionPtr& conn, uint64_t seq,
+          const OrderPlaced& event) {
+  Envelope env;
+  env.set_version(2); env.set_seq(seq); env.set_type("OrderPlaced");
+  env.set_payload(event.SerializeAsString());         // nested protobuf
+  conn->send(env.SerializeAsString(),
+             WebSocketMessageType::Binary);            // one binary frame
+}
+```
+
+```go
+// coder/websocket — write a protobuf Envelope as a binary frame
+func push(ctx context.Context, c *websocket.Conn, seq uint64, ev *pb.OrderPlaced) error {
+	payload, _ := proto.Marshal(ev)                   // nested protobuf
+	out, _ := proto.Marshal(&pb.Envelope{
+		Version: 2, Seq: seq, Type: "OrderPlaced", Payload: payload})
+	return c.Write(ctx, websocket.MessageBinary, out) // one binary frame
+}
+```
+
+## Failover without interruption
+
+Resume is the client-side mechanic; **failover** is what it buys you when a whole pod
+goes away — a rollout, a scale-down, or a crash. The socket drops, the client
+reconnects through the Service, and the load balancer lands it on *some other* pod —
+never the dead one. That only works because the backplane already decoupled delivery
+from placement: any pod can serve any client, so the new pod is as good as the old
+one. The client then resumes from its last acked `seq`, and the new pod replays only
+the missed range. The user sees a brief reconnect, not a lost stream.
+
+{% include excalidraw.html
+   file="16-ws-failover"
+   alt="A client that resumes at seq 1043 reconnects with backoff through the LB or Service. The dashed path to ws-pod-2, now terminated, is marked gone; the client lands instead on ws-pod-5, which holds the new socket. ws-pod-5 subscribes to the Redis or Kafka backplane and replays events with seq greater than 1042. The takeaway: backplane plus per-connection seq means a pod dies and the client loses nothing."
+   caption="Figure C.5 — Failover without interruption: reconnect lands on a live pod, which replays the gap from the backplane" %}
+
+The one requirement is that the missed range be *reconstructable* from somewhere the
+new pod can reach. A Kafka backplane with retention gives this for free — the new pod
+seeks to `seq + 1` and replays. With Redis pub/sub, which has no history, pair it with
+a short server-side ring buffer (or a Redis stream) keyed by sequence so the gap can
+be re-sent. Either way the contract is at-least-once, deduplicated by `seq`.
+
+## Performance
+
+A WebSocket's entire value is amortising one handshake across thousands of messages,
+so performance work is mostly about keeping the *per-message* cost low and the
+*per-connection* memory bounded.
+
+| Lever | Why it matters |
+|---|---|
+| **Binary protobuf frames** | fewer bytes and a cheaper parse than JSON text on every hot message |
+| **One upgrade, then raw frames** | no per-message HTTP request/response or header overhead — the handshake is paid once |
+| **Bounded send buffers (backpressure)** | a slow consumer slows the producer instead of growing memory without limit; drop or disconnect rather than OOM |
+| **Coalesce small messages** | batch a burst into one frame to cut syscalls and framing overhead |
+| **Tuned heartbeats** | ping often enough to detect a dead link in seconds, rarely enough not to wake every idle connection constantly |
+| **Per-pod connection caps** | memory-per-connection × cap sizes the pod; scale and trigger on connection count, not CPU |
+
+The throughline with the rest of this appendix: most of these are the same levers
+that make the system *scale* — bounded buffers and connection caps are what let the
+HPA reason about a pod, and binary framing is what keeps the backplane cheap.
+
 ## A cloud-native WebSocket checklist
 
 - **Externalise fan-out** to a backplane (Redis or Kafka); never assume one pod
@@ -200,6 +340,9 @@ its loss:
 - **Drain gracefully on shutdown**: stop accepting new connections, signal clients
   to reconnect, and give them time to land on another pod before the pod exits
   (which is exactly the graceful-shutdown discipline of **Appendix H**).
+- **Frame binary and versioned**: protobuf `Envelope`s (version + seq + type +
+  payload), not JSON text — and bound each connection's send buffer so a slow
+  client applies backpressure instead of exhausting the pod.
 
 ### Cross-check it yourself
 
