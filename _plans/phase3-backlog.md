@@ -140,6 +140,10 @@ the other five language stacks. Chosen to parallel the existing per-language pic
   exact recovery + intentional reprocessing (Fig 5.16) with a six-language transactional
   exactly-once codetab. Windowing mechanics cross-referenced to Ch06, not duplicated. Figures now
   5.1–5.16; duration 54→60.
+- **r75 — Ch05 tranche 6 (workflows).** Added choreography vs orchestration (Fig 5.17) and the
+  saga — local transactions forward, compensations in reverse (Fig 5.18) — with a six-language
+  choreographed-saga-step codetab (advance on success, compensate on failure). Full saga mechanics
+  bridged to Appendix D. Figures now 5.1–5.18; duration 60→66.
 - **item 3 — Go deck COMPLETE (deck-side r01.0).** In-place retarget of the canonical
   Python deck; `Designing-Cloud-Native-APIs-Go.pptx` (272 slides) added to
   `lgtm-presentation/` with `BUILD.md`. The five language decks stay frozen at r32.
@@ -165,8 +169,8 @@ house diagram (and code where it illustrates) per concept.
 - **Tranche 5 ✅ (r74)** — Deterministic stream processing: event time vs processing time +
   watermarks/late events (Fig 5.15), and checkpoints/recovery/reprocessing (Fig 5.16) with a
   transactional exactly-once codetab. Windowing depth deferred to Ch06 by cross-reference.
-- **Tranche 6** — Workflows: choreography vs orchestration vs **saga** (bridges Appendix D).
-  Diagram(s).
+- **Tranche 6 ✅ (r75)** — Workflows: choreography vs orchestration (Fig 5.17) and the saga
+  with compensation (Fig 5.18, choreographed-step codetab); full saga mechanics bridged to Appendix D.
 - **Tranche 7** — Integrating EDA into existing systems (strangler + CDC + outbox);
   **multi-tenancy** considerations; dealing with **eventual consistency** in practice.
   Diagram(s) + table.

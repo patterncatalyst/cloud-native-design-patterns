@@ -3,7 +3,7 @@ title: "Event-Driven"
 order: 5
 part: "Foundations & the system"
 description: "Decoupled facts that fan out — the event backbone, producing and consuming with commit-after-side-effect, schemas as the enforced contract, and the difference between event sourcing and event streaming."
-duration: 60 minutes
+duration: 66 minutes
 ---
 
 The Data chapter ended with `order.placed` leaving the database through the
@@ -1010,6 +1010,129 @@ the processor keys off event time, you can **rewind the offsets** — to a check
 all the way to zero — and reprocess: to fix a bug in the logic, to rebuild a consumer's
 state from scratch, or to populate a brand-new view. Replay is not only a recovery path;
 it is how an event-driven system evolves without migrations.
+
+## Choreography and orchestration
+
+A single event rarely finishes a business process; an order has to be paid for, stocked,
+and shipped, and those steps live in different services. There are two ways to coordinate
+them.
+
+**Choreography** has no coordinator. Each service reacts to an event and emits its own:
+`OrderPlaced` makes payment charge and emit `PaymentTaken`, which makes inventory reserve
+and emit `StockReserved`, on down the line. It is maximally decoupled — services know only
+the events, not each other — and it scales naturally. The cost is that the end-to-end flow
+is **emergent**: no single place describes the whole process, so understanding or changing
+it means tracing events across services.
+
+**Orchestration** adds a coordinator that owns the workflow explicitly. The orchestrator
+issues **commands** ("charge this order"), waits for replies, and decides the next step.
+The flow is now legible and centrally monitored — one component knows the whole story — but
+the orchestrator is a **coupling point** and one more thing to keep available.
+
+{% include excalidraw.html
+   file="05-choreography-orchestration"
+   alt="Top: choreography — order-service emits OrderPlaced to payment-service, which emits PaymentTaken to inventory-service, which emits StockReserved to shipping-service, a reacting chain with no coordinator. Bottom: orchestration — a central orchestrator that drives the workflow exchanges command and reply messages with payment, inventory, and shipping services. A note: choreography's flow is emergent and decoupled; orchestration's flow is explicit but the coordinator is a coupling point."
+   caption="Figure 5.17 — Choreography reacts to events with no coordinator; orchestration centralizes the flow in one" %}
+
+Neither is universally right. Choreography suits simple, stable flows where decoupling
+matters most; orchestration earns its keep when a process is complex, needs visibility, or
+changes often. Many systems mix them — choreography between bounded contexts, orchestration
+within one.
+
+## The saga: a transaction across services
+
+The hard part of any multi-service flow is failure: payment succeeds, then shipping can't
+be booked — and there is no distributed lock to roll the whole thing back, because each
+service owns its own data. A **saga** is the event-driven answer. It models the process as
+a sequence of **local transactions**, each in one service, each emitting an event that
+triggers the next. If a step fails, the saga runs **compensating actions** — semantic undos
+like "refund the payment" and "release the stock" — in reverse, returning the system to a
+consistent state without ever holding a lock across services.
+
+{% include excalidraw.html
+   file="05-saga-compensation"
+   alt="A saga runs T1 charge payment, then T2 reserve stock, then T3 book shipping, which fails. The failure triggers compensation in reverse: C2 release stock, then C1 refund payment. A note: each step is a local transaction; on a failure, run compensating actions in reverse — atomicity without a distributed lock, with the full treatment in Appendix D."
+   caption="Figure 5.18 — A saga: local transactions forward, compensating actions in reverse when a step fails" %}
+
+A saga can be driven either way. A **choreographed saga** advances on events and triggers
+compensations the same way — fully decentralized. An **orchestrated saga** lets the
+orchestrator drive both the forward steps and the compensations, which is easier to reason
+about when there are many steps. A choreographed step is just a consume-act-emit handler
+that emits "advance" on success and "compensate" on failure:
+
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+@KafkaListener(topics = "order.placed")              // a choreographed saga step
+public void onOrder(Order o) {
+  try {
+    payments.charge(o.id(), o.total());              // local transaction
+    kafka.send("payment.taken", o.id(), new PaymentTaken(o.id()));    // advance
+  } catch (PaymentDeclined e) {
+    kafka.send("payment.failed", o.id(), new PaymentFailed(o.id()));  // compensate upstream
+  }
+}
+```
+
+```java
+@Incoming("order.placed")
+@Outgoing("payment.result")                          // routed to taken / failed downstream
+public PaymentResult onOrder(Order o) {
+  try {
+    payments.charge(o.id(), o.total());              // local transaction
+    return PaymentResult.taken(o.id());              // advance the saga
+  } catch (PaymentDeclined e) {
+    return PaymentResult.failed(o.id());             // trigger compensation
+  }
+}
+```
+
+```csharp
+public async Task Consume(ConsumeContext<OrderPlaced> ctx)
+{
+    try {
+        await _payments.Charge(ctx.Message.OrderId, ctx.Message.Total);  // local tx
+        await ctx.Publish(new PaymentTaken(ctx.Message.OrderId));        // advance
+    } catch (PaymentDeclined) {
+        await ctx.Publish(new PaymentFailed(ctx.Message.OrderId));       // compensate
+    }
+}
+```
+
+```python
+async for msg in consumer:                            # a choreographed saga step
+    o = deserialize(msg.value)
+    try:
+        await payments.charge(o.id, o.total)          # local transaction
+        await producer.send("payment.taken", serialize(PaymentTaken(o.id)))   # advance
+    except PaymentDeclined:
+        await producer.send("payment.failed", serialize(PaymentFailed(o.id))) # compensate
+```
+
+```cpp
+Order o = deserialize(rec.value());
+try {
+  payments.charge(o.id, o.total);                     // local transaction
+  producer.send(rec_for("payment.taken", o.id, PaymentTaken{o.id}));    // advance
+} catch (const PaymentDeclined&) {
+  producer.send(rec_for("payment.failed", o.id, PaymentFailed{o.id}));  // compensate
+}
+```
+
+```go
+o := deserialize(r.Value)
+if err := payments.Charge(o.ID, o.Total); err != nil {            // local transaction
+	cl.Produce(ctx, recFor("payment.failed", o.ID, PaymentFailed{o.ID}), nil)  // compensate
+} else {
+	cl.Produce(ctx, recFor("payment.taken", o.ID, PaymentTaken{o.ID}), nil)    // advance
+}
+```
+
+Sagas trade atomicity for availability: the system is **eventually** consistent, briefly
+passing through states where payment is taken but stock isn't yet reserved, which the
+compensations resolve. The full mechanics — idempotent compensations, the semantic-lock and
+pivot-transaction patterns, and what to do when a step can't be compensated — are the
+subject of **Appendix D**.
 
 ### Cross-check it yourself
 
