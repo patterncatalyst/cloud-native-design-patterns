@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 270" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="20" y="96" width="150" height="72" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="95.0" y="130.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">source database</text>
+<text x="95.0" y="147.0" font-size="11.5" fill="#555555" text-anchor="middle">orders table</text>
+<rect x="210" y="96" width="154" height="72" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="287.0" y="130.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">CDC (Debezium)</text>
+<text x="287.0" y="147.0" font-size="11.5" fill="#555555" text-anchor="middle">tails the commit log</text>
+<rect x="404" y="96" width="160" height="72" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="484.0" y="130.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">topic: order.changed</text>
+<text x="484.0" y="147.0" font-size="11.5" fill="#555555" text-anchor="middle">one event per row change</text>
+<rect x="604" y="96" width="136" height="72" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="672.0" y="130.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">consumers</text>
+<text x="672.0" y="147.0" font-size="11.5" fill="#555555" text-anchor="middle">build their own views</text>
+<path d="M170,132 L210,132" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="196.0" y="124.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">commit log</text>
+<text x="196.0" y="124.0" font-size="11" fill="#555" text-anchor="middle">commit log</text>
+<path d="M364,132 L404,132" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
+<text x="390.0" y="124.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">row → event</text>
+<text x="390.0" y="124.0" font-size="11" fill="#b8650a" text-anchor="middle">row → event</text>
+<path d="M564,132 L604,132" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="590.0" y="124.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">consume</text>
+<text x="590.0" y="124.0" font-size="11" fill="#555" text-anchor="middle">consume</text>
+<text x="380" y="210" font-size="10.5" fill="#777" text-anchor="middle">table → stream (eventify) and stream → table (materialize) are two views of the same data — the log is the bridge</text>
+<text x="380" y="232" font-size="10.5" fill="#999" text-anchor="middle">the outbox (write the event in the same transaction) is the alternative when you own the writer</text>
+</svg>

@@ -125,6 +125,11 @@ the other five language stacks. Chosen to parallel the existing per-language pic
 - **r71 — Ch05 expansion tranche 2 (Building EDMs + sidecar).** Added the consume→process→produce
   anatomy (Fig 5.9, stateless vs stateful) and the sidecar pattern (Fig 5.10) with two six-language
   codetabs; figures now 5.1–5.10; duration 36→42.
+- **r72 — Ch05 reorg + tranche 3.** Moved "the log is the source of truth" up to a `###` directly
+  under the Kafka block (was stranded after AMQP); figures renumbered to stay sequential
+  (log-truth→5.6, Pulsar→5.7, AMQP→5.8). Added tranche 3: eventification/CDC (Fig 5.11) and
+  ECST-vs-notification + local denormalized views (Fig 5.12, six-language fold-into-upsert codetab).
+  Figures now 5.1–5.12; duration 42→48.
 - **item 3 — Go deck COMPLETE (deck-side r01.0).** In-place retarget of the canonical
   Python deck; `Designing-Cloud-Native-APIs-Go.pptx` (272 slides) added to
   `lgtm-presentation/` with `BUILD.md`. The five language decks stay frozen at r32.
@@ -141,8 +146,9 @@ house diagram (and code where it illustrates) per concept.
 - **Tranche 2 ✅ (r71)** — Building EDMs: consume → process → produce anatomy (Fig 5.9),
   stateless vs stateful, and the **sidecar** pattern (Fig 5.10); two six-language codetabs
   (transform-and-reemit; publish-via-local-sidecar). Duration 36→42.
-- **Tranche 3** — Eventification & denormalization: data liberation / CDC, event-carried
-  state transfer, consumers building their own denormalized materialized views. Diagram + code.
+- **Tranche 3 ✅ (r72)** — Eventification (data liberation / CDC, table–stream duality;
+  Fig 5.11) and event-carried state transfer vs notification + denormalized local views
+  (Fig 5.12, fold-into-upsert codetab).
 - **Tranche 4** — Stateful event-driven microservices: state stores, changelogs,
   materialized state, business logic not reliant on event order. Diagram + code.
 - **Tranche 5** — Deterministic stream processing: event time vs processing time,
