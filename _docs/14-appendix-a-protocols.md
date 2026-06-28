@@ -5,7 +5,7 @@ label: "Appendix A"
 order: 14
 part: "Deep-dive appendices"
 description: "The deep dive behind 'pick the protocol' — REST, gRPC, and GraphQL compared on three axes: the mental model each imposes, how each handles fetching and round trips, and what actually travels on the wire."
-duration: 18 minutes
+duration: 26 minutes
 ---
 
 This is the deep dive behind the protocol choice in **Communications**. The same
@@ -58,6 +58,212 @@ encoding; GraphQL keeps HTTP reach but moves caching up into the application.
    alt="Three columns comparing what travels on the wire. REST: transport HTTP/1.1 or 2, JSON text encoding, request and response interaction, cacheable via HTTP, browser-native reach. gRPC: HTTP/2 only, protobuf binary, unidirectional and bidirectional streaming, no HTTP caching, needs grpc-web in a browser. GraphQL: HTTP POST to one URL, JSON text, request and response plus subscriptions, app-level caching, browser-native reach."
    caption="Figure A.3 — What travels on the wire, per protocol: transport, encoding, streaming, caching, and reach" %}
 
+## How an RPC travels: stub to stub
+
+REST and GraphQL are things you can hand-write with a terminal and `curl`; gRPC is
+not, and that is the point. The `.proto` contract is compiled into a **client stub**
+and a **server skeleton**, and your code only ever calls a typed method. Everything
+between the two stubs — serialising the request to protobuf bytes, framing them onto
+an HTTP/2 stream, and reversing all of that on the far side — is generated.
+
+{% include excalidraw.html
+   file="14-rpc-stub-to-stub"
+   alt="A client process and a server process. In the client, application code calls inventory.ReserveStock(req); a generated client stub marshals the request to protobuf. An amber arrow labelled HTTP/2 frame, protobuf crosses to the server, where a generated server skeleton unmarshals the bytes back into a request and invokes the handler reserve(sku, qty). A dashed return arrow carries the ReserveReply protobuf bytes back. One typed contract generates both stubs."
+   caption="Figure A.4 — How an RPC travels: a typed call in, protobuf on the wire, a typed call out" %}
+
+From the caller's side it is a single typed method — no URL, no JSON, no status-code
+mapping. This stub call is the same `ReserveStock` invocation in all six stacks;
+each language gets a generated client from the one `.proto`.
+
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+// grpc-spring-boot-starter injects a generated blocking stub
+@GrpcClient("inventory")
+private InventoryGrpc.InventoryBlockingStub inventory;
+
+int reserve(String sku, int qty) {
+  ReserveReply reply = inventory.reserveStock(          // one typed, blocking call
+      ReserveRequest.newBuilder().setSku(sku).setQuantity(qty).build());
+  return reply.getRemaining();                          // generated getter
+}
+```
+
+```java
+@GrpcClient("inventory")                                // Quarkus gRPC client
+Inventory inventory;                                    // generated interface
+
+int reserve(String sku, int qty) {
+  return inventory.reserveStock(                        // returns Uni<ReserveReply>
+      ReserveRequest.newBuilder().setSku(sku).setQuantity(qty).build())
+    .map(ReserveReply::getRemaining)
+    .await().indefinitely();                            // block at the edge
+}
+```
+
+```csharp
+// Grpc.Net.Client — one channel, a generated typed client
+var client = new Inventory.InventoryClient(channel);
+
+async Task<int> Reserve(string sku, int qty)
+{
+    var reply = await client.ReserveStockAsync(         // one typed async call
+        new ReserveRequest { Sku = sku, Quantity = qty });
+    return reply.Remaining;
+}
+```
+
+```python
+# generated stub from protoc / buf
+stub = inventory_pb2_grpc.InventoryStub(channel)
+
+def reserve(sku: str, qty: int) -> int:
+    reply = stub.ReserveStock(                          # one typed call
+        inventory_pb2.ReserveRequest(sku=sku, quantity=qty))
+    return reply.remaining
+```
+
+```cpp
+// grpc++ sync API — generated typed stub
+auto stub = Inventory::NewStub(channel);
+
+int reserve(const std::string& sku, int qty) {
+  ReserveRequest req; req.set_sku(sku); req.set_quantity(qty);
+  ReserveReply reply; grpc::ClientContext ctx;
+  grpc::Status st = stub->ReserveStock(&ctx, req, &reply);   // one typed call
+  return st.ok() ? reply.remaining() : -1;
+}
+```
+
+```go
+// generated typed client over a shared connection
+func reserve(ctx context.Context, client pb.InventoryClient,
+	sku string, qty int32) (int32, error) {
+	reply, err := client.ReserveStock(ctx,              // one typed call
+		&pb.ReserveRequest{Sku: sku, Quantity: qty})    // generated typed stub
+	if err != nil {
+		return 0, err
+	}
+	return reply.GetRemaining(), nil
+}
+```
+
+## Streaming and bidirectional communication
+
+That single typed call is *unary* — one request, one response. gRPC's real
+distinction from request/response REST is that the same `.proto` can declare three
+more shapes, just by marking a side `stream`:
+
+- **Server-streaming** — one request, a stream of responses. Live order feeds,
+  progress updates, tailing a changelog.
+- **Client-streaming** — a stream of requests, one response. Bulk ingest, file
+  upload, telemetry batches folded into a single ack.
+- **Bidirectional** — both sides stream independently over one connection. Chat,
+  collaborative editing, long-lived sync.
+
+{% include excalidraw.html
+   file="14-streaming-modes"
+   alt="Four panels comparing RPC modes between a client and a server. Unary: one request, one response. Server-streaming: one request, then N responses (amber). Client-streaming: N requests (amber), then one response. Bidirectional: both directions stream N to N over one connection (amber, double-headed)."
+   caption="Figure A.5 — The four RPC modes: unary, server-streaming, client-streaming, and bidirectional" %}
+
+The impact is architectural, not cosmetic. A stream is one long-lived HTTP/2 stream,
+so ordering is preserved and there is no per-message connection cost — but the
+connection is now stateful and pinned to one server instance, which the load
+balancer must respect (the WebSockets appendix makes the same point). Backpressure
+matters: a slow consumer must be allowed to slow the producer rather than buffer
+without bound. Here is the server side of a server-streaming RPC in each stack —
+note how every one expresses "push many, then finish."
+
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+@GrpcService                                    // server-streaming RPC
+public class OrderEvents extends OrderEventsGrpc.OrderEventsImplBase {
+  @Override
+  public void streamOrderEvents(StreamRequest req,
+                                StreamObserver<OrderEvent> obs) {
+    for (Event e : events.since(req.getCursor()))
+      obs.onNext(OrderEvent.newBuilder()        // push each event
+          .setId(e.id()).setType(e.type()).build());
+    obs.onCompleted();                          // close the stream
+  }
+}
+```
+
+```java
+@GrpcService                                    // Quarkus gRPC — a reactive stream
+public class OrderEvents implements OrderEventsService {
+  @Override
+  public Multi<OrderEvent> streamOrderEvents(StreamRequest req) {
+    return Multi.createFrom().iterable(events.since(req.getCursor()))
+      .map(e -> OrderEvent.newBuilder()         // one item per event
+          .setId(e.id()).setType(e.type()).build());
+  }
+}
+```
+
+```csharp
+public override async Task StreamOrderEvents(
+    StreamRequest req, IServerStreamWriter<OrderEvent> stream,
+    ServerCallContext ctx)
+{
+    foreach (var e in _events.Since(req.Cursor))
+        await stream.WriteAsync(new OrderEvent {    // push each event
+            Id = e.Id, Type = e.Type });
+}
+```
+
+```python
+class OrderEventsServicer(order_pb2_grpc.OrderEventsServicer):
+    def StreamOrderEvents(self, request, context):
+        for e in events.since(request.cursor):
+            yield order_pb2.OrderEvent(             # yield streams each event
+                id=e.id, type=e.type)
+```
+
+```cpp
+grpc::Status StreamOrderEvents(grpc::ServerContext* ctx,
+                               const StreamRequest* req,
+                               grpc::ServerWriter<OrderEvent>* writer) override {
+  for (const auto& e : events_.since(req->cursor())) {
+    OrderEvent ev; ev.set_id(e.id); ev.set_type(e.type);
+    writer->Write(ev);                          // push each event down the stream
+  }
+  return grpc::Status::OK;
+}
+```
+
+```go
+func (s *orderEventsServer) StreamOrderEvents(
+	req *pb.StreamRequest, stream pb.OrderEvents_StreamOrderEventsServer) error {
+	for _, e := range s.events.Since(req.GetCursor()) {
+		if err := stream.Send(&pb.OrderEvent{Id: e.ID, Type: e.Type}); err != nil {
+			return err                          // client gone — stop streaming
+		}
+	}
+	return nil
+}
+```
+
+## Why gRPC is fast
+
+When the choosing guidance says "internal, low latency, high call volume → gRPC,"
+this is why. None of these levers is exotic; together they make a typed binary call
+markedly cheaper than JSON over HTTP/1.1.
+
+| Lever | What it is | Why it beats JSON over HTTP/1.1 |
+|---|---|---|
+| **HTTP/2 multiplexing** | many calls share one connection | no connection-per-call and no app-layer head-of-line blocking |
+| **Binary protobuf** | compact tag-number encoding, no field names on the wire | smaller payloads, far cheaper to parse than JSON text |
+| **HPACK header compression** | repeated headers sent once, then referenced | per-call header overhead collapses |
+| **Persistent channels** | one long-lived (TLS) connection, reused | no per-call handshake cost |
+| **Generated stubs** | (de)serialisation is compiled, not reflective | less CPU per call than runtime JSON mapping |
+
+Two honest caveats. The win is largest exactly where you'd expect it — chatty,
+internal, east-west paths — and shrinks for occasional, large-payload calls where
+the body dominates. And none of it reaches a browser directly: a browser needs
+`grpc-web` and a proxy, which is why the public edge usually stays REST or GraphQL.
+
 ## Choosing between them in practice
 
 Said plainly:
@@ -92,5 +298,8 @@ The throughline: each protocol is a tool with a shape. Match the shape to the
 interaction, and most of these mistakes never arise.
 
 ---
-*Verification status: conceptual appendix — no runnable code. The protocol choices
-it argues are exercised in the Communications and Composition chapters.*
+*Verification status: the gRPC stub call and server-streaming handler are shown in
+all six languages and mirror the patterns compiled and run in the Communications
+chapter; the comparison axes, streaming modes, and performance levers are conceptual.
+The protocol choices this appendix argues are exercised in Communications and
+Composition.*

@@ -15,7 +15,7 @@ content enhancements (items 4–9). Item 1 (audit) runs alongside / informs the 
 2. **Add Go (1.26) as a 6th language** to every codetab across the site (35 codetabs in
    19 docs) — language parity.
 3. **Build a 6th language deck in Go** (mirrors the five existing decks).
-4. **Appendix A** — protocol-differences table; when-to-choose guidance; streaming &
+4. **Appendix A** ✅ **(r63).** — protocol-differences table; when-to-choose guidance; streaming &
    bidirectional-communication impacts; gRPC performance advantages; a diagram of how RPC
    works client ↔ server. **+ six-language code samples** (house codetabs).
 5. **Appendix C** — protobuf over WebSockets; failover without interruption; performance.
@@ -93,6 +93,9 @@ the other five language stacks. Chosen to parallel the existing per-language pic
   (`Spring Boot|Quarkus|.NET|Python|C++|Go`); homepage/_config/README updated.
 - **r62 — item 10 (broken top-nav 404) FIXED.** Repointed Tutorial/Prerequisites in
   `_includes/header.html` + the `_layouts/tutorial.html` breadcrumb to real docs.
+- **r63 — item 4 (Appendix A) DONE.** Added the RPC stub-to-stub mechanism (Fig A.4),
+  streaming & bidirectional modes (Fig A.5), a gRPC-performance section, and two
+  six-language gRPC codetabs (unary client call + server-streaming handler).
 - **item 3 — Go deck COMPLETE (deck-side r01.0).** In-place retarget of the canonical
   Python deck; `Designing-Cloud-Native-APIs-Go.pptx` (272 slides) added to
   `lgtm-presentation/` with `BUILD.md`. The five language decks stay frozen at r32.

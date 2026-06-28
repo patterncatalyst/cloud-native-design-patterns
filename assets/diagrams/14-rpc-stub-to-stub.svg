@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 300" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="20" y="66" width="350" height="188" rx="12" fill="#eef4fb" stroke="#ddd"/>
+<text x="32" y="86" font-size="12" font-weight="700" fill="#1d1d1d">Client process</text>
+<rect x="410" y="66" width="330" height="188" rx="12" fill="#fafafa" stroke="#ddd"/>
+<text x="422" y="86" font-size="12" font-weight="700" fill="#1d1d1d">Server process</text>
+<rect x="40" y="104" width="150" height="64" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="115.0" y="134.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Application</text>
+<text x="115.0" y="151.0" font-size="11.5" fill="#555555" text-anchor="middle">inventory.ReserveStock(req)</text>
+<rect x="205" y="104" width="145" height="64" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="277.5" y="134.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Client stub</text>
+<text x="277.5" y="151.0" font-size="11.5" fill="#555555" text-anchor="middle">marshal → protobuf</text>
+<rect x="425" y="104" width="145" height="64" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="497.5" y="134.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Server skeleton</text>
+<text x="497.5" y="151.0" font-size="11.5" fill="#555555" text-anchor="middle">unmarshal → request</text>
+<rect x="585" y="104" width="135" height="64" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="652.5" y="134.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Handler</text>
+<text x="652.5" y="151.0" font-size="11.5" fill="#555555" text-anchor="middle">reserve(sku, qty)</text>
+<path d="M190,136 L205,136" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="203.5" y="130.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">call</text>
+<text x="203.5" y="130.0" font-size="11" fill="#555" text-anchor="middle">call</text>
+<path d="M350,136 L425,136" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
+<text x="393.5" y="127.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">HTTP/2 frame · protobuf</text>
+<text x="393.5" y="127.0" font-size="11" fill="#b8650a" text-anchor="middle">HTTP/2 frame · protobuf</text>
+<path d="M570,136 L585,136" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="583.5" y="130.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">invoke</text>
+<text x="583.5" y="130.0" font-size="11" fill="#555" text-anchor="middle">invoke</text>
+<path d="M650,225 L118,225" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<text x="390.0" y="218.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">reply: ReserveReply (protobuf bytes)</text>
+<text x="390.0" y="218.0" font-size="11" fill="#555" text-anchor="middle">reply: ReserveReply (protobuf bytes)</text>
+<text x="380" y="250" font-size="11" fill="#777" text-anchor="middle">one typed contract (.proto) generates both stubs</text>
+</svg>
