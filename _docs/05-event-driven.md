@@ -3,7 +3,7 @@ title: "Event-Driven"
 order: 5
 part: "Foundations & the system"
 description: "Decoupled facts that fan out — the event backbone, producing and consuming with commit-after-side-effect, schemas as the enforced contract, and the difference between event sourcing and event streaming."
-duration: 30 minutes
+duration: 36 minutes
 ---
 
 The Data chapter ended with `order.placed` leaving the database through the
@@ -345,6 +345,89 @@ sensible default. Reach for **Pulsar** when multi-tenancy, geo, or storage/compu
 separation are hard requirements, and for **AMQP** when the job is really a *task
 queue* with complex routing rather than an event log you replay.
 
+## Inside the substrates: architecture and what each is best at
+
+The comparison table is the decision; the architecture is *why* each answer behaves
+the way it does. Three different internal designs produce three different sets of
+advantages — and knowing the design is what lets you build services that lean on a
+broker's strengths instead of fighting them.
+
+### Apache Kafka — the partitioned, replicated log
+
+Kafka is a cluster of brokers serving topics split into **partitions**, and the
+partition — not the topic — is the unit of everything. Each partition is an ordered,
+append-only log: producers append (keyed by entity, so one entity's events land on one
+partition and stay ordered), and each partition is replicated to a set of in-sync
+replicas so a broker failure loses nothing. Consumers join a **consumer group**, the
+group divides the partitions among its members, and each group tracks **its own
+offset** — which is exactly what lets the same topic feed a live consumer and a
+from-zero replay at the same time, with no coordination between them.
+
+{% include excalidraw.html
+   file="05-kafka-architecture"
+   alt="Producers, keyed by entity, append to a Kafka cluster drawn as a partitioned, replicated log with Partition 0, 1, and 2, each a leader plus in-sync replicas. Two consumer groups read from the cluster — a payment group that tracks its own offsets and an analytics group with independent offsets that can replay. A note: records are retained by time or size, not deleted on read; partitions give parallelism, replicas give durability, and groups read independently."
+   caption="Figure 5.5 — Kafka architecture: a partitioned, replicated log read by independent consumer groups" %}
+
+Its advantages follow from that design. Sequential appends and zero-copy reads push
+very high **throughput**; partitions give linear **horizontal scale**; replication
+gives **durability**; and because the log is retained rather than consumed, producers
+and consumers are **decoupled in time** — a consumer can be down for an hour or added
+years later and still get the full story. You build services against it the way this
+chapter's producer/consumer code already does: key events by the entity, make
+consumers idempotent, and commit the offset *after* the side effect.
+
+### Apache Pulsar — serving split from storage
+
+Pulsar reaches the same durable-log outcome with a two-layer architecture. A tier of
+**stateless brokers** handles serving — connections, routing, subscriptions — while a
+separate **Apache BookKeeper** cluster (the "bookies") owns durable storage, writing
+the log as **segments** rather than fixed partitions. Because brokers hold no data they
+fail over in seconds (another broker just adopts the topic), and because storage is its
+own layer, cold segments **tier to object storage** and stay cheap for as long as you
+keep them.
+
+{% include excalidraw.html
+   file="05-pulsar-architecture"
+   alt="Producers publish to a layer of stateless Pulsar brokers, which write segments to an Apache BookKeeper cluster of bookies; BookKeeper offloads cold segments to tiered object storage. Consumers read from the brokers using subscription modes — exclusive, shared, failover, or key_shared. A note: serving and storage scale independently, stateless brokers fail over fast, and a tenant-to-namespace hierarchy gives native multi-tenancy and geo-replication."
+   caption="Figure 5.6 — Pulsar architecture: stateless brokers over BookKeeper storage, with tiered offload" %}
+
+The advantages are exactly that split made useful. Serving and storage **scale
+independently**, so a spike in consumers doesn't force you to grow storage.
+**Multi-tenancy is first-class** — a tenant → namespace → topic hierarchy with
+per-tenant isolation and quotas — and **geo-replication** is built in. And one
+substrate covers both jobs: its **subscription modes** (exclusive, shared, failover,
+key-shared) yield a competing-consumer *queue* and a streaming *log* from the same
+topic. The price is operational surface — brokers plus BookKeeper plus a metadata
+store — which earns its keep only when you actually need those properties.
+
+### AMQP / RabbitMQ — routing through exchanges
+
+AMQP brokers are built around **routing**, not retention. A producer publishes to an
+**exchange**, never straight to a queue; the exchange type (direct, topic, fanout,
+headers) plus **bindings** decide which **queues** get a copy. Consumers pull from a
+queue, **acknowledge** each message, and an acked message is **removed** — the broker's
+job is to hand each message to a willing worker, not to keep history. Rejected or
+expired messages flow to a **dead-letter** queue, and queues carry priorities, TTLs,
+and overflow policies.
+
+{% include excalidraw.html
+   file="05-amqp-architecture"
+   alt="A producer publishes with a routing key to an exchange (direct, topic, or fanout). Bindings route copies to a queue: orders bound by key and a queue: audit bound by pattern; each queue delivers to competing consumers that acknowledge, after which the message is removed. A dead-letter queue receives nacked, expired, or overflowed messages. A note: routing lives in the exchange and an acked message is removed with no replay, which is why AMQP excels at work distribution, RPC, and rich routing."
+   caption="Figure 5.7 — AMQP architecture: an exchange routes through bindings to queues that competing consumers drain" %}
+
+Its strengths are the mirror image of a log's. Routing is **rich and dynamic** — fan a
+message to many queues, or route by key or pattern, without the producer knowing its
+consumers — and per-message **ack / nack / requeue** makes it excellent for **work
+distribution and request/reply**, where each task goes to exactly one worker and is
+retried on failure. The trade-offs are the flip side: there is **no replay** (a
+consumed message is gone unless you kept a copy), and throughput **degrades as queues
+deepen**, because a backed-up queue is the broker holding the very state it was
+designed to shed. Reach for it when the job is genuinely a task queue with complex
+routing, not an event log you rewind.
+
+For an event backbone the system treats as its memory, the log model is the one that
+wins — which is the idea the rest of this chapter builds on.
+
 ## The log is the source of truth
 
 The mental-model correction most people need: **Kafka is a log, not a queue.**
@@ -352,7 +435,7 @@ The mental-model correction most people need: **Kafka is a log, not a queue.**
 {% include excalidraw.html
    file="05-log-truth"
    alt="A partitioned append-only log with offsets 0 through 9, head at the latest. Three consumers track independent offsets: a payment consumer at offset 9 (live), an analytics replay reset to offset 0, and a new consumer reading history from the middle with no producer impact."
-   caption="Figure 5.5 — A partitioned, append-only log: each consumer tracks its own offset, so replay is just rewinding" %}
+   caption="Figure 5.8 — A partitioned, append-only log: each consumer tracks its own offset, so replay is just rewinding" %}
 
 Messages aren't deleted when read — they're retained by time or size, and each
 consumer group tracks **its own offset** into the partition. That one fact has large

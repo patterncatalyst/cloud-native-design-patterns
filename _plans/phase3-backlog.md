@@ -113,6 +113,34 @@ the other five language stacks. Chosen to parallel the existing per-language pic
 - **r68 — GitHub-link 404 FIXED.** Root cause was the placeholder `github_username`
   (`RobertSedor`). Set to `patterncatalyst` in `_config.yml`; all 5 link sites (header,
   footer ×3, homepage) now resolve to `github.com/patterncatalyst/cloud-native-design-patterns`.
+- **r69 — Ch05 deep expansion, tranche 1 (substrate architectures).** Added "Inside the
+  substrates" with Kafka (Fig 5.5), Pulsar (Fig 5.6), and AMQP (Fig 5.7) architecture
+  deep-dives — architecture + advantages + decoupling; log-truth figure renumbered to 5.8;
+  duration 30→36. First of several tranches building Ch05 toward Bellemare depth.
 - **item 3 — Go deck COMPLETE (deck-side r01.0).** In-place retarget of the canonical
   Python deck; `Designing-Cloud-Native-APIs-Go.pptx` (272 slides) added to
   `lgtm-presentation/` with `BUILD.md`. The five language decks stay frozen at r32.
+
+
+## Chapter 05 deep expansion (Bellemare) — in progress
+
+Source of truth: Adam Bellemare, *Building Event-Driven Microservices*. Goal: grow Ch05
+from the substrate comparison into a full event-driven-microservices treatment, with a
+house diagram (and code where it illustrates) per concept.
+
+- **Tranche 1 ✅ (r69)** — substrate architecture deep-dives: Kafka / Pulsar / AMQP
+  (Figs 5.5–5.7), advantages + decoupling.
+- **Tranche 2** — Building cloud-native event-driven microservices: the consume → process
+  → produce anatomy, stateless vs stateful, and the **sidecar** pattern (microservice +
+  broker via a sidecar). Diagram + producer/consumer + sidecar code.
+- **Tranche 3** — Eventification & denormalization: data liberation / CDC, event-carried
+  state transfer, consumers building their own denormalized materialized views. Diagram + code.
+- **Tranche 4** — Stateful event-driven microservices: state stores, changelogs,
+  materialized state, business logic not reliant on event order. Diagram + code.
+- **Tranche 5** — Deterministic stream processing: event time vs processing time,
+  out-of-order handling, **checkpoints**, recovery from failure, reprocessing/replay. Diagram + code.
+- **Tranche 6** — Workflows: choreography vs orchestration vs **saga** (bridges Appendix D).
+  Diagram(s).
+- **Tranche 7** — Integrating EDA into existing systems (strangler + CDC + outbox);
+  **multi-tenancy** considerations; dealing with **eventual consistency** in practice.
+  Diagram(s) + table.
