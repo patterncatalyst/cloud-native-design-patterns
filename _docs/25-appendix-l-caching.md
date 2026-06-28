@@ -45,7 +45,7 @@ discipline that keeps it correct is invalidating on writes.
    alt="A client calls the application, which reads the cache (GET), falls back to the database with a SELECT on a miss, then populates the cache with SETEX before returning. The application coordinates every step."
    caption="Figure L.1 — Cache-aside: the application coordinates; a miss costs two round trips" %}
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // Spring Web + Spring Data JPA + Spring Data Redis — explicit cache-aside.
@@ -211,6 +211,41 @@ Task<> Products::update(HttpRequestPtr req, auto cb, std::string pid) {
 }{% endraw %}
 ```
 
+```go
+// cache-aside with go-redis + pgx
+const ttl = 60 * time.Second
+
+func (s *Server) getProduct(w http.ResponseWriter, r *http.Request) {
+	pid := r.PathValue("pid")
+	key := "product:" + pid
+	if cached, err := s.cache.Get(r.Context(), key).Bytes(); err == nil { // 1. lookup
+		writeRaw(w, cached) // hit
+		return
+	}
+	var p Product
+	err := s.pool.QueryRow(r.Context(), // 2. miss → DB
+		"SELECT id, name, price_cents FROM products WHERE id=$1", pid).
+		Scan(&p.ID, &p.Name, &p.PriceCents)
+	if errors.Is(err, pgx.ErrNoRows) {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	body, _ := json.Marshal(p)
+	s.cache.Set(r.Context(), key, body, ttl) // 3. populate
+	writeRaw(w, body)
+}
+
+func (s *Server) updateProduct(w http.ResponseWriter, r *http.Request) {
+	pid := r.PathValue("pid")
+	var b Product
+	_ = json.NewDecoder(r.Body).Decode(&b)
+	s.pool.Exec(r.Context(),
+		"UPDATE products SET name=$1, price_cents=$2 WHERE id=$3", b.Name, b.PriceCents, pid)
+	s.cache.Del(r.Context(), "product:"+pid) // 4. invalidate on write
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+```
+
 ## Read-through — the cache fetches on miss
 
 Read-through moves the database call from the application into the cache layer: the app calls
@@ -226,7 +261,7 @@ declaratively (Spring's `@Cacheable`, Quarkus's `@CacheResult`, .NET FusionCache
    alt="A client calls the application, which calls cache.get on a single interface. On a miss the cache itself runs a loader against the database. The application never sees the database directly."
    caption="Figure L.2 — Read-through: the cache library owns the miss; the app sees one interface" %}
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // Spring Cache abstraction with Redis backing.
@@ -401,6 +436,37 @@ Task<> Products::get(HttpRequestPtr req, auto cb, std::string pid) {
 }
 ```
 
+```go
+// read-through wrapper via generics; callers call Get(), never see Redis
+type ReadThrough[T any] struct {
+	redis  *redis.Client
+	loader func(context.Context, string) (T, bool, error)
+	ttl    time.Duration
+	prefix string
+}
+
+func (rt ReadThrough[T]) Get(ctx context.Context, id string) (T, bool, error) {
+	var zero T
+	key := rt.prefix + id
+	if b, err := rt.redis.Get(ctx, key).Bytes(); err == nil { // hit
+		var v T
+		return v, true, json.Unmarshal(b, &v)
+	}
+	v, ok, err := rt.loader(ctx, id) // miss → loader fetches from DB
+	if err != nil || !ok {
+		return zero, ok, err
+	}
+	b, _ := json.Marshal(v)
+	rt.redis.Set(ctx, key, b, rt.ttl)
+	return v, true, nil
+}
+
+// wire once at startup — callers don't see Redis directly
+var products = ReadThrough[Product]{
+	redis: rdb, loader: loadProductFromDB, ttl: 60 * time.Second, prefix: "product:",
+}
+```
+
 ## Write-through — cache and DB written synchronously
 
 When stale reads after a write are not acceptable, write-through updates both stores on the write
@@ -416,7 +482,7 @@ frameworks express it as `@CachePut` (Spring) or a direct `SetAsync` (FusionCach
    alt="A client sends a write to the application, which writes the database first as the source of truth, then writes (SET) the cache second, before responding. Both stores are updated on the write path."
    caption="Figure L.3 — Write-through: DB first, cache second (SET, not invalidate); never stale, pays both latencies" %}
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // Spring Cache: @CachePut runs the method body AND writes the return to cache.
@@ -531,6 +597,26 @@ async def update_product(pid: str, body: dict):
 }{% endraw %}
 ```
 
+```go
+func (s *Server) updateProduct(w http.ResponseWriter, r *http.Request) {
+	pid := r.PathValue("pid")
+	var b Product
+	_ = json.NewDecoder(r.Body).Decode(&b)
+	key := "product:" + pid
+	// 1. write the DB first — it's the source of truth
+	s.pool.Exec(r.Context(),
+		"UPDATE products SET name=$1, price_cents=$2 WHERE id=$3", b.Name, b.PriceCents, pid)
+	var updated Product
+	s.pool.QueryRow(r.Context(),
+		"SELECT id, name, price_cents FROM products WHERE id=$1", pid).
+		Scan(&updated.ID, &updated.Name, &updated.PriceCents)
+	// 2. write the cache second — set, don't invalidate
+	body, _ := json.Marshal(updated)
+	s.cache.Set(r.Context(), key, body, ttl)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+```
+
 ## Write-around — writes skip the cache
 
 When data is written far more often than it is read — audit logs, event records, telemetry — caching
@@ -546,7 +632,7 @@ workload.
    alt="A client sends a write to the application, which writes only the database; the cache is untouched. A later read populates the cache lazily."
    caption="Figure L.4 — Write-around: writes go to the DB only; the next read populates the cache" %}
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // Append-heavy data: events, audit logs, telemetry. Writes hit the DB only.
@@ -675,6 +761,38 @@ Task<> Events::get(HttpRequestPtr req, auto cb, std::string eid) {
 }{% endraw %}
 ```
 
+```go
+// append-heavy data: writes hit the DB only; reads use cache-aside
+func (s *Server) recordEvent(w http.ResponseWriter, r *http.Request) {
+	var b Event
+	_ = json.NewDecoder(r.Body).Decode(&b)
+	s.pool.Exec(r.Context(),
+		"INSERT INTO events (id, type, payload, ts) VALUES ($1, $2, $3, NOW())",
+		b.ID, b.Type, b.Payload)
+	// deliberately NOT writing to cache — most events are never read again
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) getEvent(w http.ResponseWriter, r *http.Request) {
+	eid := r.PathValue("eid")
+	key := "event:" + eid // standard cache-aside read
+	if cached, err := s.cache.Get(r.Context(), key).Bytes(); err == nil {
+		writeRaw(w, cached)
+		return
+	}
+	var e Event
+	err := s.pool.QueryRow(r.Context(), "SELECT * FROM events WHERE id=$1", eid).
+		Scan(&e.ID, &e.Type, &e.Payload)
+	if errors.Is(err, pgx.ErrNoRows) {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	body, _ := json.Marshal(e)
+	s.cache.Set(r.Context(), key, body, 60*time.Second)
+	writeRaw(w, body)
+}
+```
+
 ## Write-back (write-behind) — fast writes, eventual durability
 
 Write-back is the fastest-write pattern and the one with the most caveats. The client writes to the
@@ -692,7 +810,7 @@ downstream aggregator, write-heavy buffering ahead of a slower store.
    alt="A client writes to the application, which writes to the cache and acks immediately. A background flusher drains dirty keys from the cache to the database asynchronously in batches."
    caption="Figure L.5 — Write-back: ack at cache speed; a background flusher persists later — a crash before flush loses unpersisted writes" %}
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // @Scheduled flusher drains a dirty-set to the DB; @SchedulerLock = one node.
@@ -886,6 +1004,43 @@ void flusher(std::stop_token st) {
 std::jthread flush_thread{flusher, g_stop.get_token()};{% endraw %}
 ```
 
+```go
+// write to cache, return immediately; a goroutine flushes to the DB in batches
+const (
+	batch  = 100
+	period = 1 * time.Second
+)
+
+func (s *Server) writeMetric(w http.ResponseWriter, r *http.Request) {
+	mid := r.PathValue("mid")
+	var body map[string]any
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	s.cache.HSet(r.Context(), "metric:"+mid, body) // 1. cache only; return now
+	s.cache.SAdd(r.Context(), "metric:dirty", mid) // mark for flush
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true}) // fast — microseconds
+}
+
+// flusher drains the dirty set to the DB; started once, stops on ctx cancel
+func (s *Server) flusher(ctx context.Context) {
+	t := time.NewTicker(period)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			ids := s.cache.SPopN(ctx, "metric:dirty", batch).Val() // 2. drain
+			if len(ids) == 0 {
+				continue
+			}
+			if err := s.persist(ctx, ids); err != nil { // 3. on failure, re-mark dirty
+				s.cache.SAdd(ctx, "metric:dirty", toAny(ids)...)
+			}
+		}
+	}
+}
+```
+
 ## Refresh-ahead — keep hot keys warm
 
 Plain cache-aside has a latency cliff: while a key is cached reads are fast, but the instant its TTL
@@ -901,7 +1056,7 @@ on a small hot set matters more than DB throughput.
    alt="A client reads through the application from a cache that is always warm. A background refresher tracks hot keys and fetches them from the database before their TTL expires, refreshing the cache so users never hit a cold miss."
    caption="Figure L.6 — Refresh-ahead: a background task re-warms hot keys before TTL, eliminating user-visible cold misses" %}
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // @Scheduled task refreshes hot keys (a sorted-set, touched at read time) before TTL.
@@ -1100,6 +1255,54 @@ void refresher(std::stop_token st) {
       }
     }
   }
+}
+```
+
+```go
+// a goroutine refreshes hot keys (a sorted set, touched at read time) before TTL
+const (
+	ttlS          = 60 * time.Second
+	refreshBefore = 10 * time.Second
+)
+
+func (s *Server) getProduct(w http.ResponseWriter, r *http.Request) {
+	pid := r.PathValue("pid")
+	key := "product:" + pid
+	s.cache.ZAdd(r.Context(), "product:hot",
+		redis.Z{Score: float64(time.Now().Unix()), Member: pid}) // touch hot-list
+	if cached, err := s.cache.Get(r.Context(), key).Bytes(); err == nil {
+		writeRaw(w, cached)
+		return
+	}
+	var p Product
+	err := s.pool.QueryRow(r.Context(), "SELECT * FROM products WHERE id=$1", pid).
+		Scan(&p.ID, &p.Name, &p.PriceCents)
+	if errors.Is(err, pgx.ErrNoRows) {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	body, _ := json.Marshal(p)
+	s.cache.Set(r.Context(), key, body, ttlS)
+	writeRaw(w, body)
+}
+
+func (s *Server) refresher(ctx context.Context) {
+	t := time.NewTicker(5 * time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			cutoff := strconv.FormatInt(time.Now().Add(-5*time.Minute).Unix(), 10)
+			s.cache.ZRemRangeByScore(ctx, "product:hot", "0", cutoff)
+			for _, pid := range s.cache.ZRange(ctx, "product:hot", 0, -1).Val() {
+				if d := s.cache.TTL(ctx, "product:"+pid).Val(); d > 0 && d < refreshBefore {
+					s.refresh(ctx, pid) // inside the refresh window
+				}
+			}
+		}
+	}
 }
 ```
 
