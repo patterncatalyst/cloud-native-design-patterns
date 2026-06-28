@@ -29,10 +29,10 @@ content enhancements (items 4–9). Item 1 (audit) runs alongside / informs the 
 7. **Appendix G (coupling)** ✅ **(r66).** — module coupling, connascence, semantic / temporal /
    lifecycle / runtime coupling, afferent & efferent coupling, Cynefin, coupling in DDD.
    (ref: coupling.dev/posts/core-concepts/)
-8. **Chapter 05 (Event-Driven)** — Core Benefits (loose coupling, real-time
+8. **Chapter 05 (Event-Driven)** ✅ **(r67).** — Core Benefits (loose coupling, real-time
    responsiveness, high scalability) and Common Challenges (eventual consistency, debugging
    complexity, event ordering & duplicates).
-9. **Chapter 05** — comparison of Kafka vs Pulsar vs AMQP.
+9. **Chapter 05** ✅ **(r67).** — comparison of Kafka vs Pulsar vs AMQP.
 
 10. **Site bug — broken top-nav (404). ✅ FIXED (r62).** The primary nav in
     `_includes/header.html` (and the breadcrumb fallback in `_layouts/tutorial.html`)
@@ -106,6 +106,10 @@ the other five language stacks. Chosen to parallel the existing per-language pic
   model (module/connascence/semantic/temporal/lifecycle/runtime, afferent-efferent + the
   instability metric; Fig G.4 connascence), a Cynefin coupling-strategy section (Fig G.5),
   and a DDD context-mapping bridge; coupling.dev + connascence.io references added.
+- **r67 — items 8 + 9 (Chapter 05) DONE.** Added "Core benefits — and the costs they carry"
+  (loose coupling/real-time/scalability paired with eventual consistency/debugging/ordering
+  & duplicates) and "Choosing the substrate: Kafka vs Pulsar vs AMQP" (comparison matrix +
+  log-vs-queue prose). Table-led, no new figures. **Phase-3 content items 4–9 all complete.**
 - **GitHub-link 404 root cause:** `github_username` in `_config.yml` is a placeholder
   (flagged in `_plans/iteration-plan.md` open decisions). Link is built correctly in 5
   places (header, footer ×3, homepage); awaiting the real GitHub owner/repo to set it.

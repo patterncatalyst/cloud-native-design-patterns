@@ -3,7 +3,7 @@ title: "Event-Driven"
 order: 5
 part: "Foundations & the system"
 description: "Decoupled facts that fan out — the event backbone, producing and consuming with commit-after-side-effect, schemas as the enforced contract, and the difference between event sourcing and event streaming."
-duration: 22 minutes
+duration: 30 minutes
 ---
 
 The Data chapter ended with `order.placed` leaving the database through the
@@ -24,6 +24,40 @@ on Kubernetes) as the backbone.
    file="05-event-backbone"
    alt="order-service emits order.placed to a Kafka topic; payment, shipping, and notification each consume it independently, and a later fraud-check service is added as a new consumer without changing the producer"
    caption="Figure 5.1 — One published fact; consumers added without touching the producer" %}
+
+## Core benefits — and the costs they carry
+
+Event-driven design buys three things, and the honest version of the story is that
+each one comes paired with a cost you then have to design for. The benefits are why
+you reach for it; the costs are what separates a system that works from one that pages
+you at 3 a.m.
+
+| Benefit | What it gives you | The cost that shadows it |
+|---|---|---|
+| **Loose coupling** | producers don't know their consumers — add a consumer without touching the producer | **eventual consistency**: readers see the effect *after* the event propagates, not in the producer's transaction |
+| **Real-time responsiveness** | reactions fire as facts happen, not on a poll interval | **debugging complexity**: one request's story is now spread across services and a log |
+| **High scalability** | partitioned consumers scale out horizontally; a slow consumer can't back-pressure the producer | **ordering & duplicates**: order holds only *within* a partition, and delivery is at-least-once |
+
+Each cost has a standard answer, and all three already appeared in this book:
+
+- **Eventual consistency** — the write side commits, the event ships, consumers catch
+  up a moment later. Design reads to tolerate that lag, or read from the write model
+  when you genuinely need read-your-writes; never assume a consumer is up to date the
+  instant the producer commits. This is the same trade the outbox and CQRS sections
+  make deliberately.
+- **Debugging complexity** — a single user action becomes a chain of events across
+  several services, so "what happened to order A-1001?" is no longer one log to grep.
+  The fix is to thread a correlation / trace id through every event envelope and lean
+  on distributed tracing (**Observability**); without it, you are reconstructing the
+  story from five terminals.
+- **Ordering & duplicates** — Kafka orders events only within a partition, so key by
+  the entity (the order id) to keep one entity's events in order; there is no global
+  order across partitions. And at-least-once delivery means the same event can arrive
+  twice — a producer retry, a consumer rebalance — so every handler must be
+  **idempotent**, deduplicating by event id or folding the work into an upsert.
+
+The throughline: the benefits are real, but each one *moves* a hard problem rather than
+removing it. Design for the cost on the same day you reach for the benefit.
 
 ## Producing and consuming
 
@@ -273,6 +307,43 @@ typical pipeline threads all three: source DB → Debezium or NiFi → Kafka or 
 Flink for windowed compute → sink. These tools complement each other far more often
 than they compete, and all are Apache 2.0, so the whole pipeline runs on the same
 plain Kubernetes as everything else.
+
+## Choosing the substrate: Kafka vs Pulsar vs AMQP
+
+The tools landscape split the work into substrate, compute, and movement; the
+**substrate** — the durable broker the whole system leans on — is the load-bearing
+choice. Three common answers, with genuinely different models rather than cosmetic
+differences:
+
+| | **Apache Kafka** | **Apache Pulsar** | **AMQP** (e.g. RabbitMQ) |
+|---|---|---|---|
+| **Model** | partitioned, append-only **log**; consumers track offsets | a log too, but split into **segments** with serving brokers separate from storage | **exchanges route to queues**; a delivered message is removed |
+| **Replay** | native — rewind the offset | native — rewind, like Kafka | not built in; a consumed message is gone unless you kept a copy |
+| **Ordering** | per partition (per key) | per partition (per key) | per queue |
+| **Scaling** | partitions; a rebalance moves consumers | brokers and storage scale **independently**; cold segments can tier to object storage | queues; sharding is largely manual |
+| **Multi-tenancy / geo** | add-on tooling | **first-class** — tenants, namespaces, and geo-replication built in | per-vhost; federation/shovel for geo |
+| **Latency / throughput** | low latency, very high throughput | low latency, high throughput | very low latency at modest volume; throughput falls as queues deepen |
+| **Best when** | high-throughput streaming where the durable log *is* the source of truth | you want Kafka-style streaming **plus** native multi-tenancy, geo, or storage/compute separation | classic task queues, RPC-style work distribution, and rich routing at lower volumes |
+
+The dividing line is **log versus queue**. Kafka and Pulsar are *logs*: messages
+persist, independent consumer groups read at their own offsets, and replay is just
+rewinding — which is exactly why either can be the source of truth this chapter builds
+on. AMQP is a *queue broker*: a message is delivered and removed, routing is rich
+(exchanges, bindings, topic patterns), and it excels at work distribution and
+request/reply — but "replay last week" means you stood up a separate store, because the
+broker didn't keep the messages.
+
+Pulsar's pitch over Kafka is mostly **operational**: because serving and storage are
+separate layers, you can scale them independently and tier cold data to object storage,
+and multi-tenancy and geo-replication are built in rather than bolted on. The price is
+a larger surface to run — more components and moving parts — which only pays off for
+teams that actually need those properties.
+
+For this book's running system — `order.placed` as a replayable fact that several
+services consume independently — a **log** is the right substrate, and Kafka is the
+sensible default. Reach for **Pulsar** when multi-tenancy, geo, or storage/compute
+separation are hard requirements, and for **AMQP** when the job is really a *task
+queue* with complex routing rather than an event log you replay.
 
 ## The log is the source of truth
 
