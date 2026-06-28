@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 300" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="290" y="40" width="210" height="60" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="395.0" y="68.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Schema registry</text>
+<text x="395.0" y="85.0" font-size="11.5" fill="#555555" text-anchor="middle">v1 → v2: add-only (BACKWARD)</text>
+<rect x="30" y="162" width="130" height="58" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="95.0" y="189.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Producer</text>
+<text x="95.0" y="206.0" font-size="11.5" fill="#555555" text-anchor="middle">writes v2 events</text>
+<rect x="300" y="162" width="175" height="58" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="387.5" y="189.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">topic: order.placed</text>
+<text x="387.5" y="206.0" font-size="11.5" fill="#555555" text-anchor="middle">one evolving schema</text>
+<rect x="560" y="120" width="180" height="52" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="650.0" y="144.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">consumer · built vs v1</text>
+<text x="650.0" y="161.0" font-size="11.5" fill="#555555" text-anchor="middle">ignores added fields</text>
+<rect x="560" y="206" width="180" height="52" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="650.0" y="230.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">consumer · built vs v2</text>
+<text x="650.0" y="247.0" font-size="11.5" fill="#555555" text-anchor="middle">uses added fields</text>
+<path d="M395,100 L395,162" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<text x="447.0" y="133.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">enforces compat</text>
+<text x="447.0" y="133.0" font-size="11" fill="#555" text-anchor="middle">enforces compat</text>
+<path d="M160,191 L300,191" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="236.0" y="183.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">versioned record</text>
+<text x="236.0" y="183.0" font-size="11" fill="#555" text-anchor="middle">versioned record</text>
+<path d="M475,178 L560,150" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="523.5" y="158.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">delivered</text>
+<text x="523.5" y="158.0" font-size="11" fill="#555" text-anchor="middle">delivered</text>
+<path d="M475,196 L560,228" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="523.5" y="224.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">delivered</text>
+<text x="523.5" y="224.0" font-size="11" fill="#555" text-anchor="middle">delivered</text>
+<text x="380" y="288" font-size="11" fill="#1d1d1d" text-anchor="middle" font-weight="700">key = identity / partitioning (never the version);  version = schema, in the registry or a header</text>
+</svg>

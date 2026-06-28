@@ -20,7 +20,7 @@ content enhancements (items 4–9). Item 1 (audit) runs alongside / informs the 
    works client ↔ server. **+ six-language code samples** (house codetabs).
 5. **Appendix C** ✅ **(r64).** — protobuf over WebSockets; failover without interruption; performance.
    **+ six-language code samples** (house codetabs).
-6. **Appendix B** — versioning a Kafka API (key/version); which REST versioning scheme to
+6. **Appendix B** ✅ **(r65).** — versioning a Kafka API (key/version); which REST versioning scheme to
    start with and its impact on HATEOAS and security. **+ six-language code samples**
    (house codetabs).
 
@@ -99,6 +99,12 @@ the other five language stacks. Chosen to parallel the existing per-language pic
 - **r64 — item 5 (Appendix C) DONE.** Added protobuf-over-WebSockets (envelope proto,
   Fig C.4, six-language binary-frame codetab), failover-without-interruption (Fig C.5),
   and a performance-levers section; checklist + duration updated.
+- **r65 — item 6 (Appendix B) DONE.** Added Kafka API versioning (key vs version, registry
+  compatibility, Fig B.5, six-language producer codetab) and a REST where-to-start section
+  with its HATEOAS + security impact.
+- **GitHub-link 404 root cause:** `github_username` in `_config.yml` is a placeholder
+  (flagged in `_plans/iteration-plan.md` open decisions). Link is built correctly in 5
+  places (header, footer ×3, homepage); awaiting the real GitHub owner/repo to set it.
 - **item 3 — Go deck COMPLETE (deck-side r01.0).** In-place retarget of the canonical
   Python deck; `Designing-Cloud-Native-APIs-Go.pptx` (272 slides) added to
   `lgtm-presentation/` with `BUILD.md`. The five language decks stay frozen at r32.
