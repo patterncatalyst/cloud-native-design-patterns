@@ -117,6 +117,11 @@ the other five language stacks. Chosen to parallel the existing per-language pic
   substrates" with Kafka (Fig 5.5), Pulsar (Fig 5.6), and AMQP (Fig 5.7) architecture
   deep-dives — architecture + advantages + decoupling; log-truth figure renumbered to 5.8;
   duration 30→36. First of several tranches building Ch05 toward Bellemare depth.
+- **r70 — README cleanup + final QA pass.** Rewrote the top-level `README.md` (six languages,
+  six decks, running-example system, live-site URL, current layout). Ran a full mechanical QA
+  sweep across all 30 docs + 126 figures + config — **0 defects** (see `_plans/qa-pass-r70.md`):
+  codetab block/order, raw-guards, figure pairing/sequencing, orphans, positional language,
+  stale markers all clean. Item 1 (fresh audit) ✅.
 - **item 3 — Go deck COMPLETE (deck-side r01.0).** In-place retarget of the canonical
   Python deck; `Designing-Cloud-Native-APIs-Go.pptx` (272 slides) added to
   `lgtm-presentation/` with `BUILD.md`. The five language decks stay frozen at r32.
