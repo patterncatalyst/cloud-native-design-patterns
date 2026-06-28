@@ -144,6 +144,9 @@ the other five language stacks. Chosen to parallel the existing per-language pic
   saga — local transactions forward, compensations in reverse (Fig 5.18) — with a six-language
   choreographed-saga-step codetab (advance on success, compensate on failure). Full saga mechanics
   bridged to Appendix D. Figures now 5.1–5.18; duration 60→66.
+- **r77 — Fig 1.1 redesign.** Replaced the flat 2×3 text grid of the six cloud-native pillars with
+  a hub-and-spoke diagram (central "Cloud-native API on Kubernetes" radiating to the six pillars),
+  so it reads as a relational figure rather than all text; alt text updated to match.
 - **r76 — Ch05 tranche 7 (integration, multi-tenancy, eventual consistency) — EXPANSION COMPLETE.**
   Added the strangler + CDC + outbox integration (Fig 5.19, six-language outbox codetab), a
   Kafka-vs-Pulsar multi-tenancy table, and living-with-eventual-consistency (Fig 5.20 consistency

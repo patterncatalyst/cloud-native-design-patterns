@@ -17,7 +17,7 @@ make each of them the default:
 
 {% include excalidraw.html
    file="01-six-pillars"
-   alt="A two-by-three grid of the six cloud-native pillars: Disposable (12-factor processes, fast start and clean stop, no local state), Observable (traces, metrics, logs; health and readiness; RED/USE signals), Resilient (timeouts, retries; circuit breakers; graceful degradation), Elastic (scale to load; scale to zero with KEDA; no fixed capacity), Automatable (declarative config; GitOps and CRDs; self-healing), and Loosely coupled (contracts not calls; async where it fits; independent deploy)."
+   alt="A central hub labelled Cloud-native API on Kubernetes radiates spokes to six surrounding pillars: Disposable (fast start, clean stop, no local state), Resilient (timeouts, retries, circuit breakers, graceful degradation), Automatable (declarative config, GitOps and CRDs, self-healing), Observable (traces, metrics, logs, health, RED/USE signals), Elastic (scale to load, scale to zero with KEDA), and Loosely coupled (contracts not calls, async where it fits, independent deploy). A note reads: cloud-native is a set of runtime properties an API must exhibit to thrive on Kubernetes, not a checklist of tools."
    caption="Figure 1.1 — Cloud-native in six pillars: the runtime properties an API must exhibit on Kubernetes" %}
 
 Read each as a behaviour you design toward, not a product you install:
