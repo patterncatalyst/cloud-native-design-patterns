@@ -3,7 +3,7 @@ title: "Event-Driven"
 order: 5
 part: "Foundations & the system"
 description: "Decoupled facts that fan out — the event backbone, producing and consuming with commit-after-side-effect, schemas as the enforced contract, and the difference between event sourcing and event streaming."
-duration: 42 minutes
+duration: 48 minutes
 ---
 
 The Data chapter ended with `order.placed` leaving the database through the
@@ -360,8 +360,7 @@ append-only log: producers append (keyed by entity, so one entity's events land 
 partition and stay ordered), and each partition is replicated to a set of in-sync
 replicas so a broker failure loses nothing. Consumers join a **consumer group**, the
 group divides the partitions among its members, and each group tracks **its own
-offset** — which is exactly what lets the same topic feed a live consumer and a
-from-zero replay at the same time, with no coordination between them.
+offset**, reading at its own position into the log.
 
 {% include excalidraw.html
    file="05-kafka-architecture"
@@ -376,6 +375,27 @@ years later and still get the full story. You build services against it the way 
 chapter's producer/consumer code already does: key events by the entity, make
 consumers idempotent, and commit the offset *after* the side effect.
 
+### The log is the source of truth
+
+The mental-model correction most people need: **Kafka is a log, not a queue.**
+
+{% include excalidraw.html
+   file="05-log-truth"
+   alt="A partitioned append-only log with offsets 0 through 9, head at the latest. Three consumers track independent offsets: a payment consumer at offset 9 (live), an analytics replay reset to offset 0, and a new consumer reading history from the middle with no producer impact."
+   caption="Figure 5.6 — A partitioned, append-only log: each consumer tracks its own offset, so replay is just rewinding" %}
+
+Messages aren't deleted when read — they're retained by time or size, and each
+consumer group tracks **its own offset** into the partition. That one fact has large
+consequences. A live consumer sits at the head, processing new records as they arrive.
+An analytics job can reset to offset zero and replay the entire history. A brand-new
+consumer can join later and read all of history to build its state, with **no impact
+on the producer or on existing consumers** — nobody is draining a queue, so nobody
+contends for the messages. Replay is simply moving an offset backward. That is the
+foundation for event sourcing, for rebuilding a stream processor's state after a
+crash, and for the windowed computation taken up in **06 · Stream Processing**. Both
+Kafka (run by Strimzi in our cluster) and Pulsar give you this durable, replayable,
+partitioned log — not a queue you drain.
+
 ### Apache Pulsar — serving split from storage
 
 Pulsar reaches the same durable-log outcome with a two-layer architecture. A tier of
@@ -389,7 +409,7 @@ keep them.
 {% include excalidraw.html
    file="05-pulsar-architecture"
    alt="Producers publish to a layer of stateless Pulsar brokers, which write segments to an Apache BookKeeper cluster of bookies; BookKeeper offloads cold segments to tiered object storage. Consumers read from the brokers using subscription modes — exclusive, shared, failover, or key_shared. A note: serving and storage scale independently, stateless brokers fail over fast, and a tenant-to-namespace hierarchy gives native multi-tenancy and geo-replication."
-   caption="Figure 5.6 — Pulsar architecture: stateless brokers over BookKeeper storage, with tiered offload" %}
+   caption="Figure 5.7 — Pulsar architecture: stateless brokers over BookKeeper storage, with tiered offload" %}
 
 The advantages are exactly that split made useful. Serving and storage **scale
 independently**, so a spike in consumers doesn't force you to grow storage.
@@ -413,7 +433,7 @@ and overflow policies.
 {% include excalidraw.html
    file="05-amqp-architecture"
    alt="A producer publishes with a routing key to an exchange (direct, topic, or fanout). Bindings route copies to a queue: orders bound by key and a queue: audit bound by pattern; each queue delivers to competing consumers that acknowledge, after which the message is removed. A dead-letter queue receives nacked, expired, or overflowed messages. A note: routing lives in the exchange and an acked message is removed with no replay, which is why AMQP excels at work distribution, RPC, and rich routing."
-   caption="Figure 5.7 — AMQP architecture: an exchange routes through bindings to queues that competing consumers drain" %}
+   caption="Figure 5.8 — AMQP architecture: an exchange routes through bindings to queues that competing consumers drain" %}
 
 Its strengths are the mirror image of a log's. Routing is **rich and dynamic** — fan a
 message to many queues, or route by key or pattern, without the producer knowing its
@@ -427,27 +447,6 @@ routing, not an event log you rewind.
 
 For an event backbone the system treats as its memory, the log model is the one that
 wins — which is the idea the rest of this chapter builds on.
-
-## The log is the source of truth
-
-The mental-model correction most people need: **Kafka is a log, not a queue.**
-
-{% include excalidraw.html
-   file="05-log-truth"
-   alt="A partitioned append-only log with offsets 0 through 9, head at the latest. Three consumers track independent offsets: a payment consumer at offset 9 (live), an analytics replay reset to offset 0, and a new consumer reading history from the middle with no producer impact."
-   caption="Figure 5.8 — A partitioned, append-only log: each consumer tracks its own offset, so replay is just rewinding" %}
-
-Messages aren't deleted when read — they're retained by time or size, and each
-consumer group tracks **its own offset** into the partition. That one fact has large
-consequences. A live consumer sits at the head, processing new records as they arrive.
-An analytics job can reset to offset zero and replay the entire history. A brand-new
-consumer can join later and read all of history to build its state, with **no impact
-on the producer or on existing consumers** — nobody is draining a queue, so nobody
-contends for the messages. Replay is simply moving an offset backward. That is the
-foundation for event sourcing, for rebuilding a stream processor's state after a
-crash, and for the windowed computation taken up in **06 · Stream Processing**. Both
-Kafka (run by Strimzi in our cluster) and Pulsar give you this durable, replayable,
-partitioned log — not a queue you drain.
 
 ## Building event-driven microservices: consume, process, produce
 
@@ -623,6 +622,103 @@ func emit(ctx context.Context, sidecar pb.EventBusClient, o *Order) error {
 This is the pattern projects like Dapr generalize; you can also hand-roll a thin
 sidecar around the same `EventBus` contract when you want full control of the broker
 specifics.
+
+## Eventification: turning data into streams
+
+An event-driven system runs on streams, but most of an organization's data starts life
+trapped inside the database of the service that owns it — data on the *inside*, useless
+to anyone else. **Data liberation** is the practice of getting that data out as an event
+stream the rest of the system can build on. The cleanest mechanism is **change data
+capture (CDC)**: a connector like Debezium tails the database's commit log and emits an
+event for every row change — the same log-tailing the Data chapter's outbox relies on.
+When you own the writer, the **outbox** is the alternative: write the event in the same
+transaction as the state change, then relay it. Either way you have **eventified** a
+table into a stream.
+
+{% include excalidraw.html
+   file="05-eventification"
+   alt="A source database with an orders table feeds a CDC connector (Debezium) that tails the commit log and turns each row change into an event on the topic order.changed, which consumers read to build their own views. Notes: table-to-stream (eventify) and stream-to-table (materialize) are two views of the same data with the log as the bridge; the outbox, writing the event in the same transaction, is the alternative when you own the writer."
+   caption="Figure 5.11 — Eventification: change data capture liberates a table into an event stream" %}
+
+The idea underneath is the **table–stream duality**. A stream of changes folded forward
+gives you a table — its current state — and a table's change history *is* a stream. They
+are two views of the same data, and the log is the bridge between them. That duality is
+what the next pattern depends on.
+
+## Event-carried state transfer and local views
+
+Once data is liberated, events come in two styles. An **event notification** is thin —
+"order A-1001 was placed" — and tells a consumer only that something happened; to act on
+it, the consumer must **call back** to the source for the details, which quietly
+re-introduces the synchronous coupling events were meant to remove. **Event-carried
+state transfer (ECST)** instead puts enough state *in the event* — the order's customer,
+total, and status — so the consumer needs no call-back at all.
+
+{% include excalidraw.html
+   file="05-ecst-vs-notification"
+   alt="Two rows. Event notification: a source service sends a thin OrderPlaced with just an id to a consumer, which must make a synchronous GET /orders/{id} call back to the source API to get the details. Event-carried state transfer: the source service sends a fat OrderPlaced carrying the full state, and the consumer folds it into a local view via upsert, with no call-back. A note: carry enough state and the consumer never calls back — reads go local and the source decouples."
+   caption="Figure 5.12 — Event notification forces a call-back; event-carried state transfer lets the consumer keep a local view" %}
+
+With ECST the consumer **folds** events into its own **local, denormalized materialized
+view** — a read model shaped exactly for its queries, kept current by the stream and
+rebuildable by replay. Reads become local and fast, and a momentary outage of the source
+no longer stalls the consumer. The cost is **denormalization**: the same facts now live
+in several services' views, kept eventually consistent by the stream — the deliberate
+trade an event-driven system makes, spending storage and duplication to buy decoupling
+and autonomy. The consumer side is a fold into an upsert; the event alone is enough to
+build the row:
+
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+@KafkaListener(topics = "order.placed")             // ECST: the event carries the state
+public void onOrder(Order o) {
+  views.upsert(new OrderView(o.id(), o.customer(),  // build a local denormalized row
+      o.total(), o.status()));                      // no call-back to the source
+}
+```
+
+```java
+@Incoming("order.placed")                           // fold the event into a local view
+public void onOrder(Order o) {
+  views.upsert(new OrderView(o.id(), o.customer(),
+      o.total(), o.status()));                      // local read model, no call-back
+}
+```
+
+```csharp
+public class OrderViewProjector(IViewStore views) : IConsumer<OrderPlaced>
+{
+    public Task Consume(ConsumeContext<OrderPlaced> ctx) =>
+        views.UpsertAsync(new OrderView(            // denormalized local row
+            ctx.Message.OrderId, ctx.Message.Customer,
+            ctx.Message.Total, ctx.Message.Status));  // built from the event alone
+}
+```
+
+```python
+async for msg in consumer:                            # ECST consumer
+    o = deserialize(msg.value)
+    await views.upsert(OrderView(                      # local materialized view
+        o.id, o.customer, o.total, o.status))          # no call-back to the source
+```
+
+```cpp
+auto records = consumer.poll(std::chrono::milliseconds(200));
+for (const auto& rec : records) {
+  Order o = deserialize(rec.value());
+  views.upsert(OrderView{o.id, o.customer, o.total, o.status});  // local view, no call-back
+}
+```
+
+```go
+fetches := cl.PollFetches(ctx)
+fetches.EachRecord(func(r *kgo.Record) {
+	o := deserialize(r.Value)
+	views.Upsert(OrderView{ID: o.ID, Customer: o.Customer,        // local view
+		Total: o.Total, Status: o.Status})        // built from the event, no call-back
+})
+```
 
 ### Cross-check it yourself
 
