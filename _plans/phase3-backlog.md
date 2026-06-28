@@ -130,6 +130,11 @@ the other five language stacks. Chosen to parallel the existing per-language pic
   (log-truth→5.6, Pulsar→5.7, AMQP→5.8). Added tranche 3: eventification/CDC (Fig 5.11) and
   ECST-vs-notification + local denormalized views (Fig 5.12, six-language fold-into-upsert codetab).
   Figures now 5.1–5.12; duration 42→48.
+- **r73 — Ch05 tranche 4 (stateful EDMs).** Added the state store + compacted changelog with
+  replay-on-rebalance (Fig 5.13) and order-independent state — LWW by version, commutativity,
+  idempotency, co-partitioned joins (Fig 5.14). Two six-language codetabs (a deliberately
+  heterogeneous aggregation: Kafka Streams / Streamiz / Faust / goka / manual-store-plus-changelog;
+  and a uniform LWW guarded-upsert). Figures now 5.1–5.14; duration 48→54.
 - **item 3 — Go deck COMPLETE (deck-side r01.0).** In-place retarget of the canonical
   Python deck; `Designing-Cloud-Native-APIs-Go.pptx` (272 slides) added to
   `lgtm-presentation/` with `BUILD.md`. The five language decks stay frozen at r32.
@@ -149,8 +154,9 @@ house diagram (and code where it illustrates) per concept.
 - **Tranche 3 ✅ (r72)** — Eventification (data liberation / CDC, table–stream duality;
   Fig 5.11) and event-carried state transfer vs notification + denormalized local views
   (Fig 5.12, fold-into-upsert codetab).
-- **Tranche 4** — Stateful event-driven microservices: state stores, changelogs,
-  materialized state, business logic not reliant on event order. Diagram + code.
+- **Tranche 4 ✅ (r73)** — Stateful EDMs: local state store + compacted changelog with
+  replay-to-recover (Fig 5.13, heterogeneous aggregation codetab) and order-independent state
+  via last-writer-wins / commutativity / idempotency + co-partitioned joins (Fig 5.14, LWW codetab).
 - **Tranche 5** — Deterministic stream processing: event time vs processing time,
   out-of-order handling, **checkpoints**, recovery from failure, reprocessing/replay. Diagram + code.
 - **Tranche 6** — Workflows: choreography vs orchestration vs **saga** (bridges Appendix D).
