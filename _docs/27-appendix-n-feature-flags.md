@@ -73,7 +73,7 @@ unreachable — a flag-system outage must never take the application down — an
 the backend. The evaluation *context* carries the targeting inputs (a stable targeting key plus
 attributes like plan and region) that the rules act on.
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // build.gradle: dev.openfeature:sdk, dev.openfeature.contrib.providers:flagd
@@ -186,6 +186,30 @@ Task<> Checkout::post(HttpRequestPtr req, auto cb) {
 }{% endraw %}
 ```
 
+```go
+// OpenFeature Go SDK + flagd
+func init() { // once, at startup
+	_ = openfeature.SetProviderAndWait(
+		flagd.NewProvider(flagd.WithHost("flagd"), flagd.WithPort(8013)))
+}
+
+var flags = openfeature.NewClient("checkout")
+
+func checkout(w http.ResponseWriter, r *http.Request) {
+	cart := parseCart(r)
+	evalCtx := openfeature.NewEvaluationContext(
+		r.Header.Get("X-User"), // sticky targeting key
+		map[string]any{"plan": cart.Plan, "region": cart.Region})
+	useNew, _ := flags.BooleanValue( // default off
+		r.Context(), "new-checkout", false, evalCtx)
+	if useNew {
+		newCheckout(w, r, cart)
+	} else {
+		legacyCheckout(w, r, cart)
+	}
+}
+```
+
 The crucial thing to notice: the application code is the *same* one line regardless of whether
 the flag is a simple on/off, a per-plan entitlement, or a 5% rollout. All of that lives in the
 flag's configuration, not the code.
@@ -249,7 +273,7 @@ dependency in a flag so it can be disabled instantly without a deploy. It is the
 human-driven complement to the circuit breaker from the Failure Modes appendix — the breaker
 trips automatically on errors; the kill switch is flipped on purpose.
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // Ops kill-switch — default TRUE (fail open): the feature stays on unless killed.
@@ -292,6 +316,17 @@ Task<Recommendations> recommend(const std::string& user_id) {
   if (!flags->getBooleanValue("recommendations-enabled", true, ctx(user_id)))
     co_return Recommendations::empty();          // serve the page without it
   co_return co_await recs_.fetch(user_id);       // pairs with a circuit breaker
+}
+```
+
+```go
+func recommend(ctx context.Context, userID string) (Recommendations, error) {
+	// default true → fail open: only an explicit kill disables it
+	on, _ := flags.BooleanValue(ctx, "recommendations-enabled", true, ctxFor(userID))
+	if !on {
+		return Recommendations{}, nil // serve the page without it
+	}
+	return recsClient.Fetch(ctx, userID) // pairs with a circuit breaker
 }
 ```
 

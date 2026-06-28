@@ -180,7 +180,7 @@ the downstream fails immediately rather than starting work that will be thrown a
 gRPC does this natively with deadlines; for HTTP you carry the remaining budget in a header
 convention like `X-Deadline-Ms` and honour it at each hop.
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 @Service
@@ -284,6 +284,27 @@ Task<json> charge(const Order& order, milliseconds remaining) {
 }
 ```
 
+```go
+// every client has an EXPLICIT timeout; deadlines propagate downstream on ctx
+const minBudget = 50 * time.Millisecond
+
+func charge(ctx context.Context, order Order) (Reply, error) {
+	remaining := time.Until(deadlineOf(ctx)) // budget left for this hop
+	if remaining <= minBudget {              // too little to finish
+		return Reply{}, fmt.Errorf("no budget left: %w", context.DeadlineExceeded)
+	}
+	// the deadline rides on ctx; gRPC propagates it as the call deadline
+	ctx, cancel := context.WithTimeout(ctx, remaining)
+	defer cancel()
+
+	reply, err := paymentClient.Charge(ctx, toProto(order))
+	if status.Code(err) == codes.DeadlineExceeded {
+		return Reply{}, &HTTPError{Status: 504, Msg: "downstream timed out"}
+	}
+	return toReply(reply), err
+}
+```
+
 ## Retry with exponential backoff and jitter
 
 Retry is the most abused resilience pattern, because the naive version — retry immediately, a
@@ -301,7 +322,7 @@ It applies to **idempotent operations only** — retrying a non-idempotent `POST
 idempotency key can double-charge a customer — and it is **always paired with a circuit
 breaker**, so once a dependency is clearly down you stop retrying entirely.
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 @Service
@@ -409,6 +430,29 @@ auto retry_with_backoff(F&& fn, int max_attempts = 3) {
 // Usage: GETs are idempotent → safe to retry. Pair with a circuit breaker.
 ```
 
+```go
+// retry with exponential backoff + jitter, idempotent calls only (cenkalti/backoff).
+// Prefer the Istio retry policy when possible; in-process retry is the fallback.
+func getQuote(ctx context.Context, symbol string) (Quote, error) {
+	var q Quote
+	op := func() error {
+		r, err := client.Get(ctx, "/quote/"+symbol) // GET is idempotent — safe
+		if err != nil {
+			return err // transient errors get retried
+		}
+		q = r
+		return nil
+	}
+	bo := backoff.NewExponentialBackOff()       // backoff + jitter built in
+	bo.InitialInterval = 100 * time.Millisecond //
+	bo.MaxInterval = 2 * time.Second            // capped
+	// hard cap on attempts, and stop if the context is cancelled
+	err := backoff.Retry(op, backoff.WithMaxRetries(backoff.WithContext(bo, ctx), 3))
+	return q, err
+	// Do NOT retry a non-idempotent POST unless it carries an idempotency key.
+}
+```
+
 ## Circuit breaker
 
 The circuit breaker is the pattern that most directly stops cascading and amplification. It is
@@ -427,7 +471,7 @@ Two details are crucial: **one breaker per dependency** (never a single global b
 **pair it with a fallback** so an open breaker degrades gracefully rather than just erroring
 faster.
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 @Service
@@ -550,6 +594,29 @@ class CircuitBreaker {
     }
   }
 };
+```
+
+```go
+// circuit breaker, one per dependency — sony/gobreaker.
+// Production shops often let Istio do this; shown for reference.
+var paymentBreaker = gobreaker.NewCircuitBreaker(gobreaker.Settings{
+	Name:    "payment",
+	Timeout: 30 * time.Second, // stay open 30s, then half-open to test recovery
+	ReadyToTrip: func(c gobreaker.Counts) bool {
+		return c.ConsecutiveFailures >= 5 // open after 5 failures
+	},
+})
+
+func charge(ctx context.Context, order Order) (Result, error) {
+	v, err := paymentBreaker.Execute(func() (any, error) {
+		return client.Post(ctx, "/charge", order) // skipped while OPEN — no doomed call
+	})
+	if err != nil { // breaker open or call failed → degrade
+		_ = outbox.Enqueue(ctx, order)                  // graceful fallback
+		return Result{Status: "pending", ID: order.ID}, nil
+	}
+	return v.(Result), nil
+}
 ```
 
 ## Bulkhead

@@ -141,7 +141,7 @@ the request *body* and decides by payload — tenant, region, feature flag, user
 can cut over one tenant at a time, watch it under real traffic, then widen. The URL is identical
 across both backends; only the content differs.
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // Spring Web + RestClient — a content-aware proxy that reads the request
@@ -303,6 +303,51 @@ Task<> content_router(HttpRequestPtr req, auto next) {
 }
 ```
 
+```go
+// content_router — route by request content during cutover (net/http middleware)
+const (
+	monolith = "http://monolith.svc.cluster.local:8080"
+	newSvc   = "http://orders.svc.cluster.local:8080"
+	euSvc    = "http://orders-eu.svc.cluster.local:8080"
+)
+
+func contentRouter(next http.Handler) http.Handler {
+	client := &http.Client{Timeout: 5 * time.Second} // reused: warm connection pool
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/orders") {
+			next.ServeHTTP(w, r) // other routes pass through
+			return
+		}
+		body, _ := io.ReadAll(r.Body)
+		var p struct{ Tenant, Region string }
+		_ = json.Unmarshal(body, &p) // decide by content, not URL
+		upstream := monolith         // default: legacy
+		switch {
+		case p.Tenant == "acme":
+			upstream = newSvc // cut Acme over
+		case p.Region == "EU":
+			upstream = euSvc // regional service
+		}
+		forward(w, r, client, upstream, body)
+	})
+}
+
+func forward(w http.ResponseWriter, r *http.Request, c *http.Client, upstream string, body []byte) {
+	req, _ := http.NewRequestWithContext(r.Context(), r.Method,
+		upstream+r.URL.Path, bytes.NewReader(body)) // hand the consumed bytes through
+	req.Header = r.Header.Clone()
+	resp, err := c.Do(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+	maps.Copy(w.Header(), resp.Header)
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body) // stream the response back
+}
+```
+
 The shape is identical everywhere: read the payload, pick an upstream by content rather than
 URL, and forward. Two implementation notes matter. The body is consumed when you read it, so you
 must hand the same bytes through to the upstream — the Python `forward` and the C++ `req->body()`
@@ -327,7 +372,7 @@ touching which is forbidden — and for adding capabilities the original never h
    alt="The decorating collaborator: the new service wraps the old, adds capability, then becomes the API. Clients talk to a decorating service that sits in front of the legacy API and adds caching, audit, validation, rate-limiting, fan-out to Kafka, and metrics, while the legacy service stays unaware it has been wrapped and remains the source of truth. The decorator also emits events to Kafka as a new capability. Clients now talk to the decorator; the legacy service keeps running and is eventually replaced behind the decorator's API — unlike a plain proxy, the decorator owns behaviour, not just routing."
    caption="Figure K.7 — The decorating collaborator: a real service wraps the legacy API, adds behaviour, and absorbs it over time — for legacy you cannot modify" %}
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // Spring REST that wraps a legacy /orders API and adds a Redis cache and
@@ -503,6 +548,31 @@ class OrdersDecorator : public drogon::HttpController<OrdersDecorator> {
     cb(json_response(body));
   }
 };
+```
+
+```go
+// OrdersDecorator — wrap legacy /orders: Redis cache on GET, Kafka emit on POST.
+// The legacy service is unchanged.
+func (d *Decorator) getOrder(w http.ResponseWriter, r *http.Request) {
+	oid := r.PathValue("oid")
+	key := "order:" + oid
+	if cached, err := d.cache.Get(r.Context(), key).Bytes(); err == nil { // 1. cache hit
+		writeRaw(w, cached)
+		return
+	}
+	body := d.legacy.Get(r.Context(), "/orders/"+oid)     // 2. miss → legacy
+	d.cache.SetEx(r.Context(), key, body, 60*time.Second) // 3. populate (short TTL)
+	writeRaw(w, body)
+}
+
+func (d *Decorator) placeOrder(w http.ResponseWriter, r *http.Request) {
+	body := d.legacy.Post(r.Context(), "/orders", readBody(r)) // 1. legacy first
+	var order struct{ ID string }
+	_ = json.Unmarshal(body, &order)
+	d.kafka.Produce(r.Context(), record("order.placed", body), nil) // 2. emit
+	d.cache.Del(r.Context(), "order:"+order.ID)                     // 3. invalidate
+	writeRaw(w, body)
+}
 ```
 
 The two paths tell the whole story. The `GET` adds a Redis cache with a short TTL — a capability
