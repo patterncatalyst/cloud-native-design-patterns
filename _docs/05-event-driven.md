@@ -3,7 +3,7 @@ title: "Event-Driven"
 order: 5
 part: "Foundations & the system"
 description: "Decoupled facts that fan out — the event backbone, producing and consuming with commit-after-side-effect, schemas as the enforced contract, and the difference between event sourcing and event streaming."
-duration: 36 minutes
+duration: 42 minutes
 ---
 
 The Data chapter ended with `order.placed` leaving the database through the
@@ -448,6 +448,181 @@ foundation for event sourcing, for rebuilding a stream processor's state after a
 crash, and for the windowed computation taken up in **06 · Stream Processing**. Both
 Kafka (run by Strimzi in our cluster) and Pulsar give you this durable, replayable,
 partitioned log — not a queue you drain.
+
+## Building event-driven microservices: consume, process, produce
+
+An event-driven microservice is small and shaped the same way every time: it
+**consumes** from one or more input streams, **processes** each event (often against
+some local state), and **produces** to output streams. The broker is the data plane
+between services — there are no direct service-to-service calls on the hot path — and
+each service owns its own state rather than reaching into anyone else's.
+
+{% include excalidraw.html
+   file="05-edm-anatomy"
+   alt="An input stream, order.placed, feeds an event-driven microservice drawn as three steps in a row — consume (poll and deserialize), process (map or aggregate), produce (serialize and send) — which emits to an output stream, order.validated. A dashed state store hangs off the process step, marked stateful only, with a read/write arrow. A note: consume to process to produce; the broker is the data plane and the service owns its state."
+   caption="Figure 5.9 — The event-driven microservice: consume, process, produce, with state only when the work needs it" %}
+
+Processing comes in two flavours. **Stateless** processing — a map, a filter, an
+enrichment — needs no memory of past events: each event is handled on its own, which
+makes the service trivial to scale and to restart. **Stateful** processing —
+aggregations, joins, running totals, deduplication — needs a **state store** the
+service maintains and can rebuild from the log, a richer topic with its own
+correctness rules. Most services are mostly stateless with a few stateful steps.
+
+The core loop — consume, transform, re-emit — is the same in every stack. Here a
+validator consumes `order.placed`, derives `order.validated`, and produces it, holding
+no state:
+
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+// Spring Kafka — the return value is produced to the @SendTo topic
+@KafkaListener(topics = "order.placed")
+@SendTo("order.validated")
+public OrderValidated process(Order o) {
+  return new OrderValidated(o.id(), validate(o));   // pure transform, no state
+}
+```
+
+```java
+@Incoming("order.placed")                           // consume  (Reactive Messaging)
+@Outgoing("order.validated")                        // produce
+public OrderValidated process(Order o) {
+  return new OrderValidated(o.id(), validate(o));   // map: one in, one out
+}
+```
+
+```csharp
+// MassTransit — consume the fact, publish the derived fact
+public class Validator(IBus bus) : IConsumer<OrderPlaced>
+{
+    public Task Consume(ConsumeContext<OrderPlaced> ctx) =>
+        bus.Publish(new OrderValidated(
+            ctx.Message.OrderId, Validate(ctx.Message)));   // pure transform
+}
+```
+
+```python
+async for msg in consumer:                            # consume order.placed
+    order = deserialize(msg.value)
+    validated = OrderValidated(order.id, validate(order))      # transform
+    await producer.send_and_wait("order.validated",
+        key=order.id.encode(), value=serialize(validated))     # produce
+```
+
+```cpp
+auto records = consumer.poll(std::chrono::milliseconds(200));  // consume
+for (const auto& rec : records) {
+  Order o = deserialize(rec.value());
+  auto out = serialize(OrderValidated{o.id, validate(o)});     // transform
+  producer.send(kafka::clients::producer::ProducerRecord(
+      "order.validated", kafka::Key(o.id), kafka::Value(out)), cb);  // produce
+}
+```
+
+```go
+fetches := cl.PollFetches(ctx)                        // consume
+fetches.EachRecord(func(r *kgo.Record) {
+	o := deserialize(r.Value)
+	out := serialize(OrderValidated{ID: o.ID, OK: validate(o)})    // transform
+	cl.Produce(ctx, &kgo.Record{Topic: "order.validated",
+		Key: []byte(o.ID), Value: out}, nil)          // produce
+})
+```
+
+Keep the produce idempotent and commit the consumer offset *after* the produce
+succeeds — the commit-after-side-effect rule again — so a crash between producing and
+committing replays cleanly instead of dropping the derived event.
+
+## The sidecar pattern: business logic on one side, the broker on the other
+
+The consume/produce machinery — serialization, schema resolution, offset management,
+retries, tracing — is identical across services and has nothing to do with any one
+service's business logic. The **sidecar pattern** factors it out: a small companion
+process in the same pod owns all broker I/O, and the business microservice talks to it
+over a simple local API (here, gRPC on `localhost`). The service links **no broker
+client at all**.
+
+{% include excalidraw.html
+   file="05-sidecar"
+   alt="Two pods, service A in Go and service B in Python. In each, a business-logic component with no broker client talks over local gRPC to a sidecar that handles broker I/O. Both sidecars connect to a single Kafka cluster (topics, offsets, schema) to consume and produce. A note: the sidecar owns serde, schema, offsets, retries, and tracing, so business logic stays pure and polyglot."
+   caption="Figure 5.10 — The sidecar pattern: a companion process owns broker I/O so the service stays pure and language-agnostic" %}
+
+Three things fall out of that split. **Polyglot** — the business service can be in any
+language, because the sidecar speaks the broker and the service only speaks a local
+gRPC contract (which is why this book's six languages integrate identically).
+**Cross-cutting concerns are centralized** — schema, serde, retry, dead-lettering, and
+tracing live in one audited place instead of being re-implemented per service. And
+**business logic stays pure** — testable with no broker, since publishing is just a
+local call. The cost is a second process per pod and one extra local hop, usually a
+fair price for the decoupling. Publishing through the sidecar carries no Kafka types in
+the service:
+
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+// the sidecar (localhost, same pod) owns Kafka — no broker client here
+@GrpcClient("sidecar")
+private EventBusGrpc.EventBusBlockingStub sidecar;
+
+void emit(Order o) {
+  sidecar.publish(PublishRequest.newBuilder()
+      .setTopic("order.placed").setKey(o.id())
+      .setPayload(o.toByteString()).build());       // sidecar does serde + send
+}
+```
+
+```java
+@GrpcClient("sidecar") EventBus sidecar;            // local sidecar, same pod
+
+void emit(Order o) {
+  sidecar.publish(PublishRequest.newBuilder()
+      .setTopic("order.placed").setKey(o.id())
+      .setPayload(o.toByteString()).build())
+    .await().indefinitely();                        // this service links no Kafka client
+}
+```
+
+```csharp
+// EventBusClient targets the local sidecar; no Kafka client in this service
+async Task Emit(Order o) =>
+    await _sidecar.PublishAsync(new PublishRequest {
+        Topic = "order.placed", Key = o.Id, Payload = o.ToByteString() });
+```
+
+```python
+# the sidecar (localhost) owns Kafka; this service only speaks gRPC to it
+stub = eventbus_pb2_grpc.EventBusStub(channel)        # channel → localhost:50051
+
+def emit(o: Order):
+    stub.Publish(eventbus_pb2.PublishRequest(
+        topic="order.placed", key=o.id, payload=o.SerializeToString()))
+```
+
+```cpp
+// sidecar stub over a localhost channel — this service links no Kafka client
+auto sidecar = EventBus::NewStub(channel);
+void emit(const Order& o) {
+  PublishRequest req;
+  req.set_topic("order.placed"); req.set_key(o.id);
+  req.set_payload(o.SerializeAsString());
+  PublishReply reply; grpc::ClientContext ctx;
+  sidecar->Publish(&ctx, req, &reply);                // sidecar does serde + send
+}
+```
+
+```go
+// the sidecar (localhost) owns the broker; business code only makes a gRPC call
+func emit(ctx context.Context, sidecar pb.EventBusClient, o *Order) error {
+	_, err := sidecar.Publish(ctx, &pb.PublishRequest{
+		Topic: "order.placed", Key: o.ID, Payload: serialize(o)})
+	return err
+}
+```
+
+This is the pattern projects like Dapr generalize; you can also hand-roll a thin
+sidecar around the same `EventBus` contract when you want full control of the broker
+specifics.
 
 ### Cross-check it yourself
 

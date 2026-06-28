@@ -122,6 +122,9 @@ the other five language stacks. Chosen to parallel the existing per-language pic
   sweep across all 30 docs + 126 figures + config — **0 defects** (see `_plans/qa-pass-r70.md`):
   codetab block/order, raw-guards, figure pairing/sequencing, orphans, positional language,
   stale markers all clean. Item 1 (fresh audit) ✅.
+- **r71 — Ch05 expansion tranche 2 (Building EDMs + sidecar).** Added the consume→process→produce
+  anatomy (Fig 5.9, stateless vs stateful) and the sidecar pattern (Fig 5.10) with two six-language
+  codetabs; figures now 5.1–5.10; duration 36→42.
 - **item 3 — Go deck COMPLETE (deck-side r01.0).** In-place retarget of the canonical
   Python deck; `Designing-Cloud-Native-APIs-Go.pptx` (272 slides) added to
   `lgtm-presentation/` with `BUILD.md`. The five language decks stay frozen at r32.
@@ -135,9 +138,9 @@ house diagram (and code where it illustrates) per concept.
 
 - **Tranche 1 ✅ (r69)** — substrate architecture deep-dives: Kafka / Pulsar / AMQP
   (Figs 5.5–5.7), advantages + decoupling.
-- **Tranche 2** — Building cloud-native event-driven microservices: the consume → process
-  → produce anatomy, stateless vs stateful, and the **sidecar** pattern (microservice +
-  broker via a sidecar). Diagram + producer/consumer + sidecar code.
+- **Tranche 2 ✅ (r71)** — Building EDMs: consume → process → produce anatomy (Fig 5.9),
+  stateless vs stateful, and the **sidecar** pattern (Fig 5.10); two six-language codetabs
+  (transform-and-reemit; publish-via-local-sidecar). Duration 36→42.
 - **Tranche 3** — Eventification & denormalization: data liberation / CDC, event-carried
   state transfer, consumers building their own denormalized materialized views. Diagram + code.
 - **Tranche 4** — Stateful event-driven microservices: state stores, changelogs,
