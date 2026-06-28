@@ -1,7 +1,7 @@
 # Cloud-Native Design Patterns
 
 A chaptered guide to designing cloud-native APIs — patterns, anti-patterns, and
-runnable examples — shown in **Spring Boot, Quarkus, .NET, Python, and C++**
+runnable examples — shown in **Spring Boot, Quarkus, .NET, Python, C++, and Go**
 behind one set of code tabs. It is the companion site to the *Designing
 Cloud-Native APIs* deck series; the decks themselves live in
 [`lgtm-presentation/`](lgtm-presentation/).

@@ -114,7 +114,7 @@ makes the structure literal — the domain declares plain interfaces for what it
 the application service is pure, and the REST handler is a three-line translation from
 protocol to a domain call.
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // domain — the core declares the interfaces (ports) it needs; no framework
@@ -258,6 +258,45 @@ class PlaceOrder {
 Task<> Orders::place(HttpRequestPtr req, auto cb) {
   Order o = co_await place_order_(parse<OrderIn>(req).to_cmd());
   cb(HttpResponse::newHttpJsonResponse(to_json(o)));
+}
+```
+
+```go
+// domain/ports.go — the domain declares the small interfaces it needs (ports)
+type OrderRepository interface { // outbound port
+	Save(ctx context.Context, o Order) error
+}
+type EventPublisher interface { // outbound port
+	Publish(ctx context.Context, e DomainEvent) error
+}
+
+// domain/place_order.go — pure application logic: no framework, no I/O
+type PlaceOrder struct {
+	repo   OrderRepository
+	events EventPublisher
+}
+
+func (uc PlaceOrder) Do(ctx context.Context, cmd PlaceOrderCmd) (Order, error) {
+	o, err := NewOrder(cmd) // aggregate enforces invariants
+	if err != nil {
+		return Order{}, err
+	}
+	if err := uc.repo.Save(ctx, o); err != nil {
+		return Order{}, err
+	}
+	return o, uc.events.Publish(ctx, OrderPlaced{o.ID})
+}
+
+// adapters/rest.go — a driving adapter; gRPC/GraphQL look the same
+func (s *Server) place(w http.ResponseWriter, r *http.Request) {
+	var in OrderIn
+	_ = json.NewDecoder(r.Body).Decode(&in)
+	o, err := s.uc.Do(r.Context(), in.toCmd()) // protocol -> domain, nothing more
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(w, http.StatusCreated, o)
 }
 ```
 

@@ -6,7 +6,7 @@
 
 # Site identity
 title: "Cloud-Native Design Patterns"
-description: "A chaptered guide to designing cloud-native APIs — patterns, anti-patterns, and runnable examples in Spring Boot, Quarkus, .NET, Python, and C++."
+description: "A chaptered guide to designing cloud-native APIs — patterns, anti-patterns, and runnable examples in Spring Boot, Quarkus, .NET, Python, C++, and Go."
 brand_emoji: "🧭"   # Single emoji that appears next to the title in the header
 
 # GitHub identity for header link and example sourcing

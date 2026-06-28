@@ -19,7 +19,7 @@ Each of these is a perfectly ordinary WebSocket endpoint. Look at the connection
 registry in every one: it's **per-pod, not shared.** That single fact is the entire
 scaling problem.
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 @Configuration                                  // spring-boot-starter-websocket
@@ -109,6 +109,30 @@ class OrderWs : public drogon::WebSocketController<OrderWs> {
   std::mutex mu_;
   std::unordered_map<std::string, WebSocketConnectionPtr> clients_;
 };
+```
+
+```go
+// ws.go — coder/websocket; per-pod state, the scaling problem starts here
+var clients sync.Map // map[string]*websocket.Conn — THIS pod's connections, not shared
+
+func wsHandler(w http.ResponseWriter, r *http.Request) {
+	userID := r.PathValue("user_id") // 1.22+ path wildcard
+	c, err := websocket.Accept(w, r, nil)
+	if err != nil {
+		return
+	}
+	defer c.CloseNow()
+	clients.Store(userID, c) // this pod now owns this connection
+	defer clients.Delete(userID)
+
+	for { // full-duplex, long-lived
+		var msg Message
+		if err := wsjson.Read(r.Context(), c, &msg); err != nil {
+			return // disconnect
+		}
+		handle(r.Context(), userID, msg)
+	}
+}
 ```
 
 ## Why WebSockets fight Kubernetes scaling

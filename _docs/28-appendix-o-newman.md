@@ -84,7 +84,7 @@ This is a quietly powerful idea: the collection *is* the API specification made 
 it at whichever implementation is running and the assertions are identical. Bringing the service
 under test up is the only language-specific step; the Newman command that follows is the same.
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```bash
 # Spring Boot — start the service under test, then run the same collection
@@ -113,6 +113,12 @@ newman run orders.postman_collection.json -e local.postman_environment.json
 ```bash
 # C++ / Drogon — build and run, then the same collection
 cmake --build build && ./build/order-service &   # http://localhost:8080
+newman run orders.postman_collection.json -e local.postman_environment.json
+```
+
+```bash
+# Go — run the service, then the same collection
+go run ./cmd/order-service &       # http://localhost:8080
 newman run orders.postman_collection.json -e local.postman_environment.json
 ```
 

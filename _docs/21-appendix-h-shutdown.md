@@ -79,7 +79,7 @@ everything else — consumers, pools, sockets — in the shutdown hook that runs
 is done. Doing the readiness flip *at the signal* rather than later is what makes it
 early enough to matter.
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // application.yml — enable graceful shutdown and bound the drain:
@@ -217,6 +217,38 @@ int main() {
   drogon::app().run();                            // drains HTTP on signal
   kafka_worker.join();                            // joins on stop_token
   return 0;                                       // RAII unwinds remaining state
+}
+```
+
+```go
+// graceful shutdown — SIGTERM flips readiness FIRST, then drains within a budget
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(),
+		syscall.SIGTERM, syscall.SIGINT)
+	defer stop()
+
+	var ready atomic.Bool
+	ready.Store(true)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, _ *http.Request) {
+		if !ready.Load() {
+			w.WriteHeader(http.StatusServiceUnavailable) // 503 → Service stops routing
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+	srv := &http.Server{Addr: ":8080", Handler: mux}
+	go srv.ListenAndServe()
+
+	<-ctx.Done()       // SIGTERM received
+	ready.Store(false) // fail readiness FIRST, before draining
+
+	shutCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	_ = srv.Shutdown(shutCtx) // bounds the HTTP drain
+	consumer.Close()          // finish, commit offsets, leave the group
+	db.Close()                // close pools, flush, release resources
 }
 ```
 

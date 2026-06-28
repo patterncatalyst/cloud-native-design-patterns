@@ -61,7 +61,7 @@ finished.
    alt="Forward path: charge_payment then reserve_stock then book_shipping, which fails. On failure the saga compensates in reverse: release_stock then refund_payment — only the steps that completed, newest first"
    caption="Figure D.2 — On failure, run each completed step's inverse, newest first" %}
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 static final Map<String,String> COMPENSATIONS = Map.of(   // inverse per step
@@ -143,6 +143,37 @@ Task<> compensate(sml::sm<OrderSaga>& sm, Saga& s) {
   for (auto& step : reversed(s.completed_steps()))         // newest first
     co_await invoke(inverse_of(step), s.context);          // semantic inverse
   s.status = "COMPENSATED";
+}
+```
+
+```go
+// compensations — the semantic inverse for each forward step
+var compensations = map[string]string{
+	"charge_payment": "refund_payment",
+	"reserve_stock":  "release_stock",
+	"book_shipping":  "cancel_shipping",
+}
+
+func compensate(ctx context.Context, pool *pgxpool.Pool, sagaID string) error {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	s, err := getSagaForUpdate(ctx, tx, sagaID) // row lock
+	if err != nil {
+		return err
+	}
+	// undo only the steps that actually completed, newest first
+	done := steps[:s.StepIndex]
+	for i := len(done) - 1; i >= 0; i-- {
+		if err := invoke(ctx, compensations[done[i]], s.Context); err != nil { // inverse
+			return err
+		}
+	}
+	s.Status = "COMPENSATED"
+	return tx.Commit(ctx)
 }
 ```
 
