@@ -3,7 +3,7 @@ title: "Event-Driven"
 order: 5
 part: "Foundations & the system"
 description: "Decoupled facts that fan out — the event backbone, producing and consuming with commit-after-side-effect, schemas as the enforced contract, and the difference between event sourcing and event streaming."
-duration: 66 minutes
+duration: 72 minutes
 ---
 
 The Data chapter ended with `order.placed` leaving the database through the
@@ -1133,6 +1133,129 @@ passing through states where payment is taken but stock isn't yet reserved, whic
 compensations resolve. The full mechanics — idempotent compensations, the semantic-lock and
 pivot-transaction patterns, and what to do when a step can't be compensated — are the
 subject of **Appendix D**.
+
+## Integrating event-driven architecture into existing systems
+
+Few teams build an event-driven system on a blank slate; the usual job is bringing events
+into a world of existing databases and a monolith that still runs the business. The way to
+do that without a risky big-bang rewrite is the **strangler** pattern: put a router in
+front, migrate one capability at a time to new event-driven services while the legacy system
+keeps serving everything else, and continue until the new side has grown around the old and
+the old can be retired.
+
+Two primitives make that incremental migration safe. **Change data capture** liberates the
+legacy system's data into the event backbone — the same data-liberation pattern from
+earlier — so a new service can build its own view from legacy state without calling into the
+monolith. And the **outbox** solves the **dual-write** problem at the seam: writing the
+business state to the database and publishing an event are two separate systems, and a crash
+between them leaves the two inconsistent. The outbox makes them one — write the event into an
+`outbox` table *in the same database transaction* as the state change, and let a relay (or
+CDC on that table) publish it. One commit, no lost or phantom events:
+
+{% include excalidraw.html
+   file="05-strangler-integration"
+   alt="An edge router splits traffic: legacy paths go to the legacy monolith plus its database, and migrated paths go to new EDA services that grow over time. The legacy monolith's state is liberated to the event backbone (Kafka) via CDC plus the outbox, and the new services consume from the backbone. A note: the strangler migrates capability by capability behind the router, while CDC and the outbox feed the new side with no dual-write or big-bang cutover."
+   caption="Figure 5.19 — Strangling a monolith: route by capability, liberate state with CDC and the outbox, grow the new side" %}
+
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+@Transactional                                       // one DB transaction
+public void placeOrder(Order o) {
+  orders.save(o);                                    // business state
+  outbox.save(new OutboxEvent("order.placed",        // event row, same transaction
+      o.id(), serialize(new OrderPlaced(o))));       // a relay/CDC publishes it later
+}
+```
+
+```java
+@Transactional                                       // one DB transaction (Panache)
+public void placeOrder(Order o) {
+  o.persist();                                       // business state
+  new OutboxEvent("order.placed", o.id,
+      serialize(new OrderPlaced(o))).persist();      // event row, same transaction
+}
+```
+
+```csharp
+// one DbContext transaction — state and outbox commit together
+db.Orders.Add(order);
+db.Outbox.Add(new OutboxEvent("order.placed", order.Id,
+    Serialize(new OrderPlaced(order))));             // a relay publishes it later
+await db.SaveChangesAsync();                          // atomic: no dual-write
+```
+
+```python
+async with session.begin():                          # one DB transaction
+    session.add(order)                               # business state
+    session.add(OutboxEvent("order.placed", order.id,
+        serialize(OrderPlaced(order))))              # event row, same transaction
+```
+
+```cpp
+pqxx::work tx(conn);                                  // one DB transaction
+tx.exec_params("INSERT INTO orders ...", o.id, o.total);          // business state
+tx.exec_params("INSERT INTO outbox(topic, key, payload) VALUES($1,$2,$3)",
+    "order.placed", o.id, serialize(OrderPlaced{o}));             // event row
+tx.commit();                                          // atomic — a relay ships it
+```
+
+```go
+tx, _ := pool.Begin(ctx)                              // one DB transaction
+defer tx.Rollback(ctx)
+tx.Exec(ctx, "INSERT INTO orders ...", o.ID, o.Total)             // business state
+tx.Exec(ctx, "INSERT INTO outbox(topic,key,payload) VALUES($1,$2,$3)",
+	"order.placed", o.ID, serialize(OrderPlaced{Order: o}))       // event row
+tx.Commit(ctx)                                        // atomic — a relay ships it
+```
+
+## Multi-tenancy
+
+When one event-driven platform serves many tenants, isolation becomes a first-class
+concern: a tenant must not see another's events, and one tenant's traffic must not starve
+another's. The two substrates approach it differently.
+
+| Concern | Kafka | Pulsar |
+|---|---|---|
+| **Isolation unit** | topic naming convention + ACLs (e.g. `tenantA.order.placed`) | native tenant → namespace → topic hierarchy |
+| **Access control** | per-topic / per-principal ACLs | per-tenant and per-namespace authorization built in |
+| **Quotas** | per-client/user byte-rate and request quotas | per-tenant/namespace throughput and storage quotas |
+| **Noisy neighbour** | quotas, or a separate cluster for hard isolation | namespace isolation, pinned to broker/bookie groups |
+| **Geo / residency** | MirrorMaker, or a cluster per region | geo-replication built in per namespace |
+
+Whichever you use, put the **tenant id in the partition key** so a tenant's events keep
+their order and land together, never derive a topic name from unsanitized tenant input, and
+choose between a **shared topic keyed by tenant** (simple, weaker isolation) and a **topic or
+namespace per tenant** (stronger isolation, more sprawl to manage) based on how hard the
+isolation requirement really is.
+
+## Living with eventual consistency
+
+Everything in this chapter buys decoupling and scale with one currency: the system is
+**eventually**, not immediately, consistent. A write commits at the source and its effects
+ripple out through events, so for a short **consistency window** a read model can lag the
+truth. That window is not a bug to hide; it is a property to design for.
+
+{% include excalidraw.html
+   file="05-consistency-window"
+   alt="A client writes to the source of truth, which commits and emits an event; the event is applied to a read model or view after a delay of delta-t. A read of the view during that delta-t window may be stale. A note: read-your-writes means routing a writer's own reads to the source, or waiting until the read model reaches the write's version."
+   caption="Figure 5.20 — The consistency window: a read model lags the source by Δt, which read-your-writes hides for the writer" %}
+
+The honest move is to decide where strong consistency is genuinely required — usually a
+small core, like the payment charge itself — and let everything else converge, with a few
+standard tactics to keep it humane:
+
+| Tactic | What it does |
+|---|---|
+| **Read-your-writes** | route a user's own reads to the source (or wait for the view to reach their version) so they always see their own change |
+| **Show the pending state** | surface "processing…" in the UI instead of pretending a write is instantly visible everywhere |
+| **Idempotency + last-writer-wins** | make repeated and late events safe, so convergence stays correct |
+| **Reconciliation** | periodically compare derived views against the source and repair any drift |
+| **Bound the window** | alert on projection lag and treat a growing consistency window as an incident |
+
+The throughline of the whole chapter: an event-driven system trades immediate consistency
+and a single in-the-moment truth for decoupling, autonomy, scale, and a complete, replayable
+history. Spend that trade where it pays, and be deliberate about the few places it doesn't.
 
 ### Cross-check it yourself
 

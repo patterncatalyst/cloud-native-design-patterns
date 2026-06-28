@@ -144,6 +144,12 @@ the other five language stacks. Chosen to parallel the existing per-language pic
   saga — local transactions forward, compensations in reverse (Fig 5.18) — with a six-language
   choreographed-saga-step codetab (advance on success, compensate on failure). Full saga mechanics
   bridged to Appendix D. Figures now 5.1–5.18; duration 60→66.
+- **r76 — Ch05 tranche 7 (integration, multi-tenancy, eventual consistency) — EXPANSION COMPLETE.**
+  Added the strangler + CDC + outbox integration (Fig 5.19, six-language outbox codetab), a
+  Kafka-vs-Pulsar multi-tenancy table, and living-with-eventual-consistency (Fig 5.20 consistency
+  window + read-your-writes, tactics table). **Ch05 now 20 figures, 9 codetabs, 72 min** — the
+  full Bellemare arc (substrates → building EDMs → sidecar → eventification → ECST → stateful →
+  deterministic → workflows/saga → integration/tenancy/consistency).
 - **item 3 — Go deck COMPLETE (deck-side r01.0).** In-place retarget of the canonical
   Python deck; `Designing-Cloud-Native-APIs-Go.pptx` (272 slides) added to
   `lgtm-presentation/` with `BUILD.md`. The five language decks stay frozen at r32.
@@ -171,6 +177,6 @@ house diagram (and code where it illustrates) per concept.
   transactional exactly-once codetab. Windowing depth deferred to Ch06 by cross-reference.
 - **Tranche 6 ✅ (r75)** — Workflows: choreography vs orchestration (Fig 5.17) and the saga
   with compensation (Fig 5.18, choreographed-step codetab); full saga mechanics bridged to Appendix D.
-- **Tranche 7** — Integrating EDA into existing systems (strangler + CDC + outbox);
-  **multi-tenancy** considerations; dealing with **eventual consistency** in practice.
-  Diagram(s) + table.
+- **Tranche 7 ✅ (r76)** — Integrating EDA into existing systems (strangler + CDC + outbox,
+  Fig 5.19, outbox codetab), multi-tenancy (Kafka-vs-Pulsar table), and living with eventual
+  consistency (consistency-window Fig 5.20 + tactics table). **Ch05 Bellemare expansion COMPLETE.**
