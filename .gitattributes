@@ -1,0 +1,47 @@
+# ==============================================================================
+# 1. FORCE EXPLICIT LANGUAGE CLASSIFICATION
+# Use this if GitHub misidentifies certain file types.
+# ==============================================================================
+*.py linguist-language=Python
+*.go linguist-language=Go
+*.cpp linguist-language=C++
+*.hpp linguist-language=C++
+*.h linguist-language=C++
+*.java linguist-language=Java
+
+# ==============================================================================
+# 2. IGNORE BUILD, DEPENDENCY, AND VENDOR DIRECTORIES
+# This stops auto-generated code and packages from dominating your language bar.
+# ==============================================================================
+
+# Python exclusions
+**/__pycache__/* linguist-detectable=false
+**/.venv/* linguist-detectable=false
+**/venv/* linguist-detectable=false
+**/env/* linguist-detectable=false
+**/.egg-info/* linguist-detectable=false
+
+# Go exclusions
+**/vendor/* linguist-detectable=false
+
+# C++ exclusions
+**/build/* linguist-detectable=false
+**/bin/* linguist-detectable=false
+**/.cmake/* linguist-detectable=false
+
+# Java exclusions
+**/.gradle/* linguist-detectable=false
+**/.settings/* linguist-detectable=false
+**/target/* linguist-detectable=false
+
+# ==============================================================================
+# 3. IGNORE DOCUMENTATION AND ASSETS (e.g., HTML/CSS/Markdown)
+# Stops configuration or documentation files from shifting your project stats.
+# ==============================================================================
+**/docs/* linguist-documentation=true
+*.md linguist-documentation=true
+*.html linguist-detectable=false
+*.css linguist-detectable=false
+*.json linguist-detectable=false
+*.yaml linguist-detectable=false
+*.yml linguist-detectable=false
