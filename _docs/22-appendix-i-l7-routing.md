@@ -193,7 +193,7 @@ Each ecosystem composes this from its own rule engine — a Rete forward-chainin
 most cases — feeding a small dispatcher. First the **ruleset**, read as a set of "when … then …"
 statements that set a list of destinations:
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // orders.drl  —  edited by domain experts, not developers (Drools)
@@ -332,12 +332,32 @@ function route(order, ctx)
 end
 ```
 
+```lua
+-- orders_rules.lua  —  the SAME externalised DSL; Go loads it via gopher-lua.
+-- Neither C++ nor Go has a native durable-rules-class engine, so both embed Lua;
+-- this is byte-for-byte the C++/sol2 tab — one ruleset, two host languages.
+function route(order, ctx)
+  local dests = {}
+  if order.amount_cents > 50000 and ctx.tier == "VIP" then
+    table.insert(dests, "kafka:orders.priority")
+    table.insert(dests, "http:notify-vip")
+  end
+  if order.region == "EU" then
+    table.insert(dests, "kafka:orders.eu")
+  end
+  if #dests == 0 then
+    table.insert(dests, "kafka:orders.default")
+  end
+  return dests
+end
+```
+
 Then the **dispatcher**: enrich the input with any context the rules need, evaluate the
 ruleset, and fan out to each destination over the right transport. The `kafka:` / `http:`
 prefix on each destination is a tiny convention that lets one ruleset drive multiple
 transports.
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // Camel route in Spring Boot, calling Drools (camel-spring-boot + drools starters)
@@ -468,6 +488,46 @@ Task<> Orders::route(HttpRequestPtr req, auto cb) {
   }
   cb(json_response({{"routed_to", dests}}));
 }{% endraw %}
+```
+
+```go
+// dispatcher.go — net/http + franz-go + gopher-lua (loads the same rules.lua)
+type Router struct {
+	lua *lua.LState // process-scoped Lua VM
+}
+
+func NewRouter() *Router {
+	L := lua.NewState()
+	if err := L.DoFile("/etc/orders/rules.lua"); err != nil { // load the DSL
+		panic(err)
+	}
+	return &Router{lua: L}
+}
+
+func (rt *Router) evaluate(o Order, rc Ctx) []string {
+	err := rt.lua.CallByParam(lua.P{ // call route(order, ctx)
+		Fn: rt.lua.GetGlobal("route"), NRet: 1, Protect: true,
+	}, toLua(o), toLua(rc))
+	if err != nil {
+		return []string{"kafka:orders.default"}
+	}
+	return toStrings(rt.lua.Get(-1)) // the returned destinations
+}
+
+func (s *Server) route(w http.ResponseWriter, r *http.Request) {
+	order := parse(r)
+	rc := enrich(r.Context(), order)                     // gather context (DB / HTTP)
+	for _, dest := range s.router.evaluate(order, rc) {  // fan-out
+		proto, target, _ := strings.Cut(dest, ":")
+		switch proto {
+		case "kafka":
+			s.kafka.Produce(r.Context(), record(target, order), nil)
+		case "http":
+			s.http.Post(r.Context(), target, order)
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"routed_to": "ok"})
+}
 ```
 
 The shapes converge: a forward-chaining rule engine (Drools, NRules, durable-rules, or Lua)

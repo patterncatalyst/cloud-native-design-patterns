@@ -69,7 +69,7 @@ the code and the trace id for correlation.
    alt="REST error handling in two layers. Choose the status class first: 4xx is a client error, fix the request and do not retry as-is; 429 or 503 means busy, back off and honour the Retry-After header; 5xx is a server error, retry idempotent calls with backoff. The body is an application/problem+json document (RFC 9457) carrying type, title, status 409, detail, instance, the machine code STOCK_UNAVAILABLE, and a traceId for correlation."
    caption="Figure E.2 — REST errors: the HTTP status class is the category; an RFC 9457 problem+json body carries the specifics" %}
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // Spring Framework 7's built-in ProblemDetail = RFC 9457 out of the box
@@ -206,6 +206,32 @@ Task<> error_middleware(HttpRequestPtr req, auto next) {
 }
 ```
 
+```go
+// one central place: domain error → RFC 9457 problem+json
+type StockError struct{ Detail string }
+
+func (e StockError) Error() string { return e.Detail }
+
+// problem renders any domain error to the wire in one place
+func writeProblem(w http.ResponseWriter, r *http.Request, err error) {
+	var se StockError
+	if !errors.As(err, &se) { // domain → wire, one mapping
+		http.Error(w, "internal", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/problem+json") // RFC 9457
+	w.WriteHeader(http.StatusConflict)                         // 409
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"type":    "https://errors.acme.io/stock",
+		"title":   "Insufficient stock",
+		"status":  409,
+		"detail":  se.Detail,
+		"code":    "STOCK_UNAVAILABLE",  // stable machine code
+		"traceId": traceID(r.Context()), // correlate w/ the trace
+	})
+}
+```
+
 Each one registers a single handler family and lets the framework attach the
 `application/problem+json` content type. In a larger codebase you would key a
 base-class handler on the error family — one `switch` on a `code` — so a new domain
@@ -234,7 +260,7 @@ the `RetryInfo` tells them precisely how long to back off.
    alt="gRPC error handling. The canonical status code is the contract: INVALID_ARGUMENT and NOT_FOUND are client bugs, don't retry; FAILED_PRECONDITION and ALREADY_EXISTS are state issues, don't retry; UNAVAILABLE and ABORTED are transient, retry with backoff; RESOURCE_EXHAUSTED means honour the RetryInfo delay; DEADLINE_EXCEEDED means tune the timeout and maybe retry. A google.rpc.Status in the trailers carries the rich details: code UNAVAILABLE 14, a message, an ErrorInfo with reason and domain, and a RetryInfo delay."
    caption="Figure E.3 — gRPC errors: a canonical status code drives retry behaviour, with google.rpc.Status details in the trailers" %}
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 import io.grpc.protobuf.StatusProto;
@@ -355,6 +381,24 @@ grpc::Status Inventory::ReserveStock(grpc::ServerContext* ctx,
 }
 ```
 
+```go
+// gRPC rich status: canonical code + ErrorInfo + RetryInfo (google.rpc)
+func (s *Inventory) ReserveStock(
+	ctx context.Context, req *pb.ReserveRequest) (*pb.ReserveReply, error) {
+
+	if s.inventoryDown {
+		st := status.New(codes.Unavailable, "inventory temporarily down") // canonical
+		st, _ = st.WithDetails(
+			&errdetails.ErrorInfo{Reason: "STOCK_DOWN", Domain: "inventory"}, // machine
+			&errdetails.RetryInfo{RetryDelay: durationpb.New(2 * time.Second)}, // back off
+		)
+		return nil, st.Err() // details ride in the trailer
+	}
+	// ... success path ...
+	return &pb.ReserveReply{}, nil
+}
+```
+
 The shape is identical across stacks: build a `google.rpc.Status` with the canonical
 code, pack `ErrorInfo` and `RetryInfo` into its details, and hand it to the
 framework's "abort with rich status" call so it lands in the trailers. The client
@@ -383,7 +427,7 @@ the commit happens on *every* branch.
    alt="A Kafka consumer reads from the orders topic main partition and processes each record. On success it acks and commits, the happy path. On failure it routes the record to a retry.5s delayed-retry topic, then a retry.30s topic, and after N tries to an orders.DLQ dead-letter queue for alerting and tooling. The offset is committed either way, so a poison record never blocks head-of-line processing."
    caption="Figure E.4 — Kafka: route failures to delayed-retry topics then a DLQ, and commit the offset on every branch so the partition never stalls" %}
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 @Configuration
@@ -515,6 +559,30 @@ while (!stop_token.stop_requested()) {
 }
 ```
 
+```go
+// bounded in-place retries, then a delayed-retry topic, then a DLQ (franz-go)
+const maxRetries = 3
+
+func process(ctx context.Context, cl *kgo.Client, r *kgo.Record) error {
+	if err := handle(r); err == nil {
+		return nil // success
+	}
+	attempts := headerInt(r, "retries")
+	out := &kgo.Record{Value: r.Value} // build headers via append, not a literal
+	if attempts < maxRetries {
+		out.Topic = "orders.retry.30s" // delayed retry
+		out.Headers = append(out.Headers,
+			kgo.RecordHeader{Key: "retries", Value: itob(attempts + 1)})
+	} else {
+		out.Topic = "orders.DLQ" // give up → DLQ
+		out.Headers = append(out.Headers,
+			kgo.RecordHeader{Key: "error", Value: []byte("poison")},
+			kgo.RecordHeader{Key: "traceId", Value: []byte(traceID(ctx))})
+	}
+	return cl.ProduceSync(ctx, out).FirstErr() // then commit so head-of-line is free
+}
+```
+
 The hand-written versions make the contract impossible to miss: the commit sits in
 the `except` / `catch` branch as well as the success branch, so whether the record
 succeeded, hopped to a retry topic, or landed in the DLQ, the partition advances. The
@@ -545,7 +613,7 @@ client decides whether to retry only the part that failed.
    alt="A GraphQL partial-success response. The HTTP 200 response carries a data object where the order has id 1037 and total 59.90 but stock is null because that field failed. Alongside it an errors array entry names the failure: message inventory unavailable, the path to order then stock, and an extensions object with code UNAVAILABLE, retryable true, and a traceId. Every other field still returns."
    caption="Figure E.5 — GraphQL: one HTTP 200, the failed field nulled, and an errors[] entry carrying the machine code in extensions" %}
 
-{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++" %}
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
 // Spring for GraphQL: a DataFetcherExceptionResolver maps exceptions to
@@ -689,6 +757,26 @@ class OrderResolver : public object::Order {
   }
   // getId(), getSku(), getTotal() still return normally — partial response
 };{% endraw %}
+```
+
+```go
+// gqlgen — return an error from one field's resolver to null THIS field only;
+// sibling fields (id, sku, total) in the same query still resolve.
+func (r *orderResolver) Stock(ctx context.Context, obj *Order) (*int, error) {
+	n, err := r.Inventory.Remaining(ctx, obj.Sku)
+	if err != nil {
+		return nil, &gqlerror.Error{
+			Message: "inventory unavailable", // safe message
+			Path:    graphql.GetPath(ctx),    // the field
+			Extensions: map[string]any{
+				"code":      "UNAVAILABLE", // machine code
+				"retryable": true,
+				"traceId":   traceID(ctx),
+			},
+		}
+	}
+	return &n, nil
+}
 ```
 
 The pattern is the same everywhere: raise (or `co_return`-throw) from the single
