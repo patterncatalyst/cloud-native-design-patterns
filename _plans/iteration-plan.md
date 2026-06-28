@@ -42,7 +42,7 @@ moves its chapter from unverified to verified.
 
 ## Open decisions
 
-- GitHub account/owner for the repo (the `github_username` in `_config.yml` is a
-  placeholder).
+- GitHub account/owner for the repo — **resolved: `patterncatalyst`** (set in
+  `_config.yml`); the repo is `patterncatalyst/cloud-native-design-patterns`.
 - Demo directory convention: `examples/NN-name/<language>` is assumed above to
   fit the tutorial template; confirm before Phase 3.

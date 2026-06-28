@@ -110,9 +110,9 @@ the other five language stacks. Chosen to parallel the existing per-language pic
   (loose coupling/real-time/scalability paired with eventual consistency/debugging/ordering
   & duplicates) and "Choosing the substrate: Kafka vs Pulsar vs AMQP" (comparison matrix +
   log-vs-queue prose). Table-led, no new figures. **Phase-3 content items 4–9 all complete.**
-- **GitHub-link 404 root cause:** `github_username` in `_config.yml` is a placeholder
-  (flagged in `_plans/iteration-plan.md` open decisions). Link is built correctly in 5
-  places (header, footer ×3, homepage); awaiting the real GitHub owner/repo to set it.
+- **r68 — GitHub-link 404 FIXED.** Root cause was the placeholder `github_username`
+  (`RobertSedor`). Set to `patterncatalyst` in `_config.yml`; all 5 link sites (header,
+  footer ×3, homepage) now resolve to `github.com/patterncatalyst/cloud-native-design-patterns`.
 - **item 3 — Go deck COMPLETE (deck-side r01.0).** In-place retarget of the canonical
   Python deck; `Designing-Cloud-Native-APIs-Go.pptx` (272 slides) added to
   `lgtm-presentation/` with `BUILD.md`. The five language decks stay frozen at r32.

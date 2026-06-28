@@ -10,7 +10,7 @@ description: "A chaptered guide to designing cloud-native APIs — patterns, ant
 brand_emoji: "🧭"   # Single emoji that appears next to the title in the header
 
 # GitHub identity for header link and example sourcing
-github_username: "RobertSedor"
+github_username: "patterncatalyst"
 github_repo: "cloud-native-design-patterns"
 
 # baseurl
