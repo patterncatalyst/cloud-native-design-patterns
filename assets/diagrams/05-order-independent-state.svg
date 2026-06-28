@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 300" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="20" y="56" width="300" height="192" rx="12" fill="#eef4fb" stroke="#ddd"/>
+<text x="32" y="76" font-size="12" font-weight="700" fill="#1d1d1d">events arrive out of order</text>
+<rect x="40" y="92" width="260" height="42" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="170.0" y="118.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">v2 · PACKED   (1st)</text>
+<rect x="40" y="148" width="260" height="42" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="170.0" y="174.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">v1 · PAID   (2nd)</text>
+<rect x="40" y="204" width="260" height="42" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="170.0" y="230.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">v3 · SHIPPED   (3rd)</text>
+<rect x="372" y="118" width="178" height="74" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="461.0" y="153.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">handler</text>
+<text x="461.0" y="170.0" font-size="11.5" fill="#555555" text-anchor="middle">keep highest version (LWW)</text>
+<rect x="592" y="118" width="150" height="74" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="667.0" y="153.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">state → v3 SHIPPED</text>
+<text x="667.0" y="170.0" font-size="11.5" fill="#555555" text-anchor="middle">correct, any order</text>
+<path d="M300,113 L372,140" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M300,169 L372,156" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M300,225 L372,172" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M550,155 L592,155" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
+<text x="577.0" y="148.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">converges</text>
+<text x="577.0" y="148.0" font-size="11" fill="#b8650a" text-anchor="middle">converges</text>
+<text x="380" y="284" font-size="10.5" fill="#1d1d1d" text-anchor="middle" font-weight="700">version-keyed or commutative updates, plus idempotency on duplicates → state is correct regardless of arrival order</text>
+</svg>

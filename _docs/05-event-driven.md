@@ -3,7 +3,7 @@ title: "Event-Driven"
 order: 5
 part: "Foundations & the system"
 description: "Decoupled facts that fan out — the event backbone, producing and consuming with commit-after-side-effect, schemas as the enforced contract, and the difference between event sourcing and event streaming."
-duration: 48 minutes
+duration: 54 minutes
 ---
 
 The Data chapter ended with `order.placed` leaving the database through the
@@ -718,6 +718,187 @@ fetches.EachRecord(func(r *kgo.Record) {
 	views.Upsert(OrderView{ID: o.ID, Customer: o.Customer,        // local view
 		Total: o.Total, Status: o.Status})        // built from the event, no call-back
 })
+```
+
+## Stateful microservices: the state store and its changelog
+
+Stateless processing handles each event alone; **stateful** processing — running totals,
+counts, joins, deduplication — has to remember things between events. The cloud-native
+way to remember is a **local state store**: an embedded key-value store, co-located with
+the partition the instance owns, that the processor reads and writes on the hot path.
+There is no network round-trip to a shared database, so it is fast — but it is *local*,
+so it has to survive the instance dying.
+
+That is what the **changelog** is for. Every write to the state store is also appended to
+a **compacted changelog topic** in the broker, which makes the store durable and,
+crucially, **rebuildable**: when an instance crashes or a rebalance moves its partition
+to another instance, the new owner replays the changelog to restore the store before it
+resumes. State lives locally for speed and in the log for safety — the table–stream
+duality doing real work.
+
+{% include excalidraw.html
+   file="05-state-store-changelog"
+   alt="An order.placed topic feeds a stateful instance whose process step reads and writes a local state store called customer-totals. Every write is mirrored to a compacted, durable changelog topic. When a rebalance creates a new instance, it restores the store by replaying the changelog. A note: every write also goes to the changelog, so on failure or rebalance you replay it to rebuild the store and state is never lost."
+   caption="Figure 5.13 — A stateful instance keeps a local state store and mirrors every write to a compacted changelog it can replay to recover" %}
+
+Maintaining a per-customer running total looks different in each ecosystem, because the
+embedded-store-plus-changelog machinery is exactly what the JVM stream-processing
+frameworks give you for free and the others assemble:
+
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+// Spring Kafka Streams — the aggregate is a state store with an automatic changelog
+@Bean
+KStream<String, Order> totals(StreamsBuilder b) {
+  KStream<String, Order> orders = b.stream("order.placed");
+  orders.groupBy((k, o) -> o.customer())
+        .aggregate(() -> 0.0,
+            (cust, o, total) -> total + o.total(),    // running total per customer
+            Materialized.as("customer-totals"));        // store + changelog topic
+  return orders;
+}
+```
+
+```java
+// Quarkus Kafka Streams — same DSL; the store is changelog-backed
+@Produces
+Topology totals() {
+  StreamsBuilder b = new StreamsBuilder();
+  b.stream("order.placed", Consumed.with(Serdes.String(), orderSerde))
+   .groupBy((k, o) -> o.customer())
+   .aggregate(() -> 0.0,
+       (cust, o, total) -> total + o.total(),
+       Materialized.as("customer-totals"));            // durable, rebuildable
+  return b.build();
+}
+```
+
+```csharp
+// Streamiz.Kafka.Net — the Kafka Streams model on .NET
+var builder = new StreamBuilder();
+builder.Stream<string, Order>("order.placed")
+    .GroupBy((k, o) => o.Customer)
+    .Aggregate(() => 0.0,
+        (cust, o, total) => total + o.Total,
+        InMemory.As<string, double>("customer-totals"));  // store + changelog
+```
+
+```python
+# faust-streaming — a Table is a state store backed by a changelog topic
+totals = app.Table("customer-totals", default=float)
+
+@app.agent(app.topic("order.placed", value_type=Order))
+async def aggregate(orders):
+    async for o in orders.group_by(Order.customer):
+        totals[o.customer] += o.total            # running total, durable + rebuildable
+```
+
+```cpp
+// no Kafka Streams in C++: keep a local store, mirror each write to a compacted topic
+double total = store.get(o.customer);            // local state store
+store.put(o.customer, total + o.total);          // update local state
+producer.send(kafka::clients::producer::ProducerRecord(
+    "customer-totals", kafka::Key(o.customer),
+    kafka::Value(serialize(total + o.total))), cb);   // changelog: replay to rebuild
+```
+
+```go
+// goka — a group table is a state store whose changelog goka manages and recovers
+func aggregate(ctx goka.Context, msg any) {
+	o := msg.(*Order)
+	var total float64
+	if v := ctx.Value(); v != nil {              // current state for this key
+		total = v.(float64)
+	}
+	ctx.SetValue(total + o.Total)                // goka writes the changelog + recovers
+}
+```
+
+The honest ecosystem note: Kafka Streams (Spring, Quarkus), its .NET port Streamiz, and
+Python's Faust give you the state store and its changelog as first-class `KTable` / `Table`
+abstractions; Go's **goka** does the same with a group table; and in C++, with no such
+framework, you keep the store and mirror writes to a compacted topic by hand — more code,
+the identical pattern.
+
+## State that doesn't depend on event order
+
+A partitioned log only guarantees order *within* a partition, and even there a retry or
+rebalance can redeliver. So a stateful handler has to stay correct when events arrive
+**out of order or more than once**. The discipline is to make state updates independent
+of arrival order:
+
+- **Version or timestamp the events** and apply **last-writer-wins** — keep an update only
+  if its version is newer than what you hold, so a late `v1` can't clobber a `v2` already
+  applied.
+- Prefer **commutative** updates — adding to a counter, unioning a set — where order
+  simply doesn't matter.
+- Make every handler **idempotent**, so a duplicate is a no-op (dedupe by event id, or
+  fold into an upsert).
+
+For stateful **joins**, the two sides must be **co-partitioned** — same key, same
+partition count — so matching keys land on the same instance and its state store can see
+both sides at once.
+
+{% include excalidraw.html
+   file="05-order-independent-state"
+   alt="Three status events arrive out of order — v2 PACKED first, v1 PAID second, v3 SHIPPED third. A handler that keeps the highest version (last-writer-wins) feeds a state that converges to v3 SHIPPED, correct in any order. A note: version-keyed or commutative updates plus idempotency on duplicates make state correct regardless of arrival order."
+   caption="Figure 5.14 — Last-writer-wins by version makes state converge correctly no matter the arrival order" %}
+
+The same guarded upsert handles both out-of-order and duplicate status events — apply one
+only if its version beats what is already stored:
+
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+@KafkaListener(topics = "order.status")
+public void onStatus(OrderStatus e) {
+  OrderView cur = views.find(e.id());
+  if (cur == null || e.version() > cur.version())     // last-writer-wins by version
+    views.upsert(new OrderView(e.id(), e.status(), e.version()));  // ignore stale/dup
+}
+```
+
+```java
+@Incoming("order.status")
+public void onStatus(OrderStatus e) {
+  OrderView cur = views.find(e.id());
+  if (cur == null || e.version() > cur.version())     // higher version wins
+    views.upsert(new OrderView(e.id(), e.status(), e.version()));
+}
+```
+
+```csharp
+public Task Consume(ConsumeContext<OrderStatus> ctx)
+{
+    var e = ctx.Message; var cur = _views.Find(e.Id);
+    if (cur is null || e.Version > cur.Version)        // last-writer-wins
+        _views.Upsert(new OrderView(e.Id, e.Status, e.Version));
+    return Task.CompletedTask;
+}
+```
+
+```python
+async for msg in consumer:
+    e = deserialize(msg.value)
+    cur = await views.find(e.id)
+    if cur is None or e.version > cur.version:         # ignore stale / duplicate
+        await views.upsert(OrderView(e.id, e.status, e.version))
+```
+
+```cpp
+OrderStatus e = deserialize(rec.value());
+auto cur = views.find(e.id);
+if (!cur || e.version > cur->version)                  // last-writer-wins by version
+  views.upsert(OrderView{e.id, e.status, e.version});  // stale / duplicate ignored
+```
+
+```go
+e := deserialize(r.Value)
+cur, ok := views.Find(e.ID)
+if !ok || e.Version > cur.Version {                    // highest version wins
+	views.Upsert(OrderView{ID: e.ID, Status: e.Status, Version: e.Version})
+}
 ```
 
 ### Cross-check it yourself
