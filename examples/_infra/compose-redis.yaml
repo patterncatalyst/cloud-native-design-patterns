@@ -1,0 +1,18 @@
+services:
+  redis:
+    image: docker.io/library/redis:7-alpine
+    container_name: cndp-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data:Z
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+volumes:
+  redis-data:
