@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package inventory;
+
+service Inventory {
+  rpc GetStock (GetStockRequest) returns (GetStockReply);
+  rpc GetStockBatch (GetStockBatchRequest) returns (GetStockBatchReply);
+}
+
+message GetStockRequest {
+  string sku = 1;
+}
+
+message GetStockReply {
+  string sku = 1;
+  int32 available = 2;
+}
+
+message GetStockBatchRequest {
+  repeated string skus = 1;
+}
+
+message GetStockBatchReply {
+  repeated GetStockReply items = 1;
+}
