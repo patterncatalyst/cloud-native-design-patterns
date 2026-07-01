@@ -1,6 +1,6 @@
 services:
   kafka-connect:
-    image: docker.io/debezium/connect:2.7
+    image: docker.io/debezium/connect:2.7.3.Final
     container_name: cndp-kafka-connect
     ports:
       - "8083:8083"
