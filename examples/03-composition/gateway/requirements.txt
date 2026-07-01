@@ -1,0 +1,12 @@
+fastapi==0.115.6
+uvicorn==0.34.0
+pydantic==2.10.4
+httpx==0.28.1
+strawberry-graphql[fastapi]==0.254.1
+grpcio==1.68.1
+grpcio-tools==1.68.1
+protobuf==5.29.2
+opentelemetry-api==1.29.0
+opentelemetry-sdk==1.29.0
+opentelemetry-exporter-otlp-proto-http==1.29.0
+opentelemetry-instrumentation-fastapi==0.50b0
