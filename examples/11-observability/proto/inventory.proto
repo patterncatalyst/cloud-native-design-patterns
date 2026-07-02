@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package inventory;
+
+service InventoryService {
+    rpc ReserveStock(ReserveRequest) returns (ReserveResponse);
+}
+
+message ReserveRequest {
+    string sku = 1;
+    int32 quantity = 2;
+}
+
+message ReserveResponse {
+    bool confirmed = 1;
+    int32 remaining = 2;
+}
