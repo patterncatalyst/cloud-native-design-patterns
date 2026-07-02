@@ -1,0 +1,37 @@
+services:
+  flagd:
+    image: ghcr.io/open-feature/flagd:latest
+    container_name: cndp-flagd
+    command:
+      - start
+      - --uri
+      - file:/flags/flags.json
+    ports:
+      - "8013:8013"
+    volumes:
+      - ./flags:/flags:Z
+    healthcheck:
+      test: ["CMD", "/flagd-build", "version"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  flag-service:
+    build:
+      context: flag-service
+    container_name: cndp-flag-service
+    depends_on:
+      flagd:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      - FLAGD_HOST=flagd
+      - FLAGD_PORT=8013
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s

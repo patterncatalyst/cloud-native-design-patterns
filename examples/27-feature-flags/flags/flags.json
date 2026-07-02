@@ -1,0 +1,30 @@
+{
+  "$schema": "https://flagd.dev/schema/v0/flags.json",
+  "flags": {
+    "new-checkout": {
+      "state": "ENABLED",
+      "variants": { "on": true, "off": false },
+      "defaultVariant": "off",
+      "targeting": {
+        "if": [
+          { "==": [{ "var": "plan" }, "enterprise"] }, "on",
+          { "fractional": [
+            { "var": "targetingKey" },
+            ["on", 25],
+            ["off", 75]
+          ]}
+        ]
+      }
+    },
+    "dark-mode": {
+      "state": "ENABLED",
+      "variants": { "on": true, "off": false },
+      "defaultVariant": "off"
+    },
+    "recommendations-enabled": {
+      "state": "ENABLED",
+      "variants": { "on": true, "off": false },
+      "defaultVariant": "on"
+    }
+  }
+}
