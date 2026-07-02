@@ -1,0 +1,16 @@
+services:
+  apicurio:
+    image: docker.io/apicurio/apicurio-registry:3.0.5
+    container_name: cndp-apicurio
+    ports:
+      - "8081:8080"
+    environment:
+      - APICURIO_STORAGE_KIND=sql
+      - APICURIO_STORAGE_SQL_KIND=h2
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
