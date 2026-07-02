@@ -1,0 +1,34 @@
+include:
+  - path: ../_infra/compose-lgtm.yaml
+
+services:
+  inventory:
+    build:
+      context: .
+      dockerfile: inventory-service/Dockerfile
+    container_name: cndp-inventory
+    environment:
+      - INITIAL_STOCK=5
+      - FAIL_MODE=none
+
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    container_name: cndp-order-service
+    depends_on:
+      lgtm:
+        condition: service_healthy
+      inventory:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    environment:
+      - INVENTORY_ADDR=inventory:50051
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
