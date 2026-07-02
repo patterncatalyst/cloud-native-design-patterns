@@ -1,0 +1,47 @@
+include:
+  - path: ../_infra/compose-lgtm.yaml
+  - path: ../_infra/compose-postgres.yaml
+  - path: ../_infra/compose-kafka.yaml
+
+services:
+  postgres:
+    volumes:
+      - ./db/init:/docker-entrypoint-initdb.d:Z
+
+  order-service:
+    build:
+      context: order-service
+    container_name: cndp-order-service
+    depends_on:
+      lgtm:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgres://appuser:apppass@postgres:5432/appdb
+      - KAFKA_BOOTSTRAP=kafka:9094
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
+
+  stream-processor:
+    build:
+      context: stream-processor
+    container_name: cndp-stream-processor
+    depends_on:
+      kafka:
+        condition: service_healthy
+      lgtm:
+        condition: service_healthy
+    environment:
+      - KAFKA_BOOTSTRAP=kafka:9094
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+      - WINDOW_SECONDS=10
