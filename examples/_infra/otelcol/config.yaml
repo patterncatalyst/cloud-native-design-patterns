@@ -24,7 +24,7 @@ processors:
 
 exporters:
   otlphttp/tempo:
-    endpoint: http://localhost:3200
+    endpoint: http://localhost:4418
     tls:
       insecure: true
 
