@@ -1,0 +1,91 @@
+include:
+  - path: ../_infra/compose-kafka.yaml
+  - path: ../_infra/compose-redis.yaml
+
+services:
+  kafka-ui:
+    ports: !override []
+
+  monolith:
+    build:
+      context: stub-service
+    container_name: cndp-monolith
+    environment:
+      - SERVICE_NAME=monolith
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  new-service:
+    build:
+      context: stub-service
+    container_name: cndp-new-service
+    environment:
+      - SERVICE_NAME=new-service
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  legacy:
+    build:
+      context: stub-service
+    container_name: cndp-legacy
+    environment:
+      - SERVICE_NAME=legacy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  router:
+    build:
+      context: router
+    container_name: cndp-router
+    ports:
+      - "8080:8080"
+    environment:
+      - MONOLITH_URL=http://monolith:8080
+      - NEW_SERVICE_URL=http://new-service:8080
+    depends_on:
+      monolith:
+        condition: service_healthy
+      new-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  decorator:
+    build:
+      context: decorator
+    container_name: cndp-decorator
+    ports:
+      - "8091:8080"
+    environment:
+      - LEGACY_URL=http://legacy:8080
+      - REDIS_URL=redis://redis:6379
+      - KAFKA_BOOTSTRAP=kafka:9094
+    depends_on:
+      legacy:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
