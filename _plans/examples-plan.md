@@ -316,3 +316,12 @@ After the example runs green, flip to:
 - [x] Examples follow house test-tool conventions
 - [ ] Each example ships both `.svg` and `.excalidraw` for any new diagrams
 - [x] Conventional Commits throughout (`feat(demo-NN): add runnable example NN`)
+- [x] Directory reorganized for multi-language support (python/ subdirectories)
+
+## Multi-Language Reorganization (2026-07-03)
+
+Directory restructured: Python code moved into `python/` subdirectories under each
+example (18 of 20 — examples 09 and 28 are language-agnostic). Shared files
+(`verify.sh`, `README.md`, `db/init/`) remain at the example root.
+
+**Next**: Spring Boot implementations on a separate branch (`feature/spring-boot-examples`).

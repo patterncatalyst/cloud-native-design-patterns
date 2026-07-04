@@ -1,11 +1,11 @@
 include:
-  - path: ../_infra/compose-lgtm.yaml
-  - path: ../_infra/compose-postgres.yaml
+  - path: ../../_infra/compose-lgtm.yaml
+  - path: ../../_infra/compose-postgres.yaml
 
 services:
   postgres:
     volumes:
-      - ./db/init:/docker-entrypoint-initdb.d:Z
+      - ../db/init:/docker-entrypoint-initdb.d:Z
 
   order-service:
     build: .

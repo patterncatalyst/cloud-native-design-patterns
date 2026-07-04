@@ -1,12 +1,12 @@
 include:
-  - path: ../_infra/compose-lgtm.yaml
-  - path: ../_infra/compose-postgres.yaml
-  - path: ../_infra/compose-kafka.yaml
+  - path: ../../_infra/compose-lgtm.yaml
+  - path: ../../_infra/compose-postgres.yaml
+  - path: ../../_infra/compose-kafka.yaml
 
 services:
   postgres:
     volumes:
-      - ./db/init:/docker-entrypoint-initdb.d:Z
+      - ../db/init:/docker-entrypoint-initdb.d:Z
 
   order-service:
     build:
@@ -32,16 +32,34 @@ services:
       retries: 12
       start_period: 15s
 
-  stream-processor:
+  shipping-consumer:
     build:
-      context: stream-processor
-    container_name: cndp-stream-processor
+      context: shipping-consumer
+    container_name: cndp-shipping
     depends_on:
       kafka:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
       lgtm:
         condition: service_healthy
     environment:
+      - DATABASE_URL=postgres://appuser:apppass@postgres:5432/appdb
       - KAFKA_BOOTSTRAP=kafka:9094
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
-      - WINDOW_SECONDS=10
+
+  notification-consumer:
+    build:
+      context: notification-consumer
+    container_name: cndp-notification
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      lgtm:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgres://appuser:apppass@postgres:5432/appdb
+      - KAFKA_BOOTSTRAP=kafka:9094
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318

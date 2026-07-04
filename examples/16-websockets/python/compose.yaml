@@ -1,6 +1,6 @@
 include:
-  - path: ../_infra/compose-lgtm.yaml
-  - path: ../_infra/compose-redis.yaml
+  - path: ../../_infra/compose-lgtm.yaml
+  - path: ../../_infra/compose-redis.yaml
 
 services:
   ws-pod-1:

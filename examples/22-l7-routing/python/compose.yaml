@@ -7,7 +7,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml:Z,ro
+      - ../envoy/envoy.yaml:/etc/envoy/envoy.yaml:Z,ro
     depends_on:
       order-v1:
         condition: service_healthy
