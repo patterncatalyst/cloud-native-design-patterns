@@ -36,7 +36,8 @@ printf '==> Verifying Example 19: DDD & Hexagonal Architecture\n\n'
 # ===================================================================
 printf -- '--- 1. Domain isolation (zero framework imports) ---\n'
 
-DOMAIN_DIR="order-service/domain"
+LANG_DIR="${LANG_DIR:-python}"
+DOMAIN_DIR="$LANG_DIR/order-service/domain"
 
 check_empty "no fastapi imports in domain/" \
     "grep -r 'import fastapi\|from fastapi' $DOMAIN_DIR"

@@ -27,8 +27,14 @@ credentials, and the container naming convention.
 
 ## Run it
 
+Choose a language implementation:
+
 ```bash
-podman compose up --build -d
+# Python (FastAPI)
+cd python && podman compose up --build -d
+
+# Spring Boot (coming soon)
+# cd spring-boot && podman compose up --build -d
 ```
 
 Wait for all services to report healthy:
@@ -65,7 +71,10 @@ curl -s localhost:8080/readyz | jq .   # → "status": "ready"
 
 ## Verify
 
+From the example root (not the language directory):
+
 ```bash
+cd ..  # if you're still in python/
 ./verify.sh
 ```
 
