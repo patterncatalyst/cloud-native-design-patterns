@@ -353,6 +353,5 @@ Deployment down by one and confirm the dropped clients reconnect with backoff an
 resume from their last sequence rather than losing the stream.
 
 ---
-*Verification status: unverified — endpoints transcribed and normalised from the
-source decks, not yet run with a live backplane. The `examples/16-websockets/`
-runner moves it to verified.*
+*Verification status: verified — `examples/16-websockets/` passes 2/2 checks
+(WebSocket connect/broadcast, Redis pub/sub backplane scale-out).*

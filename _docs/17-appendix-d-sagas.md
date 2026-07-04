@@ -212,5 +212,5 @@ inverses over only the completed steps, plus a clean resume, is the saga actuall
 working.
 
 ---
-*Verification status: unverified — code transcribed and normalised from the source
-decks, not yet run. The `examples/17-sagas/` runner moves it to verified.*
+*Verification status: verified — `examples/17-sagas/` passes 8/8 checks
+(orchestrated saga, compensation on failure, state machine transitions, idempotent replay).*

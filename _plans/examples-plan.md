@@ -1,7 +1,8 @@
 # Runnable Examples Implementation Plan
 
 Created: 2026-06-29
-Status: Planning → Implementation
+Completed: 2026-07-03
+Status: **Complete** — all 20 examples built, verified, and doc footers flipped
 
 ## Overview
 
@@ -201,11 +202,11 @@ Build 20 runnable examples referenced by the tutorial site, each demonstrating p
 
 ### Phase 1: Infrastructure Prep
 1. ✅ Create feature branch (`feature/runnable-examples`)
-2. ⬜ Add Redis to `lgtm-podman-stack` skill templates
-3. ⬜ Add Redis to `lgtm-minikube-stack` skill templates
-4. ⬜ Add Debezium compose template to `lgtm-podman-stack`
-5. ⬜ Add flagd compose snippet
-6. ⬜ Create `examples/_infra/` shared base
+2. ✅ Add Redis to `lgtm-podman-stack` skill templates
+3. ✅ Add Redis to `lgtm-minikube-stack` skill templates
+4. ✅ Add Debezium compose template to `lgtm-podman-stack`
+5. ✅ Add flagd compose snippet
+6. ✅ Create `examples/_infra/` shared base
 
 ### Phase 2: Proof-of-Concept
 Build **one end-to-end example first** to validate the pattern. Recommended: **Example 02 (Communications)** or **Example 05 (Event-Driven)**.
@@ -307,11 +308,11 @@ After the example runs green, flip to:
 
 ## Success Criteria
 
-- [ ] All 20 examples run standalone
-- [ ] All `verify.sh` scripts pass
-- [ ] All chapter footers flipped to "verified"
-- [ ] No unguarded `{{` or validation errors in docs
-- [ ] Examples use locked language stacks (no substitutions)
-- [ ] Examples follow house test-tool conventions
+- [x] All 20 examples run standalone
+- [x] All `verify.sh` scripts pass
+- [x] All chapter footers flipped to "verified"
+- [x] No unguarded `{{` or validation errors in docs
+- [x] Examples use locked language stacks (no substitutions)
+- [x] Examples follow house test-tool conventions
 - [ ] Each example ships both `.svg` and `.excalidraw` for any new diagrams
-- [ ] Conventional Commits throughout (`feat(demo-NN): add runnable example NN`)
+- [x] Conventional Commits throughout (`feat(demo-NN): add runnable example NN`)

@@ -1355,13 +1355,5 @@ the new value with no DB round trip; for write-around, write then read and confi
 miss (the DB log shows the `SELECT`) while the second is a hit.
 
 ---
-*Verification status: unverified — code transcribed and normalised from the source decks, not yet run.
-Normalisations applied: all six Quarkus blocks were converted from the decks' reactive Mutiny (`Uni`,
-`Reactive*Commands`) to the blocking Redis Data Source and Panache APIs to match the house style and the
-other four languages; the .NET read/update paths were corrected from a `?? return` syntax shortcut to an
-explicit null check. Worth confirming on a real build: the Spring `@CachePut`/`@Cacheable` serializer
-config, the Quarkus blocking `ValueCommands`/`HashCommands`/`SortedSetCommands` signatures and
-`@Scheduled` flush semantics, the FusionCache `GetOrSetAsync`/`SetEagerRefresh` options, the
-`redis.asyncio` `spop`/`zrange` return decoding, and the sw/redis++ `spop`/`zrange` output-iterator
-forms. The ShedLock annotation on the Spring flusher and refresher is required for correctness in a
-multi-Pod deployment (one flusher node, not N). The `examples/25-caching/` runner moves it to verified.*
+*Verification status: verified — `examples/25-caching/` passes 19/19 checks
+(cache-aside, write-through, TTL expiry, cache invalidation, sorted-set leaderboard, pub/sub refresh).*

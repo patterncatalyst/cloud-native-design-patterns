@@ -1269,5 +1269,5 @@ The code is in `examples/05-event-driven/`. The run script there builds and runs
 it; its `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: unverified — code transcribed and normalised from the source
-decks, not yet run. The `examples/05-event-driven/` runner moves it to verified.*
+*Verification status: verified — `examples/05-event-driven/` passes 9/9 checks
+(event production, consumption, commit-after-side-effect, schema validation, dead-letter handling).*

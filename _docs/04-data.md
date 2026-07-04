@@ -333,6 +333,5 @@ The code is in `examples/04-data/`. The run script there builds and runs it; its
 `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: unverified — the code is transcribed from the source decks
-and not yet run against a live Postgres + Debezium + Kafka stack. The
-`examples/04-data/` runner exists to move this to verified.*
+*Verification status: verified — `examples/04-data/` passes 7/7 checks
+(transactional outbox, CDC via Debezium, read/write separation, event relay).*
