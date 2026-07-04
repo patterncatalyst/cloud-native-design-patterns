@@ -212,5 +212,5 @@ inverses over only the completed steps, plus a clean resume, is the saga actuall
 working.
 
 ---
-*Verification status: verified — `examples/17-sagas/` passes 8/8 checks
+*Verification status: verified — [`examples/17-sagas/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/17-sagas/) passes 8/8 checks
 (orchestrated saga, compensation on failure, state machine transitions, idempotent replay).*

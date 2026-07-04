@@ -275,5 +275,5 @@ service and fails against one that wrongly accepts it. A suite that goes red on 
 break, and only then, is the whole value of this appendix.
 
 ---
-*Verification status: verified — `examples/28-newman/` passes 8/8 checks
+*Verification status: verified — [`examples/28-newman/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/28-newman/) passes 8/8 checks
 (collection run, environment injection, data-driven iteration, JUnit export, schema validation, bail-on-fail).*

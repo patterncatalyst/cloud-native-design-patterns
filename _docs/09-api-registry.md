@@ -113,5 +113,5 @@ breaking change failing the build and the additive change passing it is the enti
 point of the registry.
 
 ---
-*Verification status: verified — `examples/09-api-registry/` passes 4/4 checks
+*Verification status: verified — [`examples/09-api-registry/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/09-api-registry/) passes 4/4 checks
 (schema registration, compatibility validation, versioned retrieval, CI gate).*

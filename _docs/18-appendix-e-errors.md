@@ -848,5 +848,5 @@ load. A flat downstream-call line under rising pressure is the retry budget and 
 doing their job; a climbing one means a control is missing.
 
 ---
-*Verification status: verified — `examples/18-errors/` passes 8/8 checks
+*Verification status: verified — [`examples/18-errors/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/18-errors/) passes 8/8 checks
 (RFC 9457 problem detail, gRPC status mapping, GraphQL error extensions, Kafka dead-letter routing).*

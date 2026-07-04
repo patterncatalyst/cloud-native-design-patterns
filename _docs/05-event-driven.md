@@ -1265,9 +1265,9 @@ commits), restart it, and confirm the message is **redelivered**, not lost: that
 redelivery is the at-least-once guarantee, and the reason your handler dedupes.
 `kcat` or the Kafka console tools make the offsets and redelivery visible.
 
-The code is in `examples/05-event-driven/`. The run script there builds and runs
+The code is in [`examples/05-event-driven/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/). The run script there builds and runs
 it; its `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: verified — `examples/05-event-driven/` passes 9/9 checks
+*Verification status: verified — [`examples/05-event-driven/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/) passes 9/9 checks
 (event production, consumption, commit-after-side-effect, schema validation, dead-letter handling).*

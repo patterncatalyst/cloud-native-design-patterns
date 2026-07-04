@@ -398,9 +398,9 @@ returns **201** and that a bad body returns **400** before your logic runs.
 `ghz` throws gRPC load at `inventory` so you can watch the Istio timeout and
 bounded retries behave under pressure rather than trusting they do.
 
-The code is in `examples/02-communications/`. The run script there builds and runs
+The code is in [`examples/02-communications/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/02-communications/). The run script there builds and runs
 it; its `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: verified — `examples/02-communications/` passes 7/7 checks
+*Verification status: verified — [`examples/02-communications/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/02-communications/) passes 7/7 checks
 (REST CRUD, gRPC unary, GraphQL query, Kafka async produce/consume).*

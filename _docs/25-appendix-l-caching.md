@@ -1355,5 +1355,5 @@ the new value with no DB round trip; for write-around, write then read and confi
 miss (the DB log shows the `SELECT`) while the second is a hit.
 
 ---
-*Verification status: verified — `examples/25-caching/` passes 19/19 checks
+*Verification status: verified — [`examples/25-caching/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/25-caching/) passes 19/19 checks
 (cache-aside, write-through, TTL expiry, cache invalidation, sorted-set leaderboard, pub/sub refresh).*

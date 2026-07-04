@@ -226,9 +226,9 @@ The gateway is just HTTP. Send the query above with `curl` or Postman and reques
 `stock` and watch the back-end call count: without batching it climbs with the
 list size; with a DataLoader it stays flat. That flat line is the N+1 fix working.
 
-The code is in `examples/03-composition/`. The run script there builds and runs it;
+The code is in [`examples/03-composition/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/03-composition/). The run script there builds and runs it;
 its `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: verified — `examples/03-composition/` passes 8/8 checks
+*Verification status: verified — [`examples/03-composition/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/03-composition/) passes 8/8 checks
 (GraphQL gateway fan-out, REST + gRPC backend resolution, schema stitching).*
