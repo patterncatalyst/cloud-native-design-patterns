@@ -443,5 +443,5 @@ the rest. Seeing one request as one waterfall is the moment observability stops
 being three disconnected tools.
 
 ---
-*Verification status: verified — `examples/11-observability/` passes 4/4 checks
+*Verification status: verified — [`examples/11-observability/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/11-observability/) passes 4/4 checks
 (trace propagation, metric export, structured log correlation, LGTM stack integration).*

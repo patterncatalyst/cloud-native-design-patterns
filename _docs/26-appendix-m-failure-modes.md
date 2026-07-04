@@ -756,5 +756,5 @@ This appendix touches difficult operational territory; if you are diagnosing a l
 Google SRE cascading-failures chapter is the fastest way to a shared vocabulary with your team.
 
 ---
-*Verification status: verified — `examples/26-failure-modes/` passes 17/17 checks
+*Verification status: verified — [`examples/26-failure-modes/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/26-failure-modes/) passes 17/17 checks
 (timeout, retry with jitter, circuit breaker open/half-open/close, bulkhead, fallback, health degradation).*

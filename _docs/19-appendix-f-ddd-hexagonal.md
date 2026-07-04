@@ -357,5 +357,5 @@ new adapter file appears. A clean domain import list plus a no-domain-change dif
 you bolt on a protocol is hexagonal architecture actually holding.
 
 ---
-*Verification status: verified — `examples/19-ddd-hexagonal/` passes 11/11 checks
+*Verification status: verified — [`examples/19-ddd-hexagonal/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/19-ddd-hexagonal/) passes 11/11 checks
 (domain model isolation, port/adapter wiring, use-case orchestration, repository abstraction, event emission).*

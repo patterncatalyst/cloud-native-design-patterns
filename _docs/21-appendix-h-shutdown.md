@@ -340,5 +340,5 @@ A clean rollout under live load, not a green integration test, is graceful shutd
 working.
 
 ---
-*Verification status: verified — `examples/21-graceful-shutdown/` passes 5/5 checks
+*Verification status: verified — [`examples/21-graceful-shutdown/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/21-graceful-shutdown/) passes 5/5 checks
 (SIGTERM handling, readiness flip, in-flight drain, connection close, clean exit).*

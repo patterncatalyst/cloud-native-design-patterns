@@ -409,5 +409,5 @@ lookup is on a critical path without a default, which is the one feature-flag mi
 ship.
 
 ---
-*Verification status: verified — `examples/27-feature-flags/` passes 11/11 checks
+*Verification status: verified — [`examples/27-feature-flags/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/27-feature-flags/) passes 11/11 checks
 (flagd provider, boolean/string evaluation, targeting rules, fractional rollout, context propagation).*

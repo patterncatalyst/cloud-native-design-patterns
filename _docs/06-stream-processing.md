@@ -230,9 +230,9 @@ lag climb. Resume it and watch KEDA add replicas until the lag drains, then sett
 back toward zero. The replica count tracking the lag curve — not CPU — is the
 behaviour to confirm.
 
-The code is in `examples/06-stream-processing/`. The run script there builds and
+The code is in [`examples/06-stream-processing/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/06-stream-processing/). The run script there builds and
 runs it; its `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: verified — `examples/06-stream-processing/` passes 7/7 checks
+*Verification status: verified — [`examples/06-stream-processing/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/06-stream-processing/) passes 7/7 checks
 (windowed aggregation, changelog-backed state, consumer lag monitoring, rebalance recovery).*

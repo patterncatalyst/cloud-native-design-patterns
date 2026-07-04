@@ -290,9 +290,9 @@ readiness does *not* — that difference is the whole point. `curl -i
 localhost:8080/readyz` should flip from ready to not-ready as you stop and start
 the database, without the process ever restarting.
 
-The code is in `examples/01-cloud-native-principles/`. The run script there builds
+The code is in [`examples/01-cloud-native-principles/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/01-cloud-native-principles/). The run script there builds
 and runs it; its `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: verified — `examples/01-cloud-native-principles/` passes 10/10 checks
+*Verification status: verified — [`examples/01-cloud-native-principles/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/01-cloud-native-principles/) passes 10/10 checks
 (health probes, config from environment, CRUD, readiness flip on dependency failure).*

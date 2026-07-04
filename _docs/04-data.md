@@ -329,9 +329,9 @@ back and confirm the `order.placed` event arrives without replaying the request.
 The order committing while the broker is down, and the event arriving later
 without a re-request, is the property the outbox buys you.
 
-The code is in `examples/04-data/`. The run script there builds and runs it; its
+The code is in [`examples/04-data/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/04-data/). The run script there builds and runs it; its
 `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: verified — `examples/04-data/` passes 7/7 checks
+*Verification status: verified — [`examples/04-data/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/04-data/) passes 7/7 checks
 (transactional outbox, CDC via Debezium, read/write separation, event relay).*

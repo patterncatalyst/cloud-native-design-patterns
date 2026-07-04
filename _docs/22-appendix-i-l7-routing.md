@@ -636,5 +636,5 @@ track the config and a ruleset that can move routing without a code change are t
 this appendix actually working.
 
 ---
-*Verification status: verified — `examples/22-l7-routing/` passes 12/12 checks
+*Verification status: verified — [`examples/22-l7-routing/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/22-l7-routing/) passes 12/12 checks
 (header-based routing, weighted traffic split, canary promotion, circuit breaker integration, rule engine dispatch).*
