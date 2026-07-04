@@ -1,0 +1,59 @@
+include:
+  - path: ../../_infra/compose-lgtm.yaml
+  - path: ../../_infra/compose-postgres.yaml
+  - path: ../../_infra/compose-kafka.yaml
+
+services:
+  postgres:
+    volumes:
+      - ../db/init:/docker-entrypoint-initdb.d:Z
+
+  inventory:
+    build:
+      context: .
+      dockerfile: inventory-service/Dockerfile
+    container_name: cndp-inventory
+    depends_on:
+      lgtm:
+        condition: service_healthy
+    devices:
+      - "/dev/null:/dev/null:rwm"
+    environment:
+      - OTEL_SERVICE_NAME=inventory
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - INITIAL_STOCK=100
+
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    container_name: cndp-order-service
+    devices:
+      - "/dev/null:/dev/null:rwm"
+    depends_on:
+      lgtm:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      inventory:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/appdb
+      - SPRING_DATASOURCE_USERNAME=appuser
+      - SPRING_DATASOURCE_PASSWORD=apppass
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9094
+      - INVENTORY_ADDR=inventory:50051
+      - OTEL_SERVICE_NAME=order
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
