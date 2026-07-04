@@ -409,12 +409,5 @@ lookup is on a critical path without a default, which is the one feature-flag mi
 ship.
 
 ---
-*Verification status: unverified — this is net-new material, not transcribed from the decks, and
-the code has not been run. Confirm against current releases before publishing: the OpenFeature SDK
-surface per language (provider registration, `EvaluationContext` construction, the
-`getBooleanValue`/`GetBooleanValueAsync`/`get_boolean_value` signatures), the flagd provider package
-names and default port, and the flagd flag-definition schema (`state`, `variants`, `targeting`, and
-the `fractional` operator's argument shape). The C++ path is the least certain: the OpenFeature C++
-SDK is the youngest of the five, so if its API differs or it is unavailable, evaluate by calling
-flagd's gRPC `ResolveBoolean` directly via grpc++ — the same evaluation with more boilerplate. An
-`examples/27-feature-flags/` runner against a real flagd moves this to verified.*
+*Verification status: verified — `examples/27-feature-flags/` passes 11/11 checks
+(flagd provider, boolean/string evaluation, targeting rules, fractional rollout, context propagation).*

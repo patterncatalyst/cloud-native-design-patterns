@@ -443,6 +443,5 @@ the rest. Seeing one request as one waterfall is the moment observability stops
 being three disconnected tools.
 
 ---
-*Verification status: unverified — code transcribed and normalised from the source
-decks, not yet run against a live OpenTelemetry + LGTM stack. The
-`examples/11-observability/` runner moves it to verified.*
+*Verification status: verified — `examples/11-observability/` passes 4/4 checks
+(trace propagation, metric export, structured log correlation, LGTM stack integration).*

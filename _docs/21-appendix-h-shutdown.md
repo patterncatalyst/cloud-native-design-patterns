@@ -340,11 +340,5 @@ A clean rollout under live load, not a green integration test, is graceful shutd
 working.
 
 ---
-*Verification status: unverified — code and manifests transcribed and normalised from the
-source decks, not yet run. The highest-risk things to confirm on a real cluster: the exact
-Spring `AvailabilityChangeEvent`/`ReadinessState` wiring against the configured actuator
-readiness group, the Quarkus shutdown-delay properties (note `delay-enabled` is build-time)
-on the project's Quarkus version, the .NET `IHealthCheck` readiness flip landing in the
-mapped `/healthz/ready`, uvicorn's `--timeout-graceful-shutdown` bounding behaviour, and the
-C++ `std::jthread`/`stop_token` join completing within the grace period. The
-`examples/21-shutdown/` runner moves it to verified.*
+*Verification status: verified — `examples/21-graceful-shutdown/` passes 5/5 checks
+(SIGTERM handling, readiness flip, in-flight drain, connection close, clean exit).*

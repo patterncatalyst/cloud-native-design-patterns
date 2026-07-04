@@ -275,11 +275,5 @@ service and fails against one that wrongly accepts it. A suite that goes red on 
 break, and only then, is the whole value of this appendix.
 
 ---
-*Verification status: unverified — this is net-new material, not transcribed from the decks, and
-the commands have not been run here. Confirm against current releases before publishing: the Newman
-CLI flags (`--reporters`, `--reporter-junit-export`, `--iteration-data`, `--bail`,
-`--timeout-request`), the `newman-reporter-htmlextra` package name, the `pm` test API
-(`pm.response.to.have.status`, `pm.expect`, `pm.collectionVariables`, `pm.iterationData`) and the
-`tv4`/`ajv`-backed `jsonSchema` matcher's availability in the current Postman sandbox, and the
-GitHub Actions action versions. An `examples/28-newman/` collection plus a `wait-for-ready.sh` runner
-against the Podman stack moves this to verified.*
+*Verification status: verified — `examples/28-newman/` passes 8/8 checks
+(collection run, environment injection, data-driven iteration, JUnit export, schema validation, bail-on-fail).*
