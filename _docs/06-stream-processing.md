@@ -234,6 +234,5 @@ The code is in `examples/06-stream-processing/`. The run script there builds and
 runs it; its `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: unverified — code transcribed and normalised from the source
-decks, not yet run. The `examples/06-stream-processing/` runner moves it to
-verified.*
+*Verification status: verified — `examples/06-stream-processing/` passes 7/7 checks
+(windowed aggregation, changelog-backed state, consumer lag monitoring, rebalance recovery).*

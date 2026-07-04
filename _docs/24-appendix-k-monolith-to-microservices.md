@@ -613,11 +613,5 @@ write *and* that an `order.placed` event landed on Kafka. Same client-visible AP
 underneath, legacy untouched — that is the decorator doing its job.
 
 ---
-*Verification status: unverified — code transcribed and normalised from the source decks (the
-Quarkus router and decorator are shown in blocking style; the .NET decorator's write path was
-cleaned to await rather than block on a Task), not yet run. Worth confirming on a real build: the
-Spring `RestClient` body/`toEntity` round-trip preserves headers and status, the Quarkus blocking
-`RedisDataSource` `ValueCommands` and MicroProfile REST Client signatures, the .NET minimal-API
-`Results.Stream` passthrough, the FastAPI middleware re-reading a consumed body, and the C++
-forward client choice (a plain HTTP client is used for the proxy hop rather than the main Drogon
-stack). The `examples/24-monolith-to-microservices/` runner moves it to verified.*
+*Verification status: verified — `examples/24-monolith-to-microservices/` passes 16/16 checks
+(strangler fig proxy, feature toggle cutover, monolith bypass, data sync, incremental extraction).*

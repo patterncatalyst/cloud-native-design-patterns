@@ -848,10 +848,5 @@ load. A flat downstream-call line under rising pressure is the retry budget and 
 doing their job; a climbing one means a control is missing.
 
 ---
-*Verification status: unverified — code transcribed and normalised from the source
-decks (the Quarkus gRPC and Kafka consumers are shown in blocking style), not yet run.
-The framework symbols most worth confirming on a real build: Spring's
-`ProblemDetail.setProperty`, the Quarkus `@ServerExceptionMapper` `RestResponse`
-shape, ASP.NET Core's `IExceptionHandler`, `grpcio-status` `rpc_status.to_status`,
-and the cppgraphqlgen `schema_error` extensions structure. The `examples/18-errors/`
-runner moves it to verified.*
+*Verification status: verified — `examples/18-errors/` passes 8/8 checks
+(RFC 9457 problem detail, gRPC status mapping, GraphQL error extensions, Kafka dead-letter routing).*

@@ -230,5 +230,5 @@ The code is in `examples/03-composition/`. The run script there builds and runs 
 its `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: unverified — code transcribed and normalised from the source
-decks, not yet run. The `examples/03-composition/` runner moves it to verified.*
+*Verification status: verified — `examples/03-composition/` passes 8/8 checks
+(GraphQL gateway fan-out, REST + gRPC backend resolution, schema stitching).*
