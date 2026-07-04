@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "OrderPlaced",
+  "namespace": "com.example.orders",
+  "fields": [
+    { "name": "id", "type": "string" },
+    { "name": "sku", "type": "string" },
+    { "name": "quantity", "type": "int" },
+    { "name": "total", "type": "double" },
+    { "name": "status", "type": "string" },
+    { "name": "merchant_id", "type": ["null", "string"], "default": null }
+  ]
+}

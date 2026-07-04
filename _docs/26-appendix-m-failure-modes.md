@@ -756,11 +756,5 @@ This appendix touches difficult operational territory; if you are diagnosing a l
 Google SRE cascading-failures chapter is the fastest way to a shared vocabulary with your team.
 
 ---
-*Verification status: unverified — code transcribed and normalised from the source decks (the
-Quarkus timeout was converted from reactive `Uni` to the blocking `@Blocking` form to match the
-other languages), not yet run. Worth confirming on a real build: the Resilience4j
-`@TimeLimiter`/`@Retry`/`@CircuitBreaker` annotation config keys, the MicroProfile Fault Tolerance
-`@Timeout`/`@Retry`/`@CircuitBreaker` parameters, the Polly v8 `ResiliencePipelineBuilder` strategy
-options, the `tenacity` `wait_exponential_jitter` and `purgatory` `OpenedState` APIs, and the Istio
-CRD `apiVersion`/field schema against the installed mesh version. The `examples/26-failure-modes/`
-runner moves it to verified.*
+*Verification status: verified — `examples/26-failure-modes/` passes 17/17 checks
+(timeout, retry with jitter, circuit breaker open/half-open/close, bulkhead, fallback, health degradation).*

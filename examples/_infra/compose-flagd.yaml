@@ -1,0 +1,15 @@
+services:
+  flagd:
+    image: ghcr.io/open-feature/flagd:latest
+    container_name: cndp-flagd
+    ports:
+      - "8013:8013"
+    volumes:
+      - ./flags/config.yaml:/etc/flagd/config.yaml:Z
+    command: start --uri file:/etc/flagd/config.yaml
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8014/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
