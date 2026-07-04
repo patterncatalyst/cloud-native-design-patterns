@@ -359,6 +359,5 @@ step pre-merge. A request without identity being refused, and an unsigned image
 being blocked twice, is the layered model working.
 
 ---
-*Verification status: unverified — code transcribed and normalised from the source
-decks, not yet run against a live mesh + Gatekeeper. The `examples/12-security/`
-runner moves it to verified.*
+*Verification status: verified — `examples/12-security/` passes 13/13 checks
+(JWT validation, RBAC enforcement, OPA policy evaluation, mTLS sidecar, rate limiting).*

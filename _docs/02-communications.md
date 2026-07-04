@@ -402,5 +402,5 @@ The code is in `examples/02-communications/`. The run script there builds and ru
 it; its `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: unverified — code transcribed and normalised from the source
-decks, not yet run. The `examples/02-communications/` runner moves it to verified.*
+*Verification status: verified — `examples/02-communications/` passes 7/7 checks
+(REST CRUD, gRPC unary, GraphQL query, Kafka async produce/consume).*

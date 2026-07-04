@@ -1,0 +1,13 @@
+from typing import Optional, Protocol
+
+from .models import Order, OrderPlaced
+
+
+class OrderRepository(Protocol):
+    async def save(self, order: Order) -> None: ...
+    async def find_by_id(self, order_id: str) -> Optional[Order]: ...
+    async def list_all(self) -> list[Order]: ...
+
+
+class EventPublisher(Protocol):
+    async def publish(self, event: OrderPlaced) -> None: ...

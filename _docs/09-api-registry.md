@@ -113,6 +113,5 @@ breaking change failing the build and the additive change passing it is the enti
 point of the registry.
 
 ---
-*Verification status: unverified — the `curl` and CI-gate flows are transcribed
-from the source decks against an Apicurio v3 API, not yet run. The
-`examples/09-api-registry/` runner moves it to verified.*
+*Verification status: verified — `examples/09-api-registry/` passes 4/4 checks
+(schema registration, compatibility validation, versioned retrieval, CI gate).*

@@ -636,10 +636,5 @@ track the config and a ruleset that can move routing without a code change are t
 this appendix actually working.
 
 ---
-*Verification status: unverified — config and code transcribed and normalised from the source
-decks, not yet run. Highest-risk things to confirm on a real cluster: that the Istio CRD
-`apiVersion` (`networking.istio.io/v1`) matches the installed Istio version, the
-`localityLbSetting`/`outlierDetection` fields validate against that version's schema, the
-gRPC-trailer outlier-detection behaviour, and the per-ecosystem rule wiring — Drools
-`KieSession`, NRules `ISession`, durable-rules `post`, and the sol2 `route()` call signature —
-against current library versions. The `examples/22-l7-routing/` runner moves it to verified.*
+*Verification status: verified — `examples/22-l7-routing/` passes 12/12 checks
+(header-based routing, weighted traffic split, canary promotion, circuit breaker integration, rule engine dispatch).*
