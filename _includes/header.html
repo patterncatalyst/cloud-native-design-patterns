@@ -7,7 +7,10 @@
     <nav class="site-nav" aria-label="Primary">
       <a href="{{ '/docs/01-cloud-native-principles/' | relative_url }}"
          {% if page.url contains '/docs/' %}aria-current="page"{% endif %}>Tutorial</a>
-      <a href="{{ '/docs/00-setting-up/' | relative_url }}">Prerequisites</a>
+      <a href="{{ '/examples/prerequisites/' | relative_url }}"
+         {% if page.url contains '/examples/prerequisites' %}aria-current="page"{% endif %}>Prerequisites</a>
+      <a href="{{ '/examples/' | relative_url }}"
+         {% if page.url == '/examples/' or page.url == '/cloud-native-design-patterns/examples/' %}aria-current="page"{% endif %}>Examples</a>
       <a href="https://github.com/{{ site.github_username }}/{{ site.github_repo }}"
          rel="noopener">GitHub ↗</a>
     </nav>
