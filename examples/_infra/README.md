@@ -17,15 +17,21 @@ Composable infrastructure services for the runnable examples. Each example
 
 ## Usage
 
-An example's `compose.yaml` includes the shared pieces and adds its own services:
+Each example contains one or more language subdirectories (`python/`, `spring-boot/`,
+etc.). The `compose.yaml` inside each language directory includes the shared pieces:
 
 ```yaml
+# examples/NN-slug/python/compose.yaml
 include:
-  - path: ../_infra/compose-lgtm.yaml
-  - path: ../_infra/compose-postgres.yaml
-  - path: ../_infra/compose-kafka.yaml
+  - path: ../../_infra/compose-lgtm.yaml
+  - path: ../../_infra/compose-postgres.yaml
+  - path: ../../_infra/compose-kafka.yaml
 
 services:
+  postgres:
+    volumes:
+      - ../db/init:/docker-entrypoint-initdb.d:Z   # shared schema at example root
+
   order-service:
     build: .
     depends_on:
@@ -37,6 +43,9 @@ services:
         condition: service_healthy
     # ...
 ```
+
+Shared files (`verify.sh`, `README.md`, `db/init/`) live at the example root,
+not inside the language directory.
 
 ## Ports
 

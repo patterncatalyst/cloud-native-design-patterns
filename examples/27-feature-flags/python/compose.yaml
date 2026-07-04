@@ -9,7 +9,7 @@ services:
     ports:
       - "8013:8013"
     volumes:
-      - ./flags:/flags:Z
+      - ../flags:/flags:Z
     healthcheck:
       test: ["CMD", "/flagd-build", "version"]
       interval: 5s

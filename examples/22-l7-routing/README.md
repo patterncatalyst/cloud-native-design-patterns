@@ -48,7 +48,11 @@ rules changeable without redeployment).
 
 ```bash
 # Start all services
-podman compose up --build -d
+# Python (FastAPI)
+cd python && podman compose up --build -d
+
+# Spring Boot (coming soon)
+# cd spring-boot && podman compose up --build -d
 
 # Weighted routing — observe version field in responses
 for i in $(seq 1 20); do curl -s http://localhost:8080/orders | jq -r .version; done
@@ -73,7 +77,10 @@ curl -s -X PUT http://localhost:8090/rules \
 
 ## Verify
 
+From the example root (not the language directory):
+
 ```bash
+cd ..  # if you're still in python/
 ./verify.sh
 ```
 

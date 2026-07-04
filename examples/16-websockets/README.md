@@ -44,7 +44,11 @@ ws-pod-1  ws-pod-2         (each holds only its own sockets)
 ## Run it
 
 ```bash
-podman compose up --build -d
+# Python (FastAPI)
+cd python && podman compose up --build -d
+
+# Spring Boot (coming soon)
+# cd spring-boot && podman compose up --build -d
 ```
 
 Wait for all services:
@@ -76,7 +80,10 @@ curl -s -X POST 'localhost:8082/send?target=my-client&message=hello-from-pod2'
 
 ## Verify
 
+From the example root (not the language directory):
+
 ```bash
+cd ..  # if you're still in python/
 ./verify.sh
 ```
 

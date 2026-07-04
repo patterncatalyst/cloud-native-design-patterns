@@ -47,7 +47,11 @@ credentials, and the container naming convention.
 
 ```bash
 # Start all services
-podman compose up --build -d
+# Python (FastAPI)
+cd python && podman compose up --build -d
+
+# Spring Boot (coming soon)
+# cd spring-boot && podman compose up --build -d
 
 # Content-based routing
 curl -s -X POST http://localhost:8080/orders \
@@ -70,7 +74,10 @@ curl -s http://localhost:8091/events | jq .
 
 ## Verify
 
+From the example root (not the language directory):
+
 ```bash
+cd ..  # if you're still in python/
 ./verify.sh
 ```
 

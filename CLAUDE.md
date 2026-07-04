@@ -31,11 +31,17 @@ Build **one end-to-end first** as a proof-of-pattern, get sign-off, then roll ou
 examples/
   _infra/            # shared podman compose base: Kafka (Strimzi-like), Postgres, OTel, LGTM
   NN-<slug>/
-    compose.yaml     # extends _infra or self-contained
-    <service code>   # one canonical reference language (default Python) unless the
-                     #   chapter's emphasis dictates otherwise — decide per example
+    verify.sh        # shared — asserts expected behaviour (language-agnostic HTTP tests)
     README.md        # how to run + what to observe
-    verify.sh        # asserts expected behaviour with the house test tools
+    db/init/         # shared SQL schema (where applicable)
+    python/
+      compose.yaml   # includes ../../_infra/..., volumes ../db/init
+      Dockerfile     # or per-service Dockerfiles inside service dirs
+      <service code>
+    spring-boot/     # same API contract, different language
+      compose.yaml
+      Dockerfile
+      <service code>
 ```
 
 Default infra: **Podman compose** locally (`lgtm-podman-stack` patterns). Platform-flavoured

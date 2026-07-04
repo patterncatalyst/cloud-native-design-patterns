@@ -49,7 +49,11 @@ containers, testable with `conftest`.
 
 ```bash
 # Start the service
-podman compose up --build -d
+# Python (FastAPI)
+cd python && podman compose up --build -d
+
+# Spring Boot (coming soon)
+# cd spring-boot && podman compose up --build -d
 
 # Denied — no identity header
 curl -s http://localhost:8080/orders   # → 403
@@ -71,7 +75,10 @@ conftest test policy/bad-deploy.yaml  -p policy/signed_images.rego
 
 ## Verify
 
+From the example root (not the language directory):
+
 ```bash
+cd ..  # if you're still in python/
 ./verify.sh
 ```
 
