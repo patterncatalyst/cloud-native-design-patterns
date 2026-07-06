@@ -28,13 +28,7 @@ credentials, and the container naming convention.
 
 ## Architecture
 
-```
- Client → flag-service (FastAPI + OpenFeature SDK)
-              │
-              └──→ flagd (gRPC :8013)
-                      │
-                      └── flags/flags.json (flag definitions)
-```
+![Architecture](architecture.svg)
 
 ## Flag configuration
 
@@ -43,13 +37,17 @@ the file and syncs within seconds. No redeploy needed.
 
 ## Run it
 
+Pick a language and start the stack:
+
 ```bash
 # Python (FastAPI)
 cd python && podman compose up --build -d
 
-# Spring Boot (coming soon)
-# cd spring-boot && podman compose up --build -d
+# Spring Boot
+cd spring-boot && podman compose up --build -d
 ```
+
+Both implementations expose the same API on the same ports — `verify.sh` works with either.
 
 ## Drive it
 
@@ -76,7 +74,7 @@ curl -s -H 'X-User: user-1' -H 'X-Plan: enterprise' \
 From the example root (not the language directory):
 
 ```bash
-cd ..  # if you're still in python/
+cd ..  # if you're in a language directory
 ./verify.sh
 ```
 

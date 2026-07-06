@@ -27,26 +27,21 @@ credentials, and the container naming convention.
 
 ## Architecture
 
-```
- curl ──▶ order-service (REST, problem+json errors)
-               │
-               ├── gRPC ──▶ inventory-service
-               │                  │
-               │           stock exhausted → FAILED_PRECONDITION
-               │           service down   → UNAVAILABLE + RetryInfo
-               │
-               └── maps gRPC errors → problem+json with trace_id
-```
+![Architecture](architecture.svg)
 
 ## Run it
+
+Pick a language and start the stack:
 
 ```bash
 # Python (FastAPI)
 cd python && podman compose up --build -d
 
-# Spring Boot (coming soon)
-# cd spring-boot && podman compose up --build -d
+# Spring Boot
+cd spring-boot && podman compose up --build -d
 ```
+
+Both implementations expose the same API on the same ports — `verify.sh` works with either.
 
 ## Drive it
 
@@ -80,7 +75,7 @@ curl -si -X POST -H 'Content-Type: application/json' \
 From the example root (not the language directory):
 
 ```bash
-cd ..  # if you're still in python/
+cd ..  # if you're in a language directory
 ./verify.sh
 ```
 

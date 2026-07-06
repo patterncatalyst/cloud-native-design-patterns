@@ -19,30 +19,28 @@ credentials, and the container naming convention.
 
 | Style | Where | What |
 |-------|-------|------|
-| REST | `POST /orders`, `GET /orders` | Validated input (Pydantic), 201 on create, cursor pagination |
+| REST | `POST /orders`, `GET /orders` | Validated input, 201 on create, cursor pagination |
 | gRPC | order → inventory (`:50051`) | `ReserveStock` RPC from `.proto` contract; order status depends on stock |
-| GraphQL | `POST /graphql` | Strawberry schema querying orders — one round-trip, client picks fields |
+| GraphQL | `POST /graphql` | GraphQL schema querying orders — one round-trip, client picks fields |
 | Async | order → Kafka `order.placed` | Fire-and-forget fact; consumers catch up from the log independently |
 
 ## Architecture
 
-```
-                     ┌──────────────┐
-  curl / browser ──▶ │ order-service │──gRPC──▶ inventory (:50051)
-   REST :8080        │  + GraphQL   │
-                     │  + Kafka     │──async──▶ Kafka (order.placed)
-                     └──────────────┘
-```
+![Architecture](architecture.svg)
 
 ## Run it
+
+Pick a language and start the stack:
 
 ```bash
 # Python (FastAPI)
 cd python && podman compose up --build -d
 
-# Spring Boot (coming soon)
-# cd spring-boot && podman compose up --build -d
+# Spring Boot
+cd spring-boot && podman compose up --build -d
 ```
+
+Both implementations expose the same API on the same ports — `verify.sh` works with either.
 
 Wait for all services to report healthy:
 
@@ -90,7 +88,7 @@ podman exec cndp-kafka /opt/kafka/bin/kafka-topics.sh \
 From the example root (not the language directory):
 
 ```bash
-cd ..  # if you're still in python/
+cd ..  # if you're in a language directory
 ./verify.sh
 ```
 
