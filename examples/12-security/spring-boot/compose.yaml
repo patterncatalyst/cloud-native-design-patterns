@@ -1,0 +1,17 @@
+services:
+  order-service:
+    build:
+      context: order-service
+    container_name: cndp-order-service
+    ports:
+      - "8080:8080"
+    devices:
+      - "/dev/null:/dev/null:rwm"
+    environment:
+      - VALET_SECRET=demo-secret-do-not-use-in-prod
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s

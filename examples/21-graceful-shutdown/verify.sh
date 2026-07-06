@@ -47,7 +47,7 @@ check_status "POST /orders returns 201" \
 
 # --- Send SIGTERM and verify readiness flips ---
 printf '  \xe2\x86\x92 sending SIGTERM to order-service...\n'
-podman exec cndp-order-service kill -SIGTERM 1
+podman kill --signal SIGTERM cndp-order-service >/dev/null 2>&1
 sleep 2
 
 check "debug/state shows shutting_down=true" \
@@ -62,16 +62,18 @@ check "readyz body says shutting down" \
     "curl -sf $BASE/readyz 2>/dev/null || curl -s $BASE/readyz" \
     '"shutting down"'
 
-# --- Verify logs show the drain protocol ---
-LOGS=$(podman logs cndp-order-service 2>&1)
+# --- Verify logs show the drain protocol (capture before restart) ---
 check "logs show SIGTERM received" \
-    "echo '$LOGS'" \
+    "podman logs cndp-order-service 2>&1" \
     "SIGTERM received"
 
 # --- Restart and verify recovery ---
 printf '  \xe2\x86\x92 restarting service and verifying recovery...\n'
-podman restart cndp-order-service >/dev/null 2>&1
-sleep 10
+COMPOSE_FILE="${COMPOSE_FILE:-spring-boot/compose.yaml}"
+podman stop cndp-order-service >/dev/null 2>&1
+podman rm cndp-order-service >/dev/null 2>&1
+podman compose -f "$COMPOSE_FILE" up -d order-service >/dev/null 2>&1
+sleep 15
 
 check_status "readyz returns 200 after restart" \
     "curl -s -o /dev/null -w '%{http_code}' $BASE/readyz" \

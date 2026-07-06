@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: inventory-service
+  main:
+    web-application-type: none
+
+grpc:
+  port: ${GRPC_PORT:50051}

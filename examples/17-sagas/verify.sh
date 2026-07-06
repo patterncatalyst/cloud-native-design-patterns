@@ -111,8 +111,11 @@ podman exec cndp-postgres psql -U appuser -d appdb -c \
     "INSERT INTO sagas (id, status, step_index, context) VALUES ('resume-test', 'RUNNING', 1, '{\"order_id\":\"order-3\",\"sku\":\"widget-c\",\"total\":19.99,\"charge_payment\":{\"payment_id\":\"pay-test\",\"amount\":19.99}}')" \
     >/dev/null 2>&1
 
-podman restart cndp-saga >/dev/null 2>&1
-sleep 10
+COMPOSE_FILE="${COMPOSE_FILE:-spring-boot/compose.yaml}"
+podman stop cndp-saga >/dev/null 2>&1
+podman rm cndp-saga >/dev/null 2>&1
+podman compose -f "$COMPOSE_FILE" up -d saga-orchestrator >/dev/null 2>&1
+sleep 15
 
 RESUMED=$(curl -sf "$BASE/sagas/resume-test")
 check "resumed saga completed after restart" \

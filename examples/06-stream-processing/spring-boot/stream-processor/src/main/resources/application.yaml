@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: stream-processor
+  main:
+    web-application-type: none
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+window:
+  seconds: ${WINDOW_SECONDS:10}
