@@ -36,6 +36,14 @@ check "order-service healthz" \
     "curl -sf $BASE/healthz" \
     '"status":"ok"'
 
+# warmup: give gRPC channel time to connect to inventory
+for i in 1 2 3 4 5; do
+    CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
+        -d '{"sku":"warmup","quantity":1}' "$BASE/orders" 2>/dev/null) || CODE=""
+    [ "$CODE" = "201" ] && break
+    sleep 2
+done
+
 # --- Happy path ---
 check_status "POST /orders returns 201 (happy path)" \
     "curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"widget\",\"quantity\":1}' $BASE/orders" \

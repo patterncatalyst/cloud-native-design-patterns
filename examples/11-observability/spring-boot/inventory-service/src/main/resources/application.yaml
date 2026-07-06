@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: inventory-service
+  main:
+    web-application-type: none
+
+grpc:
+  port: ${GRPC_PORT:50051}
+
+inventory:
+  initial-stock: ${INITIAL_STOCK:100}
+
+otel:
+  service:
+    name: inventory-service
+  exporter:
+    otlp:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://lgtm:4318}
+      protocol: http/protobuf

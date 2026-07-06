@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: order-service
+
+server:
+  port: 8080
+
+service:
+  version: ${SERVICE_VERSION:0.0.0}
