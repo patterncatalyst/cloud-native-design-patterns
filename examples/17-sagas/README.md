@@ -28,27 +28,21 @@ credentials, and the container naming convention.
 
 ## Architecture
 
-```
- curl ──▶ saga-orchestrator ──▶ Postgres (sagas + saga_log)
-               │
-               ├── charge_payment
-               ├── reserve_stock
-               └── book_shipping (can fail)
-                        │
-                        ▼ on failure
-               ├── release_stock  (reverse)
-               └── refund_payment (reverse)
-```
+![Architecture](architecture.svg)
 
 ## Run it
+
+Pick a language and start the stack:
 
 ```bash
 # Python (FastAPI)
 cd python && podman compose up --build -d
 
-# Spring Boot (coming soon)
-# cd spring-boot && podman compose up --build -d
+# Spring Boot
+cd spring-boot && podman compose up --build -d
 ```
+
+Both implementations expose the same API on the same ports — `verify.sh` works with either.
 
 ## Drive it
 
@@ -73,7 +67,7 @@ curl -s localhost:8080/sagas/$SAGA_ID/log | jq .
 From the example root (not the language directory):
 
 ```bash
-cd ..  # if you're still in python/
+cd ..  # if you're in a language directory
 ./verify.sh
 ```
 

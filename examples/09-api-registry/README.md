@@ -28,14 +28,7 @@ credentials, and the container naming convention.
 
 ## Architecture
 
-```
- curl ──▶ Apicurio Registry (v3 API)
-              │
-              ├── Register artifact (Avro schema)
-              ├── Set compatibility rule (BACKWARD)
-              ├── POST new version (breaking) → 409
-              └── POST new version (additive) → 200
-```
+![Architecture](architecture.svg)
 
 ## Run it
 

@@ -21,40 +21,30 @@ containers, testable with `conftest`.
 
 | Concept | Where | What |
 |---------|-------|------|
-| Sidecar trust | Middleware | 403 without `X-Forwarded-Client-Cert`; trusts sidecar headers |
+| Sidecar trust | middleware | 403 without `X-Forwarded-Client-Cert`; trusts sidecar headers |
 | Valet key | `/valet-key`, `/verify-valet` | HMAC-signed, time-bound, operation-scoped tokens |
-| Per-tenant bulkhead | `asyncio.Semaphore` | 5 concurrent requests per tenant; one tenant's storm can't drain another |
+| Per-tenant bulkhead | concurrency limiter | 5 concurrent requests per tenant; one tenant's storm can't drain another |
 | Policy-as-code | `policy/` | OPA Rego denies untrusted images, privileged containers, root UID |
 
 ## Architecture
 
-```
-  Client
-    │
-    ├─ X-Forwarded-Client-Cert: spiffe://...    → 201 (trusted)
-    ├─ (no header)                               → 403 (denied)
-    │
-    └──→ order-service (port 8080)
-           ├── trust_sidecar middleware   ← rejects unauthenticated
-           ├── per-tenant bulkhead       ← Semaphore(5) per tenant
-           ├── valet key mint/verify     ← HMAC scoped tokens
-           └── in-memory order store
-
-  conftest ──→ policy/signed_images.rego
-                ├── good-deploy.yaml  → PASS (UBI, non-root)
-                └── bad-deploy.yaml   → FAIL (untrusted, privileged, root)
-```
+![Architecture](architecture.svg)
 
 ## Run it
 
+Pick a language and start the stack:
+
 ```bash
-# Start the service
 # Python (FastAPI)
 cd python && podman compose up --build -d
 
-# Spring Boot (coming soon)
-# cd spring-boot && podman compose up --build -d
+# Spring Boot
+cd spring-boot && podman compose up --build -d
+```
 
+Both implementations expose the same API on the same ports — `verify.sh` works with either.
+
+```bash
 # Denied — no identity header
 curl -s http://localhost:8080/orders   # → 403
 
@@ -78,7 +68,7 @@ conftest test policy/bad-deploy.yaml  -p policy/signed_images.rego
 From the example root (not the language directory):
 
 ```bash
-cd ..  # if you're still in python/
+cd ..  # if you're in a language directory
 ./verify.sh
 ```
 

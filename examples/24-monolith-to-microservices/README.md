@@ -29,30 +29,23 @@ credentials, and the container naming convention.
 
 ## Architecture
 
-```
-  Content-based routing (port 8080):
-
-     Client ──→ Router ──┬──→ monolith   (tenant != acme)
-                         └──→ new-service (tenant == acme)
-                    PUT /rules: flip routing, flip back
-
-  Decorating collaborator (port 8091):
-
-     Client ──→ Decorator ──→ Legacy
-                   │  ↕ Redis (cache)
-                   └──→ Kafka (order.placed event)
-```
+![Architecture](architecture.svg)
 
 ## Run it
 
+Pick a language and start the stack:
+
 ```bash
-# Start all services
 # Python (FastAPI)
 cd python && podman compose up --build -d
 
-# Spring Boot (coming soon)
-# cd spring-boot && podman compose up --build -d
+# Spring Boot
+cd spring-boot && podman compose up --build -d
+```
 
+Both implementations expose the same API on the same ports — `verify.sh` works with either.
+
+```bash
 # Content-based routing
 curl -s -X POST http://localhost:8080/orders \
   -H 'Content-Type: application/json' \
@@ -77,7 +70,7 @@ curl -s http://localhost:8091/events | jq .
 From the example root (not the language directory):
 
 ```bash
-cd ..  # if you're still in python/
+cd ..  # if you're in a language directory
 ./verify.sh
 ```
 
