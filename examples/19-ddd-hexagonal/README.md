@@ -20,43 +20,34 @@ credentials, and the container naming convention.
 
 | Concept | Where | What |
 |---------|-------|------|
-| Pure domain core | `domain/` | Models, ports (Protocol), and service with zero framework imports |
-| Outbound ports | `domain/ports.py` | `OrderRepository` and `EventPublisher` as Python Protocols |
-| Application service | `domain/service.py` | `PlaceOrder` — imports only domain types |
-| REST driving adapter | `adapters/rest_adapter.py` | FastAPI routes calling the use case |
-| CLI driving adapter | `cli_place_order.py` | CLI script calling the same use case |
-| Postgres driven adapter | `adapters/postgres_repo.py` | Implements `OrderRepository` via asyncpg |
-| Log driven adapter | `adapters/log_publisher.py` | Implements `EventPublisher` via stdlib logging |
-| Dependency inversion | `main.py` | Wires adapters into domain service at startup |
+| Pure domain core | `domain/` | Models, ports, and service — pure domain (no framework imports) |
+| Outbound ports | domain ports | `OrderRepository` and `EventPublisher` as port interfaces |
+| Application service | domain service | `PlaceOrder` — imports only domain types |
+| REST driving adapter | REST adapter | HTTP routes calling the use case |
+| CLI driving adapter | CLI adapter | CLI script calling the same use case |
+| Postgres driven adapter | Postgres repository | Implements `OrderRepository` via database driver |
+| Log driven adapter | log publisher | Implements `EventPublisher` via structured logging |
+| Dependency inversion | application entrypoint | Wires adapters into domain service at startup |
 
 ## Architecture
 
-```
-              ┌─────────────────────────────────────────┐
-              │           domain/ (pure Python)         │
-              │  models.py   ports.py   service.py      │
-              │  (Order)   (Protocol)  (PlaceOrder)     │
-              └────────┬──────────────────┬─────────────┘
-                       │                  │
-            outbound ports          inbound call
-                       │                  │
-        ┌──────────────┴──┐    ┌──────────┴───────────┐
-        │  Driven adapters │    │  Driving adapters    │
-        │  postgres_repo   │    │  rest_adapter (HTTP) │
-        │  log_publisher   │    │  cli_place_order     │
-        └─────────────────┘    └──────────────────────┘
-```
+![Architecture](architecture.svg)
 
 ## Run it
 
+Pick a language and start the stack:
+
 ```bash
-# Start the service
 # Python (FastAPI)
 cd python && podman compose up --build -d
 
-# Spring Boot (coming soon)
-# cd spring-boot && podman compose up --build -d
+# Spring Boot
+cd spring-boot && podman compose up --build -d
+```
 
+Both implementations expose the same API on the same ports — `verify.sh` works with either.
+
+```bash
 # Place an order via REST
 curl -s -X POST http://localhost:8080/orders \
   -H 'Content-Type: application/json' \
@@ -71,20 +62,16 @@ curl -s http://localhost:8080/orders | jq .
 
 ## The cross-check
 
-```bash
-# 1. Grep domain/ for framework imports — should find nothing
-grep -r 'fastapi\|asyncpg\|pydantic\|uvicorn' order-service/domain/
-
-# 2. The CLI adapter calls the same PlaceOrder use case
-#    without touching any domain file — only a new adapter appears
-```
+Grep the domain directory for framework imports — there should be none. The CLI
+adapter calls the same `PlaceOrder` use case without touching any domain file —
+only a new adapter appears.
 
 ## Verify
 
 From the example root (not the language directory):
 
 ```bash
-cd ..  # if you're still in python/
+cd ..  # if you're in a language directory
 ./verify.sh
 ```
 

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 300" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="20" y="30" width="100" height="50" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5"/>
+<text x="70.0" y="60.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">curl</text>
+<rect x="180" y="20" width="150" height="70" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="255.0" y="53.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">order-service</text>
+<text x="255.0" y="70.0" font-size="11.5" fill="#555555" text-anchor="middle">:8080</text>
+<rect x="180" y="120" width="150" height="60" rx="9" fill="#f4f4f4" stroke="#888888" stroke-width="1.5"/>
+<text x="255.0" y="148.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Postgres</text>
+<text x="255.0" y="165.0" font-size="11.5" fill="#555555" text-anchor="middle">orders + outbox</text>
+<rect x="180" y="210" width="150" height="50" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="255.0" y="233.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Debezium Connect</text>
+<text x="255.0" y="250.0" font-size="11.5" fill="#555555" text-anchor="middle">:8083</text>
+<rect x="180" y="280" width="150" height="40" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="255.0" y="305.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Kafka (order.placed)</text>
+<path d="M120,55 L180,55" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M255,90 L255,120" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="261.0" y="99.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">BEGIN/COMMIT</text>
+<text x="261.0" y="99.0" font-size="11" fill="#555" text-anchor="middle">BEGIN/COMMIT</text>
+<path d="M255,180 L255,210" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
+<text x="261.0" y="189.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">WAL (logical)</text>
+<text x="261.0" y="189.0" font-size="11" fill="#b8650a" text-anchor="middle">WAL (logical)</text>
+<path d="M255,260 L255,280" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="370" y="155" font-size="10" fill="#888888" text-anchor="start">single transaction</text>
+</svg>

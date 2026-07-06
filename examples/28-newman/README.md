@@ -29,23 +29,7 @@ credentials, and the container naming convention.
 
 ## Architecture
 
-```
- Newman CLI
-   │
-   ├── orders.postman_collection.json
-   │     ├── Health check (200, status ok)
-   │     ├── Create order (201, returns id, chains variable)
-   │     ├── Get order (200, id matches)
-   │     ├── List orders (200, array with items)
-   │     ├── Cancel order (204)
-   │     ├── Get cancelled (status = cancelled)
-   │     ├── Reject zero quantity (422)
-   │     ├── Reject missing sku (422)
-   │     ├── Reject negative quantity (422)
-   │     └── Get nonexistent (404)
-   │
-   └──→ order-service (port 8080) → Postgres
-```
+![Architecture](architecture.svg)
 
 ## Run it
 

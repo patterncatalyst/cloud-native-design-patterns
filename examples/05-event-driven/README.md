@@ -27,29 +27,21 @@ credentials, and the container naming convention.
 
 ## Architecture
 
-```
- curl ──▶ order-service ──▶ Postgres (orders)
-               │
-               ▼
-       Kafka (order.placed)
-          ┌────┴────┐
-          ▼         ▼
-  shipping-consumer  notification-consumer
-  (shipping-group)   (notification-group)
-          │                   │
-          ▼                   ▼
-  Postgres (shipments)  Postgres (notifications)
-```
+![Architecture](architecture.svg)
 
 ## Run it
+
+Pick a language and start the stack:
 
 ```bash
 # Python (FastAPI)
 cd python && podman compose up --build -d
 
-# Spring Boot (coming soon)
-# cd spring-boot && podman compose up --build -d
+# Spring Boot
+cd spring-boot && podman compose up --build -d
 ```
+
+Both implementations expose the same API on the same ports — `verify.sh` works with either.
 
 Wait for all services:
 
@@ -84,7 +76,7 @@ podman exec cndp-kafka /opt/kafka/bin/kafka-consumer-groups.sh \
 From the example root (not the language directory):
 
 ```bash
-cd ..  # if you're still in python/
+cd ..  # if you're in a language directory
 ./verify.sh
 ```
 

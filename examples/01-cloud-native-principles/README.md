@@ -16,26 +16,30 @@ credentials, and the container naming convention.
 
 ## What it shows
 
-- `Settings` reads `DATABASE_URL`, `KAFKA_BOOTSTRAP`, `SERVICE_VERSION` from
-  environment variables via `pydantic-settings` — one image, many environments.
-- `/healthz` (liveness) always returns ok if the process is up — it never checks
-  dependencies, so a transient DB outage does not trigger a restart loop.
-- `/readyz` (readiness) checks the database — when it fails, Kubernetes stops
-  routing traffic but leaves the pod running. When the DB recovers, readiness
-  recovers with it.
-- OpenTelemetry auto-instrumentation sends traces and metrics to the LGTM stack.
+| Concept | Where | What |
+|---------|-------|------|
+| Env-based config | environment variables | `DATABASE_URL`, `KAFKA_BOOTSTRAP`, `SERVICE_VERSION` — one image, many environments |
+| Liveness probe | `/healthz` | Always returns ok if the process is up — never checks dependencies |
+| Readiness probe | `/readyz` | Checks the database — fails when DB is down, recovers when DB recovers |
+| OTel instrumentation | auto-instrumented | Traces and metrics sent to the LGTM stack |
+
+## Architecture
+
+![Architecture](architecture.svg)
 
 ## Run it
 
-Choose a language implementation:
+Pick a language and start the stack:
 
 ```bash
 # Python (FastAPI)
 cd python && podman compose up --build -d
 
-# Spring Boot (coming soon)
-# cd spring-boot && podman compose up --build -d
+# Spring Boot
+cd spring-boot && podman compose up --build -d
 ```
+
+Both implementations expose the same API on the same ports — `verify.sh` works with either.
 
 Wait for all services to report healthy:
 
@@ -74,7 +78,7 @@ curl -s localhost:8080/readyz | jq .   # → "status": "ready"
 From the example root (not the language directory):
 
 ```bash
-cd ..  # if you're still in python/
+cd ..  # if you're in a language directory
 ./verify.sh
 ```
 

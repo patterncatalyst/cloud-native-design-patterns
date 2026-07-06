@@ -26,31 +26,21 @@ credentials, and the container naming convention.
 
 ## Architecture
 
-```
- curl ──▶ order-service (REST, metrics, correlated logs)
-               │
-               ├── gRPC ──▶ inventory-service (trace propagation)
-               │
-               └── Kafka (order.placed, traceparent in headers)
-                              │
-                              ▼
-                   notification-consumer (extracts trace context)
-                              │
-                              ▼
-                   Postgres (notifications)
-
-    All services ──OTLP──▶ LGTM (Tempo + Prometheus + Loki + Grafana)
-```
+![Architecture](architecture.svg)
 
 ## Run it
+
+Pick a language and start the stack:
 
 ```bash
 # Python (FastAPI)
 cd python && podman compose up --build -d
 
-# Spring Boot (coming soon)
-# cd spring-boot && podman compose up --build -d
+# Spring Boot
+cd spring-boot && podman compose up --build -d
 ```
+
+Both implementations expose the same API on the same ports — `verify.sh` works with either.
 
 Wait for all services:
 
@@ -86,7 +76,7 @@ curl -s 'http://localhost:3100/loki/api/v1/query_range' \
 From the example root (not the language directory):
 
 ```bash
-cd ..  # if you're still in python/
+cd ..  # if you're in a language directory
 ./verify.sh
 ```
 

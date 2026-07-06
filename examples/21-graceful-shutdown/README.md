@@ -19,31 +19,28 @@ credentials, and the container naming convention.
 
 | Pattern | Where | What |
 |---------|-------|------|
-| SIGTERM handler | `handle_sigterm` | Sets `shutting_down` flag on signal |
+| SIGTERM handler | signal handler | Sets `shutting_down` flag on signal |
 | Readiness flip | `/readyz` | Returns 503 when shutting down |
-| In-flight drain | lifespan shutdown | Waits for `in_flight == 0` before closing pool |
+| In-flight drain | shutdown hook | Waits for `in_flight == 0` before closing pool |
 | Data survives restart | verify.sh | Orders placed before restart are still queryable after |
 
 ## Architecture
 
-```
- SIGTERM ──▶ order-service
-                │
-                ├── /readyz → 503 (stops new traffic)
-                ├── drain in-flight requests
-                ├── close DB pool
-                └── exit cleanly
-```
+![Architecture](architecture.svg)
 
 ## Run it
+
+Pick a language and start the stack:
 
 ```bash
 # Python (FastAPI)
 cd python && podman compose up --build -d
 
-# Spring Boot (coming soon)
-# cd spring-boot && podman compose up --build -d
+# Spring Boot
+cd spring-boot && podman compose up --build -d
 ```
+
+Both implementations expose the same API on the same ports — `verify.sh` works with either.
 
 ## Drive it
 
@@ -71,7 +68,7 @@ curl -s localhost:8080/debug/state | jq .
 From the example root (not the language directory):
 
 ```bash
-cd ..  # if you're still in python/
+cd ..  # if you're in a language directory
 ./verify.sh
 ```
 

@@ -25,35 +25,23 @@ rules changeable without redeployment).
 
 ## Architecture
 
-```
-                        ┌───────────────┐
-           Client ───── │  Envoy proxy  │ ──── port 8080
-                        │  (L7 router)  │
-                        └──┬─────────┬──┘
-                  90%      │         │     10%
-               ┌───────────┘         └───────────┐
-               │                                 │
-        ┌──────┴──────┐                   ┌──────┴──────┐
-        │  order-v1   │                   │  order-v2   │
-        │ version=v1  │                   │ version=v2  │
-        └─────────────┘                   └─────────────┘
-
-           Client ───── router-service ──── port 8090
-                        │  rules engine │
-                        │  VIP → priority │
-                        │  default → default │
-```
+![Architecture](architecture.svg)
 
 ## Run it
 
+Pick a language and start the stack:
+
 ```bash
-# Start all services
 # Python (FastAPI)
 cd python && podman compose up --build -d
 
-# Spring Boot (coming soon)
-# cd spring-boot && podman compose up --build -d
+# Spring Boot
+cd spring-boot && podman compose up --build -d
+```
 
+Both implementations expose the same API on the same ports — `verify.sh` works with either.
+
+```bash
 # Weighted routing — observe version field in responses
 for i in $(seq 1 20); do curl -s http://localhost:8080/orders | jq -r .version; done
 
@@ -80,7 +68,7 @@ curl -s -X PUT http://localhost:8090/rules \
 From the example root (not the language directory):
 
 ```bash
-cd ..  # if you're still in python/
+cd ..  # if you're in a language directory
 ./verify.sh
 ```
 
