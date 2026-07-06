@@ -1,0 +1,160 @@
+services:
+  lgtm:
+    image: docker.io/grafana/otel-lgtm:0.8.1
+    container_name: cndp-lgtm
+    ports:
+      - "3000:3000"
+      - "4318:4318"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+    devices:
+      - "/dev/null:/dev/null:rwm"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+
+  postgres:
+    image: docker.io/library/postgres:16-alpine
+    container_name: cndp-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=appdb
+      - POSTGRES_USER=appuser
+      - POSTGRES_PASSWORD=apppass
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C
+    volumes:
+      - ../db/init:/docker-entrypoint-initdb.d:Z
+      - postgres-data:/var/lib/postgresql/data:Z
+    devices:
+      - "/dev/null:/dev/null:rwm"
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=logical"
+      - "-c"
+      - "max_replication_slots=4"
+      - "-c"
+      - "max_wal_senders=4"
+      - "-c"
+      - "log_statement=all"
+      - "-c"
+      - "shared_buffers=128MB"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  kafka:
+    image: docker.io/apache/kafka:3.8.0
+    container_name: cndp-kafka
+    ports:
+      - "9092:9092"
+      - "9094:9094"
+    environment:
+      - KAFKA_NODE_ID=1
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,DOCKER://0.0.0.0:9094
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092,DOCKER://kafka:9094
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,DOCKER:PLAINTEXT
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_NUM_PARTITIONS=3
+      - KAFKA_DEFAULT_REPLICATION_FACTOR=1
+      - KAFKA_MIN_INSYNC_REPLICAS=1
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
+      - CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - kafka-data:/var/lib/kafka/data:Z
+    devices:
+      - "/dev/null:/dev/null:rwm"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 9092"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  kafka-ui:
+    image: docker.io/provectuslabs/kafka-ui:latest
+    container_name: cndp-kafka-ui
+    ports:
+      - "8090:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9094
+      - DYNAMIC_CONFIG_ENABLED=true
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  kafka-connect:
+    image: docker.io/debezium/connect:2.7.3.Final
+    container_name: cndp-kafka-connect
+    ports:
+      - "8083:8083"
+    environment:
+      - BOOTSTRAP_SERVERS=kafka:9094
+      - GROUP_ID=connect-cluster
+      - CONFIG_STORAGE_TOPIC=connect-configs
+      - OFFSET_STORAGE_TOPIC=connect-offsets
+      - STATUS_STORAGE_TOPIC=connect-status
+      - CONFIG_STORAGE_REPLICATION_FACTOR=1
+      - OFFSET_STORAGE_REPLICATION_FACTOR=1
+      - STATUS_STORAGE_REPLICATION_FACTOR=1
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8083/"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  order-service:
+    build:
+      context: order-service
+    container_name: cndp-order-service
+    depends_on:
+      lgtm:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    devices:
+      - "/dev/null:/dev/null:rwm"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/appdb
+      - SPRING_DATASOURCE_USERNAME=appuser
+      - SPRING_DATASOURCE_PASSWORD=apppass
+      - OTEL_SERVICE_NAME=order-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=local,service.version=1.0.0
+      - SERVICE_VERSION=1.0.0
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
+
+volumes:
+  postgres-data:
+  kafka-data:

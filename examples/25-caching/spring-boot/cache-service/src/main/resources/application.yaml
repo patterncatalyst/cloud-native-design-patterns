@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/appdb
+    username: appuser
+    password: apppass
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2s
+      lettuce:
+        shutdown-timeout: 100ms
+
+server:
+  port: 8080
+
+cache-service:
+  ttl-seconds: 60
+  flush-period-ms: 1000
+  refresh-period-ms: 5000
+  refresh-before-seconds: 10

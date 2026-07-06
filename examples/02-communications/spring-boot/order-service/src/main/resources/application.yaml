@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: order-service
+  graphql:
+    graphiql:
+      enabled: true
+  kafka:
+    producer:
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+server:
+  port: 8080
+
+inventory:
+  addr: ${INVENTORY_ADDR:inventory:50051}
