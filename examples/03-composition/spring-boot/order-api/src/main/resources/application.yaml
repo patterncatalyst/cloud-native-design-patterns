@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: order-api
+
+server:
+  port: 8081

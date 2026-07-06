@@ -37,26 +37,50 @@ printf '==> Verifying Example 19: DDD & Hexagonal Architecture\n\n'
 printf -- '--- 1. Domain isolation (zero framework imports) ---\n'
 
 LANG_DIR="${LANG_DIR:-python}"
-DOMAIN_DIR="$LANG_DIR/order-service/domain"
 
-check_empty "no fastapi imports in domain/" \
-    "grep -r 'import fastapi\|from fastapi' $DOMAIN_DIR"
+if [ "$LANG_DIR" = "spring-boot" ]; then
+    DOMAIN_DIR="$LANG_DIR/order-service/src/main/java/com/cndp/order/domain"
 
-check_empty "no asyncpg imports in domain/" \
-    "grep -r 'import asyncpg\|from asyncpg' $DOMAIN_DIR"
+    check_empty "no Spring imports in domain/" \
+        "grep -r 'import org\.springframework' $DOMAIN_DIR"
 
-check_empty "no pydantic imports in domain/" \
-    "grep -r 'import pydantic\|from pydantic' $DOMAIN_DIR"
+    check_empty "no Jakarta imports in domain/" \
+        "grep -r 'import jakarta\.' $DOMAIN_DIR"
 
-check_empty "no uvicorn imports in domain/" \
-    "grep -r 'import uvicorn\|from uvicorn' $DOMAIN_DIR"
+    check_empty "no JPA imports in domain/" \
+        "grep -r 'import javax\.persistence\|import jakarta\.persistence' $DOMAIN_DIR"
 
-check_empty "no starlette imports in domain/" \
-    "grep -r 'import starlette\|from starlette' $DOMAIN_DIR"
+    check_empty "no JDBC imports in domain/" \
+        "grep -r 'import java\.sql\|import org\.springframework\.jdbc' $DOMAIN_DIR"
 
-check "domain/service.py imports only domain types" \
-    "grep '^from\|^import' $DOMAIN_DIR/service.py | grep -v 'from \.' | head -1" \
-    "^$"
+    check_empty "no Hibernate imports in domain/" \
+        "grep -r 'import org\.hibernate' $DOMAIN_DIR"
+
+    check "PlaceOrderUseCase.java imports only domain types" \
+        "grep '^import' $DOMAIN_DIR/PlaceOrderUseCase.java | grep -v 'import com\.cndp\.order\.domain\.' | head -1" \
+        "^$"
+else
+    DOMAIN_DIR="$LANG_DIR/order-service/domain"
+
+    check_empty "no fastapi imports in domain/" \
+        "grep -r 'import fastapi\|from fastapi' $DOMAIN_DIR"
+
+    check_empty "no asyncpg imports in domain/" \
+        "grep -r 'import asyncpg\|from asyncpg' $DOMAIN_DIR"
+
+    check_empty "no pydantic imports in domain/" \
+        "grep -r 'import pydantic\|from pydantic' $DOMAIN_DIR"
+
+    check_empty "no uvicorn imports in domain/" \
+        "grep -r 'import uvicorn\|from uvicorn' $DOMAIN_DIR"
+
+    check_empty "no starlette imports in domain/" \
+        "grep -r 'import starlette\|from starlette' $DOMAIN_DIR"
+
+    check "domain/service.py imports only domain types" \
+        "grep '^from\|^import' $DOMAIN_DIR/service.py | grep -v 'from \.' | head -1" \
+        "^$"
+fi
 
 # ===================================================================
 # 2. REST driving adapter — place and retrieve orders
@@ -116,7 +140,7 @@ check "CLI order has correct quantity" \
     "echo '$CLI_OUTPUT'" \
     "qty=5"
 
-CLI_ORDER_ID=$(echo "$CLI_OUTPUT" | grep -oP 'id=\K[^ ]+' 2>/dev/null) || CLI_ORDER_ID=""
+CLI_ORDER_ID=$(echo "$CLI_OUTPUT" | grep -oP '(?<= )id=\K[^ ]+' 2>/dev/null | head -1) || CLI_ORDER_ID=""
 
 if [ -n "$CLI_ORDER_ID" ]; then
     check "CLI-created order visible via REST GET" \

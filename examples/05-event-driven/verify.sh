@@ -76,16 +76,17 @@ check "notification-group consumer group exists" \
     "podman exec cndp-kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list 2>/dev/null" \
     "notification-group"
 
-# --- Idempotent consumers: re-deliver and verify no duplicates ---
-printf '  \xe2\x86\x92 testing idempotent consumers (restart to trigger redelivery)...\n'
-podman restart cndp-shipping cndp-notification >/dev/null 2>&1
-sleep 10
+# --- Idempotent consumers: re-deliver same event and verify no duplicates ---
+printf '  \xe2\x86\x92 testing idempotent consumers (re-sending duplicate event)...\n'
+DUPLICATE_EVENT="{\"id\":\"$ORDER_ID\",\"sku\":\"widget-a\",\"quantity\":5,\"status\":\"pending\"}"
+podman exec cndp-kafka bash -c "echo '$DUPLICATE_EVENT' | /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic order.placed" >/dev/null 2>&1
+sleep 8
 
-check "shipping remains idempotent (still 1 row after restart)" \
+check "shipping remains idempotent (still 1 row after duplicate)" \
     "podman exec cndp-postgres psql -U appuser -d appdb -tAc \"SELECT count(*) FROM shipments WHERE order_id='$ORDER_ID'\"" \
     "1"
 
-check "notification remains idempotent (still 1 row after restart)" \
+check "notification remains idempotent (still 1 row after duplicate)" \
     "podman exec cndp-postgres psql -U appuser -d appdb -tAc \"SELECT count(*) FROM notifications WHERE order_id='$ORDER_ID'\"" \
     "1"
 

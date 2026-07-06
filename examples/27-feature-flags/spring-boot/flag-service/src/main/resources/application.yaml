@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: flag-service
+
+server:
+  port: 8080
+
+flagd:
+  host: ${FLAGD_HOST:flagd}
+  port: ${FLAGD_PORT:8013}

@@ -31,12 +31,11 @@ check_not() {
 
 printf '==> Verifying Example 27: Feature Flags\n\n'
 
-# --- Ensure clean state: restart flag-service so provider reconnects ---
+# --- Ensure clean state ---
 printf '  \xe2\x86\x92 ensuring clean provider state...\n'
-podman restart cndp-flag-service >/dev/null 2>&1
-for i in $(seq 1 20); do
-    sleep 2
+for i in $(seq 1 10); do
     if curl -sf "$BASE/healthz" >/dev/null 2>&1; then break; fi
+    sleep 2
 done
 sleep 3
 
@@ -127,9 +126,9 @@ check "flags endpoint returns recommendations-enabled" \
 # ===================================================================
 printf '\n--- 5. Fail-safe (flagd down) ---\n'
 
-printf '  \xe2\x86\x92 stopping flagd...\n'
-podman stop cndp-flagd >/dev/null 2>&1
-sleep 3
+printf '  \xe2\x86\x92 pausing flagd (freezing process)...\n'
+podman pause cndp-flagd >/dev/null 2>&1
+sleep 5
 
 check "checkout returns legacy (default false) with flagd down" \
     "curl -sf -H 'X-User: user-1' -H 'X-Plan: enterprise' -X POST $BASE/checkout" \
@@ -143,13 +142,12 @@ check "service still returns 200 with flagd down" \
     "curl -s -o /dev/null -w '%{http_code}' -H 'X-User: user-1' $BASE/ui-config" \
     '200'
 
-printf '  \xe2\x86\x92 restarting flagd and flag-service...\n'
-podman start cndp-flagd >/dev/null 2>&1
+printf '  \xe2\x86\x92 unpausing flagd...\n'
+podman unpause cndp-flagd >/dev/null 2>&1
 sleep 5
-podman restart cndp-flag-service >/dev/null 2>&1
 
 RECOVERED=0
-for i in $(seq 1 12); do
+for i in $(seq 1 15); do
     sleep 3
     result=$(curl -sf -H 'X-User: user-1' -H 'X-Plan: enterprise' -X POST "$BASE/checkout" 2>/dev/null) || result=""
     if echo "$result" | grep -q '"path":"new"'; then
