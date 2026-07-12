@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OpenFeature" Version="2.*" />
+    <PackageReference Include="OpenFeature.Contrib.Providers.Flagd" Version="0.*" />
+  </ItemGroup>
+
+</Project>
