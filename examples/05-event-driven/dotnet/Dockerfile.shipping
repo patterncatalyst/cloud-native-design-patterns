@@ -1,0 +1,12 @@
+FROM registry.access.redhat.com/ubi9/dotnet-100 AS build
+USER root
+WORKDIR /src
+COPY ShippingConsumer/ShippingConsumer.csproj ShippingConsumer/
+RUN dotnet restore ShippingConsumer/ShippingConsumer.csproj
+COPY ShippingConsumer/ ShippingConsumer/
+RUN dotnet publish ShippingConsumer/ShippingConsumer.csproj -c Release -o /app
+
+FROM registry.access.redhat.com/ubi9/dotnet-100-aspnet
+WORKDIR /app
+COPY --from=build /app .
+ENTRYPOINT ["dotnet", "ShippingConsumer.dll"]

@@ -308,8 +308,8 @@ public ReserveReply reserveStock(ReserveRequest req) {
 ```
 
 ```csharp
-using Grpc.Core;
-using Google.Rpc;            // ErrorInfo, RetryInfo, Status
+using Grpc.Core;              // ServerCallContext
+using Google.Rpc;             // ErrorInfo, RetryInfo, Status
 
 public override async Task<ReserveReply> ReserveStock(
     ReserveRequest req, ServerCallContext context)

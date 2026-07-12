@@ -1,0 +1,13 @@
+FROM registry.access.redhat.com/ubi9/dotnet-100 AS build
+USER root
+WORKDIR /src
+COPY BackendService/BackendService.csproj BackendService/
+RUN dotnet restore BackendService/BackendService.csproj
+COPY BackendService/ BackendService/
+RUN dotnet publish BackendService/BackendService.csproj -c Release -o /app
+
+FROM registry.access.redhat.com/ubi9/dotnet-100-aspnet
+WORKDIR /app
+COPY --from=build /app .
+EXPOSE 8081
+ENTRYPOINT ["dotnet", "BackendService.dll"]

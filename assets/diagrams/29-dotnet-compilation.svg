@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 340" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="10" y="10" width="860" height="320" rx="12" fill="#fafafa" stroke="#ddd"/>
+<text x="22" y="30" font-size="12" font-weight="700" fill="#1d1d1d">From source to machine code</text>
+<rect x="30" y="70" width="130" height="70" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="95.0" y="95.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">C# source</text>
+<text x="95.0" y="112.5" font-size="11.5" fill="#555555" text-anchor="middle">Program.cs</text>
+<text x="95.0" y="127.5" font-size="11.5" fill="#555555" text-anchor="middle">*.csproj</text>
+<rect x="210" y="70" width="140" height="70" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="280.0" y="95.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Roslyn compiler</text>
+<text x="280.0" y="112.5" font-size="11.5" fill="#555555" text-anchor="middle">dotnet build</text>
+<text x="280.0" y="127.5" font-size="11.5" fill="#555555" text-anchor="middle">syntax → IL</text>
+<rect x="400" y="70" width="150" height="70" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="475.0" y="95.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">CIL assembly</text>
+<text x="475.0" y="112.5" font-size="11.5" fill="#555555" text-anchor="middle">*.dll (IL bytecode)</text>
+<text x="475.0" y="127.5" font-size="11.5" fill="#555555" text-anchor="middle">platform-neutral</text>
+<rect x="310" y="190" width="260" height="80" rx="9" fill="#111111" stroke="#111111" stroke-width="2"/>
+<text x="440.0" y="220.5" font-size="13.5" font-weight="700" fill="#ffffff" text-anchor="middle">CoreCLR runtime</text>
+<text x="440.0" y="237.5" font-size="11.5" fill="#dddddd" text-anchor="middle">GC · JIT · type system</text>
+<text x="440.0" y="252.5" font-size="11.5" fill="#dddddd" text-anchor="middle">libcoreclr.so on Linux</text>
+<rect x="620" y="70" width="120" height="70" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="680.0" y="95.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">RyuJIT</text>
+<text x="680.0" y="112.5" font-size="11.5" fill="#555555" text-anchor="middle">method-at-a-time</text>
+<text x="680.0" y="127.5" font-size="11.5" fill="#555555" text-anchor="middle">profile-guided</text>
+<rect x="780" y="70" width="80" height="70" rx="9" fill="#f4f4f4" stroke="#888888" stroke-width="1.5"/>
+<text x="820.0" y="95.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">x86-64</text>
+<text x="820.0" y="112.5" font-size="11.5" fill="#555555" text-anchor="middle">native</text>
+<text x="820.0" y="127.5" font-size="11.5" fill="#555555" text-anchor="middle">code</text>
+<rect x="620" y="190" width="120" height="80" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="680.0" y="220.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">BCL</text>
+<text x="680.0" y="237.5" font-size="11.5" fill="#555555" text-anchor="middle">System.*</text>
+<text x="680.0" y="252.5" font-size="11.5" fill="#555555" text-anchor="middle">M.E.*</text>
+<rect x="620" y="280" width="230" height="46" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="735.0" y="301.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">NativeAOT: compile ahead-of-time</text>
+<text x="735.0" y="318.0" font-size="11.5" fill="#555555" text-anchor="middle">single binary, no JIT needed</text>
+<path d="M160,105 L210,105" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="191.0" y="99.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">compile</text>
+<text x="191.0" y="99.0" font-size="11" fill="#555" text-anchor="middle">compile</text>
+<path d="M350,105 L400,105" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="381.0" y="99.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">emit</text>
+<text x="381.0" y="99.0" font-size="11" fill="#555" text-anchor="middle">emit</text>
+<path d="M550,105 L620,105" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="591.0" y="99.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">load</text>
+<text x="591.0" y="99.0" font-size="11" fill="#555" text-anchor="middle">load</text>
+<path d="M740,105 L780,105" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M440,140 L440,190" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="460.0" y="159.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">hosts</text>
+<text x="460.0" y="159.0" font-size="11" fill="#555" text-anchor="middle">hosts</text>
+<path d="M570,230 L620,230" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="601.0" y="224.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">provides</text>
+<text x="601.0" y="224.0" font-size="11" fill="#555" text-anchor="middle">provides</text>
+<path d="M680,140 L680,190" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<text x="686.0" y="159.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">uses</text>
+<text x="686.0" y="159.0" font-size="11" fill="#555" text-anchor="middle">uses</text>
+<text x="30" y="290" font-size="11" fill="#888888" text-anchor="start">C# is one of several .NET languages (F#, VB.NET).</text>
+<text x="30" y="310" font-size="11" fill="#888888" text-anchor="start">CIL = Common Intermediate Language — the CPU-agnostic bytecode all .NET languages compile to.</text>
+</svg>
