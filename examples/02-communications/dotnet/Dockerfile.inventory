@@ -1,0 +1,14 @@
+FROM registry.access.redhat.com/ubi9/dotnet-100 AS build
+USER root
+WORKDIR /src
+COPY proto/ proto/
+COPY InventoryService/InventoryService.csproj InventoryService/
+RUN dotnet restore InventoryService/InventoryService.csproj
+COPY InventoryService/ InventoryService/
+RUN dotnet publish InventoryService/InventoryService.csproj -c Release -o /app
+
+FROM registry.access.redhat.com/ubi9/dotnet-100-aspnet
+WORKDIR /app
+COPY --from=build /app .
+EXPOSE 50051
+ENTRYPOINT ["dotnet", "InventoryService.dll"]
