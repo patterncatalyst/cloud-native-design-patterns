@@ -185,10 +185,15 @@ void publish(Order order) {
 ```
 
 ```csharp
-// MassTransit — key is the message identity; version travels as a header
-public Task PublishAsync(Order o) =>
-    bus.Publish(new OrderPlaced(o.Id, o.Sku, o.Quantity),
-        ctx => ctx.Headers.Set("schema.version", "2"));        // version, not the key
+// Confluent.Kafka — key is the message identity; version travels as a header
+var headers = new Headers { { "schema.version", "2"u8.ToArray() } };
+await producer.ProduceAsync("order.placed",
+    new Message<string, string>
+    {
+        Key = order.Id,                                        // key = identity
+        Value = JsonSerializer.Serialize(order),
+        Headers = headers,                                     // version as metadata
+    });
 ```
 
 ```python

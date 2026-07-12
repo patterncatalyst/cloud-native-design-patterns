@@ -1,0 +1,13 @@
+FROM registry.access.redhat.com/ubi9/dotnet-100 AS build
+USER root
+WORKDIR /src
+COPY EdgeService/EdgeService.csproj EdgeService/
+RUN dotnet restore EdgeService/EdgeService.csproj
+COPY EdgeService/ EdgeService/
+RUN dotnet publish EdgeService/EdgeService.csproj -c Release -o /app
+
+FROM registry.access.redhat.com/ubi9/dotnet-100-aspnet
+WORKDIR /app
+COPY --from=build /app .
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "EdgeService.dll"]

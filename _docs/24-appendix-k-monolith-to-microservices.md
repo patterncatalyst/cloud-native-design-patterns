@@ -448,44 +448,34 @@ public class OrdersDecorator {
 ```
 
 ```csharp
-// ASP.NET Core controller that wraps a legacy /orders API and adds a Redis
-// cache (IDistributedCache) and Kafka events (MassTransit). Legacy is unchanged.
-[ApiController, Route("orders")]
-public class OrdersDecorator(
-    IHttpClientFactory factory,
-    IDistributedCache  cache,
-    IPublishEndpoint   bus) : ControllerBase            // MassTransit
+// ASP.NET Core minimal API that wraps a legacy /orders API and adds a Redis
+// cache (StackExchange.Redis) and Kafka events (Confluent.Kafka).
+app.MapGet("/orders/{id}", async (string id, HttpContext ctx) =>
 {
-    private static readonly DistributedCacheEntryOptions TTL =
-        new() { AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60) };
+    var cached = await redis.GetDatabase().StringGetAsync($"order:{id}");
+    if (cached.HasValue)                                                  // 1. cache hit
+        return Results.Content(cached!, "application/json");
 
-    [HttpGet("{id}")]
-    public async Task<ActionResult<Order>> Get(string id, CancellationToken ct)
-    {
-        var key    = $"order:{id}";
-        var cached = await cache.GetStringAsync(key, ct);                 // 1. cache
-        if (cached is not null)
-            return Ok(JsonSerializer.Deserialize<Order>(cached));         //    hit
+    var resp = await legacyClient.GetAsync($"/orders/{id}");              // 2. legacy fallback
+    var json = await resp.Content.ReadAsStringAsync();
+    await redis.GetDatabase().StringSetAsync(
+        $"order:{id}", json, TimeSpan.FromSeconds(60));                   // 3. populate
+    return Results.Content(json, "application/json");
+});
 
-        var legacy = factory.CreateClient("legacy");                      // 2. legacy fallback
-        var order  = await legacy.GetFromJsonAsync<Order>($"/orders/{id}", ct)
-                     ?? throw new KeyNotFoundException();
-        await cache.SetStringAsync(key, JsonSerializer.Serialize(order), TTL, ct); // 3. populate
-        return Ok(order);
-    }
-
-    [HttpPost]
-    public async Task<ActionResult<Order>> Place(Order body, CancellationToken ct)
-    {
-        var legacy = factory.CreateClient("legacy");
-        var resp   = await legacy.PostAsJsonAsync("/orders", body, ct);   // 1. legacy first
-        var order  = await resp.Content.ReadFromJsonAsync<Order>(ct)
-                     ?? throw new InvalidOperationException("no order");
-        await bus.Publish(new OrderPlaced(order.Id, order.Total), ct);    // 2. emit event
-        await cache.RemoveAsync($"order:{order.Id}", ct);                 // 3. invalidate
-        return Ok(order);
-    }
-}
+app.MapPost("/orders", async (HttpContext ctx) =>
+{
+    using var body = await JsonDocument.ParseAsync(ctx.Request.Body);
+    var resp = await legacyClient.PostAsync("/orders",
+        new StringContent(body.RootElement.GetRawText(), Encoding.UTF8, "application/json"));
+    var json = await resp.Content.ReadAsStringAsync();
+    using var order = JsonDocument.Parse(json);
+    var orderId = order.RootElement.GetProperty("id").GetString()!;
+    await producer.ProduceAsync("order.placed",                           // Confluent.Kafka
+        new Message<Null, string> { Value = json });
+    await redis.GetDatabase().KeyDeleteAsync($"order:{orderId}");         // invalidate cache
+    return Results.Content(json, "application/json", statusCode: 201);
+});
 ```
 
 ```python

@@ -113,25 +113,33 @@ public class Notifier {
 ```
 
 ```csharp
-// MassTransit (Apache 2.0) — one programming model over Kafka, RabbitMQ, or
-// Azure Service Bus; sagas, retries, and a transactional outbox built in.
-
-public record OrderPlaced(string OrderId, string Sku, int Quantity);
+// Confluent.Kafka — low-level Kafka client (Apache 2.0);
+// MassTransit wraps this when you need sagas, retries, and the outbox.
 
 // producer — order-service emits the fact
-public class OrderEvents(IBus bus)                  // primary constructor
-{
-    public Task PublishAsync(Order o) =>
-        bus.Publish(new OrderPlaced(o.Id, o.Sku, o.Quantity));  // keyed by type
-}
+var producer = new ProducerBuilder<Null, string>(
+    new ProducerConfig { BootstrapServers = kafkaBootstrap }).Build();
 
-// consumer — notification-service, Kafka-only by design
-public class Notifier(IEmailSender mail) : IConsumer<OrderPlaced>
+var json = JsonSerializer.Serialize(new { id, sku, quantity, status });
+await producer.ProduceAsync("order.placed",
+    new Message<Null, string> { Value = json });     // fire-and-forget ack
+
+// consumer — notification-service
+var consumer = new ConsumerBuilder<Ignore, string>(new ConsumerConfig
 {
-    public async Task Consume(ConsumeContext<OrderPlaced> ctx)
-    {
-        await mail.Send(ctx.Message);   // do the work; acked on return
-    }                                   // throw to redeliver — at-least-once
+    BootstrapServers = kafkaBootstrap,
+    GroupId          = "notification-group",
+    AutoOffsetReset  = AutoOffsetReset.Earliest,
+    EnableAutoCommit = false,
+}).Build();
+consumer.Subscribe("order.placed");
+
+while (!ct.IsCancellationRequested)
+{
+    var cr = consumer.Consume(TimeSpan.FromSeconds(1));
+    if (cr is null) continue;
+    await ProcessNotification(cr.Message.Value);     // do the work
+    consumer.Commit(cr);                             // ack after — at-least-once
 }
 ```
 
@@ -492,12 +500,15 @@ public OrderValidated process(Order o) {
 ```
 
 ```csharp
-// MassTransit — consume the fact, publish the derived fact
-public class Validator(IBus bus) : IConsumer<OrderPlaced>
+// consume the fact, publish the derived fact
+var cr = consumer.Consume(TimeSpan.FromSeconds(1));
+if (cr is not null)
 {
-    public Task Consume(ConsumeContext<OrderPlaced> ctx) =>
-        bus.Publish(new OrderValidated(
-            ctx.Message.OrderId, Validate(ctx.Message)));   // pure transform
+    var order = JsonSerializer.Deserialize<OrderPlaced>(cr.Message.Value)!;
+    var validated = new OrderValidated(order.OrderId, Validate(order));
+    await producer.ProduceAsync("order.validated",
+        new Message<Null, string> { Value = JsonSerializer.Serialize(validated) });
+    consumer.Commit(cr);                                   // pure transform
 }
 ```
 
@@ -687,12 +698,13 @@ public void onOrder(Order o) {
 ```
 
 ```csharp
-public class OrderViewProjector(IViewStore views) : IConsumer<OrderPlaced>
+var cr = consumer.Consume(TimeSpan.FromSeconds(1));
+if (cr is not null)
 {
-    public Task Consume(ConsumeContext<OrderPlaced> ctx) =>
-        views.UpsertAsync(new OrderView(            // denormalized local row
-            ctx.Message.OrderId, ctx.Message.Customer,
-            ctx.Message.Total, ctx.Message.Status));  // built from the event alone
+    var ev = JsonSerializer.Deserialize<OrderPlaced>(cr.Message.Value)!;
+    await views.UpsertAsync(new OrderView(            // denormalized local row
+        ev.OrderId, ev.Customer, ev.Total, ev.Status));
+    consumer.Commit(cr);                              // built from the event alone
 }
 ```
 
@@ -869,12 +881,14 @@ public void onStatus(OrderStatus e) {
 ```
 
 ```csharp
-public Task Consume(ConsumeContext<OrderStatus> ctx)
+var cr = consumer.Consume(TimeSpan.FromSeconds(1));
+if (cr is not null)
 {
-    var e = ctx.Message; var cur = _views.Find(e.Id);
+    var e = JsonSerializer.Deserialize<OrderStatus>(cr.Message.Value)!;
+    var cur = views.Find(e.Id);
     if (cur is null || e.Version > cur.Version)        // last-writer-wins
-        _views.Upsert(new OrderView(e.Id, e.Status, e.Version));
-    return Task.CompletedTask;
+        views.Upsert(new OrderView(e.Id, e.Status, e.Version));
+    consumer.Commit(cr);
 }
 ```
 

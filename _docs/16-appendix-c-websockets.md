@@ -58,21 +58,23 @@ public class OrderSocket {
 ```
 
 ```csharp
-// SignalR ships in the box with ASP.NET Core. The Hub abstraction handles
-// framing, heartbeats, and reconnect; a Redis backplane handles scale-out.
-public class OrdersHub : Hub                  // one Hub per logical channel
+// raw ASP.NET Core WebSockets — no SignalR, verify.sh can test with wscat.
+app.UseWebSockets();
+app.Map("/ws/{userId}", async (HttpContext ctx, string userId) =>
 {
-    private readonly IOrderService _orders;
-    public OrdersHub(IOrderService orders) => _orders = orders;
-
-    public override async Task OnConnectedAsync()
+    if (!ctx.WebSockets.IsWebSocketRequest) { ctx.Response.StatusCode = 400; return; }
+    var ws = await ctx.WebSockets.AcceptWebSocketAsync();
+    clients[userId] = ws;                               // per-pod state
+    var buf = new byte[4096];
+    while (ws.State == WebSocketState.Open)
     {
-        var userId = Context.UserIdentifier!;          // server-side auth
-        await Groups.AddToGroupAsync(Context.ConnectionId, userId);
-        await base.OnConnectedAsync();
+        var result = await ws.ReceiveAsync(buf, CancellationToken.None);
+        if (result.MessageType == WebSocketMessageType.Close) break;
+        var msg = Encoding.UTF8.GetString(buf, 0, result.Count);
+        await Broadcast(msg);                           // fan-out to this pod's clients
     }
-    // builder.AddSignalR().AddStackExchangeRedis("redis:6379");  // the backplane
-}
+    clients.Remove(userId, out _);
+});
 ```
 
 ```python

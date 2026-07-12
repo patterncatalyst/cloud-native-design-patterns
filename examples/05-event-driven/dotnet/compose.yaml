@@ -1,0 +1,66 @@
+include:
+  - path: ../../_infra/compose-lgtm.yaml
+  - path: ../../_infra/compose-postgres.yaml
+  - path: ../../_infra/compose-kafka.yaml
+
+services:
+  postgres:
+    volumes:
+      - ../db/init:/docker-entrypoint-initdb.d:Z
+
+  kafka-ui:
+    ports: !override []
+
+  order-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.order
+    container_name: cndp-order-service
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=Host=postgres;Port=5432;Database=appdb;Username=appuser;Password=apppass
+      - KAFKA_BOOTSTRAP=kafka:9094
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+      - SERVICE_VERSION=1.0.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  shipping-consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile.shipping
+    container_name: cndp-shipping
+    environment:
+      - DATABASE_URL=Host=postgres;Port=5432;Database=appdb;Username=appuser;Password=apppass
+      - KAFKA_BOOTSTRAP=kafka:9094
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  notification-consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile.notification
+    container_name: cndp-notification
+    environment:
+      - DATABASE_URL=Host=postgres;Port=5432;Database=appdb;Username=appuser;Password=apppass
+      - KAFKA_BOOTSTRAP=kafka:9094
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
