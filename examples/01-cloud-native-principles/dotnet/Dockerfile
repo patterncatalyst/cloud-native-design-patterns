@@ -1,4 +1,5 @@
 FROM registry.access.redhat.com/ubi9/dotnet-100 AS build
+USER root
 WORKDIR /src
 COPY OrderService/OrderService.csproj OrderService/
 RUN dotnet restore OrderService/OrderService.csproj

@@ -1,8 +1,8 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Npgsql;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://+:8080");
@@ -10,7 +10,8 @@ builder.WebHost.UseUrls("http://+:8080");
 var connString = builder.Configuration.GetConnectionString("Default")
     ?? throw new InvalidOperationException("ConnectionStrings:Default is required");
 
-builder.Services.AddNpgsqlDataSource(connString);
+var dataSource = new NpgsqlDataSourceBuilder(connString).Build();
+builder.Services.AddSingleton(dataSource);
 
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("order-service"))
