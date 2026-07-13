@@ -119,6 +119,56 @@ don't ask for the new field, so they're unaffected), mark superseded fields
    alt="A four-step GraphQL evolution flow with no version number. Add: a new field or type, additive and safe, clients opt in. Deprecated: mark the old field with a reason and replacement, still served. Watch usage: field-level metrics show who still queries it and drive migration. Retire: at zero usage, remove the field — the only breaking step."
    caption="Figure B.3 — GraphQL evolves rather than versions: add, deprecate, watch usage, then retire" %}
 
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+// spring-boot-starter-graphql — SDL schema; deprecated shows in introspection
+// schema.graphqls:
+//   type Order {
+//     id: ID!
+//     total: Float @deprecated(reason: "Use totalMinor (integer cents) instead.")
+//     totalMinor: Int!
+//   }
+@Controller
+public class OrderController {
+    @SchemaMapping(typeName = "Order", field = "totalMinor")
+    public int totalMinor(Order order) {
+        return (int) (order.getTotal() * 100);   // the replacement, added additively
+    }
+}
+```
+
+```java
+// SmallRye GraphQL — @Deprecated maps to the SDL directive
+@GraphQLApi
+public class OrderApi {
+    @Query
+    public Order order(String id) { return orders.get(id); }
+}
+
+@Type
+public class Order {
+    public String id;
+    @Deprecated                                  // still served; shows in introspection
+    public double total;
+    @Name("totalMinor")
+    public int getTotalMinor() { return (int) (total * 100); }  // added additively
+}
+```
+
+```csharp
+// HotChocolate — [GraphQLDeprecated] maps to the SDL @deprecated directive
+public class Order
+{
+    public string Id { get; init; }
+
+    [GraphQLDeprecated("Use totalMinor (integer cents) instead.")]
+    public double Total { get; init; }           // still served; shows in introspection
+
+    public int TotalMinor => (int)(Total * 100); // the replacement, added additively
+}
+```
+
 ```python
 import strawberry
 
@@ -129,6 +179,36 @@ class Order:
         deprecation_reason="Use totalMinor (integer cents) instead.",
     )                                      # still served; shows in introspection
     total_minor: int                       # the replacement, added additively
+```
+
+```cpp
+// cppgraphqlgen — the SDL directive drives introspection; code implements both
+// schema.graphql:
+//   type Order {
+//     id: ID!
+//     total: Float @deprecated(reason: "Use totalMinor (integer cents) instead.")
+//     totalMinor: Int!
+//   }
+class OrderResolver : public object::Order {
+ public:
+  service::AwaitableScalar<double> getTotal() const { co_return total_; }   // deprecated
+  service::AwaitableScalar<int> getTotalMinor() const {                     // replacement
+    co_return static_cast<int>(total_ * 100);
+  }
+};
+```
+
+```go
+// gqlgen — the SDL @deprecated directive shows in introspection automatically
+// schema.graphqls:
+//   type Order {
+//     id: ID!
+//     total: Float @deprecated(reason: "Use totalMinor (integer cents) instead.")
+//     totalMinor: Int!
+//   }
+func (r *orderResolver) TotalMinor(ctx context.Context, obj *Order) (int, error) {
+	return int(obj.Total * 100), nil // the replacement, added additively
+}
 ```
 
 Clients see the deprecation in introspection and in tooling (the Playground),

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 310" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="10" y="10" width="560" height="190" rx="12" fill="#eef4fb" stroke="#ddd"/>
+<text x="22" y="30" font-size="12" font-weight="700" fill="#1d1d1d">Blazor Server pods</text>
+<rect x="590" y="10" width="280" height="190" rx="12" fill="#fff8ef" stroke="#ddd"/>
+<text x="602" y="30" font-size="12" font-weight="700" fill="#1d1d1d">Shared backplane</text>
+<rect x="30" y="55" width="150" height="55" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="105.0" y="80.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">blazor-pod-1</text>
+<text x="105.0" y="97.5" font-size="11.5" fill="#555555" text-anchor="middle">42 circuits</text>
+<rect x="210" y="55" width="150" height="55" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="285.0" y="80.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">blazor-pod-2</text>
+<text x="285.0" y="97.5" font-size="11.5" fill="#555555" text-anchor="middle">38 circuits</text>
+<rect x="390" y="55" width="150" height="55" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="465.0" y="80.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">blazor-pod-3</text>
+<text x="465.0" y="97.5" font-size="11.5" fill="#555555" text-anchor="middle">0 circuits (new)</text>
+<rect x="30" y="140" width="510" height="40" rx="9" fill="#f4f4f4" stroke="#888888" stroke-width="1.5"/>
+<text x="285.0" y="165.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Kubernetes Service / load balancer — sticky per circuit</text>
+<rect x="620" y="55" width="220" height="55" rx="9" fill="#111111" stroke="#111111" stroke-width="2"/>
+<text x="730.0" y="80.5" font-size="13.5" font-weight="700" fill="#ffffff" text-anchor="middle">Redis</text>
+<text x="730.0" y="97.5" font-size="11.5" fill="#dddddd" text-anchor="middle">SignalR backplane</text>
+<rect x="620" y="140" width="220" height="40" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="730.0" y="165.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">pub/sub on cndp-signalr:*</text>
+<rect x="30" y="230" width="240" height="55" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="150.0" y="255.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Dashboard clients</text>
+<text x="150.0" y="272.5" font-size="11.5" fill="#555555" text-anchor="middle">browser tabs, each on one circuit</text>
+<rect x="360" y="230" width="240" height="55" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="480.0" y="255.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">REST API caller</text>
+<text x="480.0" y="272.5" font-size="11.5" fill="#555555" text-anchor="middle">curl POST /orders</text>
+<rect x="650" y="230" width="190" height="55" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="745.0" y="255.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Group message</text>
+<text x="745.0" y="272.5" font-size="11.5" fill="#555555" text-anchor="middle">via Redis → all pods</text>
+<path d="M180,82 L620,82" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<text x="406.0" y="76.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">subscribe</text>
+<text x="406.0" y="76.0" font-size="11" fill="#555" text-anchor="middle">subscribe</text>
+<path d="M360,82 L620,82" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<path d="M540,82 L620,82" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
+<path d="M730,110 L730,140" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M150,230 L150,180" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="30" y="300" font-size="11" fill="#888888" text-anchor="start">One AddStackExchangeRedis() call replaces the manual pub/sub setup from Appendix C.</text>
+</svg>

@@ -57,6 +57,162 @@ Four concrete payoffs, each replacing a thing teams currently do by asking aroun
   owner on every asset. This is also exactly what a compliance team needs, so the
   catalog does double duty.
 
+## Working with the catalog API
+
+OpenMetadata exposes a REST API for everything the UI does. Two operations every
+service team reaches for: **tagging an asset** (mark a field as PII so governance
+knows about it) and **querying lineage** (find out who depends on a topic before
+changing its schema). Both are simple HTTP calls from any language:
+
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+// MetadataClient.java — tag an asset and query lineage via OpenMetadata REST API
+@Service
+public class MetadataClient {
+    private static final String CATALOG = "http://openmetadata.svc/api/v1";
+    private final RestClient rest = RestClient.create();
+
+    public void tagAsPii(String tableId, String column) {
+        rest.patch()
+            .uri(CATALOG + "/tables/{id}", tableId)
+            .contentType(MediaType.valueOf("application/json-patch+json"))
+            .body(List.of(Map.of("op", "add",
+                "path", "/columns/" + column + "/tags/-",
+                "value", Map.of("tagFQN", "PII.Sensitive"))))
+            .retrieve().toBodilessEntity();
+    }
+
+    public JsonNode lineage(String topicFqn) {
+        return rest.get()
+            .uri(CATALOG + "/lineage/topic/name/{fqn}", topicFqn)
+            .retrieve().body(JsonNode.class);          // upstream + downstream graph
+    }
+}
+```
+
+```java
+// MetadataClient.java — Quarkus REST client for OpenMetadata
+@RegisterRestClient(baseUri = "http://openmetadata.svc/api/v1")
+public interface MetadataClient {
+
+    @PATCH @Path("/tables/{id}")
+    @Consumes("application/json-patch+json")
+    Response tagAsPii(@PathParam("id") String tableId, JsonArray patch);
+
+    @GET @Path("/lineage/topic/name/{fqn}")
+    JsonObject lineage(@PathParam("fqn") String topicFqn);
+}
+```
+
+```csharp
+// MetadataClient.cs — tag an asset and query lineage via OpenMetadata REST API
+public class MetadataClient(HttpClient http)
+{
+    private const string Catalog = "http://openmetadata.svc/api/v1";
+
+    public async Task TagAsPiiAsync(string tableId, string column)
+    {
+        var patch = JsonSerializer.Serialize(new[] { new {
+            op = "add",
+            path = $"/columns/{column}/tags/-",
+            value = new { tagFQN = "PII.Sensitive" } } });
+        await http.PatchAsync($"{Catalog}/tables/{tableId}",
+            new StringContent(patch, Encoding.UTF8, "application/json-patch+json"));
+    }
+
+    public async Task<JsonDocument> LineageAsync(string topicFqn)
+    {
+        var json = await http.GetStringAsync(
+            $"{Catalog}/lineage/topic/name/{topicFqn}");
+        return JsonDocument.Parse(json);               // upstream + downstream graph
+    }
+}
+```
+
+```python
+import httpx
+
+CATALOG = "http://openmetadata.svc/api/v1"
+
+async def tag_as_pii(table_id: str, column: str):
+    async with httpx.AsyncClient() as client:
+        await client.patch(
+            f"{CATALOG}/tables/{table_id}",
+            headers={"Content-Type": "application/json-patch+json"},
+            json=[{"op": "add",
+                   "path": f"/columns/{column}/tags/-",
+                   "value": {"tagFQN": "PII.Sensitive"}}],
+        )
+
+async def lineage(topic_fqn: str) -> dict:
+    async with httpx.AsyncClient() as client:
+        r = await client.get(f"{CATALOG}/lineage/topic/name/{topic_fqn}")
+        return r.json()                                # upstream + downstream graph
+```
+
+{% raw %}
+```cpp
+// metadata_client.h — tag an asset and query lineage via OpenMetadata REST API
+#include <cpr/cpr.h>
+
+inline void tag_as_pii(std::string_view table_id, std::string_view column) {
+  auto url = fmt::format("http://openmetadata.svc/api/v1/tables/{}", table_id);
+  auto patch = fmt::format(
+      R"([{{"op":"add","path":"/columns/{}/tags/-","value":{{"tagFQN":"PII.Sensitive"}}}}])",
+      column);
+  cpr::Patch(cpr::Url{url},
+             cpr::Header{{"Content-Type", "application/json-patch+json"}},
+             cpr::Body{patch});
+}
+
+inline std::string lineage(std::string_view topic_fqn) {
+  auto url = fmt::format(
+      "http://openmetadata.svc/api/v1/lineage/topic/name/{}", topic_fqn);
+  return cpr::Get(cpr::Url{url}).text;                 // upstream + downstream graph
+}
+```
+{% endraw %}
+
+{% raw %}
+```go
+// metadata_client.go — tag an asset and query lineage via OpenMetadata REST API
+const catalog = "http://openmetadata.svc/api/v1"
+
+func tagAsPII(ctx context.Context, tableID, column string) error {
+	patch, _ := json.Marshal([]map[string]any{{
+		"op": "add", "path": "/columns/" + column + "/tags/-",
+		"value": map[string]string{"tagFQN": "PII.Sensitive"},
+	}})
+	req, _ := http.NewRequestWithContext(ctx, "PATCH",
+		catalog+"/tables/"+tableID, bytes.NewReader(patch))
+	req.Header.Set("Content-Type", "application/json-patch+json")
+	_, err := http.DefaultClient.Do(req)
+	return err
+}
+
+func lineage(ctx context.Context, topicFQN string) (map[string]any, error) {
+	resp, err := http.Get(catalog + "/lineage/topic/name/" + topicFQN)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	var result map[string]any
+	json.NewDecoder(resp.Body).Decode(&result)         // upstream + downstream graph
+	return result, nil
+}
+```
+{% endraw %}
+
+## Data contracts as code
+
+The catalog is most valuable when its metadata lives in Git alongside the schemas it
+describes — **data contracts as code**. A data contract is a YAML or JSON document
+committed next to the schema that declares the asset's owner, its SLO (freshness,
+completeness), its PII classification, and its criticality tier. The CI pipeline that
+gates schema changes also validates the contract, so ownership and quality expectations
+are version-controlled and reviewable, not hand-entered in a UI.
+
 The throughline of the last two chapters: a contract is only as good as your
 ability to **find it, trust it, and know who owns it.** The registry makes the
 contract authoritative; the catalog makes it discoverable and accountable.

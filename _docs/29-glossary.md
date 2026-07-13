@@ -2,7 +2,7 @@
 title: "Acronyms"
 marker: "★"
 label: "Glossary"
-order: 29
+order: 31
 part: "Deep-dive appendices"
 description: "Every acronym used across the book, expanded and placed in context — grouped by where it shows up: the wire, the data layer, events, the platform, security, observability, and the domain."
 ---

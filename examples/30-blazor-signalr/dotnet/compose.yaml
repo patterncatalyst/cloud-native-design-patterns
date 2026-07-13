@@ -1,0 +1,35 @@
+include:
+  - path: ../../_infra/compose-lgtm.yaml
+  - path: ../../_infra/compose-postgres.yaml
+  - path: ../../_infra/compose-redis.yaml
+
+services:
+  postgres:
+    volumes:
+      - ../db/init:/docker-entrypoint-initdb.d:Z
+
+  blazor-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cndp-order-service
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=Host=postgres;Port=5432;Database=appdb;Username=appuser;Password=apppass
+      - REDIS_URL=redis:6379
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      lgtm:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
