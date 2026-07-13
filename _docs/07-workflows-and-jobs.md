@@ -100,13 +100,144 @@ topic, with the `ScaledObject` from the stream-processing chapter giving it
 scale-to-zero. The shape of the work picks the home: run-once is a Job, scheduled
 is a CronJob, continuous is a scaled Deployment.
 
-One discipline ties all three together: **idempotency**. A Job retries on failure, a
-CronJob can re-run or overlap, and a redelivered message re-invokes a queue worker —
-so each must be safe to run more than once. Re-running last night's reconciliation
-must not double-count; reprocessing a message must not charge a card twice. This is
-the same at-least-once-plus-idempotent rule from the event-driven chapter, applied to
-scheduled and background work — design the task so a second run is a no-op, and the
-platform's retries become a safety net instead of a hazard.
+## The queue worker the YAML above never shows
+
+The CronJob and the ScaledObject are infra — they schedule and scale the work. But
+the *worker itself* is application code: a loop that drains a topic, processes each
+message off the request path, and commits.
+
+{% include excalidraw.html
+   file="07-queue-worker"
+   alt="An HTTP request places an order and returns 201 immediately; the order-service publishes an order.placed fact to Kafka. A separate queue-worker pod (scaled by KEDA) drains the topic, processes the work (send email, resize image, generate report), commits the offset, and the heavy work never blocks the request."
+   caption="Figure 7.3 — The queue worker drains the topic off the request path; the request returns immediately" %}
+
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+// ImageResizeWorker.java — off the request path, KEDA-scaled on lag
+@Component
+public class ImageResizeWorker {
+
+    @KafkaListener(topics = "image.uploaded", groupId = "resize-worker")
+    public void process(ConsumerRecord<String, String> record, Acknowledgment ack) {
+        var payload = parsePayload(record.value());
+        resizeAndStore(payload);                 // heavy work — never on the HTTP path
+        ack.acknowledge();                       // manual commit after success
+    }
+}
+```
+
+```java
+// ImageResizeWorker.java — Quarkus SmallRye Reactive Messaging
+@ApplicationScoped
+public class ImageResizeWorker {
+
+    @Incoming("image-uploaded")                  // mapped to the Kafka topic in config
+    @Blocking                                    // heavy work runs on a worker thread
+    public CompletionStage<Void> process(Message<String> msg) {
+        var payload = parsePayload(msg.getPayload());
+        resizeAndStore(payload);                 // heavy work — never on the HTTP path
+        return msg.ack();                        // manual commit after success
+    }
+}
+```
+
+```csharp
+// ImageResizeWorker.cs — BackgroundService, KEDA-scaled on lag
+public class ImageResizeWorker(ILogger<ImageResizeWorker> log) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken ct)
+    {
+        using var consumer = new ConsumerBuilder<Ignore, string>(new ConsumerConfig
+        {
+            BootstrapServers = "kafka:9094",
+            GroupId = "resize-worker",
+            EnableAutoCommit = false,
+        }).Build();
+        consumer.Subscribe("image.uploaded");
+
+        while (!ct.IsCancellationRequested)
+        {
+            var cr = consumer.Consume(ct);
+            var payload = ParsePayload(cr.Message.Value);
+            await ResizeAndStoreAsync(payload);  // heavy work — never on the HTTP path
+            consumer.Commit(cr);                 // manual commit after success
+        }
+    }
+}
+```
+
+```python
+from aiokafka import AIOKafkaConsumer
+
+async def run_worker():
+    consumer = AIOKafkaConsumer(
+        "image.uploaded", bootstrap_servers="kafka:9094",
+        group_id="resize-worker", enable_auto_commit=False)
+    await consumer.start()
+    async for msg in consumer:
+        payload = parse_payload(msg.value)
+        await resize_and_store(payload)          # heavy work — never on the HTTP path
+        await consumer.commit()                  # manual commit after success
+```
+
+```cpp
+// image_resize_worker.cc — modern-cpp-kafka consumer, KEDA-scaled on lag
+kafka::clients::consumer::KafkaConsumer consumer(props);
+consumer.subscribe({"image.uploaded"});
+
+while (!stop_token.stop_requested()) {
+  for (auto& record : consumer.poll(100ms)) {
+    auto payload = parse_payload(record.value().toString());
+    resize_and_store(payload);                   // heavy work — never on the HTTP path
+    consumer.commitSync(record);                 // manual commit after success
+  }
+}
+```
+
+```go
+// image_resize_worker.go — franz-go consumer, KEDA-scaled on lag
+cl, _ := kgo.NewClient(kgo.SeedBrokers("kafka:9094"),
+	kgo.ConsumerGroup("resize-worker"),
+	kgo.ConsumeTopics("image.uploaded"),
+	kgo.DisableAutoCommit())
+
+for {
+	fetches := cl.PollFetches(ctx)
+	fetches.EachRecord(func(r *kgo.Record) {
+		payload := parsePayload(r.Value)
+		resizeAndStore(ctx, payload)             // heavy work — never on the HTTP path
+	})
+	cl.CommitUncommittedOffsets(ctx)             // manual commit after success
+}
+```
+
+The point: the HTTP handler publishes the fact and returns immediately. The
+worker picks it up, does the heavy processing, and commits. Kill the worker and
+the message waits on the topic; restart it and work resumes from the last
+committed offset — which is exactly why idempotency matters.
+
+## Orchestration with explicit state
+
+When a multi-step process has compensations and a lifecycle, that lifecycle wants
+to live somewhere explicit — a **state machine row** that you can query, audit, and
+resume. The orchestrator advances through defined steps, commits each transition
+with the next command in one transaction (the same outbox discipline from the Data
+chapter), and is idempotent by construction: re-running a step that already committed
+is a no-op.
+
+The code for this pattern — the DB-backed saga with row locks, idempotent advance,
+and compensation in reverse — is in **Appendix D · Sagas**. What matters here is
+that the state is *queryable*: you can always answer "where is order 42?" by reading
+the saga row, which is the visibility that choreography sacrifices.
+
+One discipline ties all three homes together: **idempotency**. A Job retries on
+failure, a CronJob can re-run or overlap, and a redelivered message re-invokes a
+queue worker — so each must be safe to run more than once. Re-running last night's
+reconciliation must not double-count; reprocessing a message must not charge a card
+twice. This is the same at-least-once-plus-idempotent rule from the event-driven
+chapter, applied to scheduled and background work — design the task so a second run
+is a no-op, and the platform's retries become a safety net instead of a hazard.
 
 ### Cross-check it yourself
 
