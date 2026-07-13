@@ -293,6 +293,133 @@ func push(ctx context.Context, c *websocket.Conn, seq uint64, ev *pb.OrderPlaced
 }
 ```
 
+### Receiving and dispatching the envelope
+
+The send side above is half the story. The receive side is the mirror: read the
+binary frame, parse the `Envelope`, and dispatch on `type`. Every language follows
+the same structure — read binary, deserialize, switch.
+
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+// BinaryWebSocketHandler — receive and dispatch a protobuf Envelope
+@Override
+protected void handleBinaryMessage(WebSocketSession s, BinaryMessage msg) {
+    Envelope env = Envelope.parseFrom(msg.getPayload().array());
+    switch (env.getType()) {
+        case "OrderPlaced" -> {
+            OrderPlaced event = OrderPlaced.parseFrom(env.getPayload());
+            handleOrderPlaced(s, env.getSeq(), event);
+        }
+        case "OrderCancelled" -> {
+            OrderCancelled event = OrderCancelled.parseFrom(env.getPayload());
+            handleOrderCancelled(s, env.getSeq(), event);
+        }
+    }
+}
+```
+
+```java
+// quarkus-websockets-next — receive and dispatch a protobuf Envelope
+@OnBinaryMessage
+void onBinary(Buffer buf) {
+    Envelope env = Envelope.parseFrom(buf.getBytes());
+    switch (env.getType()) {
+        case "OrderPlaced" -> {
+            OrderPlaced event = OrderPlaced.parseFrom(env.getPayload());
+            handleOrderPlaced(env.getSeq(), event);
+        }
+        case "OrderCancelled" -> {
+            OrderCancelled event = OrderCancelled.parseFrom(env.getPayload());
+            handleOrderCancelled(env.getSeq(), event);
+        }
+    }
+}
+```
+
+```csharp
+// receive and dispatch a protobuf Envelope from a binary WebSocket frame
+var buf = new byte[4096];
+while (ws.State == WebSocketState.Open)
+{
+    var result = await ws.ReceiveAsync(buf, ct);
+    if (result.MessageType != WebSocketMessageType.Binary) continue;
+    var env = Envelope.Parser.ParseFrom(buf, 0, result.Count);
+    switch (env.Type)
+    {
+        case "OrderPlaced":
+            var placed = OrderPlaced.Parser.ParseFrom(env.Payload);
+            HandleOrderPlaced(env.Seq, placed);
+            break;
+        case "OrderCancelled":
+            var cancelled = OrderCancelled.Parser.ParseFrom(env.Payload);
+            HandleOrderCancelled(env.Seq, cancelled);
+            break;
+    }
+}
+```
+
+```python
+async def receive_loop(sock: WebSocket):
+    while True:
+        data = await sock.receive_bytes()              # binary frame
+        env = Envelope()
+        env.ParseFromString(data)
+        if env.type == "OrderPlaced":
+            event = OrderPlaced()
+            event.ParseFromString(env.payload)
+            await handle_order_placed(env.seq, event)
+        elif env.type == "OrderCancelled":
+            event = OrderCancelled()
+            event.ParseFromString(env.payload)
+            await handle_order_cancelled(env.seq, event)
+```
+
+```cpp
+// Drogon — receive and dispatch a protobuf Envelope from a binary frame
+void handleNewMessage(const WebSocketConnectionPtr& conn,
+                      std::string&& message,
+                      const WebSocketMessageType& type) override {
+  if (type != WebSocketMessageType::Binary) return;
+  Envelope env;
+  env.ParseFromString(message);
+  if (env.type() == "OrderPlaced") {
+    OrderPlaced event;
+    event.ParseFromString(env.payload());
+    handle_order_placed(env.seq(), event);
+  } else if (env.type() == "OrderCancelled") {
+    OrderCancelled event;
+    event.ParseFromString(env.payload());
+    handle_order_cancelled(env.seq(), event);
+  }
+}
+```
+
+```go
+// coder/websocket — receive and dispatch a protobuf Envelope
+for {
+	typ, data, err := c.Read(ctx)
+	if err != nil {
+		return // disconnect
+	}
+	if typ != websocket.MessageBinary {
+		continue
+	}
+	var env pb.Envelope
+	proto.Unmarshal(data, &env)
+	switch env.Type {
+	case "OrderPlaced":
+		var event pb.OrderPlaced
+		proto.Unmarshal(env.Payload, &event)
+		handleOrderPlaced(env.Seq, &event)
+	case "OrderCancelled":
+		var event pb.OrderCancelled
+		proto.Unmarshal(env.Payload, &event)
+		handleOrderCancelled(env.Seq, &event)
+	}
+}
+```
+
 ## Failover without interruption
 
 Resume is the client-side mechanic; **failover** is what it buys you when a whole pod
@@ -332,6 +459,80 @@ so performance work is mostly about keeping the *per-message* cost low and the
 The throughline with the rest of this appendix: most of these are the same levers
 that make the system *scale* — bounded buffers and connection caps are what let the
 HPA reason about a pod, and binary framing is what keeps the backplane cheap.
+
+## Backpressure in practice
+
+The performance table lists bounded send buffers as a lever; here is what that looks
+like. The idea is simple: each connection gets a fixed-size outbound queue. When the
+queue is full — because the client is reading slower than you are writing — you either
+**drop the message** (acceptable for live-updating dashboards where the next update
+replaces the stale one) or **disconnect the client** (preferable when every message
+must be delivered and the client is genuinely stuck):
+
+```csharp
+// bounded send buffer — drop or disconnect when the client can't keep up
+private readonly Channel<byte[]> _outbox = Channel.CreateBounded<byte[]>(
+    new BoundedChannelOptions(128) { FullMode = BoundedChannelFullMode.DropOldest });
+
+async Task WriterLoop(WebSocket ws, CancellationToken ct)
+{
+    await foreach (var msg in _outbox.Reader.ReadAllAsync(ct))
+        await ws.SendAsync(msg, WebSocketMessageType.Binary, true, ct);
+}
+```
+
+```go
+// bounded send buffer — disconnect when the client can't keep up
+outbox := make(chan []byte, 128) // bounded: 128 pending messages max
+
+go func() {
+	for msg := range outbox {
+		if err := c.Write(ctx, websocket.MessageBinary, msg); err != nil {
+			return // client too slow — disconnect
+		}
+	}
+}()
+```
+
+The same pattern applies in every language — a bounded queue per connection, drained
+by a dedicated writer goroutine/task. Without it, a single slow client grows an
+unbounded buffer until the pod OOMs.
+
+## SignalR and managed backplanes
+
+Everything in this appendix uses raw WebSockets — direct `ws.SendAsync` or
+`c.Write`, manual heartbeats, hand-built backplanes, explicit sequence tracking.
+This is deliberate: raw sockets are cross-language, and the patterns (backplane,
+resume, binary framing) are universal.
+
+**SignalR** is ASP.NET Core's real-time abstraction that sits *on top of* WebSockets
+(with automatic fallback to Server-Sent Events or long polling when WebSockets aren't
+available). It provides:
+
+- **Hub abstraction** — strongly typed methods instead of raw message parsing; the
+  server calls `Clients.All.OrderPlaced(order)` and the client receives a typed
+  callback.
+- **Automatic reconnection** — built-in reconnect with configurable backoff, no
+  client-side resume logic needed.
+- **Connection groups** — server-side `Groups.AddToGroupAsync("tenant-A", connectionId)`
+  replaces the per-pod registry + backplane fan-out with a single API call.
+- **Managed backplane** — `AddStackExchangeRedis()` wires up a Redis backplane for
+  scale-out, or **Azure SignalR Service** offloads the persistent connections entirely
+  to a managed endpoint.
+
+**When SignalR is the right choice**: .NET-only teams where every producer and consumer
+is C#; projects that need automatic fallback transports; teams that want connection
+management and scale-out handled by the framework rather than hand-built. SignalR's
+Redis backplane solves the same problem as the manual Redis pub/sub approach in this
+appendix, but with less code and built-in group semantics.
+
+**When raw WebSockets are the right choice**: polyglot systems (this book's six-language
+examples), binary protobuf framing (SignalR uses its own MessagePack or JSON protocol),
+or when you need control over the exact wire format for interop with non-.NET clients.
+
+A full walkthrough of SignalR in a Blazor Server app — including the Redis backplane,
+connection groups, and a runnable example — is in **Appendix Q · Blazor Server +
+SignalR**.
 
 ## A cloud-native WebSocket checklist
 
