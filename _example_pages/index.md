@@ -5,6 +5,7 @@ marker: "▶"
 label: "Examples"
 permalink: /examples/
 order: 1
+wide: true
 ---
 
 Each example lives in `examples/NN-slug/` and ships with a language-agnostic
