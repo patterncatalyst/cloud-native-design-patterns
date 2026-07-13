@@ -52,8 +52,62 @@ curl -s -o /dev/null -w "%{http_code}" -X POST \
   --data-binary @order-placed.avsc        # → 200 if compatible, 409 if not
 ```
 
-The same call works from application or pipeline code in any language — here in
-Python, returning exactly the status code the CI gate keys off:
+The same call works from application or pipeline code in any language, returning
+exactly the status code the CI gate keys off:
+
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+// RegistryClient.java — register a new version; the registry enforces the rule
+@Component
+public class RegistryClient {
+    private static final String REGISTRY =
+        "http://apicurio.registry.svc/apis/registry/v3";
+    private final RestClient rest = RestClient.create();
+
+    public int publish(String group, String artifactId, byte[] schema) {
+        var resp = rest.post()
+            .uri(REGISTRY + "/groups/{g}/artifacts/{a}/versions", group, artifactId)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(schema)
+            .retrieve()
+            .toBodilessEntity();
+        return resp.getStatusCode().value();   // 200 if compatible, 409 if rejected
+    }
+}
+```
+
+```java
+// RegistryClient.java — Quarkus REST client; the registry enforces the rule
+@RegisterRestClient(baseUri = "http://apicurio.registry.svc/apis/registry/v3")
+@Path("/groups/{group}/artifacts/{artifactId}/versions")
+public interface RegistryClient {
+
+    @POST @Consumes(MediaType.APPLICATION_JSON)
+    Response publish(@PathParam("group") String group,
+                     @PathParam("artifactId") String artifactId,
+                     byte[] schema);
+    // caller checks response.getStatus(): 200 = compatible, 409 = rejected
+}
+```
+
+```csharp
+// RegistryClient.cs — register a new version; the registry enforces the rule
+public class RegistryClient(HttpClient http)
+{
+    private const string Registry =
+        "http://apicurio.registry.svc/apis/registry/v3";
+
+    public async Task<int> PublishAsync(string group, string artifactId, byte[] schema)
+    {
+        var content = new ByteArrayContent(schema);
+        content.Headers.ContentType = new("application/json");
+        var resp = await http.PostAsync(
+            $"{Registry}/groups/{group}/artifacts/{artifactId}/versions", content);
+        return (int)resp.StatusCode;       // 200 if compatible, 409 if rejected
+    }
+}
+```
 
 ```python
 # registry_client.py — register a new version; the registry enforces the rule
@@ -68,6 +122,39 @@ def publish(group: str, artifact_id: str, schema: bytes) -> int:
         data=schema,
     )
     return r.status_code        # 200 if compatible, 409 if the rule rejects it
+```
+
+{% raw %}
+```cpp
+// registry_client.h — register a new version; the registry enforces the rule
+#include <cpr/cpr.h>
+
+inline int publish(std::string_view group, std::string_view artifact_id,
+                   std::string_view schema) {
+  auto url = fmt::format(
+      "http://apicurio.registry.svc/apis/registry/v3"
+      "/groups/{}/artifacts/{}/versions", group, artifact_id);
+  auto r = cpr::Post(cpr::Url{url},
+                      cpr::Header{{"Content-Type", "application/json"}},
+                      cpr::Body{std::string(schema)});
+  return r.status_code;          // 200 if compatible, 409 if rejected
+}
+```
+{% endraw %}
+
+```go
+// registry_client.go — register a new version; the registry enforces the rule
+func publish(group, artifactID string, schema []byte) (int, error) {
+	url := fmt.Sprintf(
+		"http://apicurio.registry.svc/apis/registry/v3/groups/%s/artifacts/%s/versions",
+		group, artifactID)
+	resp, err := http.Post(url, "application/json", bytes.NewReader(schema))
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode, nil // 200 if compatible, 409 if rejected
+}
 ```
 
 ## Gate breaking changes in CI
@@ -102,6 +189,138 @@ schedule and must tolerate data already on the topic. `FORWARD` flips it for cas
 where old consumers must read new data, and `FULL` demands both. Picking the rule
 is a design decision; once picked, the registry enforces it for you and the `409`
 is non-negotiable.
+
+## Schema evolution strategies
+
+The compatibility rules tell you *whether* a change is safe; a strategy tells you
+*how* to evolve a schema over time without breaking consumers. Four practices, in
+order of increasing cost:
+
+1. **Additive-only** — add optional fields with defaults; never remove or rename. This
+   is the cheapest evolution: old consumers ignore the new field, new consumers fall
+   back to the default when reading old data. If every change is additive, the
+   compatibility rule never fires.
+
+2. **Deprecation workflow** — when a field must go, mark it `@deprecated` (GraphQL,
+   proto) or add a `deprecation` annotation in the schema. Publish the deprecation,
+   monitor usage (field-level metrics, consumer-group offsets), and remove the field
+   only once all consumers have migrated. This is the same add → deprecate → watch →
+   retire cycle from **Appendix B**.
+
+3. **Default values for new required fields** — if a new field must be present in all
+   messages, add it with a default so old data on the topic can still be deserialized.
+   Without the default, every consumer that encounters a message written before the
+   field existed will fail to deserialize it.
+
+4. **Union types for polymorphism** — when a single topic carries multiple event shapes
+   (e.g. `OrderPlaced`, `OrderCancelled`), use Avro unions or protobuf `oneof` so the
+   schema accommodates each variant. This keeps the topic type-safe without splitting
+   it into per-event topics.
+
+The registry enforces the *boundary* (compatible or not), but the strategy determines
+how often you approach that boundary. Teams that evolve additively rarely trigger a
+`409`; teams that rename or restructure hit it constantly.
+
+## Validate before you publish
+
+Before registering a new version you can ask the registry to **dry-run** the
+compatibility check — validate the schema without creating a version. This is useful
+in local development and pre-commit hooks, where you want fast feedback without
+polluting the registry with test versions.
+
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+// DryRunValidator.java — validate a schema without creating a version
+public boolean isCompatible(String group, String artifactId, byte[] schema) {
+    var resp = restClient.post()
+        .uri(REGISTRY + "/groups/{g}/artifacts/{a}/versions", group, artifactId)
+        .header("X-Registry-DryRun", "true")      // dry-run: no version created
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(schema)
+        .retrieve()
+        .toBodilessEntity();
+    return resp.getStatusCode().is2xxSuccessful(); // true = compatible
+}
+```
+
+```java
+// DryRunValidator.java — Quarkus REST client; validate without creating a version
+@RegisterRestClient(baseUri = "http://apicurio.registry.svc/apis/registry/v3")
+@Path("/groups/{group}/artifacts/{artifactId}/versions")
+public interface DryRunValidator {
+
+    @POST @Consumes(MediaType.APPLICATION_JSON)
+    @ClientHeaderParam(name = "X-Registry-DryRun", value = "true")
+    Response validate(@PathParam("group") String group,
+                      @PathParam("artifactId") String artifactId,
+                      byte[] schema);
+    // 200 = compatible (no version created); 409 = incompatible
+}
+```
+
+```csharp
+// DryRunValidator.cs — validate a schema without creating a version
+public async Task<bool> IsCompatibleAsync(string group, string artifactId, byte[] schema)
+{
+    var content = new ByteArrayContent(schema);
+    content.Headers.ContentType = new("application/json");
+    using var req = new HttpRequestMessage(HttpMethod.Post,
+        $"{Registry}/groups/{group}/artifacts/{artifactId}/versions");
+    req.Headers.Add("X-Registry-DryRun", "true");     // dry-run: no version created
+    req.Content = content;
+    var resp = await http.SendAsync(req);
+    return resp.IsSuccessStatusCode;                   // true = compatible
+}
+```
+
+```python
+def is_compatible(group: str, artifact_id: str, schema: bytes) -> bool:
+    r = requests.post(
+        f"{REGISTRY}/groups/{group}/artifacts/{artifact_id}/versions",
+        headers={
+            "Content-Type": "application/json",
+            "X-Registry-DryRun": "true",               # dry-run: no version created
+        },
+        data=schema,
+    )
+    return r.status_code == 200                        # True = compatible
+```
+
+{% raw %}
+```cpp
+// dry_run_validator.h — validate a schema without creating a version
+inline bool is_compatible(std::string_view group, std::string_view artifact_id,
+                           std::string_view schema) {
+  auto url = fmt::format(
+      "http://apicurio.registry.svc/apis/registry/v3"
+      "/groups/{}/artifacts/{}/versions", group, artifact_id);
+  auto r = cpr::Post(cpr::Url{url},
+                      cpr::Header{{"Content-Type", "application/json"},
+                                  {"X-Registry-DryRun", "true"}},
+                      cpr::Body{std::string(schema)});
+  return r.status_code == 200;                         // true = compatible
+}
+```
+{% endraw %}
+
+```go
+// dry_run_validator.go — validate a schema without creating a version
+func isCompatible(group, artifactID string, schema []byte) (bool, error) {
+	url := fmt.Sprintf(
+		"http://apicurio.registry.svc/apis/registry/v3/groups/%s/artifacts/%s/versions",
+		group, artifactID)
+	req, _ := http.NewRequest("POST", url, bytes.NewReader(schema))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Registry-DryRun", "true")        // dry-run: no version created
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode == 200, nil                 // true = compatible
+}
+```
 
 ### Cross-check it yourself
 

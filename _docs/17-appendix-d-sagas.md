@@ -28,6 +28,61 @@ applied to the saga's own progress.
    alt="Four ways a saga can keep its state. In-memory: a dict or object only, lost on pod restart, never for real sagas. DB state machine: one row per saga instance with status and context JSON, and you own the transitions. Event-sourced: append step events and rebuild by replay, with full audit history. Workflow engine: Temporal or Camunda, durable execution with retries and timers built in. Whatever the store, the state transition and the outbound command must commit together."
    caption="Figure D.1 — Where saga state can live; the DB-backed state machine is the workhorse, but the commit-together rule is the same for all" %}
 
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+// SagaOrchestrator.java — DB-backed state machine; advance one step per call
+private static final List<String> STEPS =
+    List.of("charge_payment", "reserve_stock", "book_shipping");
+
+@Transactional                                   // state + command commit together
+public void advance(String sagaId) {
+    Saga s = repo.findForUpdate(sagaId);         // row lock (SELECT … FOR UPDATE)
+    if (!"RUNNING".equals(s.getStatus())) return; // idempotent: already done/failed
+    String step = STEPS.get(s.getStepIndex());
+    var result = invoke(step, s.getContext());    // call the owning service
+    s.getContext().put(step, result);             // accumulate output into context
+    s.setStepIndex(s.getStepIndex() + 1);
+    if (s.getStepIndex() == STEPS.size()) s.setStatus("COMPLETED");
+}
+```
+
+```java
+// SagaOrchestrator.java — Quarkus; DB-backed state machine
+private static final List<String> STEPS =
+    List.of("charge_payment", "reserve_stock", "book_shipping");
+
+@Transactional                                   // state + command commit together
+public void advance(String sagaId) {
+    Saga s = repo.findForUpdate(sagaId);         // row lock
+    if (!"RUNNING".equals(s.status)) return;     // idempotent: already done/failed
+    String step = STEPS.get(s.stepIndex);
+    var result = invoke(step, s.context);        // call the owning service
+    s.context.put(step, result);                 // accumulate output into context
+    s.stepIndex++;
+    if (s.stepIndex == STEPS.size()) s.status = "COMPLETED";
+}
+```
+
+```csharp
+// SagaOrchestrator.cs — DB-backed state machine; advance one step per call
+private static readonly string[] Steps =
+    ["charge_payment", "reserve_stock", "book_shipping"];
+
+public async Task AdvanceAsync(string sagaId)
+{
+    await using var tx = await db.BeginTransactionAsync();
+    var s = await db.GetSagaForUpdateAsync(sagaId);   // row lock
+    if (s.Status != "RUNNING") return;                // idempotent
+    var step = Steps[s.StepIndex];
+    var result = await InvokeAsync(step, s.Context);  // call the owning service
+    s.Context[step] = result;                         // accumulate output
+    s.StepIndex++;
+    if (s.StepIndex == Steps.Length) s.Status = "COMPLETED";
+    await tx.CommitAsync();                           // state + command commit together
+}
+```
+
 ```python
 STEPS = ["charge_payment", "reserve_stock", "book_shipping"]
 
@@ -42,6 +97,47 @@ async def advance(saga_id: str):
         s.step_index += 1
         if s.step_index == len(STEPS):
             s.status = "COMPLETED"
+```
+
+```cpp
+// saga_orchestrator.cc — DB-backed state machine; advance one step per call
+constexpr std::array steps = {"charge_payment", "reserve_stock", "book_shipping"};
+
+void advance(pqxx::connection& conn, std::string_view saga_id) {
+  pqxx::work tx{conn};                           // state + command commit together
+  auto s = get_saga_for_update(tx, saga_id);     // row lock (SELECT … FOR UPDATE)
+  if (s.status != "RUNNING") return;             // idempotent: already done/failed
+  auto step = steps[s.step_index];
+  auto result = invoke(step, s.context);         // call the owning service
+  s.context[step] = result;                      // accumulate output into context
+  ++s.step_index;
+  if (s.step_index == steps.size()) s.status = "COMPLETED";
+  update_saga(tx, s);
+  tx.commit();
+}
+```
+
+```go
+// saga_orchestrator.go — DB-backed state machine; advance one step per call
+var steps = []string{"charge_payment", "reserve_stock", "book_shipping"}
+
+func advance(ctx context.Context, pool *pgxpool.Pool, sagaID string) error {
+	tx, _ := pool.Begin(ctx)                     // state + command commit together
+	defer tx.Rollback(ctx)
+	s, _ := getSagaForUpdate(ctx, tx, sagaID)    // row lock
+	if s.Status != "RUNNING" {
+		return nil                               // idempotent: already done/failed
+	}
+	step := steps[s.StepIndex]
+	result, _ := invoke(ctx, step, s.Context)    // call the owning service
+	s.Context[step] = result                     // accumulate output into context
+	s.StepIndex++
+	if s.StepIndex == len(steps) {
+		s.Status = "COMPLETED"
+	}
+	updateSaga(ctx, tx, s)
+	return tx.Commit(ctx)
+}
 ```
 
 Because `advance` is idempotent and the row is locked, **resuming after a crash** is
