@@ -186,6 +186,86 @@ which is fine while the state is bounded; once you need joins or state larger th
 worker, that is the signal to move to a dedicated engine like Flink rather than
 hand-roll it.
 
+## Delivery guarantees in stream processing
+
+The windowed aggregation above has a silent assumption: what happens when the worker
+crashes mid-window, or when a message is delivered twice? Stream processing has three
+delivery guarantee levels, and picking the right one is a design decision:
+
+**At-most-once** — process each message zero or one times. Commit the offset *before*
+processing. If the worker crashes after committing but before processing, the message
+is lost. Fast but lossy; acceptable for metrics that tolerate sampling.
+
+**At-least-once** — process each message one or more times. Commit the offset *after*
+processing. If the worker crashes after processing but before committing, the message
+is redelivered and processed again. This is the default in most Kafka consumers and
+the approach this book prefers — paired with **idempotent handlers** (the same
+discipline from the event-driven and workflows chapters), reprocessing is a no-op
+and the combination is effectively once.
+
+**Exactly-once** — process each message exactly once, even across crashes. Kafka's
+`processing.guarantee=exactly_once_v2` wraps the consume-transform-produce cycle in
+a transaction: the offset commit and the output record are written atomically, so a
+crash either rolls back both or commits both. The cost is higher latency (transaction
+coordination) and the requirement that both input and output live on the same Kafka
+cluster.
+
+```yaml
+# Kafka Streams config for exactly-once (JVM stacks)
+processing.guarantee: exactly_once_v2    # atomic consume-transform-produce
+# Requires: Kafka broker ≥ 2.5, transactional.id auto-assigned per task
+```
+
+For most services in this stack, **at-least-once plus idempotency** is the right
+default: it is simpler, works across cluster boundaries, and the idempotency
+discipline is already required by Jobs, CronJobs, and queue workers anyway.
+Exactly-once is worth the cost when the output of the stream processor is a *derived
+fact* (like the revenue aggregation) that other services treat as authoritative and
+where double-counting would be incorrect rather than merely redundant.
+
+## Beyond tumbling windows
+
+The revenue example uses a tumbling window — fixed-size, non-overlapping buckets.
+Kafka Streams, Faust, and Streamiz support three other window types, each suited to
+a different access pattern:
+
+{% include excalidraw.html
+   file="06-window-types"
+   alt="Three rows of window types. Tumbling: fixed 5-minute buckets with no overlap — event lands in exactly one window. Hopping (sliding): 5-minute windows that advance every 1 minute, overlapping — event lands in multiple windows, giving a smoothed view. Session: variable-length windows defined by an inactivity gap — no events for 10 minutes closes the window, suited to user-activity sessions."
+   caption="Figure 6.3 — Three window types: tumbling (fixed, no overlap), hopping (fixed, overlapping), and session (variable, gap-based)" %}
+
+**Tumbling windows** — fixed-size, non-overlapping. Every event lands in exactly one
+window. The revenue-per-merchant aggregation uses this: a clean five-minute bucket,
+no overlap.
+
+**Hopping (sliding) windows** — fixed-size, but the window advances by a smaller
+interval. A five-minute window that advances every one minute produces overlapping
+windows, giving a **smoothed** view: each output reflects the last five minutes of
+data, updated every minute. Good for dashboards where a hard bucket boundary would
+cause a visible cliff.
+
+**Session windows** — variable-length, defined by an **inactivity gap**. No events
+for the gap duration (say, 10 minutes) closes the window. This fits user-activity
+patterns: a user's browsing session is a cluster of events with quiet gaps between
+them, and the session window captures that shape without you picking an arbitrary
+bucket size.
+
+**Late-arriving data** — an event whose timestamp falls inside an already-closed
+window. Kafka Streams handles this with a **grace period**: windows stay open for
+an additional duration after their nominal close, accepting late events. Events
+that arrive after the grace period are dropped (or routed to a dead-letter topic).
+Flink extends this with **watermarks** — a system-wide notion of "how far behind
+event-time we expect to be" — which is essential for multi-source joins where
+sources have different latencies.
+
+**When to reach for Flink** — in-process stream processing (Kafka Streams, Faust,
+Streamiz, the C++/Go loops in the example above) works well for single-topic,
+bounded-state computations. Once you need **stream-to-stream joins** (correlate
+orders with payments by key and time), **state larger than a single worker's
+memory**, or **exactly-once across multiple Kafka clusters**, a dedicated engine
+like Apache Flink is the right tool. Flink manages state snapshots, checkpointing,
+and watermarks at a scale that in-process libraries don't attempt.
+
 ## Scale on the signal that matters
 
 A stream processor's load is *backlog*, not CPU. The right scaling signal is

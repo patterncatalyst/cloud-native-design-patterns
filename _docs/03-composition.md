@@ -218,6 +218,37 @@ The anti-pattern to name explicitly is the opposite of all three:
 quietly rebuilds a distributed monolith. Composition belongs at the edge, not
 buried in a chain of internal calls.
 
+## Composition through the coupling lens
+
+**Appendix G** lays out Khononov's three coupling dimensions — **strength**,
+**distance**, and **volatility** — and a four-rung strength ladder: intrusive,
+functional, model, contract. Every composition choice above maps directly onto this
+model.
+
+The gateway keeps inter-service coupling at the **contract rung**: services expose
+schemas (OpenAPI, proto, GraphQL SDL), and the gateway composes *contracts*, never
+internals. No service knows another service's database or in-memory model — exactly
+what "contract strength" means. By contrast, the call-chain anti-pattern drifts toward
+**functional coupling**: service A doesn't just consume a contract from service B, it
+depends on B's *behavior* — its timing, its side effects, its availability — because
+every hop in the chain is a synchronous call whose failure propagates upward.
+
+**Distance** matters too. A gateway adds one hop between the client and the
+back-end — a small increase in distance — but that hop *lowers strength*, because
+the services behind it don't know each other. A BFF increases distance further
+(client → BFF → services) but buys **client-specific shaping**, which means the
+coupling between the client and the back-end is shaped exactly to what that client
+needs, nothing more. Federation distributes the composition across subgraphs, each
+owning its slice — the gateway plans the query, and each subgraph exposes only
+its contract.
+
+The general rule from the appendix applies: **the greater the distance between
+components, the further down the strength ladder the coupling must be.** Composition
+at the edge naturally satisfies this — the gateway is far from the services (high
+distance), and it couples only to their contracts (low strength). A call chain
+violates it — services that are far apart couple at the functional level, which is
+exactly why it becomes a distributed monolith.
+
 ### Cross-check it yourself
 
 The gateway is just HTTP. Send the query above with `curl` or Postman and request
