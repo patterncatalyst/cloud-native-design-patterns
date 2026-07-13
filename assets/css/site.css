@@ -130,8 +130,7 @@ blockquote > :last-child { margin-bottom: 0; }
 
 table {
   width: 100%;
-  table-layout: fixed;   /* columns share the width; content wraps, no single
-                            column can balloon and squeeze its neighbours */
+  table-layout: auto;
   border-collapse: collapse;
   font-size: .95rem;
 }
@@ -563,6 +562,9 @@ table :is(th, td) code {
   max-width: var(--max-w-prose);
   margin: 0 auto;
   padding: 0 var(--space-5);
+}
+.tutorial__inner--wide {
+  max-width: var(--max-w);
 }
 
 .breadcrumb {
