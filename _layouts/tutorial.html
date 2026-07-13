@@ -32,7 +32,7 @@ layout: default
 {%- endif -%}
 
 <article class="tutorial">
-  <div class="tutorial__inner">
+  <div class="{% if page.wide %}tutorial__inner tutorial__inner--wide{% else %}tutorial__inner{% endif %}">
 
     {%- assign this_part = site.parts | where: "part_name", page.part | first -%}
     <nav class="breadcrumb" aria-label="Breadcrumb">
