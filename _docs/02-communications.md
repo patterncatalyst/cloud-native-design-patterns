@@ -30,6 +30,14 @@ REST wins where reach and caching matter; gRPC where an internal hop must be fas
 strongly typed; GraphQL where one client read would otherwise be a handful of round
 trips; and events wherever immediacy is not strictly required.
 
+Two interaction styles are deliberately deferred from this chapter. **GraphQL** gets
+its own treatment in **03 · Composition**, because GraphQL is fundamentally a
+composition pattern — a gateway that fans out to REST and gRPC back-ends — and that
+context matters more than the wire format. **WebSockets** are covered in
+**Appendix C · WebSockets at Scale**, because long-lived, stateful sockets behave so
+differently on Kubernetes (pinned to a pod, fighting the HPA, needing a backplane) that
+mixing them into this chapter would bury the scaling concerns that define them.
+
 ## REST at the edge
 
 This is the public surface — in our system, `order-service`. Four things teams

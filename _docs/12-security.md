@@ -180,6 +180,62 @@ reach the resource directly; the storage system validates the token, permits exa
 the named operation, and rejects everything else. No long-lived credential ever lands
 on the client, and your service is out of the data path:
 
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+// ValetKeyService.java — mint a scoped, time-bound upload ticket
+@Service
+public class ValetKeyService {
+    private final S3Presigner presigner;
+    public ValetKeyService(S3Presigner presigner) { this.presigner = presigner; }
+
+    public String uploadTicket(String bucket, String key) {
+        var req = PutObjectRequest.builder().bucket(bucket).key(key).build();
+        var presignReq = PutObjectPresignRequest.builder()
+            .signatureDuration(Duration.ofMinutes(5))   // time-bound
+            .putObjectRequest(req)                      // this object, PUT only
+            .build();
+        return presigner.presignPutObject(presignReq).url().toString();
+    }
+    // client PUTs straight to S3; the app never proxies the bytes
+}
+```
+
+```java
+// ValetKeyService.java — Quarkus with the AWS SDK
+@ApplicationScoped
+public class ValetKeyService {
+    @Inject S3Presigner presigner;
+
+    public String uploadTicket(String bucket, String key) {
+        var req = PutObjectRequest.builder().bucket(bucket).key(key).build();
+        var presignReq = PutObjectPresignRequest.builder()
+            .signatureDuration(Duration.ofMinutes(5))   // time-bound
+            .putObjectRequest(req)                      // scoped: this object, PUT only
+            .build();
+        return presigner.presignPutObject(presignReq).url().toString();
+    }
+}
+```
+
+```csharp
+// ValetKeyService.cs — mint a scoped, time-bound upload ticket
+public class ValetKeyService(IAmazonS3 s3)
+{
+    public async Task<string> UploadTicketAsync(string bucket, string key)
+    {
+        var url = await s3.GetPreSignedURLAsync(new GetPreSignedUrlRequest
+        {
+            BucketName = bucket,
+            Key        = key,
+            Verb       = HttpVerb.PUT,             // this object, PUT only
+            Expires    = DateTime.UtcNow.AddMinutes(5),   // time-bound
+        });
+        return url;   // client PUTs straight to S3; the app never sees the bytes
+    }
+}
+```
+
 ```python
 import boto3
 from datetime import timedelta
@@ -194,6 +250,41 @@ def upload_ticket(bucket: str, key: str) -> str:
         ExpiresIn=int(timedelta(minutes=5).total_seconds()),
     )
 # the client PUTs straight to S3 with the returned URL; the app never sees the bytes
+```
+
+```cpp
+// valet_key.h — mint a scoped, time-bound upload ticket (AWS SDK for C++)
+#include <aws/s3/S3Client.h>
+#include <aws/s3/model/PutObjectRequest.h>
+
+inline std::string upload_ticket(const Aws::S3::S3Client& s3,
+                                  const std::string& bucket,
+                                  const std::string& key) {
+  Aws::S3::Model::PutObjectRequest req;
+  req.SetBucket(bucket);
+  req.SetKey(key);
+  // scoped: this object, PUT only, expires in 5 minutes
+  return s3.GeneratePresignedUrl(bucket, key,
+      Aws::Http::HttpMethod::HTTP_PUT,
+      /*expirationInSeconds=*/300);
+  // client PUTs straight to S3; the app never proxies the bytes
+}
+```
+
+```go
+// valet_key.go — mint a scoped, time-bound upload ticket
+func uploadTicket(ctx context.Context, client *s3.PresignClient,
+	bucket, key string) (string, error) {
+
+	req, err := client.PresignPutObject(ctx, &s3.PutObjectInput{
+		Bucket: &bucket,
+		Key:    &key,
+	}, s3.WithPresignExpires(5*time.Minute)) // scoped: this object, PUT only, 5 min
+	if err != nil {
+		return "", err
+	}
+	return req.URL, nil // client PUTs straight to S3; the app never sees the bytes
+}
 ```
 
 The same shape covers Azure SAS tokens, GCS signed URLs, and AWS STS scoped roles.
@@ -280,6 +371,63 @@ own bounded pool and the storm is contained to that tenant.
 The implementation is a bounded resource per partition — a per-tenant connection pool,
 a per-call thread group, or a semaphore that caps concurrency:
 
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+// Per-tenant bulkhead with Resilience4j; A's storm can't drain B's capacity
+@Service
+public class TenantBulkhead {
+    private final ConcurrentMap<String, Bulkhead> bulkheads = new ConcurrentHashMap<>();
+
+    private Bulkhead forTenant(String tenant) {
+        return bulkheads.computeIfAbsent(tenant, t ->
+            Bulkhead.of(t, BulkheadConfig.custom()
+                .maxConcurrentCalls(20)              // 20 concurrent per tenant
+                .maxWaitDuration(Duration.ZERO)      // fail-fast when full
+                .build()));
+    }
+
+    public <T> T handle(String tenant, Supplier<T> work) {
+        return Bulkhead.decorateSupplier(forTenant(tenant), work).get();
+    }
+}
+```
+
+```java
+// Per-tenant bulkhead with MicroProfile Fault Tolerance
+@ApplicationScoped
+public class TenantBulkhead {
+    private final ConcurrentMap<String, Semaphore> sems = new ConcurrentHashMap<>();
+
+    private Semaphore forTenant(String tenant) {
+        return sems.computeIfAbsent(tenant, t -> new Semaphore(20));  // 20 / tenant
+    }
+
+    public <T> T handle(String tenant, Callable<T> work) throws Exception {
+        Semaphore sem = forTenant(tenant);
+        if (!sem.tryAcquire()) throw new BulkheadException(tenant);
+        try { return work.call(); }
+        finally { sem.release(); }           // blocks only this tenant when full
+    }
+}
+```
+
+```csharp
+// Per-tenant bulkhead with a SemaphoreSlim; A's storm can't drain B's capacity
+public class TenantBulkhead
+{
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _sems = new();
+
+    public async Task<T> HandleAsync<T>(string tenant, Func<Task<T>> work)
+    {
+        var sem = _sems.GetOrAdd(tenant, _ => new SemaphoreSlim(20));  // 20 / tenant
+        await sem.WaitAsync();               // blocks only this tenant when full
+        try { return await work(); }
+        finally { sem.Release(); }
+    }
+}
+```
+
 ```python
 import asyncio
 
@@ -292,6 +440,45 @@ def _tenant_sem(tenant: str) -> asyncio.Semaphore:
 async def handle(tenant: str, work):
     async with _tenant_sem(tenant):        # blocks only this tenant when full
         return await work()
+```
+
+```cpp
+// Per-tenant bulkhead with a counting semaphore; A's storm can't drain B's
+std::unordered_map<std::string, std::counting_semaphore<20>> bulkheads_;
+std::mutex mu_;
+
+std::counting_semaphore<20>& for_tenant(const std::string& tenant) {
+  std::lock_guard lk{mu_};
+  auto [it, _] = bulkheads_.try_emplace(tenant, 20);   // 20 concurrent / tenant
+  return it->second;
+}
+
+template <typename F>
+auto handle(const std::string& tenant, F&& work) {
+  auto& sem = for_tenant(tenant);
+  sem.acquire();                                        // blocks only this tenant
+  auto guard = scope_exit([&] { sem.release(); });
+  return work();
+}
+```
+
+```go
+// Per-tenant bulkhead with a buffered channel; A's storm can't drain B's capacity
+var (
+	bulkheads sync.Map // map[string]chan struct{}
+)
+
+func tenantSem(tenant string) chan struct{} {
+	v, _ := bulkheads.LoadOrStore(tenant, make(chan struct{}, 20)) // 20 / tenant
+	return v.(chan struct{})
+}
+
+func handle[T any](tenant string, work func() (T, error)) (T, error) {
+	sem := tenantSem(tenant)
+	sem <- struct{}{} // blocks only this tenant when full
+	defer func() { <-sem }()
+	return work()
+}
 ```
 
 Frameworks ship this directly — Resilience4j and Polly bulkheads, or Istio
@@ -315,6 +502,55 @@ so PII never crosses Kafka's wire or sits in its retention — and because the t
 expire and the store can revoke it, access stays time-bound and auditable. This is the
 security-angled cousin of the large-payload handling in the failure-modes appendix:
 
+{% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
+
+```java
+// producer: store the body, publish only a reference
+String key = "payloads/" + orderId;
+store.put(key, largePayload, true);                   // encrypted at rest, ACL'd
+kafkaTemplate.send("order.documents", Map.of(         // claim only — small, routable
+    "order_id", orderId,
+    "uri",      "s3://vault/" + key,
+    "token",    mintScopedToken(key, 900)));           // time-bound, revocable
+
+// consumer: read the claim, fetch the body out of band
+@KafkaListener(topics = "order.documents")
+void onClaim(Map<String, String> claim) {
+    byte[] body = store.get(claim.get("uri"), claim.get("token"));  // PII never on topic
+}
+```
+
+```java
+// producer: store the body, publish only a reference
+String key = "payloads/" + orderId;
+store.put(key, largePayload, true);                   // encrypted at rest, ACL'd
+emitter.send(Message.of(Map.of(                       // claim only — small, routable
+    "order_id", orderId,
+    "uri",      "s3://vault/" + key,
+    "token",    mintScopedToken(key, 900))));          // time-bound, revocable
+
+// consumer: read the claim, fetch the body out of band
+@Incoming("order-documents")
+void onClaim(JsonObject claim) {
+    byte[] body = store.get(claim.getString("uri"), claim.getString("token"));
+}
+```
+
+```csharp
+// producer: store the body, publish only a reference
+var key = $"payloads/{orderId}";
+await store.PutAsync(key, largePayload, encrypt: true);   // encrypted at rest, ACL'd
+await producer.ProduceAsync("order.documents",
+    new Message<Null, string> {% raw %}{ Value = JsonSerializer.Serialize(new {
+        order_id = orderId,
+        uri      = $"s3://vault/{key}",
+        token    = MintScopedToken(key, ttlSeconds: 900),
+    }) }{% endraw %});                                             // claim only — small, routable
+
+// consumer: read the claim, fetch the body out of band
+var body = await store.GetAsync(claim.Uri, claim.Token);  // PII never touched the topic
+```
+
 ```python
 # producer: store the body, publish only a reference
 key = f"payloads/{order_id}"
@@ -328,6 +564,43 @@ await producer.send("order.documents", {               # claim only — small, r
 # consumer: read the claim, fetch the body out of band
 async for msg in consumer:
     body = store.get(msg["uri"], token=msg["token"])   # PII never touched the topic
+```
+
+```cpp
+// producer: store the body, publish only a reference
+auto key = "payloads/" + order_id;
+store.put(key, large_payload, /*encrypt=*/true);       // encrypted at rest, ACL'd
+nlohmann::json claim = {
+    {"order_id", order_id},
+    {"uri",      "s3://vault/" + key},
+    {"token",    mint_scoped_token(key, 900)}};        // time-bound, revocable
+producer.produce("order.documents", claim.dump());     // claim only — small, routable
+
+// consumer: read the claim, fetch the body out of band
+for (auto& msg : consumer.poll(100ms)) {
+    auto c = nlohmann::json::parse(msg.value());
+    auto body = store.get(c["uri"], c["token"]);       // PII never touched the topic
+}
+```
+
+```go
+// producer: store the body, publish only a reference
+key := "payloads/" + orderID
+store.Put(ctx, key, largePayload, true)                // encrypted at rest, ACL'd
+claim, _ := json.Marshal(map[string]string{
+	"order_id": orderID,
+	"uri":      "s3://vault/" + key,
+	"token":    mintScopedToken(key, 900),              // time-bound, revocable
+})
+client.Produce(ctx, &kgo.Record{Topic: "order.documents", Value: claim}, nil)
+
+// consumer: read the claim, fetch the body out of band
+fetches := client.PollFetches(ctx)
+fetches.EachRecord(func(r *kgo.Record) {
+	var c Claim
+	json.Unmarshal(r.Value, &c)
+	body := store.Get(ctx, c.URI, c.Token)             // PII never touched the topic
+})
 ```
 
 ## Choosing the right pattern
