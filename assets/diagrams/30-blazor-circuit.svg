@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 340" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
+<rect x="10" y="10" width="330" height="320" rx="12" fill="#eef4fb" stroke="#ddd"/>
+<text x="22" y="30" font-size="12" font-weight="700" fill="#1d1d1d">Browser</text>
+<rect x="360" y="10" width="510" height="320" rx="12" fill="#fff8ef" stroke="#ddd"/>
+<text x="372" y="30" font-size="12" font-weight="700" fill="#1d1d1d">ASP.NET Core server</text>
+<rect x="30" y="55" width="140" height="55" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="100.0" y="80.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Blazor JS</text>
+<text x="100.0" y="97.5" font-size="11.5" fill="#555555" text-anchor="middle">runtime (tiny)</text>
+<rect x="190" y="55" width="130" height="55" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="255.0" y="80.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">DOM</text>
+<text x="255.0" y="97.5" font-size="11.5" fill="#555555" text-anchor="middle">rendered HTML</text>
+<rect x="30" y="150" width="290" height="50" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="175.0" y="173.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">SignalR circuit (WebSocket)</text>
+<text x="175.0" y="190.0" font-size="11.5" fill="#555555" text-anchor="middle">persistent, one per client</text>
+<rect x="30" y="240" width="140" height="55" rx="9" fill="#f4f4f4" stroke="#888888" stroke-width="1.5"/>
+<text x="100.0" y="265.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">User events</text>
+<text x="100.0" y="282.5" font-size="11.5" fill="#555555" text-anchor="middle">click, submit, input</text>
+<rect x="380" y="55" width="160" height="55" rx="9" fill="#111111" stroke="#111111" stroke-width="2"/>
+<text x="460.0" y="80.5" font-size="13.5" font-weight="700" fill="#ffffff" text-anchor="middle">Component tree</text>
+<text x="460.0" y="97.5" font-size="11.5" fill="#dddddd" text-anchor="middle">C# Razor components</text>
+<rect x="570" y="55" width="140" height="55" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
+<text x="640.0" y="80.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Render diff</text>
+<text x="640.0" y="97.5" font-size="11.5" fill="#555555" text-anchor="middle">compute delta</text>
+<rect x="730" y="55" width="120" height="55" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="790.0" y="80.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">DOM diff</text>
+<text x="790.0" y="97.5" font-size="11.5" fill="#555555" text-anchor="middle">minimal patch</text>
+<rect x="380" y="150" width="160" height="55" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
+<text x="460.0" y="175.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">SignalR Hub</text>
+<text x="460.0" y="192.5" font-size="11.5" fill="#555555" text-anchor="middle">OrderHub.cs</text>
+<rect x="570" y="150" width="140" height="55" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
+<text x="640.0" y="175.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">DI services</text>
+<text x="640.0" y="192.5" font-size="11.5" fill="#555555" text-anchor="middle">DbContext, APIs</text>
+<rect x="380" y="240" width="160" height="55" rx="9" fill="#f4f4f4" stroke="#888888" stroke-width="1.5"/>
+<text x="460.0" y="265.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Redis backplane</text>
+<text x="460.0" y="282.5" font-size="11.5" fill="#555555" text-anchor="middle">scale-out pub/sub</text>
+<rect x="570" y="240" width="290" height="55" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="715.0" y="265.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Other Blazor pods subscribe to</text>
+<text x="715.0" y="282.5" font-size="11.5" fill="#555555" text-anchor="middle">the same Redis channels</text>
+<path d="M170,82 L190,82" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="186.0" y="76.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">apply</text>
+<text x="186.0" y="76.0" font-size="11" fill="#555" text-anchor="middle">apply</text>
+<path d="M170,268 L170,200" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
+<text x="176.0" y="228.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">events ↑</text>
+<text x="176.0" y="228.0" font-size="11" fill="#b8650a" text-anchor="middle">events ↑</text>
+<path d="M260,200 L260,82" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
+<text x="270.0" y="135.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">diffs ↓</text>
+<text x="270.0" y="135.0" font-size="11" fill="#b8650a" text-anchor="middle">diffs ↓</text>
+<path d="M360,177 L380,177" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M460,150 L460,110" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M540,82 L570,82" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M710,82 L730,82" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M540,177 L570,177" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<path d="M460,205 L460,240" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
+<text x="30" y="310" font-size="11" fill="#888888" text-anchor="start">All C# logic stays server-side. The browser sends events; the server sends DOM diffs.</text>
+</svg>
