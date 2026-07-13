@@ -1,0 +1,46 @@
+@page "/"
+@page "/dashboard"
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager Nav
+@implements IAsyncDisposable
+
+<h3>Live Order Dashboard</h3>
+<p>Orders appear in real time via SignalR. Place one with
+<code>curl -X POST http://localhost:8080/orders -H "Content-Type: application/json" -d '{"sku":"WIDGET-1","quantity":5}'</code></p>
+
+<table>
+    <thead><tr><th>ID</th><th>SKU</th><th>Qty</th><th>Status</th></tr></thead>
+    <tbody>
+        @foreach (var o in orders)
+        {
+            <tr><td>@o.Id</td><td>@o.Sku</td><td>@o.Quantity</td><td>@o.Status</td></tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private HubConnection? hub;
+    private readonly List<OrderDto> orders = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        hub = new HubConnectionBuilder()
+            .WithUrl(Nav.ToAbsoluteUri("/hubs/orders"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        hub.On<OrderDto>("OrderPlaced", order =>
+        {
+            orders.Insert(0, order);
+            InvokeAsync(StateHasChanged);
+        });
+
+        await hub.StartAsync();
+        await hub.InvokeAsync("JoinDashboard");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hub is not null) await hub.DisposeAsync();
+    }
+}

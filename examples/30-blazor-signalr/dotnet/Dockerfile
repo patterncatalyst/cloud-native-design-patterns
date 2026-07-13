@@ -1,0 +1,13 @@
+FROM registry.access.redhat.com/ubi9/dotnet-100 AS build
+USER root
+WORKDIR /src
+COPY BlazorDashboard/BlazorDashboard.csproj BlazorDashboard/
+RUN dotnet restore BlazorDashboard/BlazorDashboard.csproj
+COPY BlazorDashboard/ BlazorDashboard/
+RUN dotnet publish BlazorDashboard/BlazorDashboard.csproj -c Release -o /app
+
+FROM registry.access.redhat.com/ubi9/dotnet-100-aspnet
+WORKDIR /app
+COPY --from=build /app .
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "BlazorDashboard.dll"]
