@@ -30,7 +30,11 @@ Most organizations move through a four-phase maturity path. Trying to skip
 phases — jumping straight to developer-authored micro-segmentation — is the
 most common cause of stalled adoption.
 
-### Phase 1 — Observe (weeks 1-4)
+The timeline for each phase depends on the organization's complexity, team
+capacity, and risk tolerance. The phases below are sequential — each builds
+on the previous — but the pace is agreed upon by the organization.
+
+### Phase 1 — Observe
 
 Before writing any policy, understand what traffic actually flows today.
 
@@ -53,7 +57,7 @@ east-west traffic they did not know existed — service-to-service connections
 that were never documented because the perimeter firewall was the only
 control plane.
 
-### Phase 2 — Baseline (weeks 4-8)
+### Phase 2 — Baseline
 
 Apply **default-deny** NetworkPolicy in every namespace. This is the single
 highest-impact security measure — without it, any pod can reach any other
@@ -88,7 +92,7 @@ that scrapes every pod, a legacy batch job that connects to an external
 database, a sidecar that phones home to a SaaS endpoint. Discovering these
 in dev or test is the point.
 
-### Phase 3 — Guardrails (weeks 8-16)
+### Phase 3 — Guardrails
 
 With baseline policies in place, the platform team introduces cluster-scoped
 guardrails using OpenShift's **AdminNetworkPolicy (ANP)** and
@@ -158,19 +162,9 @@ default-deny policy themselves.
 
 ### How the tiers compose
 
-```
-Traffic arrives
-  ├── ANP evaluates (tier 1)
-  │     ├── Allow → traffic flows (skip NP and BANP)
-  │     ├── Deny  → traffic blocked (skip NP and BANP)
-  │     └── Pass  → hand to tier 2
-  ├── NetworkPolicy evaluates (tier 2)
-  │     ├── Match → apply NP rules (allow/deny per NP semantics)
-  │     └── No NP in namespace → hand to tier 3
-  └── BANP evaluates (tier 3)
-        ├── Allow → traffic flows
-        └── Deny  → traffic blocked
-```
+*Diagram: advisory-tier-evaluation — OVN-Kubernetes three-tier policy evaluation*
+
+![Three-tier policy evaluation](../assets/diagrams/advisory-tier-evaluation.svg)
 
 **The value proposition for the customer:** the platform team controls tiers
 1 and 3 (the guardrails). Developers control tier 2 (their application's
@@ -251,34 +245,30 @@ The principle is the same: **the CI pipeline is the only path to production.**
 
 ### The flow
 
-```
-Developer authors/modifies NetworkPolicy YAML
-  │
-  ├── Opens PR against the policy repo
-  │
-  ├── CI validates automatically:
-  │     ├── Schema check    — oc apply --dry-run=client (valid YAML, correct API version)
-  │     ├── Policy lint     — conftest / kyverno CLI (organizational rules: no allow-all,
-  │     │                     required labels, port range limits)
-  │     ├── ACS build-time  — ACS build-time policy tools validate against known baselines
-  │     │                     and flag policies that would allow traffic outside the baseline
-  │     └── Dry-run apply   — oc apply --dry-run=server against a staging cluster
-  │                           (catches admission denials, quota issues)
-  │
-  ├── Platform / security team reviews the PR
-  │     ├── For NetworkPolicies: app team authors, platform reviews
-  │     ├── For ANP/BANP/EgressFirewall: platform authors, security/firewall reviews
-  │     └── CODEOWNERS enforces review requirements by path
-  │
-  ├── Merge triggers GitOps sync
-  │     ├── OpenShift GitOps (ArgoCD) syncs to staging cluster
-  │     ├── Smoke tests validate connectivity (expected paths open, expected paths denied)
-  │     └── If staging passes → sync to production
-  │
-  └── Post-deploy validation
-        ├── ACS network graph confirms no anomalous flows
-        └── OVN-Kubernetes flow logs confirm deny counts are expected
-```
+*Diagram: advisory-ci-pipeline — network policy CI/CD pipeline*
+
+![Policy CI/CD pipeline](../assets/diagrams/advisory-ci-pipeline.svg)
+
+The pipeline stages:
+
+1. **Developer** authors or modifies NetworkPolicy YAML and opens a PR
+   against the policy repo.
+2. **CI validates automatically:**
+   - Schema check — `oc apply --dry-run=client` (valid YAML, correct API version)
+   - Policy lint — conftest / kyverno CLI (organizational rules: no allow-all,
+     required labels, port range limits)
+   - ACS build-time — validate against known baselines and flag policies that
+     would allow traffic outside the baseline
+   - Dry-run apply — `oc apply --dry-run=server` against a staging cluster
+     (catches admission denials, quota issues)
+3. **Platform / security team reviews the PR** — CODEOWNERS enforces: app
+   team authors NetworkPolicies (platform reviews), platform authors
+   ANP/BANP/EgressFirewall (firewall/security reviews).
+4. **Merge triggers GitOps sync** — OpenShift GitOps (ArgoCD) syncs to
+   staging cluster, smoke tests validate connectivity, then syncs to
+   production.
+5. **Post-deploy validation** — ACS network graph confirms no anomalous
+   flows, OVN-Kubernetes flow logs confirm deny counts are expected.
 
 ### What ACS build-time tools add
 
@@ -474,25 +464,9 @@ It changes their scope and elevates their role from gatekeeper to architect.
 
 ### The new relationship
 
-```
-                  ┌─────────────┐
-                  │ Firewall    │  Authors: EgressFirewall
-                  │ Team        │  Reviews: ANP, BANP
-                  │             │  Owns: perimeter (Palo Alto)
-                  └──────┬──────┘
-                         │ reviews cluster-scoped policies
-                  ┌──────▼──────┐
-                  │ Platform    │  Authors: ANP, BANP, templates
-                  │ Team        │  Reviews: app NetworkPolicies
-                  │             │  Owns: cluster security posture
-                  └──────┬──────┘
-                         │ reviews namespace-scoped policies
-                  ┌──────▼──────┐
-                  │ App Teams   │  Authors: NetworkPolicy (per-namespace)
-                  │             │  Consumes: templates, ACS baselines
-                  │             │  Owns: application connectivity
-                  └─────────────┘
-```
+*Diagram: advisory-team-ownership — policy ownership model*
+
+![Policy ownership model](../assets/diagrams/advisory-team-ownership.svg)
 
 The firewall team moves from "approve every rule" to "set the boundaries
 and review the exceptions." This is faster for developers, safer for the
@@ -500,12 +474,12 @@ organization, and a better use of the firewall team's expertise.
 
 ---
 
-## 8. What "good" looks like at 12 months
+## 8. What "good" looks like at maturity
 
 ### Maturity checklist
 
-After 12 months of sustained effort, a mature network policy practice looks
-like this:
+After sustained effort over a maturity period agreed upon by the
+organization, a mature network policy practice looks like this:
 
 - [ ] **Default-deny in every namespace** — no namespace exists without a
       default-deny NetworkPolicy or BANP coverage.
@@ -531,8 +505,8 @@ like this:
 
 ### What customers wish they'd done differently
 
-These are the top five lessons Red Hat hears from customers who have been
-through this journey:
+These are the top five lessons Red Hat hears from customers who have
+completed this journey:
 
 1. **"We should have started with observation, not enforcement."** Customers
    who jumped to default-deny without first running ACS in observation mode
