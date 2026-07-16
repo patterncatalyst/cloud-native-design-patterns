@@ -58,8 +58,9 @@ The key verbs: `get`, `list`, `watch` (read-only) versus `create`, `update`, `pa
 environment.
 
 **Industry reference:** [Kubernetes RBAC Good Practices](https://kubernetes.io/docs/concepts/security/rbac-good-practices/)
-recommends least privilege, no cluster-admin for humans, and audit logging of all
-RBAC decisions.
+recommends least privilege, no cluster-admin for humans, namespace-scoped roles over
+cluster roles, service accounts with minimal permissions, audit logging of all RBAC
+decisions, and quarterly review of bindings to remove stale access.
 
 ---
 
@@ -82,6 +83,11 @@ pipeline. Manual `kubectl apply` is blocked by admission control.
 
 **Production** — strictly read-only for all humans. Every change flows through a
 GitOps pipeline (ArgoCD or Flux) after passing automated validation.
+
+**Practical tip:** you do not need to write custom Roles. Kubernetes ships built-in
+ClusterRoles named `edit` (create, update, delete on most resources) and `view`
+(get, list, watch only). Bind them via **RoleBinding** (namespace-scoped), not
+ClusterRoleBinding, to keep permissions scoped to the team's namespace.
 
 ```yaml
 # Dev namespace — developer gets full access
@@ -144,7 +150,9 @@ between specific services. Everything else is blocked.
 
 This is the single highest-impact security measure you can apply to a Kubernetes
 namespace. Without it, a compromised pod can scan and reach every service in the
-cluster.
+cluster. With it, a compromise is contained to the traffic the service was already
+authorized to send. Apply default-deny on day one of every new namespace, in every
+environment.
 
 ---
 
@@ -295,8 +303,10 @@ spec:
 
 This is **zero-trust at the service level**: even if a pod is compromised, it can
 only call the exact endpoints its identity is authorized for. Combined with mTLS
-(which the mesh enables by default), every call is authenticated, encrypted, and
-authorized.
+(which the mesh enables by default), every service-to-service call is authenticated
+with cryptographic identity, encrypted in transit, and authorized against a declared
+policy. The application code does not need to implement any of this — the mesh
+enforces it transparently via the sidecar proxy.
 
 ---
 
@@ -385,7 +395,9 @@ same validation pipeline before reaching any cluster:
 
 The key principle: **the CI pipeline is the only path to production.** No exceptions,
 no emergency `kubectl apply`, no "just this once." If the pipeline is too slow for
-emergencies, fix the pipeline — don't bypass it.
+emergencies, fix the pipeline — don't bypass it. Every stage produces artifacts —
+schema validation results, policy compliance reports, staging test results — that
+feed the audit trail.
 
 ---
 
@@ -438,6 +450,10 @@ Kubernetes provides native audit logging, but governance requires more:
 6. **Audit everything** — API server audit logs, OPA decision logs, Git history as
    the source of truth.
 7. **Test mirrors prod** — same network topology, same policies, same deny baseline.
+
+The order matters: default-deny and RBAC tiering give you the most security for the
+least effort, while GitOps and policy-as-code take more infrastructure investment but
+close the remaining gaps. Start with the first two this week.
 
 ---
 
