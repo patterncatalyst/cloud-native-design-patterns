@@ -1,0 +1,50 @@
+services:
+  lgtm:
+    image: docker.io/grafana/otel-lgtm:0.8.1
+    container_name: cndp-lgtm
+    ports:
+      - "3000:3000"
+      - "4318:4318"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+
+  inventory:
+    build:
+      context: inventory-service
+    container_name: cndp-inventory
+    environment:
+      - INITIAL_STOCK=5
+      - FAIL_MODE=none
+
+  order-service:
+    build:
+      context: order-service
+    container_name: cndp-order-service
+    depends_on:
+      lgtm:
+        condition: service_healthy
+      inventory:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    environment:
+      - QUARKUS_GRPC_CLIENTS_INVENTORY_HOST=inventory
+      - QUARKUS_GRPC_CLIENTS_INVENTORY_PORT=9000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+      - OTEL_SERVICE_NAME=order-service
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - GRPC_DEADLINE_MS=3000
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
