@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package inventory;
+
+option java_multiple_files = true;
+option java_package = "com.cndp.proto";
+
+service InventoryService {
+  rpc ReserveStock (ReserveRequest) returns (ReserveReply);
+}
+
+message ReserveRequest {
+  string sku = 1;
+  int32 quantity = 2;
+}
+
+message ReserveReply {
+  bool confirmed = 1;
+  int32 remaining = 2;
+}
