@@ -38,7 +38,7 @@ printf -- '--- 1. Domain isolation (zero framework imports) ---\n'
 
 LANG_DIR="${LANG_DIR:-python}"
 
-if [ "$LANG_DIR" = "spring-boot" ]; then
+if [ "$LANG_DIR" = "spring-boot" ] || [ "$LANG_DIR" = "quarkus" ]; then
     DOMAIN_DIR="$LANG_DIR/order-service/src/main/java/com/cndp/order/domain"
 
     check_empty "no Spring imports in domain/" \
@@ -55,6 +55,9 @@ if [ "$LANG_DIR" = "spring-boot" ]; then
 
     check_empty "no Hibernate imports in domain/" \
         "grep -r 'import org\.hibernate' $DOMAIN_DIR"
+
+    check_empty "no Quarkus imports in domain/" \
+        "grep -r 'import io\.quarkus' $DOMAIN_DIR"
 
     check "PlaceOrderUseCase.java imports only domain types" \
         "grep '^import' $DOMAIN_DIR/PlaceOrderUseCase.java | grep -v 'import com\.cndp\.order\.domain\.' | head -1" \
