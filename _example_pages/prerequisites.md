@@ -187,7 +187,7 @@ done
 All application code runs inside containers built from **Red Hat UBI** base
 images. You do **not** need to install any of these locally:
 
-- Java / JDK (containers use `ubi9/openjdk-21`)
+- Java / JDK (Spring Boot containers use `ubi9/openjdk-21`; Quarkus uses `ubi10/openjdk-25`)
 - Python (containers use `ubi9/python-312`)
 - Go (multi-stage build with `ubi9/ubi-minimal` runtime)
 - .NET SDK
