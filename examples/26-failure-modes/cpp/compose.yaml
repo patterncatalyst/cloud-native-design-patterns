@@ -1,0 +1,42 @@
+include:
+  - path: ../../_infra/compose-lgtm.yaml
+
+services:
+  edge-service:
+    build: edge-service
+    container_name: cndp-edge
+    depends_on:
+      lgtm:
+        condition: service_healthy
+      backend-service:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      - BACKEND_URL=http://backend-service:8081
+      - OTEL_SERVICE_NAME=edge-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 60s
+
+  backend-service:
+    build: backend-service
+    container_name: cndp-backend
+    depends_on:
+      lgtm:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      - OTEL_SERVICE_NAME=backend-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8081/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 60s
