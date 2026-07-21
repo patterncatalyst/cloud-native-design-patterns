@@ -1,3 +1,5 @@
+name: cndp-12
+
 include:
   - path: ../../_infra/compose-lgtm.yaml
 
