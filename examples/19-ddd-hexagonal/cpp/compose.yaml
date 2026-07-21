@@ -1,3 +1,5 @@
+name: cndp-19
+
 include:
   - path: ../../_infra/compose-lgtm.yaml
   - path: ../../_infra/compose-postgres.yaml
