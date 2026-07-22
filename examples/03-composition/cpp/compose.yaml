@@ -1,0 +1,70 @@
+name: cndp-03
+
+include:
+  - path: ../../_infra/compose-lgtm.yaml
+  - path: ../../_infra/compose-postgres.yaml
+
+services:
+  postgres:
+    volumes:
+      - ../db/init:/docker-entrypoint-initdb.d:Z
+
+  inventory:
+    build:
+      context: .
+      dockerfile: inventory-service/Dockerfile
+    container_name: cndp-inventory
+    depends_on:
+      lgtm:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1 2>/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  order-api:
+    build:
+      context: .
+      dockerfile: order-api/Dockerfile
+    container_name: cndp-order-api
+    depends_on:
+      lgtm:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      - PG_CONNINFO=host=postgres port=5432 dbname=appdb user=appuser password=apppass
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8081/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    container_name: cndp-gateway
+    depends_on:
+      lgtm:
+        condition: service_healthy
+      order-api:
+        condition: service_healthy
+      inventory:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      - ORDER_API_URL=http://order-api:8081
+      - INVENTORY_ADDR=inventory:50051
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s

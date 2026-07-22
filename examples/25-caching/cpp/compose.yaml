@@ -1,0 +1,42 @@
+name: cndp-25
+
+include:
+  - path: ../../_infra/compose-lgtm.yaml
+  - path: ../../_infra/compose-postgres.yaml
+
+services:
+  postgres:
+    volumes:
+      - ../db/init:/docker-entrypoint-initdb.d:Z
+
+  redis:
+    image: redis:7-alpine
+    container_name: cndp-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  cache-service:
+    build: cache-service
+    container_name: cndp-cache-service
+    depends_on:
+      lgtm: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    ports:
+      - "8080:8080"
+    environment:
+      - PG_CONNINFO=postgresql://appuser:apppass@postgres:5432/appdb
+      - REDIS_URL=redis://redis:6379
+      - OTEL_SERVICE_NAME=cache-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 60s

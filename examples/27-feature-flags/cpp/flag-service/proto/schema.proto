@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package flagd.evaluation.v1;
+
+import "google/protobuf/struct.proto";
+
+// Messages only — the service block is omitted because flagd names its gRPC
+// service "Service", which causes a C++ codegen collision (Service::Service).
+// The hand-rolled stub in main.cpp calls the correct wire method path.
+
+message ResolveBooleanRequest {
+  string flag_key = 1;
+  google.protobuf.Struct context = 2;
+}
+
+message ResolveBooleanResponse {
+  bool value = 1;
+  string reason = 2;
+  string variant = 3;
+  google.protobuf.Struct metadata = 4;
+}
