@@ -322,8 +322,8 @@ int main() {
                 g_orders_metric.series[metric_key]++;
             }
 
-            LOG_INFO << "order placed sku=" << sku << " id=" << order_id
-                     << " status=" << status << " trace_id=" << trace_id;
+            std::cerr << "order placed sku=" << sku << " id=" << order_id
+                      << " status=" << status << " trace_id=" << trace_id << std::endl;
 
             Json::Value resp;
             resp["id"] = order_id;
