@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package inventory;
+
+option go_package = "pb/";
+
+service Inventory {
+  rpc ReserveStock (ReserveRequest) returns (ReserveReply);
+}
+
+message ReserveRequest {
+  string sku = 1;
+  int32 quantity = 2;
+}
+
+message ReserveReply {
+  bool reserved = 1;
+  int32 remaining = 2;
+}
