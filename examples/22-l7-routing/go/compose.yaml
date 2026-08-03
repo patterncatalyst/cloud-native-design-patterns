@@ -1,0 +1,62 @@
+name: cndp-22
+
+services:
+  envoy:
+    image: docker.io/envoyproxy/envoy:v1.31-latest
+    container_name: cndp-envoy
+    user: "101"
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml"]
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../envoy/envoy.yaml:/etc/envoy/envoy.yaml:Z,ro
+    depends_on:
+      order-v1:
+        condition: service_healthy
+      order-v2:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  order-v1:
+    build:
+      context: order-service
+    container_name: cndp-order-v1
+    environment:
+      - APP_VERSION=v1
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  order-v2:
+    build:
+      context: order-service
+    container_name: cndp-order-v2
+    environment:
+      - APP_VERSION=v2
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  router-service:
+    build:
+      context: router-service
+    container_name: cndp-router-service
+    ports:
+      - "8090:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
