@@ -7,72 +7,120 @@
 #include <mutex>
 #include <sstream>
 #include <optional>
+#include <memory>
+#include <vector>
 
 using namespace drogon;
 using namespace sw::redis;
 
 // Global state
 std::unique_ptr<Redis> g_redis;
-PGconn* g_pg = nullptr;
 std::atomic<int> g_persisted_rows{0};
 std::atomic<bool> g_shutdown{false};
 std::mutex g_redis_mutex;
 
-// Helper: execute SQL query and return JSON result
-Json::Value query_db(const std::string& query) {
-    PGresult* res = PQexec(g_pg, query.c_str());
-    Json::Value result;
+// One libpq connection guarded by a mutex (a PGconn is not safe for concurrent use). The
+// request handlers share one; the write-back flusher thread owns another. Every statement
+// goes through PQexecParams: ids and body fields travel as parameters, never as SQL text.
+// A dead connection is re-established with PQreset and the statement retried once.
+class Db {
+public:
+    explicit Db(std::string conninfo) : conninfo_(std::move(conninfo)) {}
+    ~Db() { if (conn_) PQfinish(conn_); }
+    Db(const Db&) = delete;
+    Db& operator=(const Db&) = delete;
 
-    if (PQresultStatus(res) == PGRES_TUPLES_OK && PQntuples(res) > 0) {
-        result["id"] = PQgetvalue(res, 0, 0);
-        result["name"] = PQgetvalue(res, 0, 1);
-        result["price_cents"] = std::stoi(PQgetvalue(res, 0, 2));
+    bool connect() {
+        std::lock_guard<std::mutex> lock(mu_);
+        conn_ = PQconnectdb(conninfo_.c_str());
+        return conn_ && PQstatus(conn_) == CONNECTION_OK;
+    }
+    std::string error() {
+        std::lock_guard<std::mutex> lock(mu_);
+        return conn_ ? PQerrorMessage(conn_) : "no connection";
     }
 
-    PQclear(res);
+    using Result = std::unique_ptr<PGresult, decltype(&PQclear)>;
+
+    Result exec(const char* sql, const std::vector<std::string>& params) {
+        std::vector<const char*> values;
+        values.reserve(params.size());
+        for (const auto& p : params) values.push_back(p.c_str());
+        std::lock_guard<std::mutex> lock(mu_);
+        for (int attempt = 0; attempt < 2; ++attempt) {
+            if (!conn_) conn_ = PQconnectdb(conninfo_.c_str());
+            else if (PQstatus(conn_) == CONNECTION_BAD) PQreset(conn_);
+            PGresult* res = PQexecParams(conn_, sql, static_cast<int>(values.size()), nullptr,
+                                         values.data(), nullptr, nullptr, 0);
+            if (PQstatus(conn_) != CONNECTION_BAD) return Result(res, &PQclear);
+            PQclear(res);  // connection died mid-statement: reset on the next pass and retry
+            PQreset(conn_);
+        }
+        return Result(nullptr, &PQclear);
+    }
+
+private:
+    std::string conninfo_;
+    PGconn* conn_ = nullptr;
+    std::mutex mu_;
+};
+
+std::unique_ptr<Db> g_db;        // request handlers
+std::unique_ptr<Db> g_flush_db;  // write-back flusher thread
+
+bool ok_rows(const Db::Result& res) {
+    return res && PQresultStatus(res.get()) == PGRES_TUPLES_OK && PQntuples(res.get()) > 0;
+}
+
+// Helper: query a product by id and return it as JSON
+Json::Value query_db(const std::string& id) {
+    auto res = g_db->exec("SELECT id, name, price_cents FROM products WHERE id = $1", {id});
+    Json::Value result;
+
+    if (ok_rows(res)) {
+        result["id"] = PQgetvalue(res.get(), 0, 0);
+        result["name"] = PQgetvalue(res.get(), 0, 1);
+        result["price_cents"] = std::stoi(PQgetvalue(res.get(), 0, 2));
+    }
     return result;
 }
 
 // Helper: query event from DB
 Json::Value query_event_db(const std::string& id) {
-    std::string query = "SELECT id, type, payload FROM events WHERE id = '" + id + "'";
-    PGresult* res = PQexec(g_pg, query.c_str());
+    auto res = g_db->exec("SELECT id, type, payload FROM events WHERE id = $1", {id});
     Json::Value result;
 
-    if (PQresultStatus(res) == PGRES_TUPLES_OK && PQntuples(res) > 0) {
-        result["id"] = PQgetvalue(res, 0, 0);
-        result["type"] = PQgetvalue(res, 0, 1);
+    if (ok_rows(res)) {
+        result["id"] = PQgetvalue(res.get(), 0, 0);
+        result["type"] = PQgetvalue(res.get(), 0, 1);
 
         Json::Reader reader;
-        std::string payload_str = PQgetvalue(res, 0, 2);
+        std::string payload_str = PQgetvalue(res.get(), 0, 2);
         Json::Value payload;
         if (reader.parse(payload_str, payload)) {
             result["payload"] = payload;
         }
     }
 
-    PQclear(res);
     return result;
 }
 
 // Helper: query metric from DB
 Json::Value query_metric_db(const std::string& id) {
-    std::string query = "SELECT id, payload FROM metrics WHERE id = '" + id + "'";
-    PGresult* res = PQexec(g_pg, query.c_str());
+    auto res = g_db->exec("SELECT id, payload FROM metrics WHERE id = $1", {id});
     Json::Value result;
 
-    if (PQresultStatus(res) == PGRES_TUPLES_OK && PQntuples(res) > 0) {
-        result["id"] = PQgetvalue(res, 0, 0);
+    if (ok_rows(res)) {
+        result["id"] = PQgetvalue(res.get(), 0, 0);
 
         Json::Reader reader;
-        std::string payload_str = PQgetvalue(res, 0, 1);
+        std::string payload_str = PQgetvalue(res.get(), 0, 1);
         Json::Value payload;
         if (reader.parse(payload_str, payload)) {
             result["payload"] = payload;
         }
     }
 
-    PQclear(res);
     return result;
 }
 
@@ -185,17 +233,14 @@ void writeback_flusher() {
             Json::FastWriter writer;
             std::string payload = writer.write(cached["payload"]);
 
-            std::ostringstream query;
-            query << "INSERT INTO metrics (id, payload) VALUES ('"
-                  << id << "', '" << payload << "') "
-                  << "ON CONFLICT (id) DO UPDATE SET payload = EXCLUDED.payload";
-
-            PGresult* res = PQexec(g_pg, query.str().c_str());
-            if (PQresultStatus(res) == PGRES_COMMAND_OK) {
+            auto res = g_flush_db->exec(
+                "INSERT INTO metrics (id, payload) VALUES ($1, $2) "
+                "ON CONFLICT (id) DO UPDATE SET payload = EXCLUDED.payload",
+                {id, payload});
+            if (res && PQresultStatus(res.get()) == PGRES_COMMAND_OK) {
                 g_persisted_rows++;
                 redis_srem("writeback:dirty", key);
             }
-            PQclear(res);
         }
     }
 }
@@ -205,9 +250,10 @@ int main() {
     const char* pg_conninfo = std::getenv("PG_CONNINFO");
     if (!pg_conninfo) pg_conninfo = "postgresql://appuser:apppass@localhost:5432/appdb";
 
-    g_pg = PQconnectdb(pg_conninfo);
-    if (PQstatus(g_pg) != CONNECTION_OK) {
-        LOG_ERROR << "Postgres connection failed: " << PQerrorMessage(g_pg);
+    g_db = std::make_unique<Db>(pg_conninfo);
+    g_flush_db = std::make_unique<Db>(pg_conninfo);
+    if (!g_db->connect() || !g_flush_db->connect()) {
+        LOG_ERROR << "Postgres connection failed: " << g_db->error() << g_flush_db->error();
         return 1;
     }
     LOG_INFO << "Connected to Postgres";
@@ -261,8 +307,7 @@ int main() {
             }
 
             // Cache miss - query DB
-            std::string query = "SELECT id, name, price_cents FROM products WHERE id = '" + id + "'";
-            resp = query_db(query);
+            resp = query_db(id);
 
             if (!resp.empty()) {
                 resp["source"] = "db";
@@ -294,13 +339,8 @@ int main() {
             std::string name = (*json)["name"].asString();
             int price = (*json)["price_cents"].asInt();
 
-            std::ostringstream query;
-            query << "UPDATE products SET name = '" << name
-                  << "', price_cents = " << price
-                  << " WHERE id = '" << id << "'";
-
-            PGresult* res = PQexec(g_pg, query.str().c_str());
-            PQclear(res);
+            g_db->exec("UPDATE products SET name = $1, price_cents = $2 WHERE id = $3",
+                       {name, std::to_string(price), id});
 
             // Invalidate cache
             redis_del("product:" + id);
@@ -334,8 +374,7 @@ int main() {
             }
 
             // Transparent cache layer loads from DB
-            std::string query = "SELECT id, name, price_cents FROM products WHERE id = '" + id + "'";
-            resp = query_db(query);
+            resp = query_db(id);
 
             if (!resp.empty()) {
                 resp["source"] = "db";
@@ -372,13 +411,8 @@ int main() {
             int price = (*json)["price_cents"].asInt();
 
             // Write to DB
-            std::ostringstream query;
-            query << "UPDATE products SET name = '" << name
-                  << "', price_cents = " << price
-                  << " WHERE id = '" << id << "'";
-
-            PGresult* res = PQexec(g_pg, query.str().c_str());
-            PQclear(res);
+            g_db->exec("UPDATE products SET name = $1, price_cents = $2 WHERE id = $3",
+                       {name, std::to_string(price), id});
 
             // Write to cache synchronously
             Json::Value cache_val;
@@ -414,8 +448,7 @@ int main() {
             }
 
             // Fallback to DB
-            std::string query = "SELECT id, name, price_cents FROM products WHERE id = '" + id + "'";
-            resp = query_db(query);
+            resp = query_db(id);
             resp["source"] = "db";
 
             auto http_resp = HttpResponse::newHttpJsonResponse(resp);
@@ -444,12 +477,8 @@ int main() {
             std::string payload = writer.write((*json)["payload"]);
 
             // Write to DB only (skip cache)
-            std::ostringstream query;
-            query << "INSERT INTO events (id, type, payload) VALUES ('"
-                  << id << "', '" << type << "', '" << payload << "')";
-
-            PGresult* res = PQexec(g_pg, query.str().c_str());
-            PQclear(res);
+            g_db->exec("INSERT INTO events (id, type, payload) VALUES ($1, $2, $3)",
+                       {id, type, payload});
 
             auto resp = HttpResponse::newHttpResponse();
             resp->setStatusCode(k200OK);
@@ -588,8 +617,7 @@ int main() {
             }
 
             // Query DB
-            std::string query = "SELECT id, name, price_cents FROM products WHERE id = '" + id + "'";
-            resp = query_db(query);
+            resp = query_db(id);
 
             if (!resp.empty()) {
                 resp["source"] = "db";
@@ -637,7 +665,6 @@ int main() {
     // Cleanup
     g_shutdown = true;
     flusher.join();
-    PQfinish(g_pg);
 
     return 0;
 }
