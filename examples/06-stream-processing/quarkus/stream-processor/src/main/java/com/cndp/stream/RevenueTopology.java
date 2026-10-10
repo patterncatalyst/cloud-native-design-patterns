@@ -6,9 +6,6 @@ import io.quarkus.kafka.client.serialization.ObjectMapperSerde;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Inject;
-import org.apache.kafka.clients.admin.Admin;
-import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.common.errors.TopicExistsException;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
@@ -19,12 +16,12 @@ import org.apache.kafka.streams.kstream.Materialized;
 import org.apache.kafka.streams.kstream.Produced;
 import org.apache.kafka.streams.kstream.TimeWindows;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -37,14 +34,13 @@ import java.util.Map;
 @ApplicationScoped
 public class RevenueTopology {
 
+    private static final Logger LOG = Logger.getLogger(RevenueTopology.class);
+
     static final String ORDERS = "order.placed";
     static final String REVENUE = "revenue.by-merchant";
 
     @Inject
     ObjectMapper mapper;
-
-    @ConfigProperty(name = "quarkus.kafka-streams.bootstrap-servers")
-    String bootstrapServers;
 
     @ConfigProperty(name = "window.seconds", defaultValue = "10")
     int windowSeconds;
@@ -57,7 +53,6 @@ public class RevenueTopology {
 
     @Produces
     public Topology topology() {
-        ensureTopics();
         StreamsBuilder builder = new StreamsBuilder();
         ObjectMapperSerde<Acc> accSerde = new ObjectMapperSerde<>(Acc.class);
 
@@ -68,7 +63,7 @@ public class RevenueTopology {
                 .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(windowSeconds)))
                 .aggregate(
                         () -> new Acc(0, BigDecimal.ZERO),
-                        (merchant, amount, acc) -> acc.add(new BigDecimal(amount)),
+                        (merchant, amount, acc) -> add(merchant, acc, amount),
                         Materialized.with(Serdes.String(), accSerde))
                 .toStream()
                 .map((window, acc) -> {
@@ -80,6 +75,8 @@ public class RevenueTopology {
                     out.put("merchant_id", merchant);
                     out.put("order_count", acc.count());
                     out.put("revenue", acc.total().setScale(2, RoundingMode.HALF_UP));
+                    LOG.infof("emitted revenue window=%d merchant=%s count=%d revenue=%s",
+                            start, merchant, acc.count(), acc.total().setScale(2, RoundingMode.HALF_UP));
                     return KeyValue.pair(merchant, write(out));
                 })
                 .to(REVENUE, Produced.with(Serdes.String(), Serdes.String()));
@@ -87,19 +84,13 @@ public class RevenueTopology {
         return builder.build();
     }
 
-    /** A Kafka Streams app refuses to start when a source topic is missing; the broker auto-creates topics only on first produce. */
-    private void ensureTopics() {
-        try (Admin admin = Admin.create(Map.of("bootstrap.servers", bootstrapServers))) {
-            admin.createTopics(List.of(new NewTopic(ORDERS, 1, (short) 1), new NewTopic(REVENUE, 1, (short) 1)))
-                    .values().forEach((topic, future) -> {
-                        try {
-                            future.get();
-                        } catch (Exception e) {
-                            if (!(e.getCause() instanceof TopicExistsException)) {
-                                throw new IllegalStateException("cannot create topic " + topic, e);
-                            }
-                        }
-                    });
+    /** A total that is not a number skips the record instead of killing the stream thread. */
+    private Acc add(String merchant, Acc acc, String amount) {
+        try {
+            return acc.add(new BigDecimal(amount));
+        } catch (NumberFormatException e) {
+            LOG.warnf("skipping order with invalid total merchant=%s total=%s", merchant, amount);
+            return acc;
         }
     }
 

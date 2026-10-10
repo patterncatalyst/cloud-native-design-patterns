@@ -13,7 +13,8 @@ Quarkus 3.40.1 LTS implementation demonstrating windowed stream aggregation with
 **stream-processor** (headless — no HTTP server)
 - Kafka Streams topology (`quarkus-kafka-streams`) over `order.placed`
 - Tumbling-window aggregation of revenue by merchant (`TimeWindows`, record timestamps)
-- Emits aggregated results to `revenue.by-merchant` topic
+- Emits each window update to the `revenue.by-merchant` topic and logs it as `emitted revenue window=... merchant=... count=... revenue=...`
+- Logs at WARN and skips an order whose total is not a number; undeserializable records are skipped (`LogAndContinue`)
 - Configurable window size via `WINDOW_SECONDS` (default: 10)
 
 ## Stack
@@ -45,7 +46,7 @@ curl -X POST http://localhost:8080/orders \
   -H "Content-Type: application/json" \
   -d '{"merchant_id":"merchant-b","sku":"item-x","quantity":2,"total":49.99}'
 
-# Wait for window to flush, then check aggregated output
+# Check aggregated output
 docker exec cndp-kafka /opt/kafka/bin/kafka-console-consumer.sh \
   --bootstrap-server localhost:9092 \
   --topic revenue.by-merchant \
@@ -66,5 +67,5 @@ docker compose down -v
 
 - **`quarkus-kafka-streams`**: the `Topology` is a CDI-produced bean (`RevenueTopology`); `application.id` is `stream-processor`, which is also the consumer group
 - **Windowed KTable**: `groupByKey().windowedBy(TimeWindows.ofSizeWithNoGrace(...)).aggregate(...)` with a Jackson-based `ObjectMapperSerde` for the accumulator
-- **Topic bootstrap**: the producer method creates `order.placed` and `revenue.by-merchant` with an `Admin` client, because Kafka Streams refuses to start when a source topic is missing
+- **Topic bootstrap**: `quarkus.kafka-streams.topics=order.placed` makes Quarkus wait for the source topic before starting Kafka Streams; the broker auto-creates it when order-service first produces. The sink `revenue.by-merchant` is left out of the list (it only exists once Streams writes to it, and the broker auto-creates it then)
 - **Fast-jar layout**: `target/quarkus-app/` with separated dependencies
