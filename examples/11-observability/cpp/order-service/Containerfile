@@ -49,8 +49,8 @@ WORKDIR /src
 COPY order-service/conanfile.py order-service/conan.lock ./
 # The Conan home is a cache mount (profile and packages persist between builds); the
 # deployer copies the built packages next to the sources so the later layers do not need it.
-# flex (a libpq build tool) runs makeinfo for its manual, and texinfo is not in UBI;
-# the scoped conf below makes flex's configure use `true` instead.
+# flex and bison (libpq build tools) run makeinfo for their manuals, and texinfo is not in UBI;
+# the scoped confs below make their configure use `true` instead.
 RUN --mount=type=cache,id=cndp-conan2,target=/root/.conan2,sharing=locked \
     conan profile detect --force \
     && sed -i 's|^compiler.cppstd=.*|compiler.cppstd=23|' "$(conan profile path default)" \
@@ -58,6 +58,7 @@ RUN --mount=type=cache,id=cndp-conan2,target=/root/.conan2,sharing=locked \
            --lockfile=conan.lock --build=missing \
            -s build_type=Release \
            -c:a 'flex/*:tools.gnu:extra_configure_args=["MAKEINFO=true"]' \
+           -c:a 'bison/*:tools.gnu:extra_configure_args=["MAKEINFO=true"]' \
            -c tools.build:jobs="$(nproc)" -c tools.cmake.cmaketoolchain:generator=Ninja
 
 COPY proto/ ./proto/
