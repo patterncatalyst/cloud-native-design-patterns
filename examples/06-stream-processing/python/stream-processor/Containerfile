@@ -2,6 +2,6 @@ FROM registry.access.redhat.com/ubi10/python-314-minimal:10.2-1791464217
 USER 1001
 COPY --chown=1001:0 --chmod=g=u requirements.txt .
 RUN --mount=type=cache,target=/opt/app-root/src/.cache/pip,uid=1001 \
-    pip install -r requirements.txt
+    PIP_NO_CACHE_DIR= PIP_DISABLE_PIP_VERSION_CHECK=1 pip install -r requirements.txt
 COPY --chown=1001:0 --chmod=g=u main.py .
 CMD ["python", "main.py", "worker", "--loglevel", "info"]
