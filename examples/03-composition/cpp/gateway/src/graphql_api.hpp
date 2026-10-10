@@ -3,7 +3,7 @@
 // schemagen turned src/graphql/schema.graphql into src/graphql/*Object.{h,cpp}; this file
 // supplies the resolvers. Orders come from order-api; Order.stock is its own resolver, so the
 // inventory service is only called when a query selects `stock`, and then once per request
-// for all SKUs (StockState).
+// for all SKUs (StockState), whichever root fields returned them.
 
 #pragma once
 
@@ -51,13 +51,15 @@ public:
                                                                     std::optional<int>&& limit) const {
         auto stock = state_of(params);
         std::vector<std::shared_ptr<gateway::object::Order>> out;
-        for (auto& o : source_->list(limit.value_or(50))) out.push_back(wrap(std::move(o), stock));
+        const int n = limit.value_or(50);
+        for (auto& o : stock->list_cached(n, [&] { return source_->list(n); })) out.push_back(wrap(std::move(o), stock));
         return out;
     }
 
     std::shared_ptr<gateway::object::Order> getOrder(service::FieldParams&& params, std::string&& id) const {
-        auto found = source_->find(id);
-        return found ? wrap(std::move(*found), state_of(params)) : nullptr;
+        auto stock = state_of(params);
+        auto found = stock->find_cached(id, [&] { return source_->find(id); });
+        return found ? wrap(std::move(*found), stock) : nullptr;
     }
 
 private:
@@ -86,10 +88,16 @@ public:
         try {
             auto ast = graphql::peg::parseString(query);
             if (!ast.root) return error("empty query");
-            auto vars = variables.isObject() ? from_json(variables) : graphql::response::Value(graphql::response::Type::Map);
+            auto make_vars = [&] {
+                return variables.isObject() ? from_json(variables) : graphql::response::Value(graphql::response::Type::Map);
+            };
             // A fresh StockState per request is the DataLoader scope.
             auto state = std::make_shared<StockState>(stock_fetch_);
-            auto result = service_->resolve({ast, operation_name, std::move(vars), {}, state}).get();
+            // Pass 1 collects the SKUs of every returned order, one call fetches their stock,
+            // pass 2 produces the response (see stock_loader.hpp).
+            service_->resolve({ast, operation_name, make_vars(), {}, state}).get();
+            state->load();
+            auto result = service_->resolve({ast, operation_name, make_vars(), {}, state}).get();
             return to_json(result);
         } catch (service::schema_exception& ex) {
             graphql::response::Value doc(graphql::response::Type::Map);

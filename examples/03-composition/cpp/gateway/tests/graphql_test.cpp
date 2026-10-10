@@ -76,6 +76,18 @@ int main() {
     r = api.execute(R"({ order(id: "zzz") { id } })");
     check(r["data"]["order"].isNull(), "missing order is null");
 
+    // Two root fields, each with its own order: still ONE batch call holding both SKUs
+    // (the first stock resolve must not batch before the second root field returns).
+    r = api.execute(R"({ a: order(id: "o1") { stock } b: order(id: "o2") { stock } })");
+    check(batch_calls == 4, "two root fields -> exactly one batch call");
+    check(last_batch == std::set<std::string>({"widget-a", "widget-b"}), "batch holds both root fields' SKUs");
+    check(r["data"]["a"]["stock"] == 42 && r["data"]["b"]["stock"] == 7, "both root fields get their stock");
+
+    // A SKU the inventory does not know is null, not 0.
+    source->orders.push_back({"o9", "mystery", 1, "confirmed"});
+    r = api.execute(R"({ order(id: "o9") { stock } })");
+    check(r["data"]["order"]["stock"].isNull(), "unknown SKU -> null stock");
+
     // Inventory failure: stock is null, the rest of the order still resolves.
     inventory_down = true;
     r = api.execute("{ orders { id stock } }");

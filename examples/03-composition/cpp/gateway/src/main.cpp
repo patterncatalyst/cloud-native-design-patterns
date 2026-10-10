@@ -7,7 +7,11 @@
 // Resolvers block on order-api and inventory, so each GraphQL request runs on its own
 // worker thread instead of on a Drogon event-loop thread.
 
+#include <condition_variable>
 #include <cstdlib>
+#include <deque>
+#include <functional>
+#include <mutex>
 #include <iostream>
 #include <memory>
 #include <set>
@@ -57,7 +61,7 @@ public:
     }
 
     std::optional<cndp::Order> find(const std::string& id) override {
-        auto resp = get("/orders/" + id);
+        auto resp = get("/orders/" + drogon::utils::urlEncodeComponent(id));
         if (resp->statusCode() == k404NotFound) return std::nullopt;
         return parse_order(parse_json(std::string(resp->body())));
     }
@@ -74,6 +78,54 @@ private:
     }
 
     std::string base_url_;
+};
+
+// Fixed pool of workers for the blocking resolvers, with a bounded queue: a burst of
+// requests waits briefly or is turned away with 503 instead of spawning a thread each.
+class WorkerPool {
+public:
+    WorkerPool(std::size_t threads, std::size_t max_queue) : max_queue_(max_queue) {
+        for (std::size_t i = 0; i < threads; ++i) workers_.emplace_back([this] { run(); });
+    }
+    ~WorkerPool() {
+        {
+            std::lock_guard lock(mu_);
+            stop_ = true;
+        }
+        cv_.notify_all();
+        for (auto& t : workers_) t.join();
+    }
+    bool submit(std::function<void()> job) {
+        {
+            std::lock_guard lock(mu_);
+            if (stop_ || queue_.size() >= max_queue_) return false;
+            queue_.push_back(std::move(job));
+        }
+        cv_.notify_one();
+        return true;
+    }
+
+private:
+    void run() {
+        for (;;) {
+            std::function<void()> job;
+            {
+                std::unique_lock lock(mu_);
+                cv_.wait(lock, [this] { return stop_ || !queue_.empty(); });
+                if (queue_.empty()) return;
+                job = std::move(queue_.front());
+                queue_.pop_front();
+            }
+            job();
+        }
+    }
+
+    std::size_t max_queue_;
+    std::mutex mu_;
+    std::condition_variable cv_;
+    std::deque<std::function<void()>> queue_;
+    std::vector<std::thread> workers_;
+    bool stop_ = false;
 };
 
 }  // namespace
@@ -104,6 +156,9 @@ int main() {
     auto source = std::make_shared<HttpOrderSource>(env_or("ORDER_API_URL", "http://order-api:8081"));
     auto graphql = std::make_shared<cndp::gql::GraphQLApi>(source, fetch_stock);
 
+    const auto workers = static_cast<std::size_t>(std::atoi(env_or("GATEWAY_WORKERS", "16")));
+    auto pool = std::make_shared<WorkerPool>(workers > 0 ? workers : 16, 256);
+
     std::cerr << "gateway started" << std::endl;
 
     app().setLogLevel(trantor::Logger::kInfo);
@@ -120,7 +175,7 @@ int main() {
 
     app().registerHandler(
         "/graphql",
-        [graphql](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& cb) {
+        [graphql, pool](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& cb) {
             auto body = req->getJsonObject();
             if (!body || !body->isMember("query")) {
                 Json::Value err;
@@ -131,10 +186,18 @@ int main() {
             std::string query = (*body)["query"].asString();
             std::string operation = (*body).get("operationName", "").asString();
             Json::Value variables = (*body).get("variables", Json::Value(Json::objectValue));
-            std::thread([graphql, cb = std::move(cb), query = std::move(query), operation = std::move(operation),
-                         variables = std::move(variables)]() {
-                cb(HttpResponse::newHttpJsonResponse(graphql->execute(query, operation, variables)));
-            }).detach();
+            auto shared_cb = std::make_shared<std::function<void(const HttpResponsePtr&)>>(std::move(cb));
+            const bool queued = pool->submit([graphql, shared_cb, query = std::move(query),
+                                              operation = std::move(operation), variables = std::move(variables)]() {
+                (*shared_cb)(HttpResponse::newHttpJsonResponse(graphql->execute(query, operation, variables)));
+            });
+            if (!queued) {
+                Json::Value err;
+                err["errors"][0]["message"] = "gateway busy";
+                auto resp = HttpResponse::newHttpJsonResponse(err);
+                resp->setStatusCode(k503ServiceUnavailable);
+                (*shared_cb)(resp);
+            }
         },
         {Post});
 
