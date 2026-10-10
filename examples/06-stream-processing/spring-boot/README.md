@@ -1,10 +1,10 @@
 # Example 06 — Stream Processing (Spring Boot)
 
-Kafka stream processor with tumbling-window aggregation — real-time order counts per SKU.
+Kafka stream processor with tumbling-window aggregation — real-time revenue per merchant.
 
 ## Framework & libraries
 
-- **Framework**: Spring Boot 4.1.1, Java 25 (Web, Kafka, Kafka Streams)
+- **Framework**: Spring Boot 4.1.1, Java 25 (Kafka, Kafka Streams)
 - **Libraries**: spring-boot-starter-kafka (Spring Kafka 4), kafka-streams, spring-boot-starter-jdbc, OpenTelemetry Java agent
 - **Container base**: `ubi10/openjdk-25-runtime:1.24-15` (UID 185)
 

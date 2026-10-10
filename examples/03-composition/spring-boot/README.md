@@ -5,7 +5,7 @@ API gateway pattern — BFF gateway aggregating order-api and inventory-service 
 ## Framework & libraries
 
 - **Framework**: Spring Boot 4.1.1, Java 25 (Web, GraphQL, gRPC)
-- **Libraries**: spring-boot-starter-graphql, grpc-netty-shaded, grpc-protobuf
+- **Libraries**: spring-boot-starter-graphql, grpc-netty-shaded, grpc-protobuf, OpenTelemetry Java agent 2.32.0
 - **Container base**: `ubi10/openjdk-25-runtime:1.24-15` (UID 185)
 
 ## Run

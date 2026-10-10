@@ -5,7 +5,7 @@ Kafka fan-out — order.placed events consumed independently by shipping and not
 ## Framework & libraries
 
 - **Framework**: Spring Boot 4.1.1, Java 25 (Web, Kafka)
-- **Libraries**: spring-boot-starter-kafka (Spring Kafka 4), spring-boot-starter-jdbc, PostgreSQL driver
+- **Libraries**: spring-boot-starter-kafka (Spring Kafka 4), spring-boot-starter-jdbc, PostgreSQL driver, OpenTelemetry Java agent 2.32.0
 - **Container base**: `ubi10/openjdk-25-runtime:1.24-15` (UID 185)
 
 ## Run
