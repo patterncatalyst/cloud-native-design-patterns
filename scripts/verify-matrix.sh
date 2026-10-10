@@ -74,7 +74,11 @@ for t in "${selected[@]}"; do
   (cd "$dir" && docker compose down -v --remove-orphans) >>"$log" 2>&1
 
   secs=$(( $(date +%s) - start ))
-  summary="$(grep -E '==> Results:' "$log" | tail -1 | sed 's/.*Results: //')"
+  # Prefer the standard "==> Results:" line; fall back to a plain "Result:" line.
+  summary="$(grep -E '==> Results:' "$log" | tail -1 | sed 's/.*Results: //' || true)"
+  if [ -z "$summary" ]; then
+    summary="$(grep -E '^ *Result:' "$log" | tail -1 | sed 's/.*Result: //' || true)"
+  fi
   printf '%-12s %4ss  %s\n' "$status" "$secs" "$summary"
   # Replace any earlier row for this target.
   grep -vP "^\Q$t\E\t" "$RESULTS" >"$RESULTS.tmp" || true

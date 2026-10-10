@@ -60,6 +60,5 @@ check "Dashboard page is served (HTML)" \
 check "SignalR negotiate endpoint responds" \
   bash -c "curl $CURL_OPTS -sf -X POST '$BASE/hubs/orders/negotiate?negotiateVersion=1' -H 'Content-Type: application/json' | grep -q connectionToken"
 
-echo ""
-echo "Result: $PASS passed, $FAIL failed"
-[ "$FAIL" -eq 0 ]
+printf '\n==> Results: %d passed, %d failed\n' "$PASS" "$FAIL"
+[[ $FAIL -eq 0 ]] && printf '==> PASS\n' || { printf '==> FAIL\n'; exit 1; }
