@@ -79,9 +79,10 @@ builder.Stream<string, string>(Orders)
     })
     .To<StringSerDes, StringSerDes>(Revenue);
 
-// The source topic is normally created by the first order; Kafka Streams needs it to exist
-// to size the repartition topic, so create it up front (the broker defaults apply).
+// Streamiz needs the source topic to size the repartition topic, and its sink producer does
+// not create the output topic, so create both up front (the broker defaults apply).
 await EnsureTopic(kafkaBootstrap, Orders);
+await EnsureTopic(kafkaBootstrap, Revenue);
 
 var stream = new KafkaStream(builder.Build(), config);
 
