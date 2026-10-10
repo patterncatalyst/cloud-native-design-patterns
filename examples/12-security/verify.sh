@@ -26,7 +26,6 @@ ctr_compose() { docker compose "$@"; }
 
 PASS=0
 FAIL=0
-SKIP=0
 
 check() {
     local desc="$1" cmd="$2" expected="$3"
@@ -39,6 +38,25 @@ check() {
         FAIL=$((FAIL + 1))
     fi
 }
+
+# conftest is required (policy-as-code section). Fail up front rather than skip.
+CONFTEST_VERSION=0.71.1
+if ! command -v conftest &>/dev/null; then
+    cat >&2 <<EOM
+ERROR: conftest is required for example 12 but is not installed.
+Pinned version: ${CONFTEST_VERSION}. Install it into ~/.local/bin (checksum-verified):
+
+  V=${CONFTEST_VERSION}
+  B=https://github.com/open-policy-agent/conftest/releases/download/v\$V
+  cd "\$(mktemp -d)" && curl -fsSLO "\$B/conftest_\${V}_Linux_x86_64.tar.gz" -O "\$B/checksums.txt" \\
+    && grep " conftest_\${V}_Linux_x86_64.tar.gz\$" checksums.txt | sha256sum -c - \\
+    && mkdir -p ~/.local/bin && tar -xzf "conftest_\${V}_Linux_x86_64.tar.gz" -C ~/.local/bin conftest
+
+See examples/PREREQUISITES.md.
+EOM
+    printf '==> FAIL\n'
+    exit 1
+fi
 
 printf '==> Verifying Example 12: Security\n\n'
 
@@ -136,38 +154,31 @@ check "tenant beta has independent pool" \
 # ===================================================================
 printf '\n--- 4. Policy-as-code ---\n'
 
-if command -v conftest &>/dev/null; then
-    GOOD_RESULT=$(conftest test policy/good-deploy.yaml -p policy/signed_images.rego --no-color 2>&1) || true
-    if echo "$GOOD_RESULT" | grep -q "0 failure"; then
-        printf '  \xe2\x9c\x93 conftest: good manifest passes policy\n'
-        PASS=$((PASS + 1))
-    else
-        printf '  \xe2\x9c\x97 conftest: good manifest passes policy (%s)\n' "$GOOD_RESULT"
-        FAIL=$((FAIL + 1))
-    fi
-
-    BAD_RESULT=$(conftest test policy/bad-deploy.yaml -p policy/signed_images.rego --no-color 2>&1) || true
-    if echo "$BAD_RESULT" | grep -q "FAIL\|failure"; then
-        printf '  \xe2\x9c\x93 conftest: bad manifest rejected by policy\n'
-        PASS=$((PASS + 1))
-    else
-        printf '  \xe2\x9c\x97 conftest: bad manifest rejected by policy (%s)\n' "$BAD_RESULT"
-        FAIL=$((FAIL + 1))
-    fi
-
-    if echo "$BAD_RESULT" | grep -q "untrusted image"; then
-        printf '  \xe2\x9c\x93 conftest: violation mentions untrusted image\n'
-        PASS=$((PASS + 1))
-    else
-        printf '  \xe2\x9c\x97 conftest: violation mentions untrusted image\n'
-        FAIL=$((FAIL + 1))
-    fi
+GOOD_RESULT=$(conftest test policy/good-deploy.yaml -p policy/signed_images.rego --no-color 2>&1) || true
+if echo "$GOOD_RESULT" | grep -q "0 failure"; then
+    printf '  \xe2\x9c\x93 conftest: good manifest passes policy\n'
+    PASS=$((PASS + 1))
 else
-    printf '  - SKIP conftest not installed (install: https://www.conftest.dev/install/)\n'
-    SKIP=$((SKIP + 3))
+    printf '  \xe2\x9c\x97 conftest: good manifest passes policy (%s)\n' "$GOOD_RESULT"
+    FAIL=$((FAIL + 1))
 fi
 
-printf '\n==> Results: %d passed, %d failed' "$PASS" "$FAIL"
-if [ "$SKIP" -gt 0 ]; then printf ', %d skipped' "$SKIP"; fi
-printf '\n'
+BAD_RESULT=$(conftest test policy/bad-deploy.yaml -p policy/signed_images.rego --no-color 2>&1) || true
+if echo "$BAD_RESULT" | grep -q "FAIL\|failure"; then
+    printf '  \xe2\x9c\x93 conftest: bad manifest rejected by policy\n'
+    PASS=$((PASS + 1))
+else
+    printf '  \xe2\x9c\x97 conftest: bad manifest rejected by policy (%s)\n' "$BAD_RESULT"
+    FAIL=$((FAIL + 1))
+fi
+
+if echo "$BAD_RESULT" | grep -q "untrusted image"; then
+    printf '  \xe2\x9c\x93 conftest: violation mentions untrusted image\n'
+    PASS=$((PASS + 1))
+else
+    printf '  \xe2\x9c\x97 conftest: violation mentions untrusted image\n'
+    FAIL=$((FAIL + 1))
+fi
+
+printf '\n==> Results: %d passed, %d failed\n' "$PASS" "$FAIL"
 [[ $FAIL -eq 0 ]] && printf '==> PASS\n' || { printf '==> FAIL\n'; exit 1; }

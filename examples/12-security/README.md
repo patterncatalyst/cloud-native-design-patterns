@@ -12,8 +12,8 @@ containers, testable with `conftest`.
 - [Docker Engine](https://docs.docker.com/engine/install/) with the Compose plugin, on
   Fedora or RHEL (see [Prerequisites](../PREREQUISITES.md))
 - `curl` and `python3` for driving the API
-- (Optional) [conftest](https://www.conftest.dev/install/) for
-  policy-as-code checks
+- [conftest](https://www.conftest.dev/install/) 0.71.1 for the policy-as-code checks;
+  `verify.sh` fails without it (see [Prerequisites](../PREREQUISITES.md))
 - ~256 MB free memory (single lightweight service)
 
 ## What it shows
