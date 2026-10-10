@@ -3,7 +3,7 @@
  *
  * Demonstrates:
  * 1. Sidecar trust — mutual TLS via X-Forwarded-Client-Cert header
- * 2. Valet keys — HMAC-based scoped tokens for temporary resource access
+ * 2. Valet keys — HS256 JWT scoped tokens (jwt-cpp) for temporary resource access
  * 3. Per-tenant bulkhead — isolated resource pools per tenant
  *
  * In-memory state only; no database required.
@@ -15,7 +15,8 @@
 #include <json/json.h>
 #include <spdlog/spdlog.h>
 
-#include <openssl/hmac.h>
+#include "valet.hpp"
+
 #include <atomic>
 #include <chrono>
 #include <iomanip>
@@ -27,26 +28,12 @@
 using namespace drogon;
 
 // ═══════════════════════════════════════════════════════════════════════════
-// HMAC Utilities for Valet Keys
+// Valet key secret
 // ═══════════════════════════════════════════════════════════════════════════
 
-static const char* VALET_SECRET = std::getenv("VALET_SECRET") ?
+static const std::string VALET_SECRET = std::getenv("VALET_SECRET") ?
     std::getenv("VALET_SECRET") : "demo-secret-do-not-use-in-prod";
 
-std::string hmac_sha256(const std::string& key, const std::string& data) {
-    unsigned char digest[EVP_MAX_MD_SIZE];
-    unsigned int len = 0;
-    HMAC(EVP_sha256(), key.c_str(), key.size(),
-         reinterpret_cast<const unsigned char*>(data.c_str()),
-         data.size(), digest, &len);
-
-    std::ostringstream ss;
-    ss << std::hex << std::setfill('0');
-    for (unsigned int i = 0; i < len; ++i) {
-        ss << std::setw(2) << static_cast<int>(digest[i]);
-    }
-    return ss.str();
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Per-Tenant Bulkhead
@@ -167,7 +154,7 @@ int main() {
     // ───────────────────────────────────────────────────────────────────────
     app.registerHandler(
         "/healthz",
-        [](const HttpRequestPtr& req,
+        [](const HttpRequestPtr&,
            std::function<void(const HttpResponsePtr&)>&& callback) {
             Json::Value resp;
             resp["status"] = "ok";
@@ -260,7 +247,7 @@ int main() {
         {Post});
 
     // ───────────────────────────────────────────────────────────────────────
-    // POST /valet-key — Mint a scoped HMAC token
+    // POST /valet-key — Mint a scoped HS256 JWT
     // ───────────────────────────────────────────────────────────────────────
     app.registerHandler(
         "/valet-key",
@@ -278,17 +265,10 @@ int main() {
                 return;
             }
 
-            // Generate expiration (5 minutes from now)
-            auto now = std::chrono::system_clock::now();
-            auto expires_time = now + std::chrono::minutes(5);
-            auto expires = std::chrono::duration_cast<std::chrono::seconds>(
-                expires_time.time_since_epoch()).count();
-
-            // Build message to sign: resource|operation|expires
-            std::ostringstream message;
-            message << resource << "|" << operation << "|" << expires;
-
-            std::string token = hmac_sha256(VALET_SECRET, message.str());
+            // Signed HS256 JWT (res, op, iss, iat, exp = now + 5 minutes)
+            auto minted = cndp::valet::mint(VALET_SECRET, resource, operation);
+            auto expires = minted.expires;
+            const std::string& token = minted.token;
 
             Json::Value resp_json;
             resp_json["resource"] = resource;
@@ -341,12 +321,8 @@ int main() {
                     return;
                 }
 
-                // Reconstruct message and verify HMAC
-                std::ostringstream message;
-                message << resource << "|" << operation << "|" << expires;
-                std::string expected_token = hmac_sha256(VALET_SECRET, message.str());
-
-                if (token != expected_token) {
+                // HS256 only; checks signature, exp, issuer, resource and operation
+                if (!cndp::valet::verify(VALET_SECRET, resource, operation, expires, token)) {
                     Json::Value error;
                     error["detail"] = "invalid token";
                     auto resp = HttpResponse::newHttpJsonResponse(error);
@@ -382,7 +358,7 @@ int main() {
     // ───────────────────────────────────────────────────────────────────────
     app.registerHandler(
         "/bulkhead-state",
-        [](const HttpRequestPtr& req,
+        [](const HttpRequestPtr&,
            std::function<void(const HttpResponsePtr&)>&& callback) {
             Json::Value state = bulkhead_manager.get_state();
             callback(HttpResponse::newHttpJsonResponse(state));
