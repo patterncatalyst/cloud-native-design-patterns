@@ -47,7 +47,7 @@ docker compose down
 
 ## Verify script tests
 
-The `verify.sh` script (run with `COMPOSE_FILE=cpp/compose.yaml`) checks:
+The `verify.sh` script checks:
 
 1. Health and readiness endpoints
 2. Order creation (POST /orders)

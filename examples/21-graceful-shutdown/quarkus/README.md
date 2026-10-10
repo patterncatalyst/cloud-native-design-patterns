@@ -17,7 +17,7 @@ docker compose up -d --build --wait
 Wait for healthy, then verify from the example root:
 
 ```bash
-cd .. && COMPOSE_FILE=quarkus/compose.yaml bash verify.sh
+cd .. && ./verify.sh
 ```
 
 ## Project structure
