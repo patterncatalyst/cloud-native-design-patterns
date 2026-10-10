@@ -13,7 +13,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
    - Python: faust-streaming
    - C++: cppgraphqlgen, jwt-cpp, boost::sml, sol2, libpq (not libpqxx)
    Do this in each language's branch. Close #31–#35 after.
-4. lgtm-skills: add the branch-protection standard to lgtm-github; remove podman wording from lgtm-quarkus, lgtm-spring-boot, lgtm-python and lgtm-crc; update the version pins (including lgtm-docker-stack) to the newest stable.
+4. lgtm-skills: add the branch-protection standard to lgtm-github; remove the old container-engine wording from lgtm-quarkus, lgtm-spring-boot, lgtm-python and lgtm-crc; update the version pins (including lgtm-docker-stack) to the newest stable.
 5. C++: modernize to **C++23 (C++26 if the toolchain supports it)** and the newest tooling (GCC, CMake, Conan, Ninja). CRC appendix excludes C++, per the recommendation (interpretation; the user may correct it).
 
 ## Order and status
@@ -64,8 +64,8 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 ## Key facts from the inventory
 
 - 21 example directories; 18 have all six languages (108 variants); 09 is configuration only, 28 is Newman, 30 is .NET only.
-- 188 Dockerfile*, 0 Containerfile; 130 files mention podman.
-- 27 compose files carry a podman `devices: /dev/null` workaround.
+- 188 Dockerfile*, 0 Containerfile; 130 files mention the old container engine.
+- 27 compose files carry a `devices: /dev/null` workaround for the old container engine.
 - 04-data spring-boot and quarkus inline the infra instead of using `include:`.
 - No unit tests anywhere. No example CI. Disabled ruleset `force-push` (18550149).
 - 01/cpp uses libpqxx, which the stack lock forbids. Example 30 pins .NET preview packages.
@@ -76,10 +76,10 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 
 - 0a: lgtm-github has the branch-protection section and gh-protect-branch.sh; lgtm-skills has CI (skills-ok) and an active ruleset; release r4.x is published.
 - 0b: only the `main` ruleset (checks site, content-ok, examples-ok); a direct push to main is rejected; remote branches are main only.
-- S1: 0 podman outside _plans and the decks; 0 Dockerfile*; Fedora/RHEL-only prerequisites; baseline matrix green; #31–#35 handled.
+- S1: 0 references to the old container engine outside _plans and the decks; 0 Dockerfile*; Fedora/RHEL-only prerequisites; baseline matrix green; #31–#35 handled.
 - S2–S7: every project builds; verify.sh green for that language's variants; images pinned, with no :latest.
 - S8: 0 :latest, -latest or kafka-ui; full matrix green.
 - S9: minikube appendix with evidence; profile stopped.
 - S10: Appendix R with evidence for 5 languages; scrub clean; CRC stopped and clean.
 - S11: voice scan reports zero ban-tier hits and is enforced in CI.
-- S12: 0 podman in the decks; current versions; OpenShift Local slides; rendered and inspected.
+- S12: 0 references to the old container engine in the decks; current versions; OpenShift Local slides; rendered and inspected.

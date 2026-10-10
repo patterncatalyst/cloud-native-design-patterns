@@ -344,7 +344,7 @@ add_content_slide(
     [
         "C# compiles to CIL bytecode, not native code. The CoreCLR JIT (RyuJIT) compiles to native at runtime, method-at-a-time. After that first call, performance is identical to C or C++.",
         "Kestrel is the built-in web server — it handles TLS (via OpenSSL), HTTP/1.1+2+3, gRPC, and WebSockets natively. No reverse proxy layer is needed inside the Pod.",
-        "Multi-stage Dockerfiles separate the SDK (∼780 MB) from the runtime (∼170 MB). Only the published DLLs and the ASP.NET runtime ship to production.",
+        "Multi-stage Containerfiles separate the SDK (∼780 MB) from the runtime (∼170 MB). Only the published DLLs and the ASP.NET runtime ship to production.",
         "Red Hat UBI images are the same .NET runtime on a RHEL 9 base — freely redistributable, commercially supported on OpenShift.",
     ],
     "References: .NET runtime architecture (docs.microsoft.com) · Kestrel web server (ASP.NET Core docs) · Red Hat UBI .NET images (access.redhat.com)",
