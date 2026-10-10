@@ -1,16 +1,36 @@
 #include <drogon/drogon.h>
 #include <sw/redis++/redis++.h>
-#include <kafka/KafkaProducer.h>
+#include <librdkafka/rdkafkacpp.h>
 #include <mutex>
 #include <vector>
 #include <iostream>
+#include <atomic>
 #include <chrono>
+#include <memory>
+#include <sstream>
+#include <thread>
 
 using namespace drogon;
 
 static std::string g_legacy_url;
 static std::unique_ptr<sw::redis::Redis> g_redis;
-static std::unique_ptr<kafka::clients::producer::KafkaProducer> g_producer;
+static std::unique_ptr<RdKafka::Producer> g_producer;
+static std::atomic<bool> g_producer_running{false};
+static std::thread g_poller;
+
+// The delivery report confirms the broker's ack; only then is the EVENT line logged.
+class DeliveryLog : public RdKafka::DeliveryReportCb {
+public:
+    void dr_cb(RdKafka::Message& message) override {
+        std::unique_ptr<std::string> order_id(static_cast<std::string*>(message.msg_opaque()));
+        if (message.err() != RdKafka::ERR_NO_ERROR) {
+            std::cerr << "kafka send failed: " << message.errstr() << std::endl;
+        } else {
+            std::cerr << "EVENT order.placed order_id=" << *order_id << std::endl;
+        }
+    }
+};
+static DeliveryLog g_dr_cb;
 static std::mutex g_events_mu;
 static std::vector<Json::Value> g_events;
 
@@ -71,12 +91,14 @@ static void publish_event(const std::string& order_id, const std::string& order_
         Json::StreamWriterBuilder wb;
         wb["indentation"] = "";
         std::string msg = Json::writeString(wb, envelope);
-        kafka::clients::producer::ProducerRecord record(
-            kafka::Topic("order.placed"),
-            kafka::NullKey,
-            kafka::Value(msg.data(), msg.size()));
-        g_producer->syncSend(record);
-        std::cerr << "EVENT order.placed order_id=" << order_id << std::endl;
+        auto* opaque = new std::string(order_id);  // owned by the delivery report callback
+        RdKafka::ErrorCode err = g_producer->produce(
+            "order.placed", RdKafka::Topic::PARTITION_UA, RdKafka::Producer::RK_MSG_COPY,
+            msg.data(), msg.size(), nullptr, 0, 0, opaque);
+        if (err != RdKafka::ERR_NO_ERROR) {
+            delete opaque;
+            std::cerr << "kafka send failed: " << RdKafka::err2str(err) << std::endl;
+        }
     } catch (const std::exception& e) {
         std::cerr << "kafka send failed: " << e.what() << std::endl;
     }
@@ -92,10 +114,24 @@ int main() {
 
     auto env_kafka = std::getenv("KAFKA_BOOTSTRAP");
     std::string kafka_bs = env_kafka ? env_kafka : "kafka:9094";
-    kafka::Properties props;
-    props.put("bootstrap.servers", kafka_bs);
-    props.put("acks", "all");
-    g_producer = std::make_unique<kafka::clients::producer::KafkaProducer>(props);
+    std::string errstr;
+    std::unique_ptr<RdKafka::Conf> conf(RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL));
+    if (conf->set("bootstrap.servers", kafka_bs, errstr) != RdKafka::Conf::CONF_OK ||
+        conf->set("client.id", "decorator", errstr) != RdKafka::Conf::CONF_OK ||
+        conf->set("acks", "all", errstr) != RdKafka::Conf::CONF_OK ||
+        conf->set("dr_cb", &g_dr_cb, errstr) != RdKafka::Conf::CONF_OK) {
+        std::cerr << "kafka config: " << errstr << std::endl;
+        return 1;
+    }
+    g_producer.reset(RdKafka::Producer::create(conf.get(), errstr));
+    if (!g_producer) {
+        std::cerr << "kafka producer: " << errstr << std::endl;
+        return 1;
+    }
+    g_producer_running = true;
+    g_poller = std::thread([] {
+        while (g_producer_running) g_producer->poll(100);
+    });
 
     app().setLogLevel(trantor::Logger::kInfo);
     app().addListener("0.0.0.0", 8080);
@@ -177,5 +213,10 @@ int main() {
         {Get});
 
     app().run();
+
+    g_producer->flush(10000);
+    g_producer_running = false;
+    g_poller.join();
+    g_producer.reset();
     return 0;
 }
