@@ -1356,4 +1356,4 @@ miss (the DB log shows the `SELECT`) while the second is a hit.
 
 ---
 *Verification status: verified — [`examples/25-caching/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/25-caching/) passes 26/26 checks in each of the six languages on Docker Engine (2026-10-10)
-(cache-aside, write-through, TTL expiry, cache invalidation, sorted-set leaderboard, pub/sub refresh).*
+(cache-aside with invalidation on update, read-through, write-through, write-around, write-back, refresh-ahead, hot-set tracking, and degradation with Redis stopped and restarted).*

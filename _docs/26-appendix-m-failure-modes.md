@@ -757,4 +757,4 @@ Google SRE cascading-failures chapter is the fastest way to a shared vocabulary 
 
 ---
 *Verification status: verified — [`examples/26-failure-modes/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/26-failure-modes/) passes 20/20 checks in each of the six languages on Docker Engine (2026-10-10)
-(timeout, retry with jitter, circuit breaker open/half-open/close, bulkhead, fallback, health degradation).*
+(timeout, retry exhaustion, circuit breaker closed, open and recovered with fallback, deadline-budget propagation, bulkhead limit).*

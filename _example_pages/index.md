@@ -46,7 +46,7 @@ for install instructions.
 
 | # | Example | Demonstrates | Python | Spring Boot | Quarkus | .NET | C++ | Go | Infra |
 |---|---------|-------------|:------:|:-----------:|:-------:|:----:|:---:|:--:|-------|
-| 12 | [Security Patterns]({{ '/docs/12-security/' | relative_url }}) | JWT validation, RBAC, OPA policy | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Docker |
+| 12 | [Security Patterns]({{ '/docs/12-security/' | relative_url }}) | Sidecar identity trust, JWT subject propagation, valet key, per-tenant bulkhead, conftest policy-as-code | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Docker |
 
 ## Deep-dive appendices
 
@@ -57,7 +57,7 @@ for install instructions.
 | 18 | [API Error Handling]({{ '/docs/18-appendix-e-errors/' | relative_url }}) | Unified error contract across REST and gRPC | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Docker |
 | 19 | [DDD & Hexagonal]({{ '/docs/19-appendix-f-ddd-hexagonal/' | relative_url }}) | Ports and adapters, domain isolation | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Docker |
 | 21 | [Graceful Shutdown]({{ '/docs/21-appendix-h-shutdown/' | relative_url }}) | SIGTERM handling, readiness flip, in-flight drain | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Docker |
-| 22 | [L7 Routing]({{ '/docs/22-appendix-i-l7-routing/' | relative_url }}) | Header-based routing, traffic splitting, canary | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Docker |
+| 22 | [L7 Routing]({{ '/docs/22-appendix-i-l7-routing/' | relative_url }}) | Header-based routing, weighted traffic splitting, rule-driven routing | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Docker |
 | 24 | [Monolith to Microservices]({{ '/docs/24-appendix-k-monolith-to-microservices/' | relative_url }}) | Content-based routing, strangler fig, decorator | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Docker |
 | 25 | [Caching Patterns]({{ '/docs/25-appendix-l-caching/' | relative_url }}) | Cache-aside, read/write-through, TTL, pub/sub refresh | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Docker |
 | 26 | [Failure Modes]({{ '/docs/26-appendix-m-failure-modes/' | relative_url }}) | Timeout, retry, circuit breaker, bulkhead, fallback | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Docker |

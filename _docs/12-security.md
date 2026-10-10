@@ -633,4 +633,4 @@ being blocked twice, is the layered model working.
 
 ---
 *Verification status: verified — [`examples/12-security/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/12-security/) passes 16/16 checks in each of the six languages on Docker Engine (2026-10-10)
-(JWT validation, RBAC enforcement, OPA policy evaluation, mTLS sidecar, rate limiting).*
+(sidecar identity trust (403 without X-Forwarded-Client-Cert, health-check bypass), propagation of the JWT subject claim, valet-key mint, verify and tamper rejection, per-tenant bulkhead state, and conftest Rego policy evaluation of a good and a bad manifest. JWT signature validation, RBAC enforcement and rate limiting are not covered).*

@@ -365,4 +365,4 @@ you bolt on a protocol is hexagonal architecture actually holding.
 
 ---
 *Verification status: verified — [`examples/19-ddd-hexagonal/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/19-ddd-hexagonal/) passes 17/17 checks in each of the six languages on Docker Engine (2026-10-10)
-(domain model isolation, port/adapter wiring, use-case orchestration, repository abstraction, event emission).*
+(source scans proving the domain layer imports no framework or persistence types, REST and CLI adapters driving the same use case, input validation, OrderPlaced event emission).*

@@ -410,4 +410,4 @@ ship.
 
 ---
 *Verification status: verified — [`examples/27-feature-flags/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/27-feature-flags/) passes 14/14 checks in each of the six languages on Docker Engine (2026-10-10)
-(flagd provider, boolean/string evaluation, targeting rules, fractional rollout, context propagation).*
+(plan-based targeting rules, sticky assignment and percentage rollout, kill switch, simple boolean flag, flag listing, and safe defaults while flagd is down).*

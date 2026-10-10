@@ -411,4 +411,4 @@ it; its `README.md` covers what it does and how to drive it.
 
 ---
 *Verification status: verified — [`examples/02-communications/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/02-communications/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-10)
-(REST CRUD, gRPC unary, GraphQL query, Kafka async produce/consume).*
+(REST create and validation (201, 422), cursor pagination, order confirmation and rejection driven by the gRPC stock reservation, a GraphQL orders query, and the order.placed Kafka topic).*

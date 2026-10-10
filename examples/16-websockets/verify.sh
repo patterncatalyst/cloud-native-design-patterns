@@ -220,7 +220,7 @@ wait "$SEQ_PID" 2>/dev/null || true
 SEQ_RESULT=$(cat "$SEQ_OUTPUT")
 rm -f "$SEQ_OUTPUT"
 
-if echo "$SEQ_RESULT" | grep -q "monotonic"; then
+if echo "$SEQ_RESULT" | grep -qx "monotonic"; then
     printf '  \xe2\x9c\x93 sequence numbers are monotonically increasing\n'
     PASS=$((PASS + 1))
 else

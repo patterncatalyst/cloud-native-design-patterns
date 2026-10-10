@@ -333,4 +333,4 @@ point of the registry.
 
 ---
 *Verification status: verified — [`examples/09-api-registry/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/09-api-registry/) passes 8/8 checks on Docker Engine (2026-10-10)
-(schema registration, compatibility validation, versioned retrieval, CI gate).*
+(schema registration, BACKWARD compatibility rule, rejection of a breaking change with 409, acceptance of an additive change, versioned retrieval).*

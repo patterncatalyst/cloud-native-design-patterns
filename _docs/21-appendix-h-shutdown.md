@@ -341,4 +341,4 @@ working.
 
 ---
 *Verification status: verified — [`examples/21-graceful-shutdown/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/21-graceful-shutdown/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-10)
-(SIGTERM handling, readiness flip, in-flight drain, connection close, clean exit).*
+(SIGTERM handling, readiness flip to 503, the shutdown log line, restart recovery, and orders persisting across the restart. In-flight request draining is not checked by the script).*
