@@ -52,9 +52,9 @@ func main() {
 
 	srv := &http.Server{Addr: ":8080", Handler: mux}
 	go func() {
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
-		<-sigCh
+		sigCtx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+		defer stopSignals()
+		<-sigCtx.Done()
 		slog.Info("shutting down saga-orchestrator")
 		srv.Shutdown(context.Background())
 	}()

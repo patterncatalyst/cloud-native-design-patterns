@@ -5,8 +5,10 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"os/signal"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	pb "github.com/patterncatalyst/cloud-native-design-patterns/examples/11-observability/go/inventory-service/pb"
@@ -100,8 +102,25 @@ func main() {
 	})
 
 	slog.Info("starting inventory-service on :50051")
-	if err := s.Serve(lis); err != nil {
+	sigCtx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stopSignals()
+	serveErr := make(chan error, 1)
+	go func() { serveErr <- s.Serve(lis) }()
+	select {
+	case err := <-serveErr:
 		slog.Error("serve failed", "err", err)
+	case <-sigCtx.Done():
+		slog.Info("shutting down")
+		done := make(chan struct{})
+		go func() {
+			s.GracefulStop()
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+			s.Stop()
+		}
 	}
 }
 

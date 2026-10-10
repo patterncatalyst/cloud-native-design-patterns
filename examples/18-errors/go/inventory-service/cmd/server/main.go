@@ -6,8 +6,11 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"os/signal"
 	"strconv"
 	"sync"
+	"syscall"
+	"time"
 
 	pb "github.com/patterncatalyst/cloud-native-design-patterns/examples/18-errors/go/inventory-service/pb"
 	"google.golang.org/grpc"
@@ -60,8 +63,25 @@ func main() {
 	})
 
 	slog.Info(fmt.Sprintf("inventory-service started on :50051 (stock=%d)", initialStock))
-	if err := srv.Serve(lis); err != nil {
+	sigCtx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stopSignals()
+	serveErr := make(chan error, 1)
+	go func() { serveErr <- srv.Serve(lis) }()
+	select {
+	case err := <-serveErr:
 		slog.Error("serve failed", "err", err)
 		os.Exit(1)
+	case <-sigCtx.Done():
+		slog.Info("shutting down")
+		done := make(chan struct{})
+		go func() {
+			srv.GracefulStop()
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+			srv.Stop()
+		}
 	}
 }

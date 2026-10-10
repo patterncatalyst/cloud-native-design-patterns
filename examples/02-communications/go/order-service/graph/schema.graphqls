@@ -1,0 +1,10 @@
+type Order {
+  id: String!
+  sku: String!
+  quantity: Int!
+  status: String!
+}
+
+type Query {
+  orders(limit: Int = 10): [Order!]!
+}

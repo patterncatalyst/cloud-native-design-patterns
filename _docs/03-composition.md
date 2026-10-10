@@ -162,18 +162,30 @@ class OrderResolver : public object::Order {
 ```
 
 ```go
-// schema.resolvers.go — gqlgen generates the resolver stubs from schema.graphql:
-//   type Query { order(id: ID!): Order }
-//   type Order { id: ID!  sku: String!  status: String!  stock: Int! }
+// schema.resolvers.go — gqlgen generates the resolver stubs from graph/schema.graphqls:
+//   type Query { orders(limit: Int = 50): [Order!]!  order(id: String!): Order }
+//   type Order { id: String!  sku: String!  quantity: Int!  status: String!  stock: Int }
 
-func (r *queryResolver) Order(ctx context.Context, id string) (*Order, error) {
-	return r.Orders.Get(ctx, id) // REST call to order-service
+func (r *queryResolver) Orders(ctx context.Context, limit *int) ([]*model.Order, error) {
+	var orders []*model.Order
+	if err := r.getJSON(ctx, r.OrderAPIURL+"/orders", &orders); err != nil { // REST call to order-api
+		return nil, err
+	}
+	r.attachStock(ctx, orders)
+	return orders, nil
 }
 
-// Order.stock is resolved on demand; the dataloader batches N orders into one
-// gRPC call per request, which is how the N+1 fan-out is killed.
-func (r *orderResolver) Stock(ctx context.Context, obj *Order) (int, error) {
-	return loaders.For(ctx).InventoryStock.Load(ctx, obj.Sku) // via gRPC, batched
+// Order.stock is only fetched when the query selects it, and one GetStockBatch gRPC call
+// covers every order in the response, which is how the N+1 fan-out is killed.
+func (r *Resolver) attachStock(ctx context.Context, orders []*model.Order) {
+	if !slices.Contains(graphql.CollectAllFields(ctx), "stock") {
+		return // no "stock" in the selection set: no inventory call
+	}
+	stock, _ := r.stockFor(ctx, skusOf(orders)) // one batched gRPC call
+	for _, o := range orders {
+		s := int(stock[o.Sku])
+		o.Stock = &s
+	}
 }
 ```
 

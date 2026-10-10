@@ -1,0 +1,25 @@
+# gqlgen configuration: schema-first. `go generate ./...` regenerates graph/generated.go,
+# graph/model/models_gen.go and the resolver stubs. The generated code is committed.
+schema:
+  - graph/*.graphqls
+
+exec:
+  filename: graph/generated.go
+  package: graph
+
+model:
+  filename: graph/model/models_gen.go
+  package: model
+
+resolver:
+  layout: follow-schema
+  dir: graph
+  package: graph
+  filename_template: "{name}.resolvers.go"
+
+autobind: []
+
+models:
+  Int:
+    model:
+      - github.com/99designs/gqlgen/graphql.Int

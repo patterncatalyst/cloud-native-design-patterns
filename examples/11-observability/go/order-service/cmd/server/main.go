@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/cenkalti/backoff/v7"
 	"github.com/jackc/pgx/v5/pgxpool"
 	pb "github.com/patterncatalyst/cloud-native-design-patterns/examples/11-observability/go/order-service/pb"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -112,9 +113,9 @@ func main() {
 	handler := otelhttp.NewHandler(mux, "order-service")
 	srv := &http.Server{Addr: ":8080", Handler: handler}
 	go func() {
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
-		<-sigCh
+		sigCtx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+		defer stopSignals()
+		<-sigCtx.Done()
 		slog.Info("shutting down")
 		srv.Shutdown(context.Background())
 	}()
@@ -166,14 +167,16 @@ func handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 	otel.GetTextMapPropagator().Inject(ctx, &carrier)
 
 	rec := &kgo.Record{Topic: "order.placed", Key: []byte(id), Value: event, Headers: headers}
-	for attempt := range 5 {
-		results := producer.ProduceSync(ctx, rec)
-		if err := results.FirstErr(); err != nil {
-			slog.Warn("kafka produce retry", "attempt", attempt+1, "err", err)
-			time.Sleep(time.Duration(attempt+1) * 500 * time.Millisecond)
-			continue
-		}
-		break
+	produceBackoff := backoff.NewExponentialBackOff()
+	produceBackoff.InitialInterval = 500 * time.Millisecond
+	produceBackoff.MaxInterval = 2 * time.Second
+	if _, err := backoff.Retry(ctx, func() (struct{}, error) {
+		return struct{}{}, producer.ProduceSync(ctx, rec).FirstErr()
+	}, backoff.WithBackOff(produceBackoff), backoff.WithMaxTries(5),
+		backoff.WithNotify(func(err error, next time.Duration) {
+			slog.Warn("kafka produce retry", "err", err, "next_in", next)
+		})); err != nil {
+		slog.Error("kafka produce failed", "err", err)
 	}
 
 	tid := traceIDFromCtx(ctx)

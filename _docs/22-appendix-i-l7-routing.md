@@ -504,31 +504,64 @@ Task<> Orders::route(HttpRequestPtr req, auto cb) {
 ```go
 // dispatcher.go — net/http + franz-go + gopher-lua (loads the same rules.lua)
 type Router struct {
-	lua *lua.LState // process-scoped Lua VM
+	proto *lua.FunctionProto // rules.lua, compiled once
+	pool  sync.Pool          // a LState is not safe for concurrent use
 }
 
-func NewRouter() *Router {
-	L := lua.NewState()
-	if err := L.DoFile("/etc/orders/rules.lua"); err != nil { // load the DSL
-		panic(err)
-	}
-	return &Router{lua: L}
-}
-
-func (rt *Router) evaluate(o Order, rc Ctx) []string {
-	err := rt.lua.CallByParam(lua.P{ // call route(order, ctx)
-		Fn: rt.lua.GetGlobal("route"), NRet: 1, Protect: true,
-	}, toLua(o), toLua(rc))
+func NewRouter(script string) (*Router, error) {
+	L := lua.NewState(lua.Options{SkipOpenLibs: true})
+	defer L.Close()
+	fn, err := L.LoadString(script) // a syntax error stops the service at startup
 	if err != nil {
+		return nil, err
+	}
+	rt := &Router{proto: fn.Proto}
+	rt.pool.New = func() any {
+		L := lua.NewState(lua.Options{SkipOpenLibs: true}) // sandbox: open only what rules need
+		for _, lib := range []struct {
+			name string
+			fn   lua.LGFunction
+		}{
+			{lua.BaseLibName, lua.OpenBase}, {lua.TabLibName, lua.OpenTable},
+			{lua.StringLibName, lua.OpenString}, {lua.MathLibName, lua.OpenMath},
+		} {
+			L.Push(L.NewFunction(lib.fn))
+			L.Push(lua.LString(lib.name))
+			L.Call(1, 0)
+		}
+		for _, unsafe := range []string{"dofile", "loadfile", "load", "loadstring", "require"} {
+			L.SetGlobal(unsafe, lua.LNil)
+		}
+		L.Push(L.NewFunctionFromProto(rt.proto)) // define route() in this state
+		L.PCall(0, lua.MultRet, nil)
+		return L
+	}
+	return rt, nil
+}
+
+func (rt *Router) evaluate(ctx context.Context, o Order, rc Ctx) []string {
+	ctx, cancel := context.WithTimeout(ctx, 100*time.Millisecond) // a runaway script cannot hang the request
+	defer cancel()
+	L := rt.pool.Get().(*lua.LState)
+	L.SetContext(ctx)
+	err := L.CallByParam(lua.P{ // call route(order, ctx) with per-request arguments
+		Fn: L.GetGlobal("route"), NRet: 1, Protect: true,
+	}, toLua(L, o), toLua(L, rc))
+	if err != nil {
+		L.Close() // an interrupted state is not reused
 		return []string{"kafka:orders.default"}
 	}
-	return toStrings(rt.lua.Get(-1)) // the returned destinations
+	dests := toStrings(L.Get(-1)) // the returned destinations
+	L.Pop(1)
+	L.SetContext(context.Background())
+	rt.pool.Put(L)
+	return dests
 }
 
 func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 	order := parse(r)
 	rc := enrich(r.Context(), order)                     // gather context (DB / HTTP)
-	for _, dest := range s.router.evaluate(order, rc) {  // fan-out
+	for _, dest := range s.router.evaluate(r.Context(), order, rc) {  // fan-out
 		proto, target, _ := strings.Cut(dest, ":")
 		switch proto {
 		case "kafka":

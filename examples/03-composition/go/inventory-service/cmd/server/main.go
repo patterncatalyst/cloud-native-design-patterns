@@ -5,6 +5,9 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	pb "github.com/patterncatalyst/cloud-native-design-patterns/examples/03-composition/go/inventory-service/pb"
 	"google.golang.org/grpc"
@@ -46,7 +49,24 @@ func main() {
 	})
 
 	slog.Info("starting inventory gRPC server on :50051")
-	if err := s.Serve(lis); err != nil {
+	sigCtx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stopSignals()
+	serveErr := make(chan error, 1)
+	go func() { serveErr <- s.Serve(lis) }()
+	select {
+	case err := <-serveErr:
 		slog.Error("serve failed", "err", err)
+	case <-sigCtx.Done():
+		slog.Info("shutting down")
+		done := make(chan struct{})
+		go func() {
+			s.GracefulStop()
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+			s.Stop()
+		}
 	}
 }
