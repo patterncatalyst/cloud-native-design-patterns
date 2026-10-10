@@ -58,6 +58,23 @@ int main() {
         CHECK(t && money(*t) == "2.98");
     }
 
+    // 128-bit limits: scaling is checked before it can overflow
+    {
+        const std::string big35(35, '9');  // 35 nines, scale 0
+        auto a = parse_decimal(big35);
+        auto frac = parse_decimal("0." + std::string(36, '1'));  // scale 36
+        CHECK(a && frac);
+        CHECK(!add(*a, *frac));  // aligning 10^35 to scale 36 would overflow 128 bits
+        CHECK(!add(*a, *a));     // 2*10^35 is 2*10^37 in cents: over the limit
+        auto ok = add(*parse_decimal("1"), *parse_decimal("2"));
+        CHECK(ok && money(*ok) == "3.00");
+        MerchantWindows w(10);
+        CHECK(w.apply(1000000000000, *a).has_value());  // just under the limit: accepted
+        CHECK(!w.apply(1000000000000, *a).has_value() && w.overflowed());  // the second one would overflow: skipped, total kept
+        auto after = w.apply(1000000000000, *parse_decimal("0.01"));  // still fits: the window keeps working
+        CHECK(after && after->count == 2);
+    }
+
     // event parsing, same rules as the Go and Kafka Streams versions
     {
         auto e = parse_order_event(R"({"merchant_id":"merchant-a","total":10.0})");

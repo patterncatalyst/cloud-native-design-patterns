@@ -43,7 +43,10 @@ struct Decimal {
     int scale = 0;
 };
 
-inline constexpr int kMaxDigits = 36;  // keeps mantissa and sums inside 128 bits
+// A parsed mantissa has at most 36 digits (< 10^36) and a scale of at most 36. add() keeps
+// every sum, aligned and also scaled to cents, below 10^37, so money()'s x100 and the
+// rounding arithmetic stay inside 128 bits (about 1.7e38). Anything larger is rejected.
+inline constexpr int kMaxDigits = 36;
 
 // Parses a plain decimal number: [sign] digits [. digits] [e|E [sign] digits], exponent within
 // +-30. Anything else (NaN, Infinity, hex, booleans, empty, too long) is rejected so one bad
@@ -104,14 +107,24 @@ inline std::optional<Decimal> parse_decimal(const std::string& text) {
     return Decimal{neg ? -m : m, scale};
 }
 
-// a + b, or nullopt when the aligned sum would not fit.
+// m * 10^by, or false when it would not fit in 128 bits (checked before the value is used).
+inline bool scale_up(i128 m, int by, i128& out) {
+    return !__builtin_mul_overflow(m, pow10_i128(by), &out);
+}
+
+// a + b, or nullopt when the aligned sum, or that sum in cents, would not stay below 10^37.
 inline std::optional<Decimal> add(const Decimal& a, const Decimal& b) {
     int scale = a.scale > b.scale ? a.scale : b.scale;
-    i128 am = a.mantissa * pow10_i128(scale - a.scale);
-    i128 bm = b.mantissa * pow10_i128(scale - b.scale);
-    i128 limit = pow10_i128(kMaxDigits + 1);
-    i128 sum = am + bm;
+    i128 am, bm, sum;
+    if (!scale_up(a.mantissa, scale - a.scale, am) || !scale_up(b.mantissa, scale - b.scale, bm) ||
+        __builtin_add_overflow(am, bm, &sum))
+        return std::nullopt;
+    const i128 limit = pow10_i128(kMaxDigits + 1);
     if (sum >= limit || sum <= -limit) return std::nullopt;
+    if (scale < 2) {  // money() multiplies by 10^(2-scale)
+        i128 cents;
+        if (!scale_up(sum, 2 - scale, cents) || cents >= limit || cents <= -limit) return std::nullopt;
+    }
     return Decimal{sum, scale};
 }
 
@@ -241,7 +254,9 @@ class MerchantWindows {
 public:
     explicit MerchantWindows(int64_t window_seconds) : window_seconds_(window_seconds) {}
 
+    // nullopt = dropped: late, or the sum would leave the supported range (overflowed()).
     std::optional<WindowUpdate> apply(int64_t ts_millis, const Decimal& amount) {
+        overflowed_ = false;
         int64_t start = window_start(ts_millis, window_seconds_);
         if (ts_millis > stream_time_) stream_time_ = ts_millis;
         if ((start + window_seconds_) * 1000 <= stream_time_) return std::nullopt;  // late
@@ -251,13 +266,17 @@ public:
         }
         Acc& acc = windows_[start];
         auto sum = add(acc.total, amount);
-        if (!sum) return std::nullopt;  // would overflow 128 bits: skip, keep the old total
+        if (!sum) {  // out of the supported range: skip the record, keep the old total
+            overflowed_ = true;
+            return std::nullopt;
+        }
         acc.total = *sum;
         ++acc.count;
         return WindowUpdate{start, start + window_seconds_, acc.count, acc.total};
     }
 
     size_t open_windows() const { return windows_.size(); }
+    bool overflowed() const { return overflowed_; }  // the last apply() was refused for range
 
 private:
     struct Acc {
@@ -266,6 +285,7 @@ private:
     };
     int64_t window_seconds_;
     int64_t stream_time_ = 0;
+    bool overflowed_ = false;
     std::map<int64_t, Acc> windows_;
 };
 

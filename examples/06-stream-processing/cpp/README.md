@@ -28,11 +28,19 @@ exactly one owner. The three topics are created up front (3 partitions for the s
 the same count for the others) through the librdkafka admin API.
 
 Commit order: each batch of input records is processed, the producer is flushed so every output record is
-delivery-reported, and only then are the input offsets committed with `commitSync`. A failed delivery stops the
-process without committing, and the batch replays on restart (at-least-once). Consumers of `revenue.by-merchant`
-keep the latest record per `(merchant_id, window_start)`, so a replayed update is harmless. Window state is in
-memory (the Go version mirrors it to a table topic): a window that spans a restart restarts from the committed
-offset.
+delivery-reported, and only then are the input offsets committed with `commitSync`. A failed delivery closes the
+clients without committing and exits with status 1; the compose service has `restart: on-failure`, so the batch
+replays from the last commit. Delivery is at-least-once, not exactly-once:
+
+- Window state is in memory. After a restart or a rebalance a window that was open restarts from the committed
+  offset, and its first re-emitted update carries a partial value that overwrites the earlier, fuller one until
+  the rest of the window is replayed. Consumers that keep the latest record per `(merchant_id, window_start)`
+  can therefore briefly see a lower revenue for that window.
+- A replayed `order.placed` batch is rekeyed again. Records already forwarded to `stream-processor-by-merchant`
+  before the crash are counted twice in their window.
+
+A record that cannot be processed (an unreadable order, an invalid total, a malformed repartition record, a window
+total beyond the supported range) is logged at WARN and skipped; the batch still commits past it.
 
 Output record:
 

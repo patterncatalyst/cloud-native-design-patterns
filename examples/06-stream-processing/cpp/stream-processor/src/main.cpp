@@ -14,14 +14,20 @@
 // order: a batch of records is processed, the producer is flushed (every output record
 // delivery-reported), and only then are the input offsets committed. A crash replays the
 // uncommitted batch (at-least-once); consumers of revenue.by-merchant keep the latest record
-// per (merchant_id, window_start), so a replayed update is harmless. Window state is in
-// memory: a window that spans a restart restarts from the committed offset.
+// per (merchant_id, window_start). Delivery is at-least-once, not exactly-once: window state
+// is in memory, so after a restart (or a rebalance) a window that was open restarts from the
+// committed offset and its first re-emitted update carries a PARTIAL value that overwrites
+// the earlier, fuller one until the rest is replayed; and a replayed order.placed batch is
+// rekeyed again, so records that were already forwarded to the repartition topic before a
+// crash are counted twice in their window. A failed delivery or commit makes the process
+// close its clients and exit non-zero so a supervisor restarts it.
 
 #include <atomic>
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
 #include <memory>
+#include <optional>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -197,7 +203,9 @@ public:
         }
     }
 
-    void run() {
+    // Returns false when it stopped because output could not be delivered (exit non-zero).
+    bool run() {
+        bool ok = true;
         spdlog::info("stream-processor started window_seconds={}", window_seconds_);
         const int batch_max = 500;
         while (!g_shutdown) {
@@ -217,12 +225,17 @@ public:
                         spdlog::warn("consume: {}", msg->errstr());
                 }
             }
-            if (handled > 0 && !commit_batch()) return;
+            if (handled > 0 && !commit_batch()) {
+                ok = false;
+                break;
+            }
             producer_->poll(0);
         }
+        // Close the clients cleanly on every path (flush what is queued, leave the group).
         producer_->flush(10000);
         consumer_->close();
         spdlog::info("stream-processor stopped");
+        return ok;
     }
 
 private:
@@ -256,16 +269,33 @@ private:
     void aggregate(RdKafka::Message& msg, const std::string& value) {
         if (!msg.key()) return;
         const std::string merchant = *msg.key();
+        // A malformed repartition record is skipped (WARN); the batch still commits past it.
         auto body = nlohmann::json::parse(value, nullptr, false);
-        if (body.is_discarded() || !body.contains("ts") || !body.contains("total")) return;
-        auto amount = cndp::parse_decimal(body["total"].get<std::string>());
-        if (!amount) return;
-        int64_t ts = body["ts"].get<int64_t>();
+        if (body.is_discarded() || !body.is_object() || !body.contains("ts") || !body.contains("total")) {
+            spdlog::warn("skipping malformed repartition record merchant={}", merchant);
+            return;
+        }
+        std::optional<cndp::Decimal> amount;
+        int64_t ts = 0;
+        try {
+            amount = cndp::parse_decimal(body["total"].get<std::string>());
+            ts = body["ts"].get<int64_t>();
+        } catch (const nlohmann::json::exception& e) {
+            spdlog::warn("skipping repartition record with wrong field types merchant={}: {}", merchant, e.what());
+            return;
+        }
+        if (!amount) {
+            spdlog::warn("skipping repartition record with invalid total merchant={}", merchant);
+            return;
+        }
 
         auto it = merchants_.try_emplace(merchant, cndp::MerchantWindows(window_seconds_)).first;
         auto update = it->second.apply(ts, *amount);
         if (!update) {
-            spdlog::debug("dropping late record merchant={}", merchant);
+            if (it->second.overflowed())
+                spdlog::warn("skipping order: window total out of range merchant={}", merchant);
+            else
+                spdlog::debug("dropping late record merchant={}", merchant);
             return;
         }
         spdlog::info("emitted revenue window={} merchant={} count={} revenue={}", update->start,
@@ -345,6 +375,5 @@ int main() {
     }
     spdlog::info("topics ready partitions={}", partitions);
     if (!processor.start()) return 1;
-    processor.run();
-    return 0;
+    return processor.run() ? 0 : 1;
 }
