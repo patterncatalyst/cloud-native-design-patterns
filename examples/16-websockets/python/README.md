@@ -6,7 +6,7 @@ WebSocket scale-out with Redis pub/sub backplane — two server pods sharing sta
 
 - **Framework**: FastAPI + Uvicorn
 - **Libraries**: websockets, redis[hiredis] (Redis pub/sub), OTel
-- **Container base**: python:3.12-slim
+- **Container base**: `ubi10/python-314-minimal` (Python 3.14, non-root UID 1001)
 
 ## Run
 

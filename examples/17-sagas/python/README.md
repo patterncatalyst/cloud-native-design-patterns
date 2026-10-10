@@ -6,7 +6,7 @@ DB-backed saga orchestrator — three steps forward, reverse-order compensation 
 
 - **Framework**: FastAPI + Uvicorn
 - **Libraries**: asyncpg (Postgres), pydantic, OTel
-- **Container base**: python:3.12-slim
+- **Container base**: `ubi10/python-314-minimal` (Python 3.14, non-root UID 1001)
 
 ## Run
 

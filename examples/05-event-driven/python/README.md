@@ -6,7 +6,7 @@ Kafka fan-out — order.placed events consumed independently by shipping and not
 
 - **Framework**: FastAPI (order-service), standalone consumers
 - **Libraries**: aiokafka (Kafka), asyncpg (Postgres), OTel
-- **Container base**: python:3.12-slim
+- **Container base**: `ubi10/python-314-minimal` (Python 3.14, non-root UID 1001)
 
 ## Run
 

@@ -1,11 +1,11 @@
 import asyncio
 import logging
 import os
+from contextlib import asynccontextmanager
 
 import asyncpg
 from fastapi import FastAPI
 from pydantic_settings import BaseSettings
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 
 class Settings(BaseSettings):
@@ -15,8 +15,6 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-app = FastAPI(title="order-service", version=settings.service_version)
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
@@ -26,8 +24,8 @@ log = logging.getLogger("order-service")
 pool: asyncpg.Pool | None = None
 
 
-@app.on_event("startup")
-async def startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     global pool
     pool = await asyncpg.create_pool(settings.database_url, min_size=1, max_size=5)
     log.info(
@@ -36,13 +34,13 @@ async def startup():
         settings.database_url.split("@")[-1],
         settings.kafka_bootstrap or "(not configured)",
     )
-
-
-@app.on_event("shutdown")
-async def shutdown():
+    yield
     if pool:
         await pool.close()
     log.info("shutdown complete")
+
+
+app = FastAPI(title="order-service", version=settings.service_version, lifespan=lifespan)
 
 
 @app.get("/healthz")
@@ -89,5 +87,3 @@ async def create_order(customer: str, total: float):
     log.info("order_created id=%s customer=%s total=%.2f", row["id"], customer, total)
     return dict(row)
 
-
-FastAPIInstrumentor.instrument_app(app)

@@ -5,8 +5,8 @@ Twelve-factor env-based config and liveness/readiness probes.
 ## Framework & libraries
 
 - **Framework**: FastAPI + Uvicorn
-- **Libraries**: asyncpg (Postgres), OpenTelemetry auto-instrumentation
-- **Container base**: python:3.12-slim
+- **Libraries**: asyncpg (Postgres), OpenTelemetry auto-instrumentation (`opentelemetry-instrument`, exports traces to the LGTM stack)
+- **Container base**: `ubi10/python-314-minimal` (Python 3.14, non-root UID 1001)
 
 ## Run
 
@@ -24,7 +24,7 @@ cd .. && bash verify.sh
 
 | Path | Description |
 |------|-------------|
-| `order-service/` | main.py — single-file API with /orders, /healthz, /readyz endpoints |
+| `main.py` | single-file API with /orders, /healthz, /readyz endpoints |
 
 ## Implementation notes
 

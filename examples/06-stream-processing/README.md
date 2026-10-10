@@ -34,7 +34,7 @@ credentials, and the container naming convention.
 Pick a language and start the stack:
 
 ```bash
-# Python (FastAPI)
+# Python (FastAPI, faust-streaming)
 cd python && docker compose up -d --build --wait
 
 # Spring Boot
