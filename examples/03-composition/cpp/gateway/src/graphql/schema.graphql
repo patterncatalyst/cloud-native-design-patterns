@@ -1,0 +1,13 @@
+type Order {
+  id: String!
+  sku: String!
+  quantity: Int!
+  status: String!
+  "On-hand stock for the order's SKU. Resolved with one batched gRPC call per request."
+  stock: Int
+}
+
+type Query {
+  orders(limit: Int = 50): [Order!]!
+  order(id: String!): Order
+}
