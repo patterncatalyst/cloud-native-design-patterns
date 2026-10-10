@@ -21,3 +21,5 @@ class Cndp06StreamProcessorConan(ConanFile):
         self.requires("librdkafka/2.14.2")
         self.requires("nlohmann_json/3.12.0")
         self.requires("spdlog/1.17.0")
+        self.requires("fmt/12.2.0", override=True)  # spdlog pins fmt 12.1.0
+        self.requires("lz4/1.10.0", override=True)  # librdkafka and libpq pin lz4 1.9.4

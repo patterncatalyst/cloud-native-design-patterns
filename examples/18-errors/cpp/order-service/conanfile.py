@@ -19,3 +19,5 @@ class Cndp18ErrorsCppOrderServiceConan(ConanFile):
         self.requires("drogon/1.9.13")
         self.requires("grpc/1.84.0")
         self.requires("protobuf/6.33.5")
+        self.requires("jsoncpp/1.9.8", override=True)  # drogon pins jsoncpp 1.9.5
+        self.requires("util-linux-libuuid/2.41.2", override=True)  # drogon pins util-linux-libuuid 2.39.2

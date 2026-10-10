@@ -22,3 +22,5 @@ class Cndp03GatewayConan(ConanFile):
         # grpc 1.84.0 accepts protobuf >=5.27 <7: 6.33.5 is the newest in range.
         self.requires("protobuf/6.33.5")
         self.requires("cppgraphqlgen/4.5.9")
+        self.requires("jsoncpp/1.9.8", override=True)  # drogon pins jsoncpp 1.9.5
+        self.requires("util-linux-libuuid/2.41.2", override=True)  # drogon pins util-linux-libuuid 2.39.2

@@ -22,3 +22,6 @@ class Cndp12SecurityConan(ConanFile):
         self.requires("jwt-cpp/0.7.2")
         # jwt-cpp parses claims with nlohmann_json (its picojson option is off)
         self.requires("nlohmann_json/3.12.0")
+        self.requires("jsoncpp/1.9.8", override=True)  # drogon pins jsoncpp 1.9.5
+        self.requires("util-linux-libuuid/2.41.2", override=True)  # drogon pins util-linux-libuuid 2.39.2
+        self.requires("fmt/12.2.0", override=True)  # spdlog pins fmt 12.1.0

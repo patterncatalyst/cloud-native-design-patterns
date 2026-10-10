@@ -21,3 +21,5 @@ class Cndp22RouterConan(ConanFile):
         self.requires("drogon/1.9.13")
         self.requires("sol2/3.5.0")
         self.requires("lua/5.4.8", override=True)
+        self.requires("jsoncpp/1.9.8", override=True)  # drogon pins jsoncpp 1.9.5
+        self.requires("util-linux-libuuid/2.41.2", override=True)  # drogon pins util-linux-libuuid 2.39.2
