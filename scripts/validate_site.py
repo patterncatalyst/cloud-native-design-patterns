@@ -10,8 +10,10 @@ Checks _docs/*.md, _parts/*.md, _example_pages/*.md and index.html:
   5. every excalidraw figure has assets/diagrams/<file>.svg and .excalidraw
   6. no positional terms in prose (outside code fences and inline code)
 
-Optional: --no-podman (fail on any `podman` in site files and examples/),
---fail-on-warn. Output is `path:line: message`. Exit 1 on errors.
+  7. no `podman` anywhere outside the historical plans and lgtm-presentation/
+     (on by default; --allow-podman turns it off)
+
+Optional: --allow-podman, --fail-on-warn. Output is `path:line: message`. Exit 1 on errors.
 Needs python3 stdlib and PyYAML.
 """
 from __future__ import annotations
@@ -281,13 +283,34 @@ def check_file(path: Path, rep: Report) -> None:
     check_positional(text, path, rep, fm_lines)
 
 
+PODMAN_SKIP_DIRS = {"node_modules", ".git", "lgtm-presentation", "_site", ".bundle", "vendor"}
+PODMAN_HISTORY = {
+    "_plans/phase3-backlog.md",
+    "_plans/qa-pass-r70.md",
+    "_plans/second-pass-audit.md",
+    "_plans/iteration-plan.md",
+    "scripts/validate_site.py",
+}
+PODMAN_SCAN_ROOTS = ["examples", "assets/diagrams", "scripts", "_plans", "_docs",
+                     "_parts", "_example_pages", ".github", "_includes", "_layouts"]
+PODMAN_SCAN_SUFFIXES = {".md", ".html", ".yml", ".yaml", ".py", ".sh", ".svg", ".excalidraw", ".json"}
+
+
 def check_podman(rep: Report, site_files: list[Path]) -> None:
-    files = list(site_files)
-    ex = ROOT / "examples"
-    if ex.is_dir():
-        files += [p for p in ex.rglob("*") if p.is_file()
-                  and "node_modules" not in p.parts and ".git" not in p.parts]
-    for p in files:
+    files = set(site_files)
+    files.update(ROOT.glob("*.md"))
+    files.update(ROOT.glob("*.html"))
+    for sub in PODMAN_SCAN_ROOTS:
+        base = ROOT / sub
+        if base.is_dir():
+            files.update(p for p in base.rglob("*") if p.is_file())
+    for p in sorted(files):
+        rel = p.relative_to(ROOT)
+        if PODMAN_SKIP_DIRS & set(rel.parts) or rel.as_posix() in PODMAN_HISTORY:
+            continue
+        if p.suffix not in PODMAN_SCAN_SUFFIXES and p.name not in {"Containerfile", "Dockerfile"} \
+                and not p.name.startswith("Containerfile"):
+            continue
         try:
             data = p.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
@@ -299,8 +322,8 @@ def check_podman(rep: Report, site_files: list[Path]) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--no-podman", action="store_true",
-                    help="fail on any 'podman' in the site files and examples/")
+    ap.add_argument("--allow-podman", action="store_true",
+                    help="skip the check that fails on any 'podman' reference (on by default)")
     ap.add_argument("--fail-on-warn", action="store_true", help="treat warnings as errors")
     args = ap.parse_args()
 
@@ -310,7 +333,7 @@ def main() -> int:
     rep = Report()
     for f in files:
         check_file(f, rep)
-    if args.no_podman:
+    if not args.allow_podman:
         check_podman(rep, files)
 
     for line in rep.errors + rep.warnings:
