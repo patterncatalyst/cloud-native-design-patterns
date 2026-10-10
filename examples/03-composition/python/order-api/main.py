@@ -7,6 +7,7 @@ import asyncpg
 from fastapi import FastAPI, Query
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.asyncpg import AsyncPGInstrumentor
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
@@ -25,6 +26,7 @@ provider.add_span_processor(
     BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{OTEL_ENDPOINT}/v1/traces"))
 )
 trace.set_tracer_provider(provider)
+AsyncPGInstrumentor().instrument()   # one span per SQL statement
 
 db_pool: Optional[asyncpg.Pool] = None
 
