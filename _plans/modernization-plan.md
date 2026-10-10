@@ -27,7 +27,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | S2 | chore/quarkus-3.40-lts | 1 | done (18/18 Quarkus PASS on 3.40.1; closes #32) |
 | S3 | chore/spring-boot-4.1 | 1 | done (111/111 PASS after the Opus review; closes #31) |
 | S4 | chore/dotnet-10-pins | 3 | done (19/19 .NET PASS after the Opus review; closes #33) |
-| S5 | chore/python-3.14 (+ faust) | 5 | pending |
+| S5 | chore/python-3.14 (+ faust) | 5 | in progress |
 | S6 | chore/go-toolchain (Go 1.27.2 + locked libraries) | 2+4 | pending |
 | S7 | chore/cpp-toolchain-ubi10 (C++23/26 + locked libraries) | 2+4 | pending |
 | S8 | chore/infra-images | 2 | pending |
