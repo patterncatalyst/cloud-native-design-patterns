@@ -1,6 +1,6 @@
 # Example 17: Saga Orchestration (Quarkus)
 
-This example demonstrates saga orchestration with PostgreSQL-based persistence using Quarkus 3.33.2 LTS.
+This example demonstrates saga orchestration with PostgreSQL-based persistence using Quarkus 3.40.1 LTS.
 
 ## What it does
 

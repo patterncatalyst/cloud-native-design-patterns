@@ -1,6 +1,6 @@
 # Example 22 — L7 Routing & Traffic Management (Quarkus)
 
-Quarkus 3.33.2 LTS implementation demonstrating weighted routing via Envoy and in-app rule-driven routing.
+Quarkus 3.40.1 LTS implementation demonstrating weighted routing via Envoy and in-app rule-driven routing.
 
 ## Services
 
@@ -28,7 +28,7 @@ Envoy proxy providing L7 routing capabilities:
 
 ## Stack
 
-- Quarkus 3.33.2 LTS with `quarkus-rest` (Jakarta REST)
+- Quarkus 3.40.1 LTS with `quarkus-rest` (Jakarta REST)
 - UBI10 base images with OpenJDK 25
 - Envoy v1.31 proxy for L7 traffic management
 - Multi-stage Docker builds for optimized images

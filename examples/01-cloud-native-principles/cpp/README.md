@@ -19,7 +19,7 @@ C++ implementation of the cloud-native principles chapter using **Drogon** (REST
 
 ## Differences from the tutorial's Quarkus implementation
 
-| Quarkus 3.33 LTS                     | Drogon 1.9.x + libpq                           |
+| Quarkus 3.40.1 LTS                     | Drogon 1.9.x + libpq                           |
 |--------------------------------------|------------------------------------------------|
 | Reactive REST (Mutiny)               | Callback-based handlers (Drogon)               |
 | Hibernate Reactive + Vert.x PgClient | libpq direct (C API) + hand-rolled pool        |

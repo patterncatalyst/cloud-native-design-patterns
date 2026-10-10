@@ -4,7 +4,7 @@ Three security patterns — sidecar trust (mTLS header check), valet key (HMAC-s
 
 ## Framework & libraries
 
-- **Framework**: Quarkus 3.33.2 LTS (RESTEasy Reactive + Jackson)
+- **Framework**: Quarkus 3.40.1 LTS (RESTEasy Reactive + Jackson)
 - **Libraries**: quarkus-rest, quarkus-rest-jackson (no Quarkus Security — patterns are hand-rolled)
 - **Container base**: UBI10 / OpenJDK 25
 

@@ -4,7 +4,7 @@ Six caching patterns in one service — cache-aside, read-through, write-through
 
 ## Framework & libraries
 
-- **Framework**: Quarkus 3.33.2 LTS (RESTEasy Reactive, Agroal JDBC, Redis Client, Scheduler)
+- **Framework**: Quarkus 3.40.1 LTS (RESTEasy Reactive, Agroal JDBC, Redis Client, Scheduler)
 - **Libraries**: quarkus-redis-client, quarkus-jdbc-postgresql
 - **Container base**: UBI10 / OpenJDK 25
 

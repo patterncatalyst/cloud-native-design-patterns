@@ -4,7 +4,7 @@ Circuit breaker, retry with backoff, timeout, and fallback — edge-service call
 
 ## Framework & libraries
 
-- **Framework**: Quarkus 3.33.2 (REST + Jackson)
+- **Framework**: Quarkus 3.40.1 LTS (REST + Jackson)
 - **Libraries**: quarkus-rest, quarkus-rest-jackson, java.net.http.HttpClient (JDK)
 - **Container base**: UBI10/openjdk-25
 

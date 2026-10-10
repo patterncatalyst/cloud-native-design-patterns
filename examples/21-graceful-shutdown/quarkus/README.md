@@ -4,7 +4,7 @@ SIGTERM handling — drain in-flight requests, stop accepting new ones, close DB
 
 ## Framework & libraries
 
-- **Framework**: Quarkus 3.33 LTS (RESTEasy Reactive, Agroal)
+- **Framework**: Quarkus 3.40.1 LTS (RESTEasy Reactive, Agroal)
 - **Libraries**: quarkus-rest, quarkus-rest-jackson, quarkus-jdbc-postgresql, quarkus-agroal
 - **Container base**: UBI10 / OpenJDK 25
 

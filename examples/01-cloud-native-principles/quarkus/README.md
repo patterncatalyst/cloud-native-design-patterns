@@ -4,7 +4,7 @@ Twelve-factor env-based config and liveness/readiness probes.
 
 ## Framework & libraries
 
-- **Framework**: Quarkus 3.33 LTS (RESTEasy Reactive, Agroal)
+- **Framework**: Quarkus 3.40.1 LTS (RESTEasy Reactive, Agroal)
 - **Libraries**: quarkus-rest, quarkus-jdbc-postgresql, quarkus-opentelemetry
 - **Container base**: registry.access.redhat.com/ubi10/openjdk-25-runtime
 

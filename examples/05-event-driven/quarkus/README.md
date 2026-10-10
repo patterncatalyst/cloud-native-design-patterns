@@ -1,6 +1,6 @@
 # Example 05 — Event-Driven Architecture (Quarkus)
 
-Quarkus 3.33.2 LTS implementation demonstrating event-driven microservices with Kafka.
+Quarkus 3.40.1 LTS implementation demonstrating event-driven microservices with Kafka.
 
 ## Services
 
@@ -21,7 +21,7 @@ Quarkus 3.33.2 LTS implementation demonstrating event-driven microservices with 
 
 ## Stack
 
-- Quarkus 3.33.2 LTS
+- Quarkus 3.40.1 LTS
 - UBI10 + OpenJDK 25
 - PostgreSQL (orders, shipments, notifications tables)
 - Kafka (order.placed topic)
