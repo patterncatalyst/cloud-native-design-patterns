@@ -37,7 +37,7 @@ exactly the coupling the architecture worked to remove:
 - **Retry storms** — retries with no backoff or bound, turning a blip into an
   outage.
 
-If you keep one diagram for review, keep the pairing below.
+If you keep one diagram for review, keep this pairing.
 
 {% include excalidraw.html
    file="13-antipattern-heuristics"
@@ -70,7 +70,7 @@ If you remember nothing else:
 3. **Own your data**; share it as contracts and facts, never as shared tables.
 4. Make the contract a **governed artifact**: a registry to enforce it, metadata to
    find it, observability to watch it.
-5. Watch for **coupling sneaking back in** — every anti-pattern above is a face of
+5. Watch for **coupling sneaking back in** — every anti-pattern in this chapter is a face of
    that one failure.
 
 ## The shoulders this stands on
@@ -96,4 +96,4 @@ can be read on demand.
 
 ---
 *Verification status: conceptual chapter — no runnable code. Its heuristics are the
-review-time application of the patterns proven in the preceding chapters.*
+review-time application of the patterns proven in the earlier chapters.*

@@ -75,7 +75,7 @@ provides for free.
 
 The left column is your job; the right column is the platform's. The whole point
 of a cloud-native service is to do the left column well and trust the right
-column — which is exactly what the code below does.
+column — which is exactly what this code does.
 
 ## Twelve factors, mapped to our system
 
