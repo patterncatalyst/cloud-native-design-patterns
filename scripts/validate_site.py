@@ -224,16 +224,14 @@ def check_figures(masked: str, path: Path, rep: Report) -> None:
 
 def prose_lines(text: str) -> list[tuple[int, str]]:
     """Prose lines: outside fenced code, outside Liquid tags, inline code removed."""
+    # Blank Liquid tags in place (figure alt text and captions describe the
+    # picture itself, e.g. "a band below reads ...", which is a visual layout and
+    # not a cross-reference to other text), keeping the rest of the line.
+    text = re.sub(r"\{%.*?%\}", lambda m: re.sub(r"[^\n]", " ", m.group(0)), text, flags=re.S)
     lines = text.split("\n")
     skip = set()
-    for s, e in fenced_regions(lines):
-        skip.update(range(s, e + 1))
-    # Liquid tags (include arguments carry figure alt text and captions that
-    # describe the picture itself, e.g. "a band below reads ..."; that is a
-    # visual layout, not a cross-reference to other text, so tags are skipped).
-    for m in re.finditer(r"\{%.*?%\}", text, re.S):
-        for ln in range(line_of(text, m.start()), line_of(text, m.end() - 1) + 1):
-            skip.add(ln - 1)
+    for s_, e_ in fenced_regions(lines):
+        skip.update(range(s_, e_ + 1))
     out = []
     for i, line in enumerate(lines):
         if i in skip:
