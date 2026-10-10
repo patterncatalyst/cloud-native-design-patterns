@@ -91,11 +91,14 @@ check "logs show SIGTERM received" \
 
 # --- Restart and verify recovery ---
 printf '  \xe2\x86\x92 restarting service and verifying recovery...\n'
-COMPOSE_FILE="${COMPOSE_FILE:-spring-boot/compose.yaml}"
-ctr_stop cndp-order-service >/dev/null 2>&1
-ctr_rm cndp-order-service >/dev/null 2>&1
-ctr_compose -f "$COMPOSE_FILE" up -d order-service >/dev/null 2>&1
-sleep 15
+# Start the same container again (it exited after draining), whichever
+# language is running, and wait for it to report ready.
+ctr_stop cndp-order-service >/dev/null 2>&1 || true
+ctr_start cndp-order-service >/dev/null 2>&1 || true
+for _ in $(seq 1 30); do
+    [ "$(curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' "$BASE/readyz" 2>/dev/null)" = 200 ] && break
+    sleep 2
+done
 
 check_status "readyz returns 200 after restart" \
     "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' $BASE/readyz" \
