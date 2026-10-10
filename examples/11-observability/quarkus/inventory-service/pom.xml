@@ -13,7 +13,7 @@
         <maven.compiler.target>25</maven.compiler.target>
         <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <quarkus.platform.version>3.33.2</quarkus.platform.version>
+        <quarkus.platform.version>3.40.1</quarkus.platform.version>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
     </properties>
@@ -63,6 +63,12 @@
                             <goal>build</goal>
                             <goal>generate-code</goal>
                         </goals>
+                        <configuration>
+                            <properties>
+                                <!-- shared contract: <lang>/proto/ is read in place, not copied into src/main/proto -->
+                                <quarkus.grpc.codegen.proto-directory>${project.basedir}/../proto</quarkus.grpc.codegen.proto-directory>
+                            </properties>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
