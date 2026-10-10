@@ -18,9 +18,6 @@ services:
     environment:
       - SPRING_DATA_REDIS_HOST=redis
       - POD_NAME=ws-pod-1
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
-      - OTEL_SERVICE_NAME=ws-server
-      - OTEL_RESOURCE_ATTRIBUTES=pod.name=ws-pod-1
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
       interval: 5s
@@ -43,9 +40,6 @@ services:
     environment:
       - SPRING_DATA_REDIS_HOST=redis
       - POD_NAME=ws-pod-2
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
-      - OTEL_SERVICE_NAME=ws-server
-      - OTEL_RESOURCE_ATTRIBUTES=pod.name=ws-pod-2
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
       interval: 5s
