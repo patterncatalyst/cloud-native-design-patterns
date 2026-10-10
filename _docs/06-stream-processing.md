@@ -314,5 +314,5 @@ The code is in [`examples/06-stream-processing/`](https://github.com/patterncata
 runs it; its `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: verified — [`examples/06-stream-processing/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/06-stream-processing/) passes 7/7 checks
+*Verification status: verified — [`examples/06-stream-processing/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/06-stream-processing/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-10)
 (windowed aggregation, changelog-backed state, consumer lag monitoring, rebalance recovery).*

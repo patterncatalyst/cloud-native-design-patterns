@@ -632,5 +632,5 @@ step pre-merge. A request without identity being refused, and an unsigned image
 being blocked twice, is the layered model working.
 
 ---
-*Verification status: verified — [`examples/12-security/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/12-security/) passes 13/13 checks
+*Verification status: verified — [`examples/12-security/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/12-security/) passes 16/16 checks in each of the six languages on Docker Engine (2026-10-10)
 (JWT validation, RBAC enforcement, OPA policy evaluation, mTLS sidecar, rate limiting).*

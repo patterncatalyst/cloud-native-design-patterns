@@ -1283,5 +1283,5 @@ The code is in [`examples/05-event-driven/`](https://github.com/patterncatalyst/
 it; its `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: verified — [`examples/05-event-driven/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/) passes 9/9 checks
+*Verification status: verified — [`examples/05-event-driven/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-10)
 (event production, consumption, commit-after-side-effect, schema validation, dead-letter handling).*

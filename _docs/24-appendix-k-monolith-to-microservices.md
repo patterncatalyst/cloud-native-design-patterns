@@ -603,5 +603,5 @@ write *and* that an `order.placed` event landed on Kafka. Same client-visible AP
 underneath, legacy untouched — that is the decorator doing its job.
 
 ---
-*Verification status: verified — [`examples/24-monolith-to-microservices/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/24-monolith-to-microservices/) passes 16/16 checks
+*Verification status: verified — [`examples/24-monolith-to-microservices/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/24-monolith-to-microservices/) passes 19/19 checks in each of the six languages on Docker Engine (2026-10-10)
 (strangler fig proxy, feature toggle cutover, monolith bypass, data sync, incremental extraction).*
