@@ -127,5 +127,5 @@ was expanded to a full event-driven-microservices treatment drawn from Bellemare
 ## Plans
 
 - `_plans/phase3-backlog.md` — full history of the r62–r77 work and the Ch05 expansion tranches.
-- `_plans/examples-plan.md` — **create this** as the first step: the 20-runner manifest, the
-  per-example structure above, and the per-example language/infra choices as they're decided.
+- `_plans/examples-plan.md` — the runnable-examples manifest and per-example language/infra choices.
+- `_plans/modernization-plan.md` — the current modernization: section order, decisions, pins, status.
