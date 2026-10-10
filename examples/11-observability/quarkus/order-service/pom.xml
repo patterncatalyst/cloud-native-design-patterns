@@ -66,7 +66,7 @@
         <dependency>
             <groupId>io.quarkiverse.micrometer.registry</groupId>
             <artifactId>quarkus-micrometer-registry-otlp</artifactId>
-            <version>3.4.1</version>
+            <version>3.7.0</version>
         </dependency>
     </dependencies>
 
@@ -94,7 +94,7 @@
             </plugin>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
+                <version>3.16.0</version>
                 <configuration>
                     <release>25</release>
                 </configuration>
