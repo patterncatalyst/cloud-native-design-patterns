@@ -938,17 +938,12 @@ public class MetricsFlusher(
 
 ```python
 import asyncio, json
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
 from redis.asyncio import Redis
 
-app   = FastAPI()
 cache = Redis.from_url("redis://redis:6379")
 BATCH, PERIOD_S = 100, 1.0
-
-@app.put("/metrics/{mid}")
-async def write_metric(mid: str, body: dict):
-    await cache.hset(f"metric:{mid}", mapping=body)   # 1. cache only; return now
-    await cache.sadd("metric:dirty", mid)             # mark for flush
-    return {"ok": True}                               # fast — microseconds
 
 async def flusher():
     while True:                                       # 2. drain the dirty set to the DB
@@ -972,7 +967,13 @@ async def lifespan(app):
     yield
     task.cancel()
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan)                      # created once, with the flusher
+
+@app.put("/metrics/{mid}")
+async def write_metric(mid: str, body: dict):
+    await cache.hset(f"metric:{mid}", mapping=body)   # 1. cache only; return now
+    await cache.sadd("metric:dirty", mid)             # mark for flush
+    return {"ok": True}                               # fast — microseconds
 ```
 
 ```cpp
@@ -1197,20 +1198,12 @@ public class HotKeyRefresher(
 ```
 
 ```python
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException
+
 # Background task refreshes hot keys (a sorted set, touched at read time) before TTL.
 TTL_S = 60
 REFRESH_BEFORE_S = 10
-
-@app.get("/products/{pid}")
-async def get_product(pid: str):
-    key = f"product:{pid}"
-    await cache.zadd("product:hot", {pid: time.time()})  # touch hot-list
-    if cached := await cache.get(key):
-        return json.loads(cached)
-    row = await db.fetch_one("SELECT * FROM products WHERE id=$1", pid)
-    if not row: raise HTTPException(404)
-    await cache.setex(key, TTL_S, json.dumps(dict(row)))
-    return dict(row)
 
 async def refresher():
     while True:
@@ -1231,7 +1224,18 @@ async def lifespan(app):
     yield
     task.cancel()
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan)                         # created once, with the refresher
+
+@app.get("/products/{pid}")
+async def get_product(pid: str):
+    key = f"product:{pid}"
+    await cache.zadd("product:hot", {pid: time.time()})  # touch hot-list
+    if cached := await cache.get(key):
+        return json.loads(cached)
+    row = await db.fetch_one("SELECT * FROM products WHERE id=$1", pid)
+    if not row: raise HTTPException(404)
+    await cache.setex(key, TTL_S, json.dumps(dict(row)))
+    return dict(row)
 ```
 
 ```cpp
