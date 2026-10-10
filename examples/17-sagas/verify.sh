@@ -133,13 +133,16 @@ ctr_exec cndp-postgres psql -U appuser -d appdb -c \
     "INSERT INTO sagas (id, status, step_index, context) VALUES ('resume-test', 'RUNNING', 1, '{\"order_id\":\"order-3\",\"sku\":\"widget-c\",\"total\":19.99,\"charge_payment\":{\"payment_id\":\"pay-test\",\"amount\":19.99}}')" \
     >/dev/null 2>&1
 
-COMPOSE_FILE="${COMPOSE_FILE:-spring-boot/compose.yaml}"
+# Stop and start the same container, whichever language is running: the
+# orchestrator must pick the RUNNING saga up from Postgres on startup.
 ctr_stop cndp-saga >/dev/null 2>&1
-ctr_rm cndp-saga >/dev/null 2>&1
-ctr_compose -f "$COMPOSE_FILE" up -d saga-orchestrator >/dev/null 2>&1
-sleep 15
-
-RESUMED=$(curl $CURL_OPTS -sf "$BASE/sagas/resume-test")
+ctr_start cndp-saga >/dev/null 2>&1
+RESUMED=""
+for _ in $(seq 1 30); do
+    RESUMED=$(curl $CURL_OPTS -sf "$BASE/sagas/resume-test" 2>/dev/null) || RESUMED=""
+    echo "$RESUMED" | grep -q '"COMPLETED"' && break
+    sleep 2
+done
 check "resumed saga completed after restart" \
     "echo '$RESUMED'" \
     '"COMPLETED"'

@@ -267,7 +267,6 @@ The test checks all 12 acceptance criteria:
 9. Compensations run in reverse order (release_stock, refund_payment)
 10. cancel_shipping correctly skipped (not in log)
 11. Resume test: saga completes after container restart
-12. COMPOSE_FILE env var points to correct path
 
 ## Cleanup
 
