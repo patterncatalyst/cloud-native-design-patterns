@@ -210,7 +210,7 @@ async def create(body: OrderIn) -> Order:
             insert_outbox,                   # same txn -> atomic with the state change
             topic="order.placed",
             key=order.id,
-            payload=order.json(),
+            payload=order.model_dump_json(),
         )
     return order                             # Debezium tails the WAL and publishes
 
