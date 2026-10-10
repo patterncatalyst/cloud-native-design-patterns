@@ -160,7 +160,7 @@ void init_tracing() {
   otel::trace::Provider::SetTracerProvider(
       otel::sdk::trace::TracerProviderFactory::Create(std::move(processor)));
 }
-// No auto-instrumentation for Drogon + modern-cpp-kafka: add a request
+// No auto-instrumentation for Drogon + librdkafka: add a request
 // middleware that starts a span, and a custom span per business op.
 auto tracer = otel::trace::Provider::GetTracerProvider()->GetTracer("order-service");
 auto span   = tracer->StartSpan("reserve_stock");          // custom span
@@ -199,7 +199,7 @@ line of config, or a builder chain in .NET), and add **one** manual span around 
 business operation — `reserve_stock`. The plumbing spans (HTTP in, gRPC out, Kafka
 publish) come for free; the domain span is the bit only you can write. The honest
 exception is C++: there is no auto-instrumentation for Drogon or
-`modern-cpp-kafka`, so you add a request-scoped middleware span by hand — the
+`librdkafka`, so you add a request-scoped middleware span by hand — the
 chapter says so rather than pretending the agent exists.
 
 ## The other two signals, in code

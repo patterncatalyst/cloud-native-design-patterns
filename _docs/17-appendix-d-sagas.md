@@ -103,17 +103,17 @@ async def advance(saga_id: str):
 // saga_orchestrator.cc — DB-backed state machine; advance one step per call
 constexpr std::array steps = {"charge_payment", "reserve_stock", "book_shipping"};
 
-void advance(pqxx::connection& conn, std::string_view saga_id) {
-  pqxx::work tx{conn};                           // state + command commit together
-  auto s = get_saga_for_update(tx, saga_id);     // row lock (SELECT … FOR UPDATE)
+void advance(PGconn* conn, std::string_view saga_id) {
+  PQclear(PQexec(conn, "BEGIN"));                // libpq: state + command commit together
+  auto s = get_saga_for_update(conn, saga_id);   // row lock (SELECT … FOR UPDATE)
   if (s.status != "RUNNING") return;             // idempotent: already done/failed
   auto step = steps[s.step_index];
   auto result = invoke(step, s.context);         // call the owning service
   s.context[step] = result;                      // accumulate output into context
   ++s.step_index;
   if (s.step_index == steps.size()) s.status = "COMPLETED";
-  update_saga(tx, s);
-  tx.commit();
+  update_saga(conn, s);
+  PQclear(PQexec(conn, "COMMIT"));
 }
 ```
 

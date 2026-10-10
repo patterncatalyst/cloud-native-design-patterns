@@ -419,7 +419,7 @@ DLQ record carries the original payload plus error and trace headers.
 
 The frameworks differ in how much they do for you. Spring Kafka, SmallRye Reactive
 Messaging express the policy declaratively; with `Confluent.Kafka`, `aiokafka` and
-`modern-cpp-kafka` you write the loop yourself — which makes the invariant explicit:
+`rdkafka++` you write the loop yourself — which makes the invariant explicit:
 the commit happens on *every* branch.
 
 {% include excalidraw.html
@@ -541,27 +541,25 @@ async for msg in consumer:
 constexpr int MAX_RETRIES = 3;
 
 while (!stop_token.stop_requested()) {
-  for (auto& msg : consumer.poll(100ms)) {
-    try {
-      handle(msg);
-      consumer.commitSync();                         // success
-    } catch (const PoisonError& e) {
-      int  attempts = read_header(msg, "retries", 0);
-      auto value    = msg.value();
-      if (attempts < MAX_RETRIES) {
-        kafka::ProducerRecord rec{"orders.retry.30s",
-                                  kafka::Value{value}};
-        rec.headers().push_back({"retries",
-                                 std::to_string(attempts + 1)});
-        producer.send(rec, /*cb*/);                  // delayed retry
-      } else {
-        kafka::ProducerRecord dlq{"orders.DLQ", kafka::Value{value}};
-        dlq.headers().push_back({"error",   "poison"});
-        dlq.headers().push_back({"traceId", current_trace_id()});
-        producer.send(dlq, /*cb*/);                  // DLQ
-      }
-      consumer.commitSync();                         // free head-of-line
+  std::unique_ptr<RdKafka::Message> msg(consumer->consume(100));
+  if (msg->err() != RdKafka::ERR_NO_ERROR) continue;
+  try {
+    handle(*msg);
+    consumer->commitSync(msg.get());                 // success
+  } catch (const PoisonError& e) {
+    int  attempts = read_header(*msg, "retries", 0);
+    auto value    = std::string(payload_of(*msg));
+    if (attempts < MAX_RETRIES) {
+      auto* h = RdKafka::Headers::create();
+      h->add("retries", std::to_string(attempts + 1));
+      produce_with_headers(*producer, "orders.retry.30s", value, h);   // delayed retry
+    } else {
+      auto* h = RdKafka::Headers::create();
+      h->add("error", "poison");
+      h->add("traceId", current_trace_id());
+      produce_with_headers(*producer, "orders.DLQ", value, h);         // DLQ
     }
+    consumer->commitSync(msg.get());                 // free head-of-line
   }
 }
 ```
