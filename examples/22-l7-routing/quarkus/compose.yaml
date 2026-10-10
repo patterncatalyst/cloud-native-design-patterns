@@ -23,6 +23,7 @@ services:
   order-v1:
     build:
       context: order-service
+      dockerfile: Containerfile
     container_name: cndp-order-v1
     devices:
       - "/dev/null:/dev/null:rwm"
@@ -38,6 +39,7 @@ services:
   order-v2:
     build:
       context: order-service
+      dockerfile: Containerfile
     container_name: cndp-order-v2
     devices:
       - "/dev/null:/dev/null:rwm"
@@ -53,6 +55,7 @@ services:
   router-service:
     build:
       context: router-service
+      dockerfile: Containerfile
     container_name: cndp-router-service
     ports:
       - "8090:8080"

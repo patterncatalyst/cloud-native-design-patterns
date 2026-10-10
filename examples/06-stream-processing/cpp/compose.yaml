@@ -11,7 +11,9 @@ services:
       - ../db/init:/docker-entrypoint-initdb.d:Z
 
   order-service:
-    build: order-service
+    build:
+      context: order-service
+      dockerfile: Containerfile
     container_name: cndp-order-service
     depends_on:
       lgtm: { condition: service_healthy }
@@ -32,7 +34,9 @@ services:
       start_period: 60s
 
   stream-processor:
-    build: stream-processor
+    build:
+      context: stream-processor
+      dockerfile: Containerfile
     container_name: cndp-stream-processor
     depends_on:
       kafka: { condition: service_healthy }

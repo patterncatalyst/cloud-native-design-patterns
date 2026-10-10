@@ -11,7 +11,7 @@ services:
   blazor-dashboard:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Containerfile
     container_name: cndp-order-service
     ports:
       - "8080:8080"

@@ -23,7 +23,7 @@ services:
   order-v1:
     build:
       context: .
-      dockerfile: Dockerfile.order
+      dockerfile: Containerfile.order
     container_name: cndp-order-v1
     environment:
       - APP_VERSION=v1
@@ -37,7 +37,7 @@ services:
   order-v2:
     build:
       context: .
-      dockerfile: Dockerfile.order
+      dockerfile: Containerfile.order
     container_name: cndp-order-v2
     environment:
       - APP_VERSION=v2
@@ -51,7 +51,7 @@ services:
   router-service:
     build:
       context: .
-      dockerfile: Dockerfile.router
+      dockerfile: Containerfile.router
     container_name: cndp-router-service
     ports:
       - "8090:8080"

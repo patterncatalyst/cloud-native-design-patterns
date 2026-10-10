@@ -5,7 +5,9 @@ include:
 
 services:
   order-service:
-    build: order-service
+    build:
+      context: order-service
+      dockerfile: Containerfile
     container_name: cndp-order-service
     depends_on:
       lgtm: { condition: service_healthy }
@@ -24,7 +26,9 @@ services:
       start_period: 60s
 
   inventory-service:
-    build: inventory-service
+    build:
+      context: inventory-service
+      dockerfile: Containerfile
     container_name: cndp-inventory
     depends_on:
       lgtm: { condition: service_healthy }

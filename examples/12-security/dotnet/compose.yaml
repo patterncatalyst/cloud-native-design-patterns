@@ -2,6 +2,7 @@ services:
   order-service:
     build:
       context: .
+      dockerfile: Containerfile
     container_name: cndp-order-service
     ports:
       - "8080:8080"

@@ -9,7 +9,9 @@ services:
       - ../db/init:/docker-entrypoint-initdb.d:Z
 
   order-service:
-    build: .
+    build:
+      context: .
+      dockerfile: Containerfile
     container_name: cndp-order-service
     depends_on:
       postgres:

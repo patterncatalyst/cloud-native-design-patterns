@@ -10,6 +10,7 @@ services:
   saga-orchestrator:
     build:
       context: .
+      dockerfile: Containerfile
     container_name: cndp-saga
     depends_on:
       lgtm:

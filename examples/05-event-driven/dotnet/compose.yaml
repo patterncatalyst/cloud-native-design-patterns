@@ -14,7 +14,7 @@ services:
   order-service:
     build:
       context: .
-      dockerfile: Dockerfile.order
+      dockerfile: Containerfile.order
     container_name: cndp-order-service
     ports:
       - "8080:8080"
@@ -38,7 +38,7 @@ services:
   shipping-consumer:
     build:
       context: .
-      dockerfile: Dockerfile.shipping
+      dockerfile: Containerfile.shipping
     container_name: cndp-shipping
     environment:
       - DATABASE_URL=Host=postgres;Port=5432;Database=appdb;Username=appuser;Password=apppass
@@ -53,7 +53,7 @@ services:
   notification-consumer:
     build:
       context: .
-      dockerfile: Dockerfile.notification
+      dockerfile: Containerfile.notification
     container_name: cndp-notification
     environment:
       - DATABASE_URL=Host=postgres;Port=5432;Database=appdb;Username=appuser;Password=apppass

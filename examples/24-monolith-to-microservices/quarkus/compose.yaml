@@ -9,6 +9,7 @@ services:
   monolith:
     build:
       context: stub-service
+      dockerfile: Containerfile
     container_name: cndp-monolith
     devices:
       - "/dev/null:/dev/null:rwm"
@@ -24,6 +25,7 @@ services:
   new-service:
     build:
       context: stub-service
+      dockerfile: Containerfile
     container_name: cndp-new-service
     devices:
       - "/dev/null:/dev/null:rwm"
@@ -39,6 +41,7 @@ services:
   legacy:
     build:
       context: stub-service
+      dockerfile: Containerfile
     container_name: cndp-legacy
     devices:
       - "/dev/null:/dev/null:rwm"
@@ -54,6 +57,7 @@ services:
   router:
     build:
       context: router
+      dockerfile: Containerfile
     container_name: cndp-router
     ports:
       - "8080:8080"
@@ -77,6 +81,7 @@ services:
   decorator:
     build:
       context: decorator
+      dockerfile: Containerfile
     container_name: cndp-decorator
     ports:
       - "8091:8080"

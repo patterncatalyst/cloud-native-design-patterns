@@ -10,6 +10,7 @@ services:
   cache-service:
     build:
       context: cache-service
+      dockerfile: Containerfile
     container_name: cndp-cache-service
     depends_on:
       postgres:
