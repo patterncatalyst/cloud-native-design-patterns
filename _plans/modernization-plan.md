@@ -28,7 +28,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | S3 | chore/spring-boot-4.1 | 1 | done (111/111 PASS after the Opus review; closes #31) |
 | S4 | chore/dotnet-10-pins | 3 | done (19/19 .NET PASS after the Opus review; closes #33) |
 | S5 | chore/python-3.14 | 5 | done (19/19 Python + 28 PASS after the Opus review) |
-| S6 | chore/go-toolchain (Go 1.27.2 + locked libraries) | 2+4 | built and unit-tested; live matrix pending |
+| S6 | chore/go-toolchain | 2+4 | done (18/18 Go + 06 in all six languages PASS after the Opus review; closes #34) |
 | S7 | chore/cpp-toolchain-ubi10 (C++23/26 + locked libraries) | 2+4 | pending |
 | S8 | chore/infra-images | 2 | pending |
 | S9 | docs/minikube-docker-driver (+ 05 on minikube) | 7 | pending |
@@ -184,7 +184,7 @@ Carried forward:
 - Live: **19/19 PASS** (18 Python + 28) on the final tree after the Opus review.
 
 Carried forward:
-- S6/S7: example 01 Go and C++ set OTEL_* in compose but export nothing; make them export like the other languages (or drop the env and claims).
+- S7: example 01 C++ sets OTEL_* in compose but exports nothing; make it export like the other languages (Go fixed in S6).
 
 ### S4 .NET 10.0.12 (2026-10-10)
 
