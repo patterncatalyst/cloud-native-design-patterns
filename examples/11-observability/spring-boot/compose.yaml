@@ -16,8 +16,6 @@ services:
     depends_on:
       lgtm:
         condition: service_healthy
-    devices:
-      - "/dev/null:/dev/null:rwm"
     environment:
       - OTEL_SERVICE_NAME=inventory-service
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
@@ -40,8 +38,6 @@ services:
         condition: service_started
     ports:
       - "8080:8080"
-    devices:
-      - "/dev/null:/dev/null:rwm"
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/appdb
       - SPRING_DATASOURCE_USERNAME=appuser
@@ -70,8 +66,6 @@ services:
         condition: service_healthy
       lgtm:
         condition: service_healthy
-    devices:
-      - "/dev/null:/dev/null:rwm"
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/appdb
       - SPRING_DATASOURCE_USERNAME=appuser

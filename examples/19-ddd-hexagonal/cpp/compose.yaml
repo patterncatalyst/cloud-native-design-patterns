@@ -30,5 +30,3 @@ services:
       timeout: 3s
       retries: 12
       start_period: 60s
-    devices:
-      - "/dev/null:/dev/null:rwm"

@@ -29,8 +29,6 @@ services:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9094
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
       - OTEL_SERVICE_NAME=order-service
-    devices:
-      - "/dev/null:/dev/null:rwm"
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
       interval: 5s
@@ -57,8 +55,6 @@ services:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9094
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
       - OTEL_SERVICE_NAME=shipping-consumer
-    devices:
-      - "/dev/null:/dev/null:rwm"
 
   notification-consumer:
     build:
@@ -79,5 +75,3 @@ services:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9094
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
       - OTEL_SERVICE_NAME=notification-consumer
-    devices:
-      - "/dev/null:/dev/null:rwm"
