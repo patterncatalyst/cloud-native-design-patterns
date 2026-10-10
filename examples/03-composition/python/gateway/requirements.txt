@@ -1,4 +1,6 @@
-# opentelemetry-distro and opentelemetry-instrumentation-* are published only as beta (0.66b1) by opentelemetry-python-contrib
+# Beta pins (0.66b1); the packages have no stable release:
+#   contrib: opentelemetry-instrumentation, opentelemetry-instrumentation-asgi, opentelemetry-instrumentation-fastapi
+#   pulled in by the stable 1.45.1 SDK/exporter: opentelemetry-exporter-http-transport, opentelemetry-exporter-otlp-common, opentelemetry-semantic-conventions, opentelemetry-util-http
 annotated-doc==0.0.5
 annotated-types==0.8.0
 anyio==4.15.1
@@ -10,8 +12,8 @@ cross-web==0.7.0
 fastapi==0.143.0
 googleapis-common-protos==1.75.5
 graphql-core==3.3.0
-grpcio-tools==1.84.0
 grpcio==1.84.0
+grpcio-tools==1.84.0
 h11==0.16.0
 httpcore==1.0.9
 httpx==0.28.1
@@ -21,9 +23,9 @@ opentelemetry-exporter-http-transport==0.66b1
 opentelemetry-exporter-otlp-common==0.66b1
 opentelemetry-exporter-otlp-proto-common==1.45.1
 opentelemetry-exporter-otlp-proto-http==1.45.1
+opentelemetry-instrumentation==0.66b1
 opentelemetry-instrumentation-asgi==0.66b1
 opentelemetry-instrumentation-fastapi==0.66b1
-opentelemetry-instrumentation==0.66b1
 opentelemetry-proto==1.45.1
 opentelemetry-sdk==1.45.1
 opentelemetry-semantic-conventions==0.66b1
@@ -38,7 +40,7 @@ requests==2.34.2
 setuptools==84.0.0
 six==1.17.0
 starlette==1.7.0
-strawberry-graphql==0.332.1
+strawberry-graphql==0.333.0
 typing-inspection==0.4.4
 typing_extensions==4.16.0
 urllib3==2.8.0
