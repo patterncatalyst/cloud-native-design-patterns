@@ -11,13 +11,11 @@ services:
   inventory:
     build:
       context: .
-      dockerfile: inventory-service/Dockerfile
+      dockerfile: inventory-service/Containerfile
     container_name: cndp-inventory
     depends_on:
       lgtm:
         condition: service_healthy
-    devices:
-      - "/dev/null:/dev/null:rwm"
     environment:
       - OTEL_SERVICE_NAME=inventory
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
@@ -27,10 +25,8 @@ services:
   order-service:
     build:
       context: .
-      dockerfile: order-service/Dockerfile
+      dockerfile: order-service/Containerfile
     container_name: cndp-order-service
-    devices:
-      - "/dev/null:/dev/null:rwm"
     depends_on:
       lgtm:
         condition: service_healthy

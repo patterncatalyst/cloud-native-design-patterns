@@ -4,7 +4,7 @@ marker: "O"
 label: "Appendix O"
 order: 28
 part: "Deep-dive appendices"
-description: "Turning Postman collections into an automated API test gate with Newman: the anatomy of a collection, writing assertions, running one collection against all five implementations, data-driven tests, schema and contract validation, and wiring it into CI on plain Podman — no new test framework to learn."
+description: "Turning Postman collections into an automated API test gate with Newman: the anatomy of a collection, writing assertions, running one collection against all six implementations, data-driven tests, schema and contract validation, and wiring it into CI on plain Docker Engine — no new test framework to learn."
 duration: 20 minutes
 ---
 
@@ -69,7 +69,7 @@ That last line stores the new id in a variable so a later request — fetch, can
 order — can chain off it. Chaining requests through variables is how a collection models a whole
 flow, not just isolated calls.
 
-## One collection, five backends
+## One collection, six backends
 
 Because Newman exercises the API as a black box over HTTP, the collection does not know or care
 which language implements the service. The same collection is the conformance suite for every
@@ -77,8 +77,8 @@ implementation in this book.
 
 {% include excalidraw.html
    file="27-black-box"
-   alt="One collection running under Newman tests the same HTTP API (/orders, /payments) against five order-service implementations — Spring Boot, Quarkus, .NET, Python, and C++. Because Newman tests the API as a black box, one collection validates every implementation; the contract is the spec, not the code."
-   caption="Figure O.3 — One collection is the conformance suite for all five implementations" %}
+   alt="One collection running under Newman tests the same HTTP API (/orders, /payments) against six order-service implementations — Spring Boot, Quarkus, .NET, Python, C++, and Go. Because Newman tests the API as a black box, one collection validates every implementation; the contract is the spec, not the code."
+   caption="Figure O.3 — One collection is the conformance suite for all six implementations" %}
 
 This is a quietly powerful idea: the collection *is* the API specification made executable. Point
 it at whichever implementation is running and the assertions are identical. Bringing the service
@@ -192,22 +192,22 @@ it appears.
 ## Newman in CI
 
 The runner exits non-zero when any assertion fails, which is all a pipeline needs to gate a merge.
-The services come up on Podman exactly as they do on a laptop — no managed cloud — and Newman runs
+The services come up on Docker Engine exactly as they do on a laptop — no managed cloud — and Newman runs
 against them.
 
 {% include excalidraw.html
    file="27-ci-gate"
-   alt="A pipeline: pull request, build image, podman compose up of the order/payment/inventory services, newman run of the collection, then a gate where pass merges and fail blocks. The services run on Podman in CI exactly as on a laptop, and a failed assertion fails the build."
-   caption="Figure O.5 — Newman as a merge gate: bring the stack up on Podman, run the collection, fail the build on a broken contract" %}
+   alt="A pipeline: pull request, build image, docker compose up of the order/payment/inventory services, newman run of the collection, then a gate where pass merges and fail blocks. The services run on Docker Engine in CI exactly as on a laptop, and a failed assertion fails the build."
+   caption="Figure O.5 — Newman as a merge gate: bring the stack up on Docker, run the collection, fail the build on a broken contract" %}
 
 ```yaml
-# .github/workflows/api-tests.yml (any runner that has Podman + Node works)
+# .github/workflows/api-tests.yml (any runner that has Docker Engine + Node works)
 jobs:
   api-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: podman compose up -d           # order, payment, inventory, …
+      - run: docker compose up -d --build --wait   # order, payment, inventory, …
       - run: ./scripts/wait-for-ready.sh     # poll /readyz before testing
       - run: npm i -g newman
       - run: |
@@ -254,9 +254,9 @@ tested, not just its success behaviour.
 
 Treat the Postman collection as the executable specification of your API, and let Newman run it
 headlessly so the same assertions guard every change. Because Newman tests over HTTP, one
-collection is the conformance suite for all five implementations. Validate response *shape* against
+collection is the conformance suite for all six implementations. Validate response *shape* against
 a schema, not just status codes; drive edge cases from data rather than duplicated requests; and
-assert the failure paths as carefully as the happy path. Wire it into CI on plain Podman so the
+assert the failure paths as carefully as the happy path. Wire it into CI on plain Docker Engine so the
 build fails on a broken contract, and keep Newman in its lane — the API/contract tier, on top of unit
 tests and under a thin end-to-end layer. The canonical references are the Postman documentation and
 the Newman command-line documentation (install, reporters, and the `--iteration-data` and
@@ -265,7 +265,7 @@ JSON-schema validation.
 
 ### Cross-check it yourself
 
-Prove the gate end to end against the running stack. Bring the services up with `podman compose up`,
+Prove the gate end to end against the running stack. Bring the services up with `docker compose up -d --build --wait`,
 then `newman run` the orders collection with `--reporters cli,junit` and confirm a green run and a
 `newman.xml` you could hand to CI. Now make the contract break on purpose — have the service return
 `200` instead of `201` on create, or drop the `id` field — and confirm Newman exits non-zero and
@@ -275,5 +275,5 @@ service and fails against one that wrongly accepts it. A suite that goes red on 
 break, and only then, is the whole value of this appendix.
 
 ---
-*Verification status: verified — [`examples/28-newman/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/28-newman/) passes 8/8 checks
-(collection run, environment injection, data-driven iteration, JUnit export, schema validation, bail-on-fail).*
+*Verification status: verified — [`examples/28-newman/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/28-newman/) passes 11/11 checks on Docker Engine (2026-10-10)
+(a Newman collection run with status-code and state assertions (201, 422, 404, 204, cancel) and JUnit XML export).*

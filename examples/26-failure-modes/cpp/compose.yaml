@@ -5,7 +5,9 @@ include:
 
 services:
   edge-service:
-    build: edge-service
+    build:
+      context: edge-service
+      dockerfile: Containerfile
     container_name: cndp-edge
     depends_on:
       lgtm:
@@ -26,7 +28,9 @@ services:
       start_period: 60s
 
   backend-service:
-    build: backend-service
+    build:
+      context: backend-service
+      dockerfile: Containerfile
     container_name: cndp-backend
     depends_on:
       lgtm:

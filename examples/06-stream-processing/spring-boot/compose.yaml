@@ -11,6 +11,7 @@ services:
   order-service:
     build:
       context: order-service
+      dockerfile: Containerfile
     container_name: cndp-order-service
     depends_on:
       lgtm:
@@ -31,8 +32,6 @@ services:
       - OTEL_TRACES_EXPORTER=otlp
       - OTEL_METRICS_EXPORTER=otlp
       - OTEL_LOGS_EXPORTER=otlp
-    devices:
-      - "/dev/null:/dev/null:rwm"
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
       interval: 5s
@@ -43,6 +42,7 @@ services:
   stream-processor:
     build:
       context: stream-processor
+      dockerfile: Containerfile
     container_name: cndp-stream-processor
     depends_on:
       kafka:
@@ -57,5 +57,3 @@ services:
       - OTEL_METRICS_EXPORTER=otlp
       - OTEL_LOGS_EXPORTER=otlp
       - WINDOW_SECONDS=10
-    devices:
-      - "/dev/null:/dev/null:rwm"

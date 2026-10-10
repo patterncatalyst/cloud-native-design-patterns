@@ -1,0 +1,5 @@
+#!/bin/sh
+# CLI driving adapter entry point: runs CliPlaceOrder (plain JDBC, no CDI, no
+# HTTP server) from the Quarkus fast-jar classpath.
+exec java -cp "/deployments/app/*:/deployments/lib/main/*" \
+  com.cndp.order.CliPlaceOrder "$@"

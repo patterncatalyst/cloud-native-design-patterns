@@ -5,7 +5,9 @@ include:
 
 services:
   order-service:
-    build: order-service
+    build:
+      context: order-service
+      dockerfile: Containerfile
     container_name: cndp-order-service
     depends_on:
       lgtm: { condition: service_healthy }

@@ -21,7 +21,9 @@ services:
       retries: 5
 
   cache-service:
-    build: cache-service
+    build:
+      context: cache-service
+      dockerfile: Containerfile
     container_name: cndp-cache-service
     depends_on:
       lgtm: { condition: service_healthy }

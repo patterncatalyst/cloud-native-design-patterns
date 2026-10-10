@@ -1,77 +1,112 @@
 ---
 title: "Prerequisites & Setup"
-description: "Install the tools you need to run the examples on Linux, macOS, or Windows."
+description: "Install the tools you need to run the examples on Fedora or RHEL."
 marker: "⚙"
 label: "Setup"
 order: 0
 ---
 
-Everything runs in containers — you do **not** need local JDK, Python, Go, or .NET
-installations. You need a container runtime, a handful of CLI tools, and (for four
-Kubernetes-based examples) a local cluster.
+Everything runs in containers, so you do not need a local JDK, Python, Go, .NET or C++
+toolchain to run an example. You need Docker Engine, a handful of CLI tools, and a Fedora or
+RHEL host. Local toolchains are optional and only needed if you want to build or test a
+service outside its container.
+
+The instructions here cover Fedora and RHEL (and compatible rebuilds) only.
 
 ---
 
 ## Container runtime
 
-Most examples use **Podman** with the Compose plugin. Docker works too — the
-`compose.yaml` files are compatible with both.
+The examples run on **Docker Engine** with the Compose plugin. Install it from Docker's
+own Fedora or RHEL repository.
 
-### Podman (recommended)
+### Fedora
 
-| Platform | Install |
-|----------|---------|
-| **Fedora / RHEL / CentOS** | `sudo dnf install -y podman podman-compose` |
-| **Ubuntu / Debian** | `sudo apt install -y podman && pip install podman-compose` |
-| **macOS** | `brew install podman podman-compose && podman machine init && podman machine start` |
-| **Windows** | Install [Podman Desktop](https://podman-desktop.io/) or `winget install RedHat.Podman` and [enable WSL 2](https://learn.microsoft.com/en-us/windows/wsl/install) |
+Remove conflicting packages first. Fedora and distribution-provided Docker or Moby
+packages conflict with Docker's own. `dnf` reports if none are installed.
 
-### Docker (alternative)
+```bash
+sudo dnf remove docker docker-client docker-client-latest docker-common docker-latest \
+  docker-latest-logrotate docker-logrotate docker-selinux docker-engine-selinux \
+  docker-engine moby-engine podman-docker
+```
 
-| Platform | Install |
-|----------|---------|
-| **Linux** | Follow [docs.docker.com/engine/install](https://docs.docker.com/engine/install/) for your distro |
-| **macOS** | `brew install --cask docker` (Docker Desktop) or [Colima](https://github.com/abiosoft/colima) |
-| **Windows** | Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) with WSL 2 backend |
+Then install:
+
+```bash
+sudo dnf install -y dnf-plugins-core
+sudo dnf config-manager addrepo --from-repofile=https://download.docker.com/linux/fedora/docker-ce.repo
+sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+
+### RHEL
+
+Remove conflicting packages first. `dnf` reports if none are installed.
+
+```bash
+sudo dnf remove docker docker-client docker-client-latest docker-common docker-latest \
+  docker-latest-logrotate docker-logrotate docker-engine podman runc
+```
+
+Then install:
+
+```bash
+sudo dnf install -y dnf-plugins-core
+sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+
+### Start the service and allow your user to use it
+
+```bash
+sudo systemctl enable --now docker
+sudo usermod -aG docker $USER
+```
+
+Log out and back in so the `docker` group applies to your session.
 
 Verify:
 
 ```bash
-podman --version        # or docker --version
-podman compose version  # or docker compose version
+docker --version
+docker compose version
+docker run --rm hello-world
 ```
 
 ---
 
 ## Kubernetes tools (optional)
 
-Four examples (09 API Registry, 12 Security, 22 L7 Routing, 24 Monolith to
-Microservices) run on a local Kubernetes cluster. Skip these if you only plan to
-run the Podman-based examples.
+The examples run on `docker compose` and need no cluster. A later part of the tutorial adds
+optional minikube and OpenShift Local paths; install these tools only when you reach them.
 
 ### minikube
 
-| Platform | Install |
-|----------|---------|
-| **Linux** | `curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 && sudo install minikube-linux-amd64 /usr/local/bin/minikube` |
-| **macOS** | `brew install minikube` |
-| **Windows** | `winget install Kubernetes.minikube` |
+```bash
+curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube
+```
 
 ### kubectl
 
-| Platform | Install |
-|----------|---------|
-| **Linux** | `curl -LO "https://dl.k8s.io/release/$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && sudo install kubectl /usr/local/bin/kubectl` |
-| **macOS** | `brew install kubectl` |
-| **Windows** | `winget install Kubernetes.kubectl` |
+```bash
+curl -LO "https://dl.k8s.io/release/$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install kubectl /usr/local/bin/kubectl
+```
 
 ### Helm
 
-| Platform | Install |
-|----------|---------|
-| **Linux** | `curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 \| bash` |
-| **macOS** | `brew install helm` |
-| **Windows** | `winget install Helm.Helm` |
+Helm 4, pinned, with the tarball checked against its published SHA-256 file:
+
+```bash
+HELM_VERSION=4.3.0
+cd "$(mktemp -d)"
+curl -fsSLO "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz"
+curl -fsSLO "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum"
+sha256sum -c "helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum"
+tar -xzf "helm-v${HELM_VERSION}-linux-amd64.tar.gz" linux-amd64/helm
+sudo install linux-amd64/helm /usr/local/bin/helm
+```
 
 Verify:
 
@@ -88,41 +123,65 @@ helm version --short
 These are used by the `verify.sh` scripts and the "Drive it" sections in each
 example README.
 
-### curl and jq (required)
+### curl, jq and git (required)
 
-Used by every example to call APIs and format JSON output.
+Used by every example to call APIs and format JSON output. Git is needed to clone the
+repository.
 
-| Platform | Install |
-|----------|---------|
-| **Linux** | `sudo dnf install -y curl jq` (Fedora) or `sudo apt install -y curl jq` (Debian/Ubuntu) |
-| **macOS** | Pre-installed; or `brew install curl jq` for latest |
-| **Windows** | `winget install cURL.cURL stedolan.jq` (or use Git Bash which bundles curl) |
+```bash
+sudo dnf install -y curl jq git
+```
+
+### python3
+
+The `verify.sh` scripts use `python3` to parse JSON. Fedora and RHEL ship it. Example 16
+also needs the `websockets` and `aiohttp` packages; its script installs pinned copies into a
+cached virtual environment under `~/.cache/cndp-verify` when the host Python lacks them
+(this needs `python3 -m venv` and network access on first run).
+
+### conftest 0.71.1 (required for example 12)
+
+Example 12 evaluates its Rego policies with conftest, and `verify.sh` fails without it.
+Install the pinned release into `~/.local/bin`, checking the archive against the release's
+`checksums.txt`:
+
+```bash
+CONFTEST_VERSION=0.71.1
+BASE="https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}"
+cd "$(mktemp -d)"
+curl -fsSLO "${BASE}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
+curl -fsSLO "${BASE}/checksums.txt"
+grep " conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz\$" checksums.txt | sha256sum -c -
+mkdir -p ~/.local/bin
+tar -xzf "conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz" -C ~/.local/bin conftest
+conftest --version
+```
+
+`~/.local/bin` is on the default `PATH` for Fedora and RHEL login shells.
 
 ### hey (HTTP load testing)
 
-Used by examples that demonstrate scaling or performance patterns.
+Used by examples that demonstrate scaling or performance patterns. Download a binary from
+the [hey releases](https://github.com/rakyll/hey/releases) page, or build it with Go:
 
-| Platform | Install |
-|----------|---------|
-| **Linux / macOS** | `go install github.com/rakyll/hey@latest` (requires Go) or download a binary from [hey releases](https://github.com/rakyll/hey/releases) |
-| **Windows** | Download from [hey releases](https://github.com/rakyll/hey/releases) |
+```bash
+go install github.com/rakyll/hey@latest
+```
 
 ### ghz (gRPC load testing)
 
-Used by examples with gRPC endpoints.
+Used by examples with gRPC endpoints. Download a binary from the
+[ghz releases](https://github.com/bojand/ghz/releases) page.
 
-| Platform | Install |
-|----------|---------|
-| **Linux / macOS** | `brew install ghz` or download from [ghz releases](https://github.com/bojand/ghz/releases) |
-| **Windows** | Download from [ghz releases](https://github.com/bojand/ghz/releases) |
+### newman 6.2.3 (Postman CLI, required for example 28)
 
-### newman (Postman CLI)
+Used by example 28 (Newman API testing). Requires Node.js. Install into the user prefix
+`~/.local` so no `sudo` is needed:
 
-Used by example 28 (Newman API testing).
-
-| Platform | Install |
-|----------|---------|
-| **All platforms** | `npm install -g newman newman-reporter-htmlextra` (requires Node.js) |
+```bash
+sudo dnf install -y nodejs npm
+npm install -g --prefix ~/.local newman@6.2.3
+```
 
 Verify:
 
@@ -131,20 +190,24 @@ curl --version
 jq --version
 hey -h 2>&1 | head -1          # optional
 ghz --version                   # optional
-newman --version                # optional
+newman --version                # required for example 28
+conftest --version              # required for example 12
 ```
 
 ---
 
-## Git
+## Local toolchains (optional)
 
-Required to clone the repository.
+Install these only if you want to build or test a service on the host instead of in its
+container.
 
-| Platform | Install |
+| Language | Install |
 |----------|---------|
-| **Linux** | `sudo dnf install -y git` or `sudo apt install -y git` |
-| **macOS** | Pre-installed via Xcode CLT; or `brew install git` |
-| **Windows** | `winget install Git.Git` |
+| Java (Spring Boot, Quarkus) | [SDKMAN](https://sdkman.io/): `curl -s "https://get.sdkman.io" \| bash`, then `sdk install java 25-tem` and `sdk install maven` |
+| Go | Download the Linux tarball from [go.dev/dl](https://go.dev/dl/), then `sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go<version>.linux-amd64.tar.gz` and add `/usr/local/go/bin` to `PATH` |
+| .NET | `sudo dnf install -y dotnet-sdk-10.0` (from the Fedora or RHEL repositories) |
+| Python | `sudo dnf install -y python3.14` and [uv](https://docs.astral.sh/uv/): `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| C++ | `sudo dnf install -y gcc-c++ cmake ninja-build` and `pip install conan` |
 
 ---
 
@@ -152,11 +215,17 @@ Required to clone the repository.
 
 | Stack | Memory | Disk | CPU |
 |-------|--------|------|-----|
-| Podman examples (most) | ~2-4 GB | ~3 GB for images | 2+ cores |
-| Minikube examples | ~6-8 GB | ~10 GB | 4+ cores |
+| Docker compose examples | ~2-4 GB | ~3 GB for images | 2+ cores |
+| Minikube (optional) | ~6-8 GB | ~10 GB | 4+ cores |
 
 The LGTM observability stack (Grafana, Loki, Tempo, Mimir) is the heaviest
 shared component at ~1.5 GB.
+
+### Host ports
+
+The examples publish service ports on the host. Prometheus-compatible metrics (Mimir) are
+on host port **19090**, because Cockpit holds 9090 on Fedora and RHEL. All other ports are
+as listed in each example README.
 
 ---
 
@@ -167,15 +236,17 @@ Run this to verify everything is ready:
 ```bash
 #!/usr/bin/env bash
 printf "Container runtime:\n"
-podman --version 2>/dev/null || docker --version 2>/dev/null || echo "  MISSING"
+docker --version 2>/dev/null || echo "  MISSING"
 printf "\nCompose:\n"
-podman compose version 2>/dev/null || docker compose version 2>/dev/null || echo "  MISSING"
+docker compose version 2>/dev/null || echo "  MISSING"
+printf "\nDocker daemon:\n"
+docker info >/dev/null 2>&1 && echo "  ok" || echo "  NOT RUNNING (or user not in the docker group)"
 printf "\nCLI tools:\n"
-for cmd in curl jq git; do
+for cmd in curl jq git python3 conftest newman; do
   printf "  %-10s %s\n" "$cmd" "$(command -v $cmd >/dev/null && echo 'ok' || echo 'MISSING')"
 done
 printf "\nOptional:\n"
-for cmd in minikube kubectl helm hey ghz newman; do
+for cmd in minikube kubectl helm hey ghz; do
   printf "  %-10s %s\n" "$cmd" "$(command -v $cmd >/dev/null && echo 'ok' || echo 'not installed')"
 done
 ```
@@ -185,13 +256,12 @@ done
 ## What you do NOT need
 
 All application code runs inside containers built from **Red Hat UBI** base
-images. You do **not** need to install any of these locally:
+images. You do not need to install any of these locally to run the examples:
 
-- Java / JDK (Spring Boot containers use `ubi9/openjdk-21`; Quarkus uses `ubi10/openjdk-25`)
-- Python (containers use `ubi9/python-312`)
-- Go (multi-stage build with `ubi9/ubi-minimal` runtime)
+- Java / JDK
+- Python
+- Go
 - .NET SDK
 - C++ toolchain
 
-The only local tools you need are the container runtime and CLI utilities listed
-in this guide.
+The only local tools you need are Docker Engine and the CLI utilities listed in this guide.

@@ -9,12 +9,11 @@ containers, testable with `conftest`.
 
 ## Prerequisites
 
-- [Podman](https://podman.io/getting-started/installation) with
-  [podman-compose](https://github.com/containers/podman-compose) or the
-  Docker Compose plugin
+- [Docker Engine](https://docs.docker.com/engine/install/) with the Compose plugin, on
+  Fedora or RHEL (see [Prerequisites](../PREREQUISITES.md))
 - `curl` and `python3` for driving the API
-- (Optional) [conftest](https://www.conftest.dev/install/) for
-  policy-as-code checks
+- [conftest](https://www.conftest.dev/install/) 0.71.1 for the policy-as-code checks;
+  `verify.sh` fails without it (see [Prerequisites](../PREREQUISITES.md))
 - ~256 MB free memory (single lightweight service)
 
 ## What it shows
@@ -36,10 +35,10 @@ Pick a language and start the stack:
 
 ```bash
 # Python (FastAPI)
-cd python && podman compose up --build -d
+cd python && docker compose up -d --build --wait
 
 # Spring Boot
-cd spring-boot && podman compose up --build -d
+cd spring-boot && docker compose up -d --build --wait
 ```
 
 Both implementations expose the same API on the same ports — `verify.sh` works with either.

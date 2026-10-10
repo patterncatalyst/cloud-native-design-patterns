@@ -7,9 +7,8 @@ unavailable.
 
 ## Prerequisites
 
-- [Podman](https://podman.io/getting-started/installation) with
-  [podman-compose](https://github.com/containers/podman-compose) or the
-  Docker Compose plugin
+- [Docker Engine](https://docs.docker.com/engine/install/) with the Compose plugin, on
+  Fedora or RHEL (see [Prerequisites](../PREREQUISITES.md))
 - `curl` and `jq` for driving the API
 - ~512 MB free memory (flagd + 1 app service)
 
@@ -41,10 +40,10 @@ Pick a language and start the stack:
 
 ```bash
 # Python (FastAPI)
-cd python && podman compose up --build -d
+cd python && docker compose up -d --build --wait
 
 # Spring Boot
-cd spring-boot && podman compose up --build -d
+cd spring-boot && docker compose up -d --build --wait
 ```
 
 Both implementations expose the same API on the same ports — `verify.sh` works with either.

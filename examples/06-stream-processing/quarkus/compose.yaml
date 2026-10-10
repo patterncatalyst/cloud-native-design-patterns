@@ -11,6 +11,7 @@ services:
   order-service:
     build:
       context: order-service
+      dockerfile: Containerfile
     container_name: cndp-order-service
     depends_on:
       lgtm:
@@ -28,8 +29,6 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9094
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
       - OTEL_SERVICE_NAME=order-service
-    devices:
-      - "/dev/null:/dev/null:rwm"
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
       interval: 5s
@@ -40,6 +39,7 @@ services:
   stream-processor:
     build:
       context: stream-processor
+      dockerfile: Containerfile
     container_name: cndp-stream-processor
     depends_on:
       kafka:
@@ -51,5 +51,3 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
       - OTEL_SERVICE_NAME=stream-processor
       - WINDOW_SECONDS=10
-    devices:
-      - "/dev/null:/dev/null:rwm"

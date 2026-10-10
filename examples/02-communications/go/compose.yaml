@@ -13,6 +13,7 @@ services:
   inventory:
     build:
       context: inventory-service
+      dockerfile: Containerfile
     container_name: cndp-inventory
     depends_on:
       lgtm:
@@ -23,6 +24,7 @@ services:
   order-service:
     build:
       context: order-service
+      dockerfile: Containerfile
     container_name: cndp-order-service
     depends_on:
       lgtm:

@@ -1,0 +1,4 @@
+#!/bin/sh
+# CLI driving adapter entry point: same PlaceOrder use case, no HTTP server.
+cd /opt/app-root/src || exit 1
+exec python -m adapters.cli "$@"

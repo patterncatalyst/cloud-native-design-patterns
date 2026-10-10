@@ -28,7 +28,7 @@ Quarkus 3.33.2 LTS implementation demonstrating REST, GraphQL, gRPC, and Kafka.
 
 ```bash
 # Start all services
-podman compose up --build
+docker compose up --build
 
 # Test health
 curl http://localhost:8080/healthz
@@ -55,17 +55,17 @@ curl -X POST http://localhost:8080/graphql \
 open http://localhost:8080/q/graphql-ui
 
 # Verify Kafka
-podman exec -it cndp-kafka /opt/kafka/bin/kafka-console-consumer.sh \
+docker exec -it cndp-kafka /opt/kafka/bin/kafka-console-consumer.sh \
   --bootstrap-server localhost:9092 \
   --topic order.placed \
   --from-beginning
 
 # Check logs
-podman logs cndp-order-service
-podman logs cndp-inventory
+docker logs cndp-order-service
+docker logs cndp-inventory
 
 # Cleanup
-podman compose down -v
+docker compose down -v
 ```
 
 ## What to observe

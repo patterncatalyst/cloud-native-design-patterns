@@ -11,6 +11,7 @@ services:
   order-service:
     build:
       context: order-service
+      dockerfile: Containerfile
     container_name: cndp-order-service
     depends_on:
       lgtm:
@@ -28,8 +29,6 @@ services:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9094
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
       - OTEL_SERVICE_NAME=order-service
-    devices:
-      - "/dev/null:/dev/null:rwm"
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
       interval: 5s
@@ -40,6 +39,7 @@ services:
   shipping-consumer:
     build:
       context: shipping-consumer
+      dockerfile: Containerfile
     container_name: cndp-shipping
     depends_on:
       kafka:
@@ -55,12 +55,11 @@ services:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9094
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
       - OTEL_SERVICE_NAME=shipping-consumer
-    devices:
-      - "/dev/null:/dev/null:rwm"
 
   notification-consumer:
     build:
       context: notification-consumer
+      dockerfile: Containerfile
     container_name: cndp-notification
     depends_on:
       kafka:
@@ -76,5 +75,3 @@ services:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9094
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
       - OTEL_SERVICE_NAME=notification-consumer
-    devices:
-      - "/dev/null:/dev/null:rwm"

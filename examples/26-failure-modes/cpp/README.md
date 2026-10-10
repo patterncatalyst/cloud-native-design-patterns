@@ -16,7 +16,7 @@ Demonstrates five resilience patterns with two services:
 ## Running
 
 ```bash
-podman compose up --build
+docker compose up --build
 ```
 
 Services start on ports 8080 (edge) and 8081 (backend). Healthchecks confirm readiness.
@@ -69,5 +69,5 @@ Services export traces to OTLP endpoint `http://lgtm:4318`.
 ## Cleanup
 
 ```bash
-podman compose down -v
+docker compose down -v
 ```

@@ -161,9 +161,9 @@ published DLLs; it does not need the SDK, Roslyn, NuGet, or MSBuild.
    alt="Multi-stage container build. The build stage uses the UBI9 .NET 10 SDK image to restore NuGet packages and compile the application. Only the published output is copied to the runtime stage, which uses the smaller UBI9 ASP.NET runtime image. The SDK never ships."
    caption="Figure P.3 — Multi-stage build: the SDK compiles, only the runtime and app DLLs ship" %}
 
-### Multi-stage Dockerfiles
+### Multi-stage Containerfiles
 
-Every example in this book uses a two-stage Dockerfile:
+Every example in this book uses a two-stage Containerfile:
 
 ```dockerfile
 FROM registry.access.redhat.com/ubi9/dotnet-100 AS build
@@ -247,13 +247,13 @@ Verify the compilation pipeline by inspecting a published application's output. 
 that the JIT does its work at runtime, not at build time.
 
 Then build a container image and inspect its layers. Run
-`podman inspect <image> | jq '.[0].RootFS.Layers | length'` — you should see the UBI
+`docker image inspect <image> | jq '.[0].RootFS.Layers | length'` — you should see the UBI
 base layer, the runtime layer, and your application layer. Compare the image size to the
 SDK image: the runtime image should be roughly 4x smaller.
 
 ---
 *Verification status: unverified — the three diagrams (P.1 compilation pipeline, P.2
 Kestrel pipeline, P.3 container layers) are structurally correct based on the .NET 10
-architecture, and the Dockerfile pattern matches the verified examples in this book. The
+architecture, and the Containerfile pattern matches the verified examples in this book. The
 UBI image sizes (~780 MB SDK, ~170 MB runtime) are approximate and will vary by .NET
 version. The NativeAOT section describes general availability behavior as of .NET 8+.*

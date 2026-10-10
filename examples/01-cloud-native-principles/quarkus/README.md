@@ -11,7 +11,7 @@ Twelve-factor env-based config and liveness/readiness probes.
 ## Run
 
 ```bash
-podman compose up --build -d
+docker compose up -d --build --wait
 ```
 
 Wait for healthy, then verify from the example root:
@@ -52,5 +52,5 @@ infrastructure services are needed.
 ## Tear down
 
 ```bash
-podman compose down -v
+docker compose down -v
 ```

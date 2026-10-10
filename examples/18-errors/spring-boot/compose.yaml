@@ -9,8 +9,6 @@ services:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_AUTH_DISABLE_LOGIN_FORM=true
-    devices:
-      - "/dev/null:/dev/null:rwm"
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3000/api/health"]
       interval: 5s
@@ -21,10 +19,8 @@ services:
   inventory:
     build:
       context: .
-      dockerfile: inventory-service/Dockerfile
+      dockerfile: inventory-service/Containerfile
     container_name: cndp-inventory
-    devices:
-      - "/dev/null:/dev/null:rwm"
     environment:
       - INITIAL_STOCK=5
       - FAIL_MODE=none
@@ -32,10 +28,8 @@ services:
   order-service:
     build:
       context: .
-      dockerfile: order-service/Dockerfile
+      dockerfile: order-service/Containerfile
     container_name: cndp-order-service
-    devices:
-      - "/dev/null:/dev/null:rwm"
     depends_on:
       lgtm:
         condition: service_healthy

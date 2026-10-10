@@ -24,9 +24,7 @@ services:
       - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
       - CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
     volumes:
-      - kafka-data:/var/lib/kafka/data:Z
-    devices:
-      - "/dev/null:/dev/null:rwm"
+      - kafka-data:/var/lib/kafka/data
     mem_limit: 1g
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 9092"]

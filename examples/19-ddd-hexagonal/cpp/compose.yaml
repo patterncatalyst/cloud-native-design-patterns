@@ -10,7 +10,9 @@ services:
       - ../db/init:/docker-entrypoint-initdb.d:Z
 
   order-service:
-    build: order-service
+    build:
+      context: order-service
+      dockerfile: Containerfile
     container_name: cndp-order-service
     depends_on:
       lgtm: { condition: service_healthy }
@@ -28,5 +30,3 @@ services:
       timeout: 3s
       retries: 12
       start_period: 60s
-    devices:
-      - "/dev/null:/dev/null:rwm"

@@ -20,14 +20,13 @@ services:
   flag-service:
     build:
       context: flag-service
+      dockerfile: Containerfile
     container_name: cndp-flag-service
     depends_on:
       flagd:
         condition: service_healthy
     ports:
       - "8080:8080"
-    devices:
-      - /dev/null:/dev/null:rwm
     environment:
       - FLAGD_HOST=flagd
       - FLAGD_PORT=8013

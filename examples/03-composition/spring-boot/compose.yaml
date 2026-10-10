@@ -10,13 +10,11 @@ services:
   inventory:
     build:
       context: .
-      dockerfile: inventory-service/Dockerfile
+      dockerfile: inventory-service/Containerfile
     container_name: cndp-inventory
     depends_on:
       lgtm:
         condition: service_healthy
-    devices:
-      - "/dev/null:/dev/null:rwm"
     environment:
       - OTEL_SERVICE_NAME=inventory
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
@@ -25,7 +23,7 @@ services:
   order-api:
     build:
       context: .
-      dockerfile: order-api/Dockerfile
+      dockerfile: order-api/Containerfile
     container_name: cndp-order-api
     depends_on:
       lgtm:
@@ -34,8 +32,6 @@ services:
         condition: service_healthy
     ports:
       - "8081:8081"
-    devices:
-      - "/dev/null:/dev/null:rwm"
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/appdb
       - SPRING_DATASOURCE_USERNAME=appuser
@@ -53,7 +49,7 @@ services:
   gateway:
     build:
       context: .
-      dockerfile: gateway/Dockerfile
+      dockerfile: gateway/Containerfile
     container_name: cndp-gateway
     depends_on:
       lgtm:
@@ -64,8 +60,6 @@ services:
         condition: service_started
     ports:
       - "8080:8080"
-    devices:
-      - "/dev/null:/dev/null:rwm"
     environment:
       - ORDER_API_URL=http://order-api:8081
       - INVENTORY_ADDR=inventory:50051

@@ -11,7 +11,9 @@ services:
       - ../db/init:/docker-entrypoint-initdb.d:Z
 
   order-service:
-    build: order-service
+    build:
+      context: order-service
+      dockerfile: Containerfile
     container_name: cndp-order-service
     depends_on:
       lgtm: { condition: service_healthy }
@@ -32,7 +34,9 @@ services:
       start_period: 60s
 
   shipping-consumer:
-    build: shipping-consumer
+    build:
+      context: shipping-consumer
+      dockerfile: Containerfile
     container_name: cndp-shipping
     depends_on:
       kafka: { condition: service_healthy }
@@ -45,7 +49,9 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
 
   notification-consumer:
-    build: notification-consumer
+    build:
+      context: notification-consumer
+      dockerfile: Containerfile
     container_name: cndp-notification
     depends_on:
       kafka: { condition: service_healthy }

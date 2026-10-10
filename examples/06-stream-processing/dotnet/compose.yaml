@@ -14,7 +14,7 @@ services:
   order-service:
     build:
       context: .
-      dockerfile: Dockerfile.order
+      dockerfile: Containerfile.order
     container_name: cndp-order-service
     ports:
       - "8080:8080"
@@ -37,7 +37,7 @@ services:
   stream-processor:
     build:
       context: .
-      dockerfile: Dockerfile.processor
+      dockerfile: Containerfile.processor
     container_name: cndp-stream-processor
     environment:
       - KAFKA_BOOTSTRAP=kafka:9094

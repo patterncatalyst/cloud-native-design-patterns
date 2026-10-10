@@ -12,6 +12,7 @@ services:
   inventory:
     build:
       context: inventory-service
+      dockerfile: Containerfile
     container_name: cndp-inventory
     depends_on:
       lgtm:
@@ -20,6 +21,7 @@ services:
   order-api:
     build:
       context: order-api
+      dockerfile: Containerfile
     container_name: cndp-order-api
     depends_on:
       lgtm:
@@ -40,6 +42,7 @@ services:
   gateway:
     build:
       context: gateway
+      dockerfile: Containerfile
     container_name: cndp-gateway
     depends_on:
       lgtm:

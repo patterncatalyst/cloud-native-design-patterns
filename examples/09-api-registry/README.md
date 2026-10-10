@@ -8,9 +8,8 @@ optional field) is accepted.
 
 ## Prerequisites
 
-- [Podman](https://podman.io/getting-started/installation) with
-  [podman-compose](https://github.com/containers/podman-compose) or the
-  Docker Compose plugin
+- [Docker Engine](https://docs.docker.com/engine/install/) with the Compose plugin, on
+  Fedora or RHEL (see [Prerequisites](../PREREQUISITES.md))
 - `curl` and `jq` for driving the API
 - ~2 GB free memory (Apicurio + LGTM)
 
@@ -33,7 +32,7 @@ credentials, and the container naming convention.
 ## Run it
 
 ```bash
-podman compose up -d
+docker compose up -d
 ```
 
 Wait for Apicurio to be ready:

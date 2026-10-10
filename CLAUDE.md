@@ -41,29 +41,34 @@ changes. Work on a branch, open a PR, wait for the three checks, squash-merge.
 
 ```
 examples/
-  _infra/            # shared podman compose base: Kafka (Strimzi-like), Postgres, OTel, LGTM
+  _infra/            # shared docker compose base: Kafka, Postgres, OTel, LGTM
   NN-<slug>/
     verify.sh        # shared — asserts expected behaviour (language-agnostic HTTP tests)
     README.md        # how to run + what to observe
     db/init/         # shared SQL schema (where applicable)
     python/
       compose.yaml   # includes ../../_infra/..., volumes ../db/init
-      Dockerfile     # or per-service Dockerfiles inside service dirs
+      Containerfile  # or per-service Containerfiles inside service dirs
+                     # (Containerfile.<svc> for .NET); compose uses
+                     # build.dockerfile: Containerfile
       <service code>
     spring-boot/     # same API contract, different language
       compose.yaml
-      Dockerfile
+      Containerfile
       <service code>
 ```
 
-Default infra: **Podman compose** locally (`lgtm-podman-stack` patterns). Platform-flavoured
-ones (22 L7-routing, 24 monolith→microservices, scaling) target **minikube**
-(`lgtm-minikube-stack` patterns). Each example must run standalone.
+Default infra: **Docker Engine with `docker compose`** on Fedora/RHEL (`lgtm-docker-stack`
+patterns). Run an example with `docker compose up -d --build --wait` and tear it down with
+`docker compose down -v`. All examples, including 09, 12, 22 and 24, run on compose.
+minikube (`lgtm-minikube-stack` patterns) and OpenShift Local are optional paths added later in
+the modernization plan. Prometheus/Mimir is published on host port 19090 (Cockpit holds 9090
+on Fedora/RHEL). Each example must run standalone.
 
 ## Running-example domain
 
 Five services exchanging the `order.placed` fact: **order, payment, inventory,
-notification, shipping**. Local = Podman; prod = plain Kubernetes (no managed cloud) with
+notification, shipping**. Local = Docker; prod = plain Kubernetes (no managed cloud) with
 CloudNativePG, Strimzi/Kafka, Apicurio, Istio, KEDA, Debezium, and OTel → the LGTM stack.
 
 ## Locked language stacks (do not substitute)
@@ -111,7 +116,7 @@ k6, Locust.
 
 ## Workflow in Claude Code (changed from claude.ai)
 
-- Edit files in place, run podman/builds/tests directly, commit normally. **The delta-tarball
+- Edit files in place, run docker, builds and tests directly, commit normally. **The delta-tarball
   + by-hand-git dance from claude.ai is no longer needed.**
 - **Conventional Commits**, scopes used in this project: `docs / site / demo / ci / chore /
   fix / feat / refactor / style` with `§N`, `demo-NN`, or `rNN.x` qualifiers.

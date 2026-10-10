@@ -37,7 +37,7 @@ Quarkus 3.33.2 LTS implementation demonstrating Strangler Fig pattern with conte
 
 ```bash
 # Start all services
-podman compose up --build
+docker compose up --build
 
 # Test router health
 curl http://localhost:8080/healthz
@@ -72,7 +72,7 @@ curl http://localhost:8091/orders/1
 curl http://localhost:8091/events
 
 # Cleanup
-podman compose down -v
+docker compose down -v
 ```
 
 ## What to observe

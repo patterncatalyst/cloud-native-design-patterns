@@ -164,7 +164,7 @@ g.emit("29-container-layers", 880, 460,
         {"x": 450, "y": 370, "w": 190, "h": 55, "style": "user",
          "lines": ["Kubernetes Pod", "limits, probes, OTel"]},
         {"x": 660, "y": 370, "w": 190, "h": 55, "style": "user",
-         "lines": ["Podman / Docker", "compose for local dev"]},
+         "lines": ["Docker Engine", "compose for local dev"]},
     ],
     edges=[
         # Build flow

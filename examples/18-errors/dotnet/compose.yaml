@@ -5,7 +5,7 @@ services:
   inventory:
     build:
       context: .
-      dockerfile: Dockerfile.inventory
+      dockerfile: Containerfile.inventory
     container_name: cndp-inventory
     environment:
       - INITIAL_STOCK=5
@@ -13,7 +13,7 @@ services:
   order-service:
     build:
       context: .
-      dockerfile: Dockerfile.order
+      dockerfile: Containerfile.order
     container_name: cndp-order-service
     depends_on:
       lgtm:

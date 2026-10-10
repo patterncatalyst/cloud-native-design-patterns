@@ -636,5 +636,5 @@ track the config and a ruleset that can move routing without a code change are t
 this appendix actually working.
 
 ---
-*Verification status: verified — [`examples/22-l7-routing/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/22-l7-routing/) passes 12/12 checks
-(header-based routing, weighted traffic split, canary promotion, circuit breaker integration, rule engine dispatch).*
+*Verification status: verified — [`examples/22-l7-routing/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/22-l7-routing/) passes 15/15 checks in each of the six languages on Docker Engine (2026-10-10)
+(Envoy weighted traffic split, header-based routing override, in-app rule-driven routing, and changing routing rules without a redeploy. Canary promotion and circuit breaking are not covered).*

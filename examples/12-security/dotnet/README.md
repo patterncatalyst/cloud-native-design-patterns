@@ -11,7 +11,7 @@ Three security patterns — sidecar trust (mTLS header check), valet key (HMAC-s
 ## Run
 
 ```bash
-podman compose up --build -d
+docker compose up -d --build --wait
 ```
 
 Wait for healthy, then verify from the example root:
@@ -50,5 +50,5 @@ see the compose.yaml `depends_on` for which infrastructure services are needed.
 ## Tear down
 
 ```bash
-podman compose down -v
+docker compose down -v
 ```

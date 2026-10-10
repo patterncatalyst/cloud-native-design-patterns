@@ -6,9 +6,8 @@ stack (Loki, Grafana, Tempo, Mimir/Prometheus).
 
 ## Prerequisites
 
-- [Podman](https://podman.io/getting-started/installation) with
-  [podman-compose](https://github.com/containers/podman-compose) or the
-  Docker Compose plugin
+- [Docker Engine](https://docs.docker.com/engine/install/) with the Compose plugin, on
+  Fedora or RHEL (see [Prerequisites](../PREREQUISITES.md))
 - `curl` and `jq` for driving the API
 - ~4 GB free memory (LGTM + Postgres + Kafka + 3 app services)
 
@@ -34,10 +33,10 @@ Pick a language and start the stack:
 
 ```bash
 # Python (FastAPI)
-cd python && podman compose up --build -d
+cd python && docker compose up -d --build --wait
 
 # Spring Boot
-cd spring-boot && podman compose up --build -d
+cd spring-boot && docker compose up -d --build --wait
 ```
 
 Both implementations expose the same API on the same ports — `verify.sh` works with either.
@@ -45,7 +44,7 @@ Both implementations expose the same API on the same ports — `verify.sh` works
 Wait for all services:
 
 ```bash
-podman compose ps
+docker compose ps
 ```
 
 ## Drive it
@@ -57,14 +56,14 @@ curl -s -X POST -H 'Content-Type: application/json' \
   localhost:8080/orders | jq .
 
 # Find the trace_id in the logs
-podman logs cndp-order-service 2>&1 | grep "order placed"
+docker logs cndp-order-service 2>&1 | grep "order placed"
 
 # Search Tempo for the trace
 TRACE_ID=<from logs>
 curl -s http://localhost:3200/api/traces/$TRACE_ID | jq .
 
 # Query Prometheus for the metric
-curl -s 'http://localhost:9090/api/v1/query?query=orders_placed_total' | jq .
+curl -s 'http://localhost:19090/api/v1/query?query=orders_placed_total' | jq .
 
 # Search Loki for correlated logs
 curl -s 'http://localhost:3100/loki/api/v1/query_range' \
@@ -98,7 +97,7 @@ Open Grafana at http://localhost:3000:
 | Grafana | 3000 |
 | Tempo | 3200 |
 | Loki | 3100 |
-| Prometheus | 9090 |
+| Prometheus | 19090 |
 | Postgres | 5432 |
 | Kafka (host) | 9092 |
 | Kafka UI | 8090 |

@@ -2,7 +2,9 @@ name: cndp-12
 
 services:
   order-service:
-    build: .
+    build:
+      context: .
+      dockerfile: Containerfile
     container_name: cndp-order-service
     ports:
       - "8080:8080"

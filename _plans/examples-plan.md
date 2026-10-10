@@ -3,6 +3,7 @@
 Created: 2026-06-29
 Completed: 2026-07-03
 Status: **Complete** — all 20 examples built, verified, and doc footers flipped
+Runtime: Docker Engine on Fedora/RHEL with `docker compose`. Every example, including 09, 12, 22 and 24, runs on compose; minikube and OpenShift Local are optional paths covered in `modernization-plan.md`. All six languages (Spring Boot, Quarkus, .NET, Python, C++, Go) ship for the language-specific examples.
 
 ## Overview
 
@@ -16,7 +17,7 @@ Build 20 runnable examples referenced by the tutorial site, each demonstrating p
 - **Path**: `examples/01-cloud-native-principles/`
 - **Stack**: Minimal (likely just docs + simple app showing 12-factor)
 - **Language**: Python (FastAPI)
-- **Infra**: Podman — base app, maybe Postgres
+- **Infra**: Docker — base app, maybe Postgres
 - **Demonstrates**: 12-factor app, health endpoints, config externalization
 - **Priority**: Low (theory-heavy chapter)
 
@@ -24,7 +25,7 @@ Build 20 runnable examples referenced by the tutorial site, each demonstrating p
 - **Path**: `examples/02-communications/`
 - **Stack**: REST + gRPC + GraphQL + async/Kafka
 - **Language**: Python (FastAPI + grpcio + Strawberry GraphQL + aiokafka)
-- **Infra**: Podman — Postgres + Kafka + LGTM
+- **Infra**: Docker — Postgres + Kafka + LGTM
 - **Demonstrates**: Four interaction styles with one service
 - **Priority**: HIGH (foundational pattern proof-of-concept)
 
@@ -32,7 +33,7 @@ Build 20 runnable examples referenced by the tutorial site, each demonstrating p
 - **Path**: `examples/03-composition/`
 - **Stack**: GraphQL gateway fanning out to REST + gRPC backends
 - **Language**: Python (Strawberry GraphQL gateway)
-- **Infra**: Podman — Postgres + LGTM
+- **Infra**: Docker — Postgres + LGTM
 - **Demonstrates**: Schema stitching, resolver fan-out
 - **Priority**: Medium
 
@@ -40,7 +41,7 @@ Build 20 runnable examples referenced by the tutorial site, each demonstrating p
 - **Path**: `examples/04-data/`
 - **Stack**: Transactional outbox + CDC (Debezium)
 - **Language**: Python (FastAPI + asyncpg) OR Go (pgx)
-- **Infra**: Podman — Postgres + Kafka + **Debezium** + LGTM
+- **Infra**: Docker — Postgres + Kafka + **Debezium** + LGTM
 - **Demonstrates**: Read/write separation, outbox pattern, Debezium CDC
 - **Priority**: HIGH (critical data pattern)
 - **New infra needed**: Debezium connector in Kafka Connect
@@ -49,7 +50,7 @@ Build 20 runnable examples referenced by the tutorial site, each demonstrating p
 - **Path**: `examples/05-event-driven/`
 - **Stack**: Event backbone with producers and consumers
 - **Language**: Python (FastAPI + aiokafka + faust-streaming)
-- **Infra**: Podman — Postgres + Kafka + LGTM
+- **Infra**: Docker — Postgres + Kafka + LGTM
 - **Demonstrates**: Event production, consumption, commit-after-side-effect, schemas
 - **Priority**: HIGH (event-driven is central to the book)
 
@@ -57,7 +58,7 @@ Build 20 runnable examples referenced by the tutorial site, each demonstrating p
 - **Path**: `examples/06-stream-processing/`
 - **Stack**: Stateful stream processing + KEDA-like scaling
 - **Language**: Python (faust-streaming) OR Java (Kafka Streams)
-- **Infra**: Podman — Kafka + LGTM (KEDA scaling is K8s-native, demonstrate lag-based concept)
+- **Infra**: Docker — Kafka + LGTM (KEDA scaling is K8s-native, demonstrate lag-based concept)
 - **Demonstrates**: Windowed aggregation, changelog-backed state, consumer lag monitoring
 - **Priority**: Medium
 
@@ -76,7 +77,7 @@ Build 20 runnable examples referenced by the tutorial site, each demonstrating p
 - **Path**: `examples/11-observability/`
 - **Stack**: LGTM stack showcase with instrumented services
 - **Language**: Python (opentelemetry-distro auto-instrumentation)
-- **Infra**: Podman — LGTM + Postgres + Kafka
+- **Infra**: Docker — LGTM + Postgres + Kafka
 - **Demonstrates**: Traces, metrics, logs, W3C context propagation, sampling
 - **Priority**: HIGH (observability is foundational)
 
@@ -94,7 +95,7 @@ Build 20 runnable examples referenced by the tutorial site, each demonstrating p
 - **Path**: `examples/16-websockets/`
 - **Stack**: WebSocket server + Redis pub/sub backplane
 - **Language**: Python (FastAPI WebSockets + redis-py)
-- **Infra**: Podman — **Redis** + LGTM
+- **Infra**: Docker — **Redis** + LGTM
 - **Demonstrates**: Long-lived connections, scale-out with backplane, resume protocol
 - **Priority**: Medium
 - **New infra needed**: Redis
@@ -103,7 +104,7 @@ Build 20 runnable examples referenced by the tutorial site, each demonstrating p
 - **Path**: `examples/17-sagas/`
 - **Stack**: Saga orchestrator + compensating transactions
 - **Language**: Go (with state machine pattern) OR Python
-- **Infra**: Podman — Postgres + Kafka + LGTM
+- **Infra**: Docker — Postgres + Kafka + LGTM
 - **Demonstrates**: Orchestrated saga, compensation flow, state persistence
 - **Priority**: HIGH (saga is a key distributed pattern)
 
@@ -111,7 +112,7 @@ Build 20 runnable examples referenced by the tutorial site, each demonstrating p
 - **Path**: `examples/18-errors/`
 - **Stack**: Multi-protocol error contract (REST/gRPC/GraphQL/Kafka)
 - **Language**: Python (FastAPI + grpcio + Strawberry + aiokafka)
-- **Infra**: Podman — Kafka + LGTM
+- **Infra**: Docker — Kafka + LGTM
 - **Demonstrates**: Unified error shape, retryable flags, trace propagation
 - **Priority**: Medium
 
@@ -119,7 +120,7 @@ Build 20 runnable examples referenced by the tutorial site, each demonstrating p
 - **Path**: `examples/19-ddd-hexagonal/`
 - **Stack**: Hexagonal architecture with multiple adapters
 - **Language**: Python (domain-first structure) OR Go
-- **Infra**: Podman — Postgres + LGTM
+- **Infra**: Docker — Postgres + LGTM
 - **Demonstrates**: Port/adapter separation, domain model, strategic DDD boundaries
 - **Priority**: Low (architectural pattern, less runnable-demo-shaped)
 
@@ -127,7 +128,7 @@ Build 20 runnable examples referenced by the tutorial site, each demonstrating p
 - **Path**: `examples/21-graceful-shutdown/`
 - **Stack**: Kubernetes-aware graceful shutdown protocol
 - **Language**: Go (signal handling with context) OR Python
-- **Infra**: Podman (simulating K8s SIGTERM) — Kafka + LGTM
+- **Infra**: Docker (simulating K8s SIGTERM) — Kafka + LGTM
 - **Demonstrates**: Readiness fail-first, drain protocol, idempotency on hard kill
 - **Priority**: Medium
 
@@ -151,7 +152,7 @@ Build 20 runnable examples referenced by the tutorial site, each demonstrating p
 - **Path**: `examples/25-caching/`
 - **Stack**: All six caching patterns with Redis
 - **Language**: Python (FastAPI + redis-py + asyncpg)
-- **Infra**: Podman — Postgres + **Redis** + LGTM
+- **Infra**: Docker — Postgres + **Redis** + LGTM
 - **Demonstrates**: Cache-aside, read-through, write-through, write-around, write-back, refresh-ahead
 - **Priority**: HIGH (caching is fundamental, Redis needed)
 - **New infra needed**: Redis
@@ -160,7 +161,7 @@ Build 20 runnable examples referenced by the tutorial site, each demonstrating p
 - **Path**: `examples/26-failure-modes/`
 - **Stack**: Defensive toolkit (timeouts, retries, circuit breakers, bulkheads)
 - **Language**: Go (with sony/gobreaker) OR Python
-- **Infra**: Podman or Minikube — LGTM (chaos injection optional)
+- **Infra**: Docker compose — LGTM (chaos injection optional)
 - **Demonstrates**: Timeout patterns, jittered backoff, circuit breaker states, bulkhead isolation
 - **Priority**: HIGH (resilience patterns)
 
@@ -168,7 +169,7 @@ Build 20 runnable examples referenced by the tutorial site, each demonstrating p
 - **Path**: `examples/27-feature-flags/`
 - **Stack**: OpenFeature + flagd
 - **Language**: Go (OpenFeature Go SDK) OR Python
-- **Infra**: Podman — flagd + LGTM
+- **Infra**: Docker — flagd + LGTM
 - **Demonstrates**: Four flag types, targeting, percentage rollouts, kill switches
 - **Priority**: Medium
 - **New infra needed**: flagd daemon
@@ -177,20 +178,20 @@ Build 20 runnable examples referenced by the tutorial site, each demonstrating p
 - **Path**: `examples/28-newman/`
 - **Stack**: Newman runner for Postman collections
 - **Language**: N/A (JSON collections)
-- **Infra**: Podman — test target services + LGTM
+- **Infra**: Docker — test target services + LGTM
 - **Demonstrates**: Postman collection anatomy, assertions, schema validation, CI integration
 - **Priority**: HIGH (testing is the validation gate)
 
 ## Infrastructure Summary
 
-### Podman Stack (17 examples)
-- **Base**: LGTM + Postgres + Kafka (covered by `lgtm-podman-stack`)
+### Docker Stack (all runnable examples)
+- **Base**: LGTM + Postgres + Kafka (covered by `lgtm-docker-stack`)
 - **Additions needed**:
   - Redis (examples 16, 25)
   - Debezium (example 04)
   - flagd (example 27)
 
-### Minikube Stack (3 examples)
+### Minikube Stack (optional, added later in the modernization plan)
 - **Base**: Istio + KEDA + Strimzi + CloudNativePG + LGTM (covered by `lgtm-minikube-stack`)
 - **Opt-ins**:
   - Apicurio (example 09)
@@ -202,9 +203,9 @@ Build 20 runnable examples referenced by the tutorial site, each demonstrating p
 
 ### Phase 1: Infrastructure Prep
 1. ✅ Create feature branch (`feature/runnable-examples`)
-2. ✅ Add Redis to `lgtm-podman-stack` skill templates
+2. ✅ Add Redis to `lgtm-docker-stack` skill templates
 3. ✅ Add Redis to `lgtm-minikube-stack` skill templates
-4. ✅ Add Debezium compose template to `lgtm-podman-stack`
+4. ✅ Add Debezium compose template to `lgtm-docker-stack`
 5. ✅ Add flagd compose snippet
 6. ✅ Create `examples/_infra/` shared base
 
@@ -226,7 +227,7 @@ Deliverables:
 ### Phase 3: Rollout (remaining 19)
 Order by priority (HIGH → Medium → Low) and infra grouping:
 
-**Batch 1: Core Podman examples (HIGH priority)**
+**Batch 1: Core Docker examples (HIGH priority)**
 - 02 (Communications) — PoC
 - 04 (Data/CDC + Debezium)
 - 05 (Event-Driven)
@@ -242,7 +243,7 @@ Order by priority (HIGH → Medium → Low) and infra grouping:
 - 22 (L7 Routing + Istio)
 - 24 (Monolith migration)
 
-**Batch 3: Remaining Podman examples**
+**Batch 3: Remaining Docker examples**
 - 03 (Composition)
 - 06 (Stream Processing)
 - 16 (WebSockets + Redis)
@@ -297,13 +298,13 @@ After the example runs green, flip to:
 
 - **Project**: "Runnable Examples"
 - **Issues**: One per example (20 issues) + infrastructure prep issues
-- **Labels**: `podman-stack`, `minikube-stack`, `high-priority`, `redis`, `debezium`, `apicurio`, etc.
+- **Labels**: `docker-stack`, `minikube-stack`, `high-priority`, `redis`, `debezium`, `apicurio`, etc.
 - **Milestones**:
   - M1: Infrastructure Prep
   - M2: Proof-of-Concept (example 02 or 05)
   - M3: Batch 1 (core HIGH priority)
   - M4: Batch 2 (minikube)
-  - M5: Batch 3 (remaining podman)
+  - M5: Batch 3 (remaining docker)
   - M6: Batch 4 (low priority)
 
 ## Success Criteria

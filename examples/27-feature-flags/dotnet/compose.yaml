@@ -20,6 +20,7 @@ services:
   flag-service:
     build:
       context: .
+      dockerfile: Containerfile
     container_name: cndp-flag-service
     depends_on:
       flagd:
