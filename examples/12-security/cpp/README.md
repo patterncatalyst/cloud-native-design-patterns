@@ -78,7 +78,7 @@ The bulkhead uses `std::atomic<int>` with compare-exchange for lock-free concurr
 
 ```bash
 cd examples/12-security/cpp
-podman compose up --build
+docker compose up --build
 ```
 
 Wait for healthcheck to pass (~60s for cold build), then run verification:

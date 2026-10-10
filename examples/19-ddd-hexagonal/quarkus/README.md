@@ -11,7 +11,7 @@ Hexagonal (ports-and-adapters) architecture — domain logic isolated from infra
 ## Run
 
 ```bash
-podman compose up --build -d
+docker compose up -d --build --wait
 ```
 
 Wait for healthy, then verify from the example root:
@@ -52,5 +52,5 @@ Requires a running Postgres — see the compose.yaml `depends_on` for which infr
 ## Tear down
 
 ```bash
-podman compose down -v
+docker compose down -v
 ```

@@ -18,10 +18,10 @@ This example demonstrates the API Composition pattern with three services commun
 
 ```bash
 # Start the stack
-podman compose up --build
+docker compose up --build
 
 # Wait for services to be ready (check logs)
-podman logs -f cndp-gateway
+docker logs -f cndp-gateway
 
 # In another terminal, run tests
 ../verify.sh
@@ -62,5 +62,5 @@ Open http://localhost:8080/q/graphql-ui in your browser for interactive queries.
 ## Cleanup
 
 ```bash
-podman compose down -v
+docker compose down -v
 ```

@@ -7,9 +7,8 @@ JUnit XML for CI.
 
 ## Prerequisites
 
-- [Podman](https://podman.io/getting-started/installation) with
-  [podman-compose](https://github.com/containers/podman-compose) or the
-  Docker Compose plugin
+- [Docker Engine](https://docs.docker.com/engine/install/) with the Compose plugin, on
+  Fedora or RHEL (see [Prerequisites](../PREREQUISITES.md))
 - [Newman](https://www.npmjs.com/package/newman): `npm install -g newman`
 - `curl` and `jq` for driving the API
 - ~1 GB free memory (Postgres + 1 app service)
@@ -35,7 +34,7 @@ credentials, and the container naming convention.
 
 ```bash
 # Start the service
-podman compose up --build -d
+docker compose up -d --build --wait
 
 # Run the collection
 newman run collections/orders.postman_collection.json

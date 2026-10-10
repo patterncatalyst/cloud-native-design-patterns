@@ -37,7 +37,7 @@ Envoy proxy providing L7 routing capabilities:
 
 ### Start all services
 ```bash
-podman compose up --build
+docker compose up --build
 ```
 
 Wait for all healthchecks to pass (Envoy depends on both order service instances being healthy).
@@ -107,7 +107,7 @@ Expected: Response includes `"version":"v1"` or `"version":"v2"` based on weight
 
 ### Stop services
 ```bash
-podman compose down
+docker compose down
 ```
 
 ## What to observe
@@ -162,7 +162,7 @@ podman compose down
 - Map-to-JSON conversion handled transparently by framework
 
 ### Build optimization
-- Multi-stage Dockerfile reduces final image size
+- Multi-stage Containerfile reduces final image size
 - Build stage includes Maven, runtime stage uses minimal JRE image
 - `quarkus-maven-plugin` with `generate-code` and `build` goals
 - Fast startup time (< 2 seconds) due to Quarkus build-time optimizations

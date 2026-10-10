@@ -5,9 +5,8 @@ Demonstrates the two twelve-factor concerns you still write per service:
 
 ## Prerequisites
 
-- [Podman](https://podman.io/getting-started/installation) with
-  [podman-compose](https://github.com/containers/podman-compose) or the
-  Docker Compose plugin
+- [Docker Engine](https://docs.docker.com/engine/install/) with the Compose plugin, on
+  Fedora or RHEL (see [Prerequisites](../PREREQUISITES.md))
 - `curl` and `jq` for driving the API
 - ~2 GB free memory (LGTM + Postgres + app service)
 
@@ -33,10 +32,10 @@ Pick a language and start the stack:
 
 ```bash
 # Python (FastAPI)
-cd python && podman compose up --build -d
+cd python && docker compose up -d --build --wait
 
 # Spring Boot
-cd spring-boot && podman compose up --build -d
+cd spring-boot && docker compose up -d --build --wait
 ```
 
 Both implementations expose the same API on the same ports — `verify.sh` works with either.
@@ -44,7 +43,7 @@ Both implementations expose the same API on the same ports — `verify.sh` works
 Wait for all services to report healthy:
 
 ```bash
-podman compose ps
+docker compose ps
 ```
 
 ## Drive it
@@ -63,12 +62,12 @@ curl -s -X POST 'localhost:8080/orders?customer=alice&total=42.50' | jq .
 curl -s localhost:8080/orders | jq .
 
 # Stop Postgres and watch readiness flip (liveness stays ok)
-podman stop cndp-postgres
+docker stop cndp-postgres
 curl -s localhost:8080/readyz | jq .   # → "status": "down"
 curl -s localhost:8080/healthz | jq .  # → "status": "ok"
 
 # Restart Postgres and watch readiness recover
-podman start cndp-postgres
+docker start cndp-postgres
 sleep 3
 curl -s localhost:8080/readyz | jq .   # → "status": "ready"
 ```

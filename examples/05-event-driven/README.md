@@ -7,9 +7,8 @@ UNIQUE constraints.
 
 ## Prerequisites
 
-- [Podman](https://podman.io/getting-started/installation) with
-  [podman-compose](https://github.com/containers/podman-compose) or the
-  Docker Compose plugin
+- [Docker Engine](https://docs.docker.com/engine/install/) with the Compose plugin, on
+  Fedora or RHEL (see [Prerequisites](../PREREQUISITES.md))
 - `curl` and `jq` for driving the API
 - ~3 GB free memory (LGTM + Postgres + Kafka + 3 app services)
 
@@ -35,10 +34,10 @@ Pick a language and start the stack:
 
 ```bash
 # Python (FastAPI)
-cd python && podman compose up --build -d
+cd python && docker compose up -d --build --wait
 
 # Spring Boot
-cd spring-boot && podman compose up --build -d
+cd spring-boot && docker compose up -d --build --wait
 ```
 
 Both implementations expose the same API on the same ports — `verify.sh` works with either.
@@ -46,7 +45,7 @@ Both implementations expose the same API on the same ports — `verify.sh` works
 Wait for all services:
 
 ```bash
-podman compose ps
+docker compose ps
 ```
 
 ## Drive it
@@ -61,13 +60,13 @@ curl -s -X POST -H 'Content-Type: application/json' \
 curl -s localhost:8080/orders | jq .
 
 # Check that both consumers processed
-podman exec cndp-postgres psql -U appuser -d appdb \
+docker exec cndp-postgres psql -U appuser -d appdb \
   -c "SELECT * FROM shipments;"
-podman exec cndp-postgres psql -U appuser -d appdb \
+docker exec cndp-postgres psql -U appuser -d appdb \
   -c "SELECT * FROM notifications;"
 
 # Verify consumer groups
-podman exec cndp-kafka /opt/kafka/bin/kafka-consumer-groups.sh \
+docker exec cndp-kafka /opt/kafka/bin/kafka-consumer-groups.sh \
   --bootstrap-server localhost:9092 --list
 ```
 

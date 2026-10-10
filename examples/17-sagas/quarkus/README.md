@@ -38,7 +38,7 @@ saga-orchestrator (Quarkus)
 
 ```bash
 cd /home/rsedor/Dev/cloud-native-design-patterns/examples/17-sagas/quarkus
-podman compose up --build
+docker compose up --build
 ```
 
 Wait for the healthcheck to pass:
@@ -272,5 +272,5 @@ The test checks all 12 acceptance criteria:
 ## Cleanup
 
 ```bash
-podman compose down -v
+docker compose down -v
 ```

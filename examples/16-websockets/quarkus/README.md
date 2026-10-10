@@ -20,10 +20,10 @@ Both pods run identical code. Clients connect via WebSocket at `/ws/{clientId}`.
 
 ```bash
 # Start stack
-podman compose up -d
+docker compose up -d
 
 # Wait for health
-podman compose ps
+docker compose ps
 
 # Check health
 curl http://localhost:8081/healthz

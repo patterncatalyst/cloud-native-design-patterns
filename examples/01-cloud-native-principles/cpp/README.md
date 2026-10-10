@@ -57,7 +57,7 @@ GET /orders
 
 ```bash
 # From examples/01-cloud-native-principles/cpp/
-podman compose up --build
+docker compose up --build
 
 # Wait for healthcheck to pass (first build takes ~10-15 minutes cold cache)
 # Subsequent builds < 1 minute

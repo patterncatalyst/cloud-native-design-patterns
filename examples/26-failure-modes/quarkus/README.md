@@ -11,7 +11,7 @@ Circuit breaker, retry with backoff, timeout, and fallback — edge-service call
 ## Run
 
 ```bash
-podman compose up --build -d
+docker compose up -d --build --wait
 ```
 
 Wait for healthy, then verify from the example root:
@@ -48,5 +48,5 @@ mvn quarkus:dev
 ## Tear down
 
 ```bash
-podman compose down -v
+docker compose down -v
 ```
