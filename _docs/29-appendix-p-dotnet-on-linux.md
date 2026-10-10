@@ -209,8 +209,10 @@ The examples use **Red Hat Universal Base Images** (UBI) instead of the
   producing smaller images.
 
 The .NET UBI images (`ubi9/dotnet-100` for SDK, `ubi9/dotnet-100-aspnet` for runtime)
-are built by Red Hat and published to `registry.access.redhat.com`. They contain the
-same .NET runtime bits as Microsoft's images — the difference is the base OS layer.
+are built by Red Hat and published to `registry.access.redhat.com`. Red Hat
+builds .NET from source for RHEL (the SDK uses feature band 1xx, for example 10.0.112
+alongside runtime 10.0.12) rather than repackaging Microsoft's binaries, so versions track
+Microsoft's releases but the build, base OS layer and support lifecycle are Red Hat's.
 
 ### What is inside the final image
 
