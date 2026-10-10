@@ -45,7 +45,7 @@ curl http://localhost:8080/orders -X POST -H 'Content-Type: application/json' \
     -d '{"sku":"widget-a","quantity":3}'
 
 # Test the CLI adapter (same use case, different entry point)
-docker exec cndp-order-service python cli_place_order.py bolt-x 5
+docker exec cndp-order-service cli-place-order bolt-x 5
 ```
 
 ## Verification

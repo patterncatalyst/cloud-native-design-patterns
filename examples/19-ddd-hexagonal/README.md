@@ -53,7 +53,7 @@ curl -s -X POST http://localhost:8080/orders \
   -d '{"sku":"widget-a","quantity":3}' | jq .
 
 # Place an order via CLI (same use case, different adapter)
-docker exec cndp-order-service python cli_place_order.py bolt-x 5
+docker exec cndp-order-service cli-place-order bolt-x 5
 
 # Verify both orders appear
 curl -s http://localhost:8080/orders | jq .

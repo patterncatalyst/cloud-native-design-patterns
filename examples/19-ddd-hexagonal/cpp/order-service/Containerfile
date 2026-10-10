@@ -65,14 +65,13 @@ RUN cmake -S . -B build -G Ninja \
     && strip --strip-all build/cli-place-order
 
 # ════════════════════════════════════════════════════════════════════════
-# Runtime — ubi-minimal + libstdc++ + libpq + python3 (for CLI wrapper).
+# Runtime — ubi-minimal + libstdc++ + libpq.
 # ════════════════════════════════════════════════════════════════════════
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.5 AS runtime
 
 RUN microdnf install -y --setopt=install_weak_deps=0 \
         libstdc++ \
         libpq \
-        python3 \
     && microdnf clean all \
     && rm -rf /var/cache/yum
 
@@ -80,9 +79,6 @@ COPY --from=builder /src/build/order-service /usr/local/bin/order-service
 COPY --from=builder /src/build/cli-place-order /usr/local/bin/cli-place-order
 
 WORKDIR /app
-COPY cli_place_order.py .
-RUN chmod +x cli_place_order.py && \
-    ln -sf /usr/bin/python3 /usr/bin/python
 
 USER 1001:1001
 EXPOSE 8080

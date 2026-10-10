@@ -11,11 +11,8 @@ COPY src src
 RUN --mount=type=cache,target=/home/default/.m2,uid=185 mvn package -DskipTests -B
 
 FROM registry.access.redhat.com/ubi9/openjdk-21-runtime
-USER root
-RUN microdnf install -y python3 && ln -sf /usr/bin/python3 /usr/bin/python && microdnf clean all
-USER default
 COPY --from=build /home/default/target/*.jar /deployments/app.jar
-COPY cli_place_order.py /deployments/cli_place_order.py
+COPY --chmod=755 cli-place-order /usr/local/bin/cli-place-order
 WORKDIR /deployments
 EXPOSE 8080
 CMD ["java", "-jar", "app.jar"]

@@ -151,7 +151,7 @@ check "POST /orders rejects invalid input (422)" \
 # ===================================================================
 printf '\n--- 3. CLI driving adapter (replaceability proof) ---\n'
 
-CLI_OUTPUT=$(ctr_exec cndp-order-service python cli_place_order.py bolt-x 5 2>/dev/null) || CLI_OUTPUT=""
+CLI_OUTPUT=$(ctr_exec cndp-order-service cli-place-order bolt-x 5 2>/dev/null) || CLI_OUTPUT=""
 
 check "CLI adapter creates order via same use case" \
     "echo '$CLI_OUTPUT'" \

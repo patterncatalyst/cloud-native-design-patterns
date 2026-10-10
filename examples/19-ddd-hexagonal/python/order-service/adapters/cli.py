@@ -1,5 +1,6 @@
 """Second driving adapter: a CLI that calls the same PlaceOrder use case.
-Proves the domain is adapter-agnostic — no domain files change."""
+Proves the domain is adapter-agnostic — no domain files change.
+Run as `cli-place-order <sku> <quantity>` (wrapper for `python -m adapters.cli`)."""
 import asyncio
 import os
 import sys
@@ -14,13 +15,13 @@ from domain.service import PlaceOrder
 
 async def main():
     if len(sys.argv) < 3:
-        print("Usage: python cli_place_order.py <sku> <quantity>", file=sys.stderr)
+        print("Usage: cli-place-order <sku> <quantity>", file=sys.stderr)
         sys.exit(1)
 
     sku = sys.argv[1]
     quantity = int(sys.argv[2])
 
-    dsn = os.environ.get("DATABASE_URL", "postgres://appuser:apppass@localhost:5432/appdb")
+    dsn = os.environ.get("DATABASE_URL", "postgres://appuser:apppass@postgres:5432/appdb")
     pool = await asyncpg.create_pool(dsn)
 
     repo = PostgresOrderRepository(pool)

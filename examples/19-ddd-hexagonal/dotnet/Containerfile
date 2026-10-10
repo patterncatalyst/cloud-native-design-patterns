@@ -9,5 +9,6 @@ RUN dotnet publish OrderService/OrderService.csproj -c Release -o /app
 FROM registry.access.redhat.com/ubi9/dotnet-100-aspnet
 WORKDIR /app
 COPY --from=build /app .
+COPY --chmod=755 cli-place-order /usr/local/bin/cli-place-order
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "OrderService.dll"]

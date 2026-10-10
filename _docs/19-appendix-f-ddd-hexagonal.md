@@ -313,6 +313,13 @@ publisher) injected at startup. That injection is dependency inversion in servic
 the boundary: the protocols and the infrastructure are replaceable, and the domain is
 the stable thing they all depend on.
 
+The example proves it with a second driving adapter in every language: a CLI,
+`cli-place-order <sku> <quantity>`, installed on the `PATH` of each order-service image.
+It builds a command, calls the same `PlaceOrder` use case against the same Postgres, and
+prints a `CLI_ORDER_CREATED` line — no HTTP server, and no change to any domain file.
+Run it inside the running container with `docker exec cndp-order-service cli-place-order bolt-x 5`;
+the order is then readable through the REST adapter.
+
 ## Aggregates and domain events
 
 Tactical DDD is where the modelling inside a context ties three earlier parts of the

@@ -24,11 +24,17 @@ cd .. && bash verify.sh
 
 | Path | Description |
 |------|-------------|
-| `OrderService/` | Program.cs — domain types (record Order), repository interface, Npgsql adapter, minimal API driving adapter |
+| `OrderService/` | Program.cs — composition root and minimal API driving adapter; `Domain/` (entities, ports, use case); `Adapters/` (Npgsql repository, log publisher) |
+| `OrderService/Adapters/CliPlaceOrder.cs` | CLI driving adapter — `OrderService place-order <sku> <qty>`, handled before the web host is built; calls `PlaceOrderUseCase`, never the repository |
+| `cli-place-order` | Wrapper installed on PATH in the image: `cli-place-order <sku> <qty>` |
 
 ## Implementation notes
 
-All in one `Program.cs` but structured with explicit interface boundaries. Uses C# interfaces for ports and DI registration for adapter binding.
+Explicit interface boundaries: C# interfaces for ports, DI registration for adapter binding. The CLI adapter proves replaceability:
+
+```bash
+docker exec cndp-order-service cli-place-order bolt-x 5
+```
 
 ## Environment variables
 

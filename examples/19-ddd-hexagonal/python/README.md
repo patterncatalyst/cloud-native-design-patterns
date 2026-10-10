@@ -52,3 +52,11 @@ see the compose.yaml `depends_on` for which infrastructure services are needed.
 ```bash
 docker compose down -v
 ```
+
+## CLI driving adapter
+
+`cli-place-order <sku> <qty>` is on PATH in the image and drives the same PlaceOrder use case:
+
+```bash
+docker exec cndp-order-service cli-place-order bolt-x 5
+```
