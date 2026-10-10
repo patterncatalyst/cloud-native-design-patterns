@@ -54,6 +54,12 @@ check_status() {
 printf '==> Verifying Example 18: API Error Handling\n\n'
 
 # --- Service is up ---
+# order-service has no compose healthcheck, so `up --wait` can return before it
+# listens; give it up to 60s.
+for _ in $(seq 1 30); do
+    curl $CURL_OPTS -sf "$BASE/healthz" >/dev/null 2>&1 && break
+    sleep 2
+done
 check "order-service healthz" \
     "curl $CURL_OPTS -sf $BASE/healthz" \
     '"status":"ok"'
