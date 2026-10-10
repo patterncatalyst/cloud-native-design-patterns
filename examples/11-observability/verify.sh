@@ -116,9 +116,19 @@ else
 fi
 
 # --- Metrics in Prometheus ---
-printf '  \xe2\x86\x92 checking metrics in Prometheus...\n'
-PROM_RESULT=$(curl $CURL_OPTS -sf "http://localhost:19090/api/v1/query?query=orders_placed_total" 2>/dev/null || echo "")
-if echo "$PROM_RESULT" | grep -q "order-service"; then
+# Metric exporters push on their own interval (60s by default for the Spring
+# Boot and .NET SDKs), so poll instead of checking once.
+prom_has() {
+    local query="$1" label="$2" deadline=$((SECONDS + 90))
+    while [ "$SECONDS" -lt "$deadline" ]; do
+        curl $CURL_OPTS -sf "http://localhost:19090/api/v1/query?query=$query" 2>/dev/null | grep -q "$label" && return 0
+        sleep 5
+    done
+    return 1
+}
+
+printf '  \xe2\x86\x92 checking metrics in Prometheus (up to 90s each)...\n'
+if prom_has orders_placed_total order-service; then
     printf '  \xe2\x9c\x93 orders.placed metric found in Prometheus\n'
     PASS=$((PASS + 1))
 else
@@ -126,8 +136,7 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-STOCK_RESULT=$(curl $CURL_OPTS -sf "http://localhost:19090/api/v1/query?query=stock_reservations_total" 2>/dev/null || echo "")
-if echo "$STOCK_RESULT" | grep -q "inventory-service"; then
+if prom_has stock_reservations_total inventory-service; then
     printf '  \xe2\x9c\x93 stock.reservations metric found in Prometheus\n'
     PASS=$((PASS + 1))
 else
