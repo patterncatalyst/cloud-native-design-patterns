@@ -1,8 +1,31 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2086  # $CURL_OPTS is intentionally word-split
 set -euo pipefail
 
-ENVOY="http://localhost:8080"
-ROUTER="http://localhost:8090"
+RUNTIME="${RUNTIME:-docker}"
+BASE="${BASE:-http://localhost:8080}"
+ENVOY="${ENVOY:-$BASE}"
+ROUTER="${ROUTER:-http://localhost:8090}"
+CURL_OPTS="${CURL_OPTS:-}"
+
+# Container operations go through these helpers so the checks do not hard-code
+# an engine. RUNTIME=openshift is added later: a ctr_target function will map
+# a container name (cndp-kafka, cndp-postgres, ...) to its pod and each helper
+# will call `oc exec` / `oc logs` instead.
+case "$RUNTIME" in
+    docker) ;;
+    *) echo "RUNTIME=$RUNTIME not supported yet" >&2; exit 1 ;;
+esac
+ctr_exec()    { docker exec "$@"; }
+ctr_logs()    { docker logs "$@"; }
+ctr_stop()    { docker stop "$@"; }
+ctr_start()   { docker start "$@"; }
+ctr_rm()      { docker rm "$@"; }
+ctr_kill()    { docker kill --signal "${2:-KILL}" "$1"; }  # ctr_kill <container> [signal]
+ctr_pause()   { docker pause "$@"; }
+ctr_unpause() { docker unpause "$@"; }
+ctr_compose() { docker compose "$@"; }
+
 PASS=0
 FAIL=0
 
@@ -26,15 +49,15 @@ printf '==> Verifying Example 22: L7 Routing & Traffic Management\n\n'
 printf -- '--- 1. Envoy weighted routing ---\n'
 
 check "envoy healthz proxied to backend" \
-    "curl -sf $ENVOY/healthz" \
+    "curl $CURL_OPTS -sf $ENVOY/healthz" \
     '"status":"ok"'
 
 V1_COUNT=0
 V2_COUNT=0
 TOTAL=200
 
-for i in $(seq 1 $TOTAL); do
-    RESP=$(curl -sf "$ENVOY/orders" 2>/dev/null) || continue
+for _ in $(seq 1 $TOTAL); do
+    RESP=$(curl $CURL_OPTS -sf "$ENVOY/orders" 2>/dev/null) || continue
     if echo "$RESP" | grep -q '"v2"'; then
         V2_COUNT=$((V2_COUNT + 1))
     else
@@ -73,8 +96,8 @@ printf '\n--- 2. Header-based routing ---\n'
 HEADER_V2=0
 HEADER_TOTAL=20
 
-for i in $(seq 1 $HEADER_TOTAL); do
-    RESP=$(curl -sf -H 'x-route-to: v2' "$ENVOY/orders" 2>/dev/null) || continue
+for _ in $(seq 1 $HEADER_TOTAL); do
+    RESP=$(curl $CURL_OPTS -sf -H 'x-route-to: v2' "$ENVOY/orders" 2>/dev/null) || continue
     if echo "$RESP" | grep -q '"v2"'; then
         HEADER_V2=$((HEADER_V2 + 1))
     fi
@@ -89,7 +112,7 @@ else
 fi
 
 check "without header, response can be v1" \
-    "curl -sf $ENVOY/orders" \
+    "curl $CURL_OPTS -sf $ENVOY/orders" \
     '"version"'
 
 # ===================================================================
@@ -98,23 +121,23 @@ check "without header, response can be v1" \
 printf '\n--- 3. In-app rule-driven routing ---\n'
 
 check "router healthz" \
-    "curl -sf $ROUTER/healthz" \
+    "curl $CURL_OPTS -sf $ROUTER/healthz" \
     '"status":"ok"'
 
 check "VIP order (amount >= 1000) → orders.priority" \
-    "curl -sf -X POST $ROUTER/orders -H 'Content-Type: application/json' -d '{\"sku\":\"diamond\",\"quantity\":1,\"amount\":2500}'" \
+    "curl $CURL_OPTS -sf -X POST $ROUTER/orders -H 'Content-Type: application/json' -d '{\"sku\":\"diamond\",\"quantity\":1,\"amount\":2500}'" \
     '"routed_to":"orders.priority"'
 
 check "VIP order flagged as vip=true" \
-    "curl -sf -X POST $ROUTER/orders -H 'Content-Type: application/json' -d '{\"sku\":\"diamond\",\"quantity\":1,\"amount\":2500}'" \
+    "curl $CURL_OPTS -sf -X POST $ROUTER/orders -H 'Content-Type: application/json' -d '{\"sku\":\"diamond\",\"quantity\":1,\"amount\":2500}'" \
     '"vip":true'
 
 check "ordinary order (amount < 1000) → orders.default" \
-    "curl -sf -X POST $ROUTER/orders -H 'Content-Type: application/json' -d '{\"sku\":\"widget\",\"quantity\":3,\"amount\":50}'" \
+    "curl $CURL_OPTS -sf -X POST $ROUTER/orders -H 'Content-Type: application/json' -d '{\"sku\":\"widget\",\"quantity\":3,\"amount\":50}'" \
     '"routed_to":"orders.default"'
 
 check "ordinary order flagged as vip=false" \
-    "curl -sf -X POST $ROUTER/orders -H 'Content-Type: application/json' -d '{\"sku\":\"widget\",\"quantity\":3,\"amount\":50}'" \
+    "curl $CURL_OPTS -sf -X POST $ROUTER/orders -H 'Content-Type: application/json' -d '{\"sku\":\"widget\",\"quantity\":3,\"amount\":50}'" \
     '"vip":false'
 
 # ===================================================================
@@ -123,19 +146,19 @@ check "ordinary order flagged as vip=false" \
 printf '\n--- 4. Rule change without redeploy ---\n'
 
 check "current rules show threshold 1000" \
-    "curl -sf $ROUTER/rules" \
+    "curl $CURL_OPTS -sf $ROUTER/rules" \
     '"vip_threshold":1000'
 
-curl -sf -X PUT "$ROUTER/rules" \
+curl $CURL_OPTS -sf -X PUT "$ROUTER/rules" \
     -H 'Content-Type: application/json' \
     -d '{"vip_threshold": 500}' >/dev/null 2>&1
 
 check "after lowering threshold to 500, amount=750 is now VIP" \
-    "curl -sf -X POST $ROUTER/orders -H 'Content-Type: application/json' -d '{\"sku\":\"gadget\",\"quantity\":1,\"amount\":750}'" \
+    "curl $CURL_OPTS -sf -X POST $ROUTER/orders -H 'Content-Type: application/json' -d '{\"sku\":\"gadget\",\"quantity\":1,\"amount\":750}'" \
     '"routed_to":"orders.priority"'
 
 check "rules endpoint reflects updated threshold" \
-    "curl -sf $ROUTER/rules" \
+    "curl $CURL_OPTS -sf $ROUTER/rules" \
     '"vip_threshold":500'
 
 # ===================================================================
@@ -144,11 +167,11 @@ check "rules endpoint reflects updated threshold" \
 printf '\n--- 5. Version markers ---\n'
 
 check "v1 backend returns version=v1" \
-    "curl -sf $ENVOY/healthz" \
+    "curl $CURL_OPTS -sf $ENVOY/healthz" \
     '"version"'
 
 check "POST through envoy returns version field" \
-    "curl -sf -X POST $ENVOY/orders -H 'Content-Type: application/json' -d '{\"sku\":\"test\",\"quantity\":1}'" \
+    "curl $CURL_OPTS -sf -X POST $ENVOY/orders -H 'Content-Type: application/json' -d '{\"sku\":\"test\",\"quantity\":1}'" \
     '"version"'
 
 printf '\n==> Results: %d passed, %d failed\n' "$PASS" "$FAIL"

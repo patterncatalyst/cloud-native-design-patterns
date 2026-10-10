@@ -1,7 +1,29 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2086  # $CURL_OPTS is intentionally word-split
 set -euo pipefail
 
-BASE="http://localhost:8080"
+RUNTIME="${RUNTIME:-docker}"
+BASE="${BASE:-http://localhost:8080}"
+CURL_OPTS="${CURL_OPTS:-}"
+
+# Container operations go through these helpers so the checks do not hard-code
+# an engine. RUNTIME=openshift is added later: a ctr_target function will map
+# a container name (cndp-kafka, cndp-postgres, ...) to its pod and each helper
+# will call `oc exec` / `oc logs` instead.
+case "$RUNTIME" in
+    docker) ;;
+    *) echo "RUNTIME=$RUNTIME not supported yet" >&2; exit 1 ;;
+esac
+ctr_exec()    { docker exec "$@"; }
+ctr_logs()    { docker logs "$@"; }
+ctr_stop()    { docker stop "$@"; }
+ctr_start()   { docker start "$@"; }
+ctr_rm()      { docker rm "$@"; }
+ctr_kill()    { docker kill --signal "${2:-KILL}" "$1"; }  # ctr_kill <container> [signal]
+ctr_pause()   { docker pause "$@"; }
+ctr_unpause() { docker unpause "$@"; }
+ctr_compose() { docker compose "$@"; }
+
 PASS=0
 FAIL=0
 
@@ -33,20 +55,20 @@ printf '==> Verifying Example 05: Event-Driven Architecture\n\n'
 
 # --- order-service is up ---
 check "order-service healthz" \
-    "curl -sf $BASE/healthz" \
+    "curl $CURL_OPTS -sf $BASE/healthz" \
     '"status":"ok"'
 
 # --- Place an order ---
-ORDER_JSON=$(curl -sf -X POST -H 'Content-Type: application/json' \
+ORDER_JSON=$(curl $CURL_OPTS -sf -X POST -H 'Content-Type: application/json' \
     -d '{"sku":"widget-a","quantity":5}' "$BASE/orders")
 ORDER_ID=$(echo "$ORDER_JSON" | jq -r '.id')
 
 check_status "POST /orders returns 201" \
-    "curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"widget-b\",\"quantity\":2}' $BASE/orders" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"widget-b\",\"quantity\":2}' $BASE/orders" \
     "201"
 
 check "order visible in GET /orders" \
-    "curl -sf $BASE/orders" \
+    "curl $CURL_OPTS -sf $BASE/orders" \
     '"widget-a"'
 
 # --- Kafka topic exists ---
@@ -54,40 +76,40 @@ printf '  \xe2\x86\x92 waiting for consumers to process events...\n'
 sleep 8
 
 check "order.placed topic exists in Kafka" \
-    "podman exec cndp-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list 2>/dev/null" \
+    "ctr_exec cndp-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list 2>/dev/null" \
     "order.placed"
 
 # --- Fan-out: shipping consumer processed ---
 check "shipment created for order" \
-    "podman exec cndp-postgres psql -U appuser -d appdb -tAc \"SELECT count(*) FROM shipments WHERE order_id='$ORDER_ID'\"" \
+    "ctr_exec cndp-postgres psql -U appuser -d appdb -tAc \"SELECT count(*) FROM shipments WHERE order_id='$ORDER_ID'\"" \
     "1"
 
 # --- Fan-out: notification consumer processed ---
 check "notification created for order" \
-    "podman exec cndp-postgres psql -U appuser -d appdb -tAc \"SELECT count(*) FROM notifications WHERE order_id='$ORDER_ID'\"" \
+    "ctr_exec cndp-postgres psql -U appuser -d appdb -tAc \"SELECT count(*) FROM notifications WHERE order_id='$ORDER_ID'\"" \
     "1"
 
 # --- Two independent consumer groups ---
 check "shipping-group consumer group exists" \
-    "podman exec cndp-kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list 2>/dev/null" \
+    "ctr_exec cndp-kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list 2>/dev/null" \
     "shipping-group"
 
 check "notification-group consumer group exists" \
-    "podman exec cndp-kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list 2>/dev/null" \
+    "ctr_exec cndp-kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list 2>/dev/null" \
     "notification-group"
 
 # --- Idempotent consumers: re-deliver same event and verify no duplicates ---
 printf '  \xe2\x86\x92 testing idempotent consumers (re-sending duplicate event)...\n'
 DUPLICATE_EVENT="{\"id\":\"$ORDER_ID\",\"sku\":\"widget-a\",\"quantity\":5,\"status\":\"pending\"}"
-podman exec cndp-kafka bash -c "echo '$DUPLICATE_EVENT' | /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic order.placed" >/dev/null 2>&1
+ctr_exec cndp-kafka bash -c "echo '$DUPLICATE_EVENT' | /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic order.placed" >/dev/null 2>&1
 sleep 8
 
 check "shipping remains idempotent (still 1 row after duplicate)" \
-    "podman exec cndp-postgres psql -U appuser -d appdb -tAc \"SELECT count(*) FROM shipments WHERE order_id='$ORDER_ID'\"" \
+    "ctr_exec cndp-postgres psql -U appuser -d appdb -tAc \"SELECT count(*) FROM shipments WHERE order_id='$ORDER_ID'\"" \
     "1"
 
 check "notification remains idempotent (still 1 row after duplicate)" \
-    "podman exec cndp-postgres psql -U appuser -d appdb -tAc \"SELECT count(*) FROM notifications WHERE order_id='$ORDER_ID'\"" \
+    "ctr_exec cndp-postgres psql -U appuser -d appdb -tAc \"SELECT count(*) FROM notifications WHERE order_id='$ORDER_ID'\"" \
     "1"
 
 printf '\n==> Results: %d passed, %d failed\n' "$PASS" "$FAIL"

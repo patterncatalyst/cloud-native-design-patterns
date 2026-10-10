@@ -1,7 +1,29 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2086  # $CURL_OPTS is intentionally word-split
 set -euo pipefail
 
-BASE="http://localhost:8080"
+RUNTIME="${RUNTIME:-docker}"
+BASE="${BASE:-http://localhost:8080}"
+CURL_OPTS="${CURL_OPTS:-}"
+
+# Container operations go through these helpers so the checks do not hard-code
+# an engine. RUNTIME=openshift is added later: a ctr_target function will map
+# a container name (cndp-kafka, cndp-postgres, ...) to its pod and each helper
+# will call `oc exec` / `oc logs` instead.
+case "$RUNTIME" in
+    docker) ;;
+    *) echo "RUNTIME=$RUNTIME not supported yet" >&2; exit 1 ;;
+esac
+ctr_exec()    { docker exec "$@"; }
+ctr_logs()    { docker logs "$@"; }
+ctr_stop()    { docker stop "$@"; }
+ctr_start()   { docker start "$@"; }
+ctr_rm()      { docker rm "$@"; }
+ctr_kill()    { docker kill --signal "${2:-KILL}" "$1"; }  # ctr_kill <container> [signal]
+ctr_pause()   { docker pause "$@"; }
+ctr_unpause() { docker unpause "$@"; }
+ctr_compose() { docker compose "$@"; }
+
 PASS=0
 FAIL=0
 
@@ -34,14 +56,14 @@ printf '==> Verifying Example 27: Feature Flags\n\n'
 # --- Ensure clean state ---
 printf '  \xe2\x86\x92 ensuring clean provider state...\n'
 for i in $(seq 1 10); do
-    if curl -sf "$BASE/healthz" >/dev/null 2>&1; then break; fi
+    if curl $CURL_OPTS -sf "$BASE/healthz" >/dev/null 2>&1; then break; fi
     sleep 2
 done
 sleep 3
 
 # --- Service healthy ---
 check "healthz returns ok" \
-    "curl -sf $BASE/healthz" \
+    "curl $CURL_OPTS -sf $BASE/healthz" \
     '"status":"ok"'
 
 # ===================================================================
@@ -50,16 +72,16 @@ check "healthz returns ok" \
 printf '\n--- 1. Release flag (new-checkout) ---\n'
 
 check "free-plan user gets legacy checkout (default off)" \
-    "curl -sf -H 'X-User: user-1' -H 'X-Plan: free' -X POST $BASE/checkout" \
+    "curl $CURL_OPTS -sf -H 'X-User: user-1' -H 'X-Plan: free' -X POST $BASE/checkout" \
     '"path":"legacy"'
 
 check "enterprise-plan user always gets new checkout" \
-    "curl -sf -H 'X-User: user-1' -H 'X-Plan: enterprise' -X POST $BASE/checkout" \
+    "curl $CURL_OPTS -sf -H 'X-User: user-1' -H 'X-Plan: enterprise' -X POST $BASE/checkout" \
     '"path":"new"'
 
 # --- Sticky assignment: same user always gets same result ---
-FIRST=$(curl -sf -H 'X-User: stable-user-42' -H 'X-Plan: free' -X POST "$BASE/checkout" | grep -o '"path":"[^"]*"')
-SECOND=$(curl -sf -H 'X-User: stable-user-42' -H 'X-Plan: free' -X POST "$BASE/checkout" | grep -o '"path":"[^"]*"')
+FIRST=$(curl $CURL_OPTS -sf -H 'X-User: stable-user-42' -H 'X-Plan: free' -X POST "$BASE/checkout" | grep -o '"path":"[^"]*"')
+SECOND=$(curl $CURL_OPTS -sf -H 'X-User: stable-user-42' -H 'X-Plan: free' -X POST "$BASE/checkout" | grep -o '"path":"[^"]*"')
 if [ "$FIRST" = "$SECOND" ]; then
     printf '  \xe2\x9c\x93 sticky assignment: same user gets same variant (%s)\n' "$FIRST"
     PASS=$((PASS + 1))
@@ -72,7 +94,7 @@ fi
 NEW_COUNT=0
 TOTAL=100
 for i in $(seq 1 $TOTAL); do
-    path=$(curl -sf -H "X-User: sweep-user-$i" -H 'X-Plan: free' -X POST "$BASE/checkout" | grep -o '"path":"[^"]*"' | cut -d'"' -f4)
+    path=$(curl $CURL_OPTS -sf -H "X-User: sweep-user-$i" -H 'X-Plan: free' -X POST "$BASE/checkout" | grep -o '"path":"[^"]*"' | cut -d'"' -f4)
     if [ "$path" = "new" ]; then
         NEW_COUNT=$((NEW_COUNT + 1))
     fi
@@ -92,11 +114,11 @@ fi
 printf '\n--- 2. Kill switch (recommendations-enabled) ---\n'
 
 check "recommendations are live when flag is on" \
-    "curl -sf -H 'X-User: user-1' $BASE/recommendations" \
+    "curl $CURL_OPTS -sf -H 'X-User: user-1' $BASE/recommendations" \
     '"reason":"live"'
 
 check "recommendations include products" \
-    "curl -sf -H 'X-User: user-1' $BASE/recommendations" \
+    "curl $CURL_OPTS -sf -H 'X-User: user-1' $BASE/recommendations" \
     '"product-a"'
 
 # ===================================================================
@@ -105,7 +127,7 @@ check "recommendations include products" \
 printf '\n--- 3. Simple flag (dark-mode, default off) ---\n'
 
 check "dark-mode defaults to false" \
-    "curl -sf -H 'X-User: user-1' $BASE/ui-config" \
+    "curl $CURL_OPTS -sf -H 'X-User: user-1' $BASE/ui-config" \
     '"dark_mode":false'
 
 # ===================================================================
@@ -114,11 +136,11 @@ check "dark-mode defaults to false" \
 printf '\n--- 4. Debug endpoint ---\n'
 
 check "flags endpoint returns new-checkout" \
-    "curl -sf -H 'X-User: user-1' -H 'X-Plan: enterprise' $BASE/flags" \
+    "curl $CURL_OPTS -sf -H 'X-User: user-1' -H 'X-Plan: enterprise' $BASE/flags" \
     '"new-checkout":true'
 
 check "flags endpoint returns recommendations-enabled" \
-    "curl -sf -H 'X-User: user-1' $BASE/flags" \
+    "curl $CURL_OPTS -sf -H 'X-User: user-1' $BASE/flags" \
     '"recommendations-enabled":true'
 
 # ===================================================================
@@ -127,29 +149,29 @@ check "flags endpoint returns recommendations-enabled" \
 printf '\n--- 5. Fail-safe (flagd down) ---\n'
 
 printf '  \xe2\x86\x92 pausing flagd (freezing process)...\n'
-podman pause cndp-flagd >/dev/null 2>&1
+ctr_pause cndp-flagd >/dev/null 2>&1
 sleep 5
 
 check "checkout returns legacy (default false) with flagd down" \
-    "curl -sf -H 'X-User: user-1' -H 'X-Plan: enterprise' -X POST $BASE/checkout" \
+    "curl $CURL_OPTS -sf -H 'X-User: user-1' -H 'X-Plan: enterprise' -X POST $BASE/checkout" \
     '"path":"legacy"'
 
 check "recommendations return live (default true) with flagd down" \
-    "curl -sf -H 'X-User: user-1' $BASE/recommendations" \
+    "curl $CURL_OPTS -sf -H 'X-User: user-1' $BASE/recommendations" \
     '"reason":"live"'
 
 check "service still returns 200 with flagd down" \
-    "curl -s -o /dev/null -w '%{http_code}' -H 'X-User: user-1' $BASE/ui-config" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -H 'X-User: user-1' $BASE/ui-config" \
     '200'
 
 printf '  \xe2\x86\x92 unpausing flagd...\n'
-podman unpause cndp-flagd >/dev/null 2>&1
+ctr_unpause cndp-flagd >/dev/null 2>&1
 sleep 5
 
 RECOVERED=0
 for i in $(seq 1 15); do
     sleep 3
-    result=$(curl -sf -H 'X-User: user-1' -H 'X-Plan: enterprise' -X POST "$BASE/checkout" 2>/dev/null) || result=""
+    result=$(curl $CURL_OPTS -sf -H 'X-User: user-1' -H 'X-Plan: enterprise' -X POST "$BASE/checkout" 2>/dev/null) || result=""
     if echo "$result" | grep -q '"path":"new"'; then
         RECOVERED=1
         break

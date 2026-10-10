@@ -1,7 +1,29 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2086  # $CURL_OPTS is intentionally word-split
 set -euo pipefail
 
-BASE="http://localhost:8080"
+RUNTIME="${RUNTIME:-docker}"
+BASE="${BASE:-http://localhost:8080}"
+CURL_OPTS="${CURL_OPTS:-}"
+
+# Container operations go through these helpers so the checks do not hard-code
+# an engine. RUNTIME=openshift is added later: a ctr_target function will map
+# a container name (cndp-kafka, cndp-postgres, ...) to its pod and each helper
+# will call `oc exec` / `oc logs` instead.
+case "$RUNTIME" in
+    docker) ;;
+    *) echo "RUNTIME=$RUNTIME not supported yet" >&2; exit 1 ;;
+esac
+ctr_exec()    { docker exec "$@"; }
+ctr_logs()    { docker logs "$@"; }
+ctr_stop()    { docker stop "$@"; }
+ctr_start()   { docker start "$@"; }
+ctr_rm()      { docker rm "$@"; }
+ctr_kill()    { docker kill --signal "${2:-KILL}" "$1"; }  # ctr_kill <container> [signal]
+ctr_pause()   { docker pause "$@"; }
+ctr_unpause() { docker unpause "$@"; }
+ctr_compose() { docker compose "$@"; }
+
 PASS=0
 FAIL=0
 
@@ -33,12 +55,12 @@ printf '==> Verifying Example 18: API Error Handling\n\n'
 
 # --- Service is up ---
 check "order-service healthz" \
-    "curl -sf $BASE/healthz" \
+    "curl $CURL_OPTS -sf $BASE/healthz" \
     '"status":"ok"'
 
 # warmup: give gRPC channel time to connect to inventory
-for i in 1 2 3 4 5; do
-    CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
+for _ in 1 2 3 4 5; do
+    CODE=$(curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
         -d '{"sku":"warmup","quantity":1}' "$BASE/orders" 2>/dev/null) || CODE=""
     [ "$CODE" = "201" ] && break
     sleep 2
@@ -46,18 +68,18 @@ done
 
 # --- Happy path ---
 check_status "POST /orders returns 201 (happy path)" \
-    "curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"widget\",\"quantity\":1}' $BASE/orders" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"widget\",\"quantity\":1}' $BASE/orders" \
     "201"
 
 # --- Validation error (problem+json) ---
 printf '  \xe2\x86\x92 testing validation error...\n'
-VALIDATION=$(curl -sf -X POST -H 'Content-Type: application/json' \
+VALIDATION=$(curl $CURL_OPTS -sf -X POST -H 'Content-Type: application/json' \
     -d '{"sku":"","quantity":0}' "$BASE/orders" 2>/dev/null || \
-    curl -s -X POST -H 'Content-Type: application/json' \
+    curl $CURL_OPTS -s -X POST -H 'Content-Type: application/json' \
     -d '{"sku":"","quantity":0}' "$BASE/orders")
 
 check_status "validation error returns 422" \
-    "curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"\",\"quantity\":0}' $BASE/orders" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"\",\"quantity\":0}' $BASE/orders" \
     "422"
 
 check "validation error has code VALIDATION_ERROR" \
@@ -70,16 +92,16 @@ check "validation error has traceId" \
 
 # --- Stock conflict (exhaust stock → 409) ---
 printf '  \xe2\x86\x92 exhausting stock to trigger STOCK_UNAVAILABLE...\n'
-for i in $(seq 1 5); do
-    curl -sf -X POST -H 'Content-Type: application/json' \
+for _ in $(seq 1 5); do
+    curl $CURL_OPTS -sf -X POST -H 'Content-Type: application/json' \
         -d '{"sku":"limited","quantity":1}' "$BASE/orders" >/dev/null 2>&1
 done
 
-STOCK_ERR=$(curl -s -X POST -H 'Content-Type: application/json' \
+STOCK_ERR=$(curl $CURL_OPTS -s -X POST -H 'Content-Type: application/json' \
     -d '{"sku":"limited","quantity":1}' "$BASE/orders")
 
 check_status "stock conflict returns 409" \
-    "curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"limited\",\"quantity\":1}' $BASE/orders" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"limited\",\"quantity\":1}' $BASE/orders" \
     "409"
 
 check "stock error has code STOCK_UNAVAILABLE" \
@@ -96,14 +118,14 @@ check "stock error has traceId" \
 
 # --- Upstream unavailable (stop inventory → 503 with Retry-After) ---
 printf '  \xe2\x86\x92 stopping inventory to trigger INVENTORY_UNAVAILABLE...\n'
-podman stop cndp-inventory >/dev/null 2>&1
+ctr_stop cndp-inventory >/dev/null 2>&1
 sleep 3
 
-UNAVAIL=$(curl -s -X POST -H 'Content-Type: application/json' \
+UNAVAIL=$(curl $CURL_OPTS -s -X POST -H 'Content-Type: application/json' \
     -d '{"sku":"widget","quantity":1}' "$BASE/orders")
 
 check_status "upstream unavailable returns 503" \
-    "curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"widget\",\"quantity\":1}' $BASE/orders" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"widget\",\"quantity\":1}' $BASE/orders" \
     "503"
 
 check "unavailable error has retryable=true" \
@@ -116,7 +138,7 @@ check "unavailable error has retryAfter" \
 
 # Check Retry-After header
 HEADER_FILE=$(mktemp)
-curl -s -D "$HEADER_FILE" -o /dev/null -X POST -H 'Content-Type: application/json' \
+curl $CURL_OPTS -s -D "$HEADER_FILE" -o /dev/null -X POST -H 'Content-Type: application/json' \
     -d '{"sku":"widget","quantity":1}' "$BASE/orders" 2>/dev/null
 RETRY_HEADER=$(grep -i "retry-after" "$HEADER_FILE" 2>/dev/null || echo "")
 rm -f "$HEADER_FILE"
@@ -129,7 +151,7 @@ else
 fi
 
 # --- Restart inventory ---
-podman start cndp-inventory >/dev/null 2>&1
+ctr_start cndp-inventory >/dev/null 2>&1
 
 printf '\n==> Results: %d passed, %d failed\n' "$PASS" "$FAIL"
 [[ $FAIL -eq 0 ]] && printf '==> PASS\n' || { printf '==> FAIL\n'; exit 1; }

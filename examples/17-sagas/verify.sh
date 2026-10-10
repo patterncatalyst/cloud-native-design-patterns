@@ -1,7 +1,29 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2086  # $CURL_OPTS is intentionally word-split
 set -euo pipefail
 
-BASE="http://localhost:8080"
+RUNTIME="${RUNTIME:-docker}"
+BASE="${BASE:-http://localhost:8080}"
+CURL_OPTS="${CURL_OPTS:-}"
+
+# Container operations go through these helpers so the checks do not hard-code
+# an engine. RUNTIME=openshift is added later: a ctr_target function will map
+# a container name (cndp-kafka, cndp-postgres, ...) to its pod and each helper
+# will call `oc exec` / `oc logs` instead.
+case "$RUNTIME" in
+    docker) ;;
+    *) echo "RUNTIME=$RUNTIME not supported yet" >&2; exit 1 ;;
+esac
+ctr_exec()    { docker exec "$@"; }
+ctr_logs()    { docker logs "$@"; }
+ctr_stop()    { docker stop "$@"; }
+ctr_start()   { docker start "$@"; }
+ctr_rm()      { docker rm "$@"; }
+ctr_kill()    { docker kill --signal "${2:-KILL}" "$1"; }  # ctr_kill <container> [signal]
+ctr_pause()   { docker pause "$@"; }
+ctr_unpause() { docker unpause "$@"; }
+ctr_compose() { docker compose "$@"; }
+
 PASS=0
 FAIL=0
 
@@ -33,12 +55,12 @@ printf '==> Verifying Example 17: Saga State & Compensation\n\n'
 
 # --- Service is up ---
 check "saga-orchestrator healthz" \
-    "curl -sf $BASE/healthz" \
+    "curl $CURL_OPTS -sf $BASE/healthz" \
     '"status":"ok"'
 
 # --- Happy path: all steps succeed ---
 printf '  \xe2\x86\x92 testing happy path (all steps succeed)...\n'
-HAPPY=$(curl -sf -X POST -H 'Content-Type: application/json' \
+HAPPY=$(curl $CURL_OPTS -sf -X POST -H 'Content-Type: application/json' \
     -d '{"order_id":"order-1","sku":"widget-a","total":29.99}' \
     "$BASE/sagas")
 HAPPY_ID=$(echo "$HAPPY" | jq -r '.id')
@@ -47,7 +69,7 @@ check "happy path saga status is COMPLETED" \
     "echo '$HAPPY'" \
     '"COMPLETED"'
 
-HAPPY_LOG=$(curl -sf "$BASE/sagas/$HAPPY_ID/log")
+HAPPY_LOG=$(curl $CURL_OPTS -sf "$BASE/sagas/$HAPPY_ID/log")
 check "happy path: charge_payment executed" \
     "echo '$HAPPY_LOG'" \
     '"charge_payment"'
@@ -71,7 +93,7 @@ fi
 
 # --- Unhappy path: book_shipping fails → compensate in reverse ---
 printf '  \xe2\x86\x92 testing unhappy path (shipping fails, triggers compensation)...\n'
-UNHAPPY=$(curl -sf -X POST -H 'Content-Type: application/json' \
+UNHAPPY=$(curl $CURL_OPTS -sf -X POST -H 'Content-Type: application/json' \
     -d '{"order_id":"order-2","sku":"widget-b","total":49.99,"fail_shipping":true}' \
     "$BASE/sagas")
 UNHAPPY_ID=$(echo "$UNHAPPY" | jq -r '.id')
@@ -80,7 +102,7 @@ check "unhappy path saga status is COMPENSATED" \
     "echo '$UNHAPPY'" \
     '"COMPENSATED"'
 
-UNHAPPY_LOG=$(curl -sf "$BASE/sagas/$UNHAPPY_ID/log")
+UNHAPPY_LOG=$(curl $CURL_OPTS -sf "$BASE/sagas/$UNHAPPY_ID/log")
 
 check "unhappy path: book_shipping failed" \
     "echo '$UNHAPPY_LOG'" \
@@ -107,17 +129,17 @@ fi
 
 # --- Resume after crash: create a saga, kill orchestrator mid-flow, restart ---
 printf '  \xe2\x86\x92 testing resume after crash...\n'
-podman exec cndp-postgres psql -U appuser -d appdb -c \
+ctr_exec cndp-postgres psql -U appuser -d appdb -c \
     "INSERT INTO sagas (id, status, step_index, context) VALUES ('resume-test', 'RUNNING', 1, '{\"order_id\":\"order-3\",\"sku\":\"widget-c\",\"total\":19.99,\"charge_payment\":{\"payment_id\":\"pay-test\",\"amount\":19.99}}')" \
     >/dev/null 2>&1
 
 COMPOSE_FILE="${COMPOSE_FILE:-spring-boot/compose.yaml}"
-podman stop cndp-saga >/dev/null 2>&1
-podman rm cndp-saga >/dev/null 2>&1
-podman compose -f "$COMPOSE_FILE" up -d saga-orchestrator >/dev/null 2>&1
+ctr_stop cndp-saga >/dev/null 2>&1
+ctr_rm cndp-saga >/dev/null 2>&1
+ctr_compose -f "$COMPOSE_FILE" up -d saga-orchestrator >/dev/null 2>&1
 sleep 15
 
-RESUMED=$(curl -sf "$BASE/sagas/resume-test")
+RESUMED=$(curl $CURL_OPTS -sf "$BASE/sagas/resume-test")
 check "resumed saga completed after restart" \
     "echo '$RESUMED'" \
     '"COMPLETED"'

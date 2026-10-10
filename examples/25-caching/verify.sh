@@ -1,7 +1,29 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2086  # $CURL_OPTS is intentionally word-split
 set -euo pipefail
 
-BASE="http://localhost:8080"
+RUNTIME="${RUNTIME:-docker}"
+BASE="${BASE:-http://localhost:8080}"
+CURL_OPTS="${CURL_OPTS:-}"
+
+# Container operations go through these helpers so the checks do not hard-code
+# an engine. RUNTIME=openshift is added later: a ctr_target function will map
+# a container name (cndp-kafka, cndp-postgres, ...) to its pod and each helper
+# will call `oc exec` / `oc logs` instead.
+case "$RUNTIME" in
+    docker) ;;
+    *) echo "RUNTIME=$RUNTIME not supported yet" >&2; exit 1 ;;
+esac
+ctr_exec()    { docker exec "$@"; }
+ctr_logs()    { docker logs "$@"; }
+ctr_stop()    { docker stop "$@"; }
+ctr_start()   { docker start "$@"; }
+ctr_rm()      { docker rm "$@"; }
+ctr_kill()    { docker kill --signal "${2:-KILL}" "$1"; }  # ctr_kill <container> [signal]
+ctr_pause()   { docker pause "$@"; }
+ctr_unpause() { docker unpause "$@"; }
+ctr_compose() { docker compose "$@"; }
+
 PASS=0
 FAIL=0
 
@@ -33,7 +55,7 @@ printf '==> Verifying Example 25: Caching Patterns\n\n'
 
 # --- healthz ---
 check "healthz returns ok" \
-    "curl -sf $BASE/healthz" \
+    "curl $CURL_OPTS -sf $BASE/healthz" \
     '"status":"ok"'
 
 # ===================================================================
@@ -42,28 +64,28 @@ check "healthz returns ok" \
 printf '\n--- 1. Cache-aside ---\n'
 
 check "first read is a DB miss" \
-    "curl -sf $BASE/cache-aside/products/p1" \
+    "curl $CURL_OPTS -sf $BASE/cache-aside/products/p1" \
     '"source":"db"'
 
 check "second read is a cache hit" \
-    "curl -sf $BASE/cache-aside/products/p1" \
+    "curl $CURL_OPTS -sf $BASE/cache-aside/products/p1" \
     '"source":"cache"'
 
 check "returns correct product name" \
-    "curl -sf $BASE/cache-aside/products/p1" \
+    "curl $CURL_OPTS -sf $BASE/cache-aside/products/p1" \
     '"name":"Widget"'
 
 check_status "update returns 200" \
-    "curl -s -o /dev/null -w '%{http_code}' -X PUT -H 'Content-Type: application/json' \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X PUT -H 'Content-Type: application/json' \
      -d '{\"name\":\"Widget Pro\",\"price_cents\":1299}' $BASE/cache-aside/products/p1" \
     "200"
 
 check "read after update is a miss (cache invalidated)" \
-    "curl -sf $BASE/cache-aside/products/p1" \
+    "curl $CURL_OPTS -sf $BASE/cache-aside/products/p1" \
     '"source":"db"'
 
 check "updated value is returned" \
-    "curl -sf $BASE/cache-aside/products/p1" \
+    "curl $CURL_OPTS -sf $BASE/cache-aside/products/p1" \
     '"name":"Widget Pro"'
 
 # ===================================================================
@@ -72,11 +94,11 @@ check "updated value is returned" \
 printf '\n--- 2. Read-through ---\n'
 
 check "read-through returns product" \
-    "curl -sf $BASE/read-through/products/p2" \
+    "curl $CURL_OPTS -sf $BASE/read-through/products/p2" \
     '"name":"Gadget"'
 
 check "read-through second read is cached" \
-    "curl -sf $BASE/read-through/products/p2" \
+    "curl $CURL_OPTS -sf $BASE/read-through/products/p2" \
     '"source":"cache"'
 
 # ===================================================================
@@ -85,16 +107,16 @@ check "read-through second read is cached" \
 printf '\n--- 3. Write-through ---\n'
 
 check_status "write-through update returns 200" \
-    "curl -s -o /dev/null -w '%{http_code}' -X PUT -H 'Content-Type: application/json' \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X PUT -H 'Content-Type: application/json' \
      -d '{\"name\":\"Gizmo Deluxe\",\"price_cents\":2999}' $BASE/write-through/products/p3" \
     "200"
 
 check "immediate read after write-through is a cache hit" \
-    "curl -sf $BASE/write-through/products/p3" \
+    "curl $CURL_OPTS -sf $BASE/write-through/products/p3" \
     '"source":"cache"'
 
 check "write-through value is correct" \
-    "curl -sf $BASE/write-through/products/p3" \
+    "curl $CURL_OPTS -sf $BASE/write-through/products/p3" \
     '"name":"Gizmo Deluxe"'
 
 # ===================================================================
@@ -103,20 +125,20 @@ check "write-through value is correct" \
 printf '\n--- 4. Write-around ---\n'
 
 check_status "write-around POST writes DB only" \
-    "curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
      -d '{\"id\":\"evt-1\",\"type\":\"test\",\"payload\":{\"msg\":\"hello\"}}' $BASE/write-around/events" \
     "200"
 
 check "first read after write-around is a DB miss" \
-    "curl -sf $BASE/write-around/events/evt-1" \
+    "curl $CURL_OPTS -sf $BASE/write-around/events/evt-1" \
     '"source":"db"'
 
 check "second read is a cache hit" \
-    "curl -sf $BASE/write-around/events/evt-1" \
+    "curl $CURL_OPTS -sf $BASE/write-around/events/evt-1" \
     '"source":"cache"'
 
 check "event payload is correct" \
-    "curl -sf $BASE/write-around/events/evt-1" \
+    "curl $CURL_OPTS -sf $BASE/write-around/events/evt-1" \
     '"msg":"hello"'
 
 # ===================================================================
@@ -125,19 +147,19 @@ check "event payload is correct" \
 printf '\n--- 5. Write-back ---\n'
 
 check_status "write-back PUT returns 200" \
-    "curl -s -o /dev/null -w '%{http_code}' -X PUT -H 'Content-Type: application/json' \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X PUT -H 'Content-Type: application/json' \
      -d '{\"value\":42.5,\"tags\":{\"host\":\"node-1\"}}' $BASE/write-back/metrics/m1" \
     "200"
 
 check "metric readable from cache immediately" \
-    "curl -sf $BASE/write-back/metrics/m1" \
+    "curl $CURL_OPTS -sf $BASE/write-back/metrics/m1" \
     '"source":"cache"'
 
 printf '  \xe2\x86\x92 waiting for background flusher (3s)...\n'
 sleep 3
 
 check "metric flushed to DB" \
-    "curl -sf $BASE/write-back/flush-status" \
+    "curl $CURL_OPTS -sf $BASE/write-back/flush-status" \
     '"persisted_rows":1'
 
 # ===================================================================
@@ -146,15 +168,15 @@ check "metric flushed to DB" \
 printf '\n--- 6. Refresh-ahead ---\n'
 
 check "refresh-ahead first read loads from DB" \
-    "curl -sf $BASE/refresh-ahead/products/p1" \
+    "curl $CURL_OPTS -sf $BASE/refresh-ahead/products/p1" \
     '"source":"db"'
 
 check "refresh-ahead second read is cached" \
-    "curl -sf $BASE/refresh-ahead/products/p1" \
+    "curl $CURL_OPTS -sf $BASE/refresh-ahead/products/p1" \
     '"source":"cache"'
 
 check "hot set contains the product" \
-    "curl -sf $BASE/cache-keys" \
+    "curl $CURL_OPTS -sf $BASE/cache-keys" \
     'product:hot'
 
 # ===================================================================
@@ -163,26 +185,26 @@ check "hot set contains the product" \
 printf '\n--- 7. Cache outage resilience ---\n'
 
 printf '  \xe2\x86\x92 stopping Redis to test degradation...\n'
-podman stop cndp-redis >/dev/null 2>&1
+ctr_stop cndp-redis >/dev/null 2>&1
 
 check_status "cache-aside still returns 200 with Redis down" \
-    "curl -s -o /dev/null -w '%{http_code}' $BASE/cache-aside/products/p1" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' $BASE/cache-aside/products/p1" \
     "200"
 
 check "reads come from DB when cache is down" \
-    "curl -sf $BASE/cache-aside/products/p1" \
+    "curl $CURL_OPTS -sf $BASE/cache-aside/products/p1" \
     '"source":"db"'
 
 check_status "write-through read still returns 200" \
-    "curl -s -o /dev/null -w '%{http_code}' $BASE/write-through/products/p3" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' $BASE/write-through/products/p3" \
     "200"
 
 printf '  \xe2\x86\x92 restarting Redis...\n'
-podman start cndp-redis >/dev/null 2>&1
+ctr_start cndp-redis >/dev/null 2>&1
 sleep 3
 
 check_status "cache-aside works again after Redis restart" \
-    "curl -s -o /dev/null -w '%{http_code}' $BASE/cache-aside/products/p1" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' $BASE/cache-aside/products/p1" \
     "200"
 
 printf '\n==> Results: %d passed, %d failed\n' "$PASS" "$FAIL"

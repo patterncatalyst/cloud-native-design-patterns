@@ -1,7 +1,29 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2086  # $CURL_OPTS is intentionally word-split
 set -euo pipefail
 
-BASE="http://localhost:8080"
+RUNTIME="${RUNTIME:-docker}"
+BASE="${BASE:-http://localhost:8080}"
+CURL_OPTS="${CURL_OPTS:-}"
+
+# Container operations go through these helpers so the checks do not hard-code
+# an engine. RUNTIME=openshift is added later: a ctr_target function will map
+# a container name (cndp-kafka, cndp-postgres, ...) to its pod and each helper
+# will call `oc exec` / `oc logs` instead.
+case "$RUNTIME" in
+    docker) ;;
+    *) echo "RUNTIME=$RUNTIME not supported yet" >&2; exit 1 ;;
+esac
+ctr_exec()    { docker exec "$@"; }
+ctr_logs()    { docker logs "$@"; }
+ctr_stop()    { docker stop "$@"; }
+ctr_start()   { docker start "$@"; }
+ctr_rm()      { docker rm "$@"; }
+ctr_kill()    { docker kill --signal "${2:-KILL}" "$1"; }  # ctr_kill <container> [signal]
+ctr_pause()   { docker pause "$@"; }
+ctr_unpause() { docker unpause "$@"; }
+ctr_compose() { docker compose "$@"; }
+
 PASS=0
 FAIL=0
 
@@ -33,43 +55,43 @@ printf '==> Verifying Example 02: Communications\n\n'
 
 # --- REST: correct status codes ---
 check_status "POST /orders returns 201 Created" \
-    "curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"widget-a\",\"quantity\":5}' $BASE/orders" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"widget-a\",\"quantity\":5}' $BASE/orders" \
     "201"
 
 check "POST /orders returns order with id and status" \
-    "curl -sf -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"widget-b\",\"quantity\":3}' $BASE/orders" \
+    "curl $CURL_OPTS -sf -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"widget-b\",\"quantity\":3}' $BASE/orders" \
     '"status"'
 
 # --- REST: input validation returns 400/422 ---
 check_status "POST /orders with empty sku returns 422" \
-    "curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"\",\"quantity\":1}' $BASE/orders" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"\",\"quantity\":1}' $BASE/orders" \
     "422"
 
 check_status "POST /orders with quantity=0 returns 422" \
-    "curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"x\",\"quantity\":0}' $BASE/orders" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"x\",\"quantity\":0}' $BASE/orders" \
     "422"
 
 # --- REST: cursor pagination ---
 check "GET /orders returns items array" \
-    "curl -sf $BASE/orders" \
+    "curl $CURL_OPTS -sf $BASE/orders" \
     '"items"'
 
 check "GET /orders?limit=1 returns one item with next_cursor" \
-    "curl -sf '$BASE/orders?limit=1'" \
+    "curl $CURL_OPTS -sf '$BASE/orders?limit=1'" \
     '"next_cursor"'
 
 # --- gRPC: inventory reserve reflected in order status ---
 check "order with available stock is confirmed" \
-    "curl -sf -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"grpc-test\",\"quantity\":1}' $BASE/orders" \
+    "curl $CURL_OPTS -sf -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"grpc-test\",\"quantity\":1}' $BASE/orders" \
     '"confirmed"'
 
 check "order exceeding stock is rejected" \
-    "curl -sf -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"scarce\",\"quantity\":200}' $BASE/orders" \
+    "curl $CURL_OPTS -sf -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"scarce\",\"quantity\":200}' $BASE/orders" \
     '"rejected"'
 
 # --- GraphQL ---
 check "GraphQL query returns orders" \
-    "curl -sf -X POST -H 'Content-Type: application/json' -d '{\"query\":\"{ orders(limit: 5) { id sku status } }\"}' $BASE/graphql" \
+    "curl $CURL_OPTS -sf -X POST -H 'Content-Type: application/json' -d '{\"query\":\"{ orders(limit: 5) { id sku status } }\"}' $BASE/graphql" \
     '"data"'
 
 # --- Async: Kafka event published ---
@@ -77,7 +99,7 @@ printf '\n  \xe2\x86\x92 checking Kafka for order.placed events...\n'
 sleep 3
 
 check "Kafka has order.placed topic" \
-    "podman exec cndp-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list 2>/dev/null" \
+    "ctr_exec cndp-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list 2>/dev/null" \
     "order.placed"
 
 printf '\n==> Results: %d passed, %d failed\n' "$PASS" "$FAIL"
