@@ -1,18 +1,19 @@
 package main
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
+	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 var (
@@ -77,29 +78,51 @@ func sidecarTrust(next http.Handler) http.Handler {
 	})
 }
 
+// valetClaims is the body of a valet key: a signed, time-bound token scoped to one resource
+// and one operation. exp is the standard JWT expiry (epoch seconds).
+type valetClaims struct {
+	Resource  string `json:"res"`
+	Operation string `json:"op"`
+	jwt.RegisteredClaims
+}
+
 func mintValet(resource, operation string) map[string]any {
-	expires := time.Now().Unix() + 300
-	payload := fmt.Sprintf("%s:%s:%d", resource, operation, expires)
-	mac := hmac.New(sha256.New, []byte(valetSecret))
-	mac.Write([]byte(payload))
-	token := hex.EncodeToString(mac.Sum(nil))
+	expires := time.Now().Add(5 * time.Minute)
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, valetClaims{
+		Resource:  resource,
+		Operation: operation,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expires),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    "order-service",
+		},
+	}).SignedString([]byte(valetSecret))
+	if err != nil {
+		slog.Error("sign valet key", "err", err)
+	}
 	return map[string]any{
 		"resource":  resource,
 		"operation": operation,
-		"expires":   expires,
+		"expires":   expires.Unix(),
 		"token":     token,
 	}
 }
 
+// verifyValet accepts only an HS256 token that is unexpired and was minted for exactly this
+// resource, operation and expiry.
 func verifyValet(resource, operation string, expires int64, token string) bool {
-	if time.Now().Unix() > expires {
+	var claims valetClaims
+	parsed, err := jwt.ParseWithClaims(token, &claims,
+		func(*jwt.Token) (any, error) { return []byte(valetSecret), nil },
+		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
+		jwt.WithExpirationRequired(),
+		jwt.WithIssuer("order-service"),
+	)
+	if err != nil || !parsed.Valid {
 		return false
 	}
-	payload := fmt.Sprintf("%s:%s:%d", resource, operation, expires)
-	mac := hmac.New(sha256.New, []byte(valetSecret))
-	mac.Write([]byte(payload))
-	expected := hex.EncodeToString(mac.Sum(nil))
-	return hmac.Equal([]byte(token), []byte(expected))
+	return claims.Resource == resource && claims.Operation == operation &&
+		claims.ExpiresAt != nil && claims.ExpiresAt.Unix() == expires
 }
 
 func main() {
@@ -189,7 +212,17 @@ func main() {
 	})
 
 	slog.Info("starting order-service", "pid", os.Getpid())
-	if err := http.ListenAndServe(":8080", sidecarTrust(mux)); err != nil {
+	httpSrv := &http.Server{Addr: ":8080", Handler: sidecarTrust(mux)}
+	sigCtx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stopSignals()
+	go func() {
+		<-sigCtx.Done()
+		slog.Info("shutting down")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		httpSrv.Shutdown(shutdownCtx)
+	}()
+	if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("server error", "err", err)
 		os.Exit(1)
 	}

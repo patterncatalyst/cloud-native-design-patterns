@@ -263,7 +263,7 @@ Per CLAUDE.md locked stacks, default to **Python** for most examples unless:
 - The chapter explicitly calls out a language (e.g., C++ for performance-critical stream processing)
 
 **Locked stacks** (do not substitute):
-- Go 1.26: stdlib `net/http`, franz-go, pgx v5, go-redis v9, gqlgen, OTel Go
+- Go 1.26: stdlib `net/http`, franz-go, pgx v5, go-redis v9, gqlgen, OTel Go  _(Note 2026-10-10: Go is now 1.27.2.)_
 - Python: FastAPI, aiokafka, faust-streaming, grpcio, asyncpg, redis-py, OTel distro
 - Java: Spring Boot, Quarkus, Kafka Streams
 - C++: Drogon, libpq (not libpqxx), sw/redis++, modern-cpp-kafka

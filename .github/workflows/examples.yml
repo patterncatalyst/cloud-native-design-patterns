@@ -113,7 +113,7 @@ jobs:
           cache-dependency-path: ${{ matrix.dir }}/go.sum
       - name: Vet and build
         working-directory: ${{ matrix.dir }}
-        run: go vet ./... && go build ./...
+        run: go vet ./... && go build -o /dev/null ./... && go test ./...
 
   python:
     name: Python — ${{ matrix.dir }}

@@ -14,3 +14,27 @@ __pycache__/
 *.pyc
 .venv/
 CMakeUserPresets.json
+
+# Go binaries that `go build ./...` writes into a module root (a stray build once committed them)
+/examples/01-cloud-native-principles/go/server
+/examples/03-composition/go/order-api/server
+/examples/04-data/go/order-service/server
+/examples/05-event-driven/go/notification-consumer/consumer
+/examples/05-event-driven/go/order-service/server
+/examples/05-event-driven/go/shipping-consumer/consumer
+/examples/06-stream-processing/go/order-service/server
+/examples/06-stream-processing/go/stream-processor/processor
+/examples/11-observability/go/notification-consumer/consumer
+/examples/12-security/go/server
+/examples/16-websockets/go/ws-server/server
+/examples/17-sagas/go/saga-orchestrator/server
+/examples/21-graceful-shutdown/go/server
+/examples/22-l7-routing/go/order-service/server
+/examples/22-l7-routing/go/router-service/server
+/examples/24-monolith-to-microservices/go/decorator/server
+/examples/24-monolith-to-microservices/go/router/server
+/examples/24-monolith-to-microservices/go/stub-service/server
+/examples/25-caching/go/cache-service/server
+/examples/26-failure-modes/go/backend-service/server
+/examples/26-failure-modes/go/edge-service/server
+/examples/27-feature-flags/go/flag-service/server

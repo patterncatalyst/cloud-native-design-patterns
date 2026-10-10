@@ -73,10 +73,12 @@ CloudNativePG, Strimzi/Kafka, Apicurio, Istio, KEDA, Debezium, and OTel → the 
 
 ## Locked language stacks (do not substitute)
 
-- **Go** 1.26: `net/http` stdlib (1.22 ServeMux, no chi/gin/echo); `franz-go` (Kafka); pgx v5;
+- **Go** 1.27: `net/http` stdlib (1.22 ServeMux, no chi/gin/echo); `franz-go` (Kafka); pgx v5;
   go-redis v9; gqlgen; golang-jwt v5; OTel Go SDK + `log/slog`; sony/gobreaker +
   cenkalti/backoff; gopher-lua; **goka** (stream processing); coder/websocket; OpenFeature +
   flagd; `signal.NotifyContext` + `atomic.Bool` shutdown.
+  - Go builds use `docker.io/library/golang:1.27.2` (pinned) on a `ubi10/ubi-minimal` runtime. HOLD:
+    the UBI 10 `go-toolset` ships only Go 1.26.x, so it is not used as the builder.
 - **C++**: Drogon (REST + WebSocket); grpc++ sync; cppgraphqlgen; modern-cpp-kafka;
   **libpq direct (not libpqxx)**; sw/redis++; jwt-cpp; boost::sml (saga); sol2 + Lua; OTel
   C++ + spdlog; Conan 2 + CMake 3.27 + Ninja + GCC 14.

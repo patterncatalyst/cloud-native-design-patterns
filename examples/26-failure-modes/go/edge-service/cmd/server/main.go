@@ -9,10 +9,12 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
+	"github.com/cenkalti/backoff/v7"
 	"github.com/sony/gobreaker/v2"
 )
 
@@ -51,7 +53,19 @@ func main() {
 	mux.HandleFunc("GET /bulkhead-state", handleBulkheadState)
 
 	slog.Info("starting edge-service on :8080")
-	http.ListenAndServe(":8080", mux)
+	httpSrv := &http.Server{Addr: ":8080", Handler: mux}
+	sigCtx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stopSignals()
+	go func() {
+		<-sigCtx.Done()
+		slog.Info("shutting down")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		httpSrv.Shutdown(shutdownCtx)
+	}()
+	if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		slog.Error("server error", "err", err)
+	}
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -100,29 +114,34 @@ func handleRetry(w http.ResponseWriter, r *http.Request) {
 	bo := backoff.NewExponentialBackOff()
 	bo.InitialInterval = 500 * time.Millisecond
 	bo.MaxInterval = 2 * time.Second
-	bo.MaxElapsedTime = 15 * time.Second
 
 	var attempts int
 	var lastBody []byte
 	var lastCode int
 
-	err := backoff.Retry(func() error {
+	// One try plus two retries, with exponential delay between them. Retry also stops when
+	// the request context ends or 15 s have passed.
+	_, err := backoff.Retry(r.Context(), func() (struct{}, error) {
 		attempts++
 		code, body, err := callBackend(r.Context(), nil)
 		if err != nil {
-			return fmt.Errorf("backend unreachable: %w", err)
+			return struct{}{}, fmt.Errorf("backend unreachable: %w", err)
 		}
 		lastCode = code
 		lastBody = body
 		if code >= 500 {
-			return fmt.Errorf("backend error: %d", code)
+			return struct{}{}, fmt.Errorf("backend error: %d", code)
 		}
-		return nil
-	}, backoff.WithMaxRetries(bo, 2))
+		return struct{}{}, nil
+	}, backoff.WithBackOff(bo), backoff.WithMaxTries(3), backoff.WithMaxElapsedTime(15*time.Second))
 
 	if err != nil {
+		msg := err.Error()
+		if re := backoff.AsRetryError(err); re != nil {
+			msg = re.LastErr.Error() // the failure the caller cares about, not the stop reason
+		}
 		writeJSON(w, 200, map[string]any{
-			"error": err.Error(), "attempts": attempts, "pattern": "retry-exhausted",
+			"error": msg, "attempts": attempts, "pattern": "retry-exhausted",
 		})
 		return
 	}

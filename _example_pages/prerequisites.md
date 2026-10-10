@@ -165,7 +165,7 @@ Used by examples that demonstrate scaling or performance patterns. Download a bi
 the [hey releases](https://github.com/rakyll/hey/releases) page, or build it with Go:
 
 ```bash
-go install github.com/rakyll/hey@latest
+go install github.com/rakyll/hey@v0.1.5
 ```
 
 ### ghz (gRPC load testing)
@@ -204,7 +204,7 @@ container.
 | Language | Install |
 |----------|---------|
 | Java (Spring Boot, Quarkus) | [SDKMAN](https://sdkman.io/): `curl -s "https://get.sdkman.io" \| bash`, then `sdk install java 25-tem` and `sdk install maven`; optional CLIs: `sdk install quarkus 3.40.1` and `sdk install springboot 4.1.1` |
-| Go | Download the Linux tarball from [go.dev/dl](https://go.dev/dl/), then `sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go<version>.linux-amd64.tar.gz` and add `/usr/local/go/bin` to `PATH` |
+| Go 1.27.2 | Official tarball from [go.dev/dl](https://go.dev/dl/): `curl -fsSLO https://go.dev/dl/go1.27.2.linux-amd64.tar.gz && echo "ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5  go1.27.2.linux-amd64.tar.gz" \| sha256sum -c - && sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.27.2.linux-amd64.tar.gz`, then add `/usr/local/go/bin` to `PATH`. Every `go.mod` requires 1.27.2; an older `go` downloads it on demand with `GOTOOLCHAIN=go1.27.2` |
 | .NET | `sudo dnf install -y dotnet-sdk-10.0` (from the Fedora or RHEL repositories) |
 | Python | `sudo dnf install -y python3.14` and [uv](https://docs.astral.sh/uv/): `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | C++ | `sudo dnf install -y gcc-c++ cmake ninja-build` and `pip install conan` |

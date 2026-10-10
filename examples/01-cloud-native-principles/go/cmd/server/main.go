@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type Server struct {
@@ -29,8 +30,8 @@ type HealthResponse struct {
 }
 
 type ReadinessResponse struct {
-	Status string                    `json:"status"`
-	Checks map[string]string         `json:"checks"`
+	Status string            `json:"status"`
+	Checks map[string]string `json:"checks"`
 }
 
 type Order struct {
@@ -56,13 +57,13 @@ func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleReadyz(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
 
 	w.Header().Set("Content-Type", "application/json")
 
 	if err := s.pool.Ping(ctx); err != nil {
-		slog.Error("readiness check failed", "error", err)
+		slog.ErrorContext(ctx, "readiness check failed", "error", err)
 		json.NewEncoder(w).Encode(ReadinessResponse{
 			Status: "down",
 			Checks: map[string]string{
@@ -81,11 +82,11 @@ func (s *Server) handleReadyz(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGetOrders(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx := r.Context()
 
 	rows, err := s.pool.Query(ctx, "SELECT id, customer, total FROM orders")
 	if err != nil {
-		slog.Error("failed to query orders", "error", err)
+		slog.ErrorContext(ctx, "failed to query orders", "error", err)
 		http.Error(w, "database error", http.StatusInternalServerError)
 		return
 	}
@@ -95,7 +96,7 @@ func (s *Server) handleGetOrders(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var order Order
 		if err := rows.Scan(&order.ID, &order.Customer, &order.Total); err != nil {
-			slog.Error("failed to scan order", "error", err)
+			slog.ErrorContext(ctx, "failed to scan order", "error", err)
 			http.Error(w, "scan error", http.StatusInternalServerError)
 			return
 		}
@@ -103,17 +104,18 @@ func (s *Server) handleGetOrders(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := rows.Err(); err != nil {
-		slog.Error("rows iteration error", "error", err)
+		slog.ErrorContext(ctx, "rows iteration error", "error", err)
 		http.Error(w, "iteration error", http.StatusInternalServerError)
 		return
 	}
 
+	slog.InfoContext(ctx, "orders listed", "count", len(orders))
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(orders)
 }
 
 func (s *Server) handlePostOrder(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx := r.Context()
 
 	customer := r.URL.Query().Get("customer")
 	total := r.URL.Query().Get("total")
@@ -128,7 +130,7 @@ func (s *Server) handlePostOrder(w http.ResponseWriter, r *http.Request) {
 		"INSERT INTO orders (customer, total) VALUES ($1, $2::numeric) RETURNING id",
 		customer, total).Scan(&id)
 	if err != nil {
-		slog.Error("failed to insert order", "error", err)
+		slog.ErrorContext(ctx, "failed to insert order", "error", err)
 		http.Error(w, "insert error", http.StatusInternalServerError)
 		return
 	}
@@ -139,6 +141,7 @@ func (s *Server) handlePostOrder(w http.ResponseWriter, r *http.Request) {
 		Total:    total,
 	}
 
+	slog.InfoContext(ctx, "order created", "id", id, "customer", customer)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(order)
 }
@@ -155,6 +158,25 @@ func (s *Server) handleOrders(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	version := os.Getenv("SERVICE_VERSION")
+	if version == "" {
+		version = "0.0.0"
+	}
+
+	shutdownTelemetry, err := setupTelemetry(ctx, "order-service", version)
+	if err != nil {
+		slog.Error("telemetry setup failed", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		shutdownTelemetry(flushCtx)
+	}()
+
 	slog.Info("starting order-service")
 
 	dbURL := os.Getenv("DATABASE_URL")
@@ -162,12 +184,6 @@ func main() {
 		dbURL = "postgresql://appuser:apppass@postgres:5432/appdb"
 	}
 
-	version := os.Getenv("SERVICE_VERSION")
-	if version == "" {
-		version = "0.0.0"
-	}
-
-	ctx := context.Background()
 	pool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
 		slog.Error("failed to create connection pool", "error", err)
@@ -197,13 +213,10 @@ func main() {
 	mux.HandleFunc("/orders", server.handleOrders)
 
 	httpServer := &http.Server{
-		Addr:    ":8080",
-		Handler: mux,
+		Addr: ":8080",
+		// otelhttp starts a server span per request and continues an incoming traceparent
+		Handler: otelhttp.NewHandler(mux, "order-service"),
 	}
-
-	// Graceful shutdown
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	go func() {
 		slog.Info("server listening", "addr", httpServer.Addr)

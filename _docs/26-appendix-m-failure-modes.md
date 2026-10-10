@@ -431,24 +431,16 @@ auto retry_with_backoff(F&& fn, int max_attempts = 3) {
 ```
 
 ```go
-// retry with exponential backoff + jitter, idempotent calls only (cenkalti/backoff).
+// retry with exponential backoff + jitter, idempotent calls only (cenkalti/backoff v7).
 // Prefer the Istio retry policy when possible; in-process retry is the fallback.
 func getQuote(ctx context.Context, symbol string) (Quote, error) {
-	var q Quote
-	op := func() error {
-		r, err := client.Get(ctx, "/quote/"+symbol) // GET is idempotent — safe
-		if err != nil {
-			return err // transient errors get retried
-		}
-		q = r
-		return nil
-	}
 	bo := backoff.NewExponentialBackOff()       // backoff + jitter built in
 	bo.InitialInterval = 100 * time.Millisecond //
 	bo.MaxInterval = 2 * time.Second            // capped
-	// hard cap on attempts, and stop if the context is cancelled
-	err := backoff.Retry(op, backoff.WithMaxRetries(backoff.WithContext(bo, ctx), 3))
-	return q, err
+	// Retry stops on success, a backoff.Permanent error, a cancelled ctx or the try cap
+	return backoff.Retry(ctx, func() (Quote, error) {
+		return client.Get(ctx, "/quote/"+symbol) // GET is idempotent — safe; errors get retried
+	}, backoff.WithBackOff(bo), backoff.WithMaxTries(4))
 	// Do NOT retry a non-idempotent POST unless it carries an idempotency key.
 }
 ```

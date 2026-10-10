@@ -28,7 +28,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | S3 | chore/spring-boot-4.1 | 1 | done (111/111 PASS after the Opus review; closes #31) |
 | S4 | chore/dotnet-10-pins | 3 | done (19/19 .NET PASS after the Opus review; closes #33) |
 | S5 | chore/python-3.14 | 5 | done (19/19 Python + 28 PASS after the Opus review) |
-| S6 | chore/go-toolchain (Go 1.27.2 + locked libraries) | 2+4 | pending |
+| S6 | chore/go-toolchain (Go 1.27.2 + locked libraries) | 2+4 | built and unit-tested; live matrix pending |
 | S7 | chore/cpp-toolchain-ubi10 (C++23/26 + locked libraries) | 2+4 | pending |
 | S8 | chore/infra-images | 2 | pending |
 | S9 | docs/minikube-docker-driver (+ 05 on minikube) | 7 | pending |
@@ -160,6 +160,19 @@ Defects the baseline found and fixed in S1:
 - Example 30: second dashboard instance on the Redis backplane; verify.sh grows from 5 to 10 checks (cross-instance delivery both ways, restart asserted).
 - Chapter .NET codetabs (05, 06, 18, 22) compile against the pinned packages.
 - Live: **19/19 .NET targets PASS** on the final tree after the Opus review.
+
+### S6 Go 1.27.2 (2026-10-10)
+
+- 31 Go modules on `go 1.27.2` (no `toolchain` line), versions unified across modules: grpc 1.84.0, protobuf 1.36.12, OTel 1.47.0 (otelhttp/otelgrpc 0.72.0), pgx 5.11.0, franz-go 1.22.1, go-redis 9.23.0, coder/websocket 1.8.15, gobreaker v2.4.0, OpenFeature go-sdk 1.19.0 + flagd provider 0.7.1. All OSS (MIT, BSD, ISC, Apache-2.0).
+- Containerfiles: builder `docker.io/library/golang:1.27.2`, `CGO_ENABLED=0 -trimpath`, BuildKit cache mounts for `/go/pkg/mod` and `/root/.cache/go-build`, runtime `ubi10/ubi-minimal:10.2-1791444377`, USER 1001, group-0 files. HOLD: the UBI 10 go-toolset ships only Go 1.26.x, so the Go builder is the official image.
+- Locked stack: 06 stream processor on goka 1.1.17 (sarama 1.61.1, `sarama.V4_3_1_0`); 02/03 GraphQL on gqlgen 0.17.95 (schema-first, generated code committed); 12 valet key as HS256 JWT via golang-jwt 5.3.1; 22 router on gopher-lua 1.1.2 (embedded `routing.lua`, sandboxed libs); 26 retry on cenkalti/backoff v7.0.1; every server shuts down with `signal.NotifyContext`.
+- goka processor tested on throwaway private-network brokers: apache/kafka:3.8.0 and apache/kafka:4.3.1 both processed, emitted, rounded HALF_UP, skipped bad records and drained lag after a pause, so S8 is low risk for Go.
+- 01 Go now exports OTLP traces (otelhttp server spans, trace_id/span_id in slog JSON).
+- Go build outputs are now gitignored (22 module-root binaries).
+- Chapter Go tabs for 03, 06 and 26 match the libraries now used.
+
+Carried forward:
+- S7: example 01 C++ still sets OTEL_* in compose but exports nothing.
 
 ### S5 Python 3.14 (2026-10-10)
 

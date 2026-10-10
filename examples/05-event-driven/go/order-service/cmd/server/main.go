@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/cenkalti/backoff/v7"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
@@ -73,14 +74,16 @@ func main() {
 			"id": id, "sku": in.SKU, "quantity": in.Quantity, "status": "pending",
 		})
 		rec := &kgo.Record{Topic: "order.placed", Key: []byte(id), Value: event}
-		for attempt := range 5 {
-			results := producer.ProduceSync(r.Context(), rec)
-			if err := results.FirstErr(); err != nil {
-				slog.Warn("kafka produce retry", "attempt", attempt+1, "err", err)
-				time.Sleep(time.Duration(attempt+1) * 500 * time.Millisecond)
-				continue
-			}
-			break
+		produceBackoff := backoff.NewExponentialBackOff()
+		produceBackoff.InitialInterval = 500 * time.Millisecond
+		produceBackoff.MaxInterval = 2 * time.Second
+		if _, err := backoff.Retry(r.Context(), func() (struct{}, error) {
+			return struct{}{}, producer.ProduceSync(r.Context(), rec).FirstErr()
+		}, backoff.WithBackOff(produceBackoff), backoff.WithMaxTries(5),
+			backoff.WithNotify(func(err error, next time.Duration) {
+				slog.Warn("kafka produce retry", "err", err, "next_in", next)
+			})); err != nil {
+			slog.Error("kafka produce failed", "err", err)
 		}
 
 		slog.Info("order placed", "id", id, "sku", in.SKU)
@@ -118,9 +121,9 @@ func main() {
 
 	srv := &http.Server{Addr: ":8080", Handler: mux}
 	go func() {
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
-		<-sigCh
+		sigCtx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+		defer stopSignals()
+		<-sigCtx.Done()
 		slog.Info("shutting down order-service")
 		srv.Shutdown(context.Background())
 	}()

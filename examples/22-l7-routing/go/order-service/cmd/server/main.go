@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 var version string
@@ -41,5 +45,17 @@ func main() {
 	})
 
 	slog.Info("starting order-service", "version", version)
-	http.ListenAndServe(":8080", mux)
+	httpSrv := &http.Server{Addr: ":8080", Handler: mux}
+	sigCtx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stopSignals()
+	go func() {
+		<-sigCtx.Done()
+		slog.Info("shutting down")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		httpSrv.Shutdown(shutdownCtx)
+	}()
+	if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		slog.Error("server error", "err", err)
+	}
 }
