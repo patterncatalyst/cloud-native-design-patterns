@@ -64,7 +64,7 @@ TRACE_ID=<from logs>
 curl -s http://localhost:3200/api/traces/$TRACE_ID | jq .
 
 # Query Prometheus for the metric
-curl -s 'http://localhost:9090/api/v1/query?query=orders_placed_total' | jq .
+curl -s 'http://localhost:19090/api/v1/query?query=orders_placed_total' | jq .
 
 # Search Loki for correlated logs
 curl -s 'http://localhost:3100/loki/api/v1/query_range' \
@@ -98,7 +98,7 @@ Open Grafana at http://localhost:3000:
 | Grafana | 3000 |
 | Tempo | 3200 |
 | Loki | 3100 |
-| Prometheus | 9090 |
+| Prometheus | 19090 |
 | Postgres | 5432 |
 | Kafka (host) | 9092 |
 | Kafka UI | 8090 |

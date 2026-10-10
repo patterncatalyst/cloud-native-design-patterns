@@ -53,7 +53,7 @@ not inside the language directory.
 |---------|-----------|----------------|
 | Grafana UI | 3000 | 3000 |
 | OTLP HTTP | 4318 | 4318 |
-| Prometheus/Mimir | 9090 | 9090 |
+| Prometheus/Mimir | 19090 | 9090 |
 | Loki | 3100 | 3100 |
 | Tempo | 3200 | 3200 |
 | Postgres | 5432 | 5432 |

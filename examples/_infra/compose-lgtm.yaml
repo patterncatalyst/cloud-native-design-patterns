@@ -5,7 +5,7 @@ services:
     ports:
       - "3000:3000"
       - "4318:4318"
-      - "9090:9090"
+      - "19090:9090"   # host 9090 is cockpit on Fedora/RHEL
       - "3100:3100"
       - "3200:3200"
     environment:

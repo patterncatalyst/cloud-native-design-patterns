@@ -53,8 +53,8 @@ podman logs cndp-order-service 2>&1 | grep "order placed"
 curl -s http://localhost:3200/api/search | jq '.traces[:3]'
 
 # Query metrics in Prometheus
-curl -s 'http://localhost:9090/api/v1/query?query=orders_placed_total' | jq '.data.result'
-curl -s 'http://localhost:9090/api/v1/query?query=stock_reservations_total' | jq '.data.result'
+curl -s 'http://localhost:19090/api/v1/query?query=orders_placed_total' | jq '.data.result'
+curl -s 'http://localhost:19090/api/v1/query?query=stock_reservations_total' | jq '.data.result'
 
 # Grafana UI
 open http://localhost:3000

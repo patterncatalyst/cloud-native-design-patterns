@@ -10,7 +10,7 @@ services:
       - POSTGRES_PASSWORD=apppass
       - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C
     volumes:
-      - postgres-data:/var/lib/postgresql/data:Z
+      - postgres-data:/var/lib/postgresql/data
     mem_limit: 1g
     command:
       - "postgres"

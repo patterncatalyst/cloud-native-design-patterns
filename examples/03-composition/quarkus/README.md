@@ -56,7 +56,7 @@ Open http://localhost:8080/q/graphql-ui in your browser for interactive queries.
 ## Observability
 
 - **Grafana**: http://localhost:3000
-- **Prometheus**: http://localhost:9090
+- **Prometheus**: http://localhost:19090
 - View traces across all three services in Tempo
 
 ## Cleanup
