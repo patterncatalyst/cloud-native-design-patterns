@@ -1,7 +1,9 @@
 #include <drogon/drogon.h>
-#include <kafka/KafkaProducer.h>
+#include <librdkafka/rdkafkacpp.h>
 #include <libpq-fe.h>
 #include <atomic>
+#include <chrono>
+#include <thread>
 #include <csignal>
 #include <cstdlib>
 #include <memory>
@@ -13,7 +15,9 @@
 using namespace drogon;
 
 static std::atomic<bool> g_shutdown{false};
-static std::unique_ptr<kafka::clients::producer::KafkaProducer> g_producer;
+static std::unique_ptr<RdKafka::Producer> g_producer;
+static std::thread g_poller;
+static std::atomic<bool> g_polling{false};
 static PGconn* g_conn = nullptr;
 
 std::string generate_uuid() {
@@ -52,40 +56,62 @@ bool init_postgres() {
     return true;
 }
 
+// Delivery reports arrive on the thread that calls poll(); a failed delivery is logged.
+class DeliveryLog : public RdKafka::DeliveryReportCb {
+public:
+    void dr_cb(RdKafka::Message& m) override {
+        if (m.err() != RdKafka::ERR_NO_ERROR) {
+            LOG_ERROR << "order.placed delivery failed: " << m.errstr();
+        }
+    }
+};
+static DeliveryLog g_dr;
+
 bool init_kafka() {
     const char* bootstrap = std::getenv("KAFKA_BOOTSTRAP");
     if (!bootstrap) bootstrap = "localhost:9094";
 
-    kafka::Properties props;
-    props.put("bootstrap.servers", bootstrap);
-    props.put("client.id", "order-service");
-    props.put("linger.ms", "100");
-    props.put("acks", "1");
-
-    try {
-        g_producer = std::make_unique<kafka::clients::producer::KafkaProducer>(props);
-        LOG_INFO << "Kafka producer initialized";
-        return true;
-    } catch (const std::exception& e) {
-        LOG_ERROR << "Kafka producer init failed: " << e.what();
+    std::string err;
+    std::unique_ptr<RdKafka::Conf> conf(RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL));
+    if (conf->set("bootstrap.servers", bootstrap, err) != RdKafka::Conf::CONF_OK ||
+        conf->set("client.id", "order-service", err) != RdKafka::Conf::CONF_OK ||
+        conf->set("linger.ms", "5", err) != RdKafka::Conf::CONF_OK ||
+        conf->set("acks", "all", err) != RdKafka::Conf::CONF_OK ||
+        conf->set("enable.idempotence", "true", err) != RdKafka::Conf::CONF_OK ||
+        conf->set("dr_cb", &g_dr, err) != RdKafka::Conf::CONF_OK) {
+        LOG_ERROR << "Kafka producer config failed: " << err;
         return false;
     }
+    g_producer.reset(RdKafka::Producer::create(conf.get(), err));
+    if (!g_producer) {
+        LOG_ERROR << "Kafka producer init failed: " << err;
+        return false;
+    }
+    // Serve delivery reports until shutdown.
+    g_polling.store(true);
+    g_poller = std::thread([] {
+        while (g_polling.load()) g_producer->poll(100);
+    });
+    LOG_INFO << "Kafka producer initialized";
+    return true;
 }
 
 void publish_order_event(const std::string& order_json) {
     if (!g_producer) return;
-
-    try {
-        kafka::clients::producer::ProducerRecord record{
-            "order.placed",
-            kafka::NullKey,
-            kafka::Value(order_json.c_str(), order_json.size())
-        };
-        // Use syncSend to avoid use-after-free (send() is async and returns before buffer is sent)
-        g_producer->syncSend(record);
-    } catch (const std::exception& e) {
-        LOG_ERROR << "Failed to publish order event: " << e.what();
+    for (int attempt = 0; attempt < 50; ++attempt) {
+        auto rc = g_producer->produce("order.placed", RdKafka::Topic::PARTITION_UA,
+                                      RdKafka::Producer::RK_MSG_COPY,
+                                      const_cast<char*>(order_json.data()), order_json.size(),
+                                      nullptr, 0, 0, nullptr, nullptr);
+        if (rc == RdKafka::ERR_NO_ERROR) return;
+        if (rc == RdKafka::ERR__QUEUE_FULL) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            continue;
+        }
+        LOG_ERROR << "Failed to publish order event: " << RdKafka::err2str(rc);
+        return;
     }
+    LOG_ERROR << "Failed to publish order event: producer queue full";
 }
 
 int main() {
@@ -137,12 +163,11 @@ int main() {
             double total = (*json)["total"].asDouble();
 
             // Insert into Postgres
+            const std::string quantity_s = std::to_string(quantity);
+            const std::string total_s = std::to_string(total);
             const char* paramValues[5] = {
-                id.c_str(),
-                merchant_id.c_str(),
-                sku.c_str(),
-                std::to_string(quantity).c_str(),
-                std::to_string(total).c_str()
+                id.c_str(), merchant_id.c_str(), sku.c_str(),
+                quantity_s.c_str(), total_s.c_str()
             };
 
             PGresult* res = PQexecParams(g_conn,
@@ -234,7 +259,9 @@ int main() {
 
     // Cleanup
     if (g_producer) {
-        g_producer->close();
+        g_polling.store(false);
+        if (g_poller.joinable()) g_poller.join();
+        g_producer->flush(10000);  // deliver what is queued before exiting
         g_producer.reset();
     }
     if (g_conn) {
