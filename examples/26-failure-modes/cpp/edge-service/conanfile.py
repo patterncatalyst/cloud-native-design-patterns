@@ -17,4 +17,4 @@ class Cndp26FailureModesCppEdgeServiceConan(ConanFile):
 
     def requirements(self):
         self.requires("drogon/1.9.13")
-        self.requires("libcurl/8.21.0")
+        self.requires("libcurl/8.22.0")
