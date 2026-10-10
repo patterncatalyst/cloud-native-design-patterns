@@ -23,7 +23,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | 0a-1 | lgtm-skills feature/github-branch-protection | prereq | done (lgtm-skills PR #36, #37, release r4.x) |
 | 0a-2 | lgtm-skills fix/docker-runtime-and-pins | 4 | done (lgtm-skills PR #36, #37, release r4.x) |
 | 0b | feature/ci-branch-protection | prereq | done (PR #58; ruleset main 24831520: site, content-ok, examples-ok) |
-| S1 | feature/docker-engine-runtime | 6 | validating (111/111 PASS on Docker) |
+| S1 | feature/docker-engine-runtime | 6 | done (111/111 PASS on Docker; final rerun after the Opus review) |
 | S2 | chore/quarkus-3.40-lts | 1 | pending |
 | S3 | chore/spring-boot-4.1 | 1 | pending |
 | S4 | chore/dotnet-10-pins (+ MassTransit/Streamiz) | 3 | pending |
@@ -92,7 +92,7 @@ Run every example with `scripts/verify-matrix.sh` (one target at a time: `docker
 
 Docker 29.8.2, compose v5.5.1, Fedora 44. Versions as found (Spring Boot 3.4.1, Quarkus 3.33.2, .NET 10 with floating packages, Python 3.12, Go 1.26.5, C++ on ubi9; Kafka 3.8.0, Postgres 16, otel-lgtm 0.8.1).
 
-**111/111 targets PASS**: 18 examples × 6 languages, plus 09, 28 and 30.
+**111/111 targets PASS**: 18 examples × 6 languages, plus 09, 28 and 30. After the Opus validation round (footer claims aligned with verify.sh, conftest required, 21 restart check tightened, 30 summary format), the whole matrix was rerun from the final tree: 111/111 PASS with the same per-example counts.
 
 | Example | Checks per language |
 |---|---|
