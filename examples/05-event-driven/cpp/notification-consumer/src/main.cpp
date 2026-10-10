@@ -1,11 +1,23 @@
-#include <kafka/KafkaConsumer.h>
+// notification-consumer: consume order.placed with librdkafka's C++ API (rdkafka++) and write a row to
+// Postgres through libpq. Offsets are committed only after the row is written
+// (at-least-once); the INSERT is idempotent (ON CONFLICT DO NOTHING), so a redelivery is harmless.
+#include <librdkafka/rdkafkacpp.h>
+
 #include <json/json.h>
 #include <libpq-fe.h>
+
 #include <atomic>
-#include <csignal>
-#include <iostream>
-#include <thread>
 #include <chrono>
+#include <csignal>
+#include <cstdlib>
+#include <iostream>
+#include <memory>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <thread>
+
+namespace {
 
 std::atomic<bool> g_shutdown{false};
 PGconn* g_pg_conn = nullptr;
@@ -26,7 +38,11 @@ void init_pg() {
     std::cout << "Connected to Postgres\n";
 }
 
-void process_event(const std::string& event_json) {
+enum class Outcome { Done, Skip, Retry };
+
+// Done: row written (or already there). Skip: poison message, nothing to retry.
+// Retry: the database failed; the caller must not commit the offset.
+Outcome process_event(const std::string& event_json) {
     Json::Value root;
     Json::CharReaderBuilder builder;
     std::string errs;
@@ -34,16 +50,17 @@ void process_event(const std::string& event_json) {
 
     if (!Json::parseFromStream(builder, stream, &root, &errs)) {
         std::cerr << "JSON parse error: " << errs << "\n";
-        return;
+        return Outcome::Skip;
     }
-
-    if (!root.isMember("id")) {
+    if (!root.isObject() || !root.isMember("id")) {
         std::cerr << "Missing 'id' field in event\n";
-        return;
+        return Outcome::Skip;
     }
 
     std::string order_id = root["id"].asString();
     std::cout << "Processing order: " << order_id << "\n";
+
+    if (PQstatus(g_pg_conn) != CONNECTION_OK) PQreset(g_pg_conn);
 
     // Insert with ON CONFLICT DO NOTHING for idempotency
     const char* params[1] = {order_id.c_str()};
@@ -51,13 +68,17 @@ void process_event(const std::string& event_json) {
         "INSERT INTO notifications (order_id, channel) VALUES ($1, 'email') ON CONFLICT (order_id) DO NOTHING",
         1, nullptr, params, nullptr, nullptr, 0);
 
-    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+    bool ok = PQresultStatus(res) == PGRES_COMMAND_OK;
+    if (!ok) {
         std::cerr << "Insert failed: " << PQerrorMessage(g_pg_conn) << "\n";
     } else {
         std::cout << "Notification created/skipped for order: " << order_id << "\n";
     }
     PQclear(res);
+    return ok ? Outcome::Done : Outcome::Retry;
 }
+
+}  // namespace
 
 int main() {
     std::signal(SIGTERM, signal_handler);
@@ -73,54 +94,64 @@ int main() {
     const char* bootstrap = std::getenv("KAFKA_BOOTSTRAP");
     if (!bootstrap) bootstrap = "kafka:9094";
 
-    kafka::Properties props;
-    props.put("bootstrap.servers", bootstrap);
-    props.put("group.id", "notification-group");
-    props.put("auto.offset.reset", "earliest");
-    props.put("enable.auto.commit", "false");
-
-    kafka::clients::consumer::KafkaConsumer consumer(props);
-
-    // Retry subscribe with short timeout — topic may not exist at startup
-    for (int attempt = 0; attempt < 60; ++attempt) {
-        try {
-            consumer.subscribe({"order.placed"},
-                kafka::clients::consumer::NullRebalanceCallback,
-                std::chrono::milliseconds(5000));
-            std::cout << "Successfully subscribed to order.placed topic\n";
-            break;
-        } catch (const std::exception& e) {
-            std::cerr << "Subscribe attempt " << (attempt + 1) << "/60 failed: " << e.what() << "\n";
-            if (attempt < 59) {
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-            } else {
-                std::cerr << "Failed to subscribe after 60 attempts, exiting\n";
-                return 1;
-            }
+    std::string errstr;
+    std::unique_ptr<RdKafka::Conf> conf(RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL));
+    for (auto [key, value] : {std::pair<const char*, const char*>{"bootstrap.servers", bootstrap},
+                              {"group.id", "notification-group"},
+                              {"auto.offset.reset", "earliest"},
+                              {"enable.auto.commit", "false"}}) {
+        if (conf->set(key, value, errstr) != RdKafka::Conf::CONF_OK) {
+            std::cerr << "Kafka config " << key << ": " << errstr << "\n";
+            return 1;
         }
     }
 
+    std::unique_ptr<RdKafka::KafkaConsumer> consumer(RdKafka::KafkaConsumer::create(conf.get(), errstr));
+    if (!consumer) {
+        std::cerr << "Failed to create consumer: " << errstr << "\n";
+        return 1;
+    }
+
+    // subscribe() does not fail when the topic is missing: the consumer keeps polling and
+    // picks the partitions up once the producer has created order.placed.
+    if (RdKafka::ErrorCode err = consumer->subscribe({"order.placed"}); err != RdKafka::ERR_NO_ERROR) {
+        std::cerr << "Subscribe failed: " << RdKafka::err2str(err) << "\n";
+        return 1;
+    }
+    std::cout << "Successfully subscribed to order.placed topic\n";
     std::cout << "Notification consumer started, listening to order.placed...\n";
 
     while (!g_shutdown) {
-        try {
-            auto records = consumer.poll(std::chrono::milliseconds(1000));
-
-            for (const auto& record : records) {
-                std::string event(static_cast<const char*>(record.value().data()),
-                                  record.value().size());
+        std::unique_ptr<RdKafka::Message> msg(consumer->consume(1000));
+        switch (msg->err()) {
+            case RdKafka::ERR_NO_ERROR: {
+                std::string event(static_cast<const char*>(msg->payload()), msg->len());
                 std::cout << "Received event: " << event << "\n";
 
-                process_event(event);
-                consumer.commitSync();
+                Outcome outcome;
+                while ((outcome = process_event(event)) == Outcome::Retry && !g_shutdown) {
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
+                }
+                if (outcome == Outcome::Retry) break;  // shutting down: leave the offset uncommitted
+                // Commit only after the side effect, so a crash redelivers rather than loses.
+                if (RdKafka::ErrorCode err = consumer->commitSync(msg.get()); err != RdKafka::ERR_NO_ERROR) {
+                    std::cerr << "Commit failed: " << RdKafka::err2str(err) << "\n";
+                }
+                break;
             }
-        } catch (const kafka::KafkaException& e) {
-            std::cerr << "Kafka error: " << e.what() << "\n";
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            case RdKafka::ERR__TIMED_OUT:
+            case RdKafka::ERR__PARTITION_EOF:
+                break;
+            default:
+                // e.g. UNKNOWN_TOPIC_OR_PART before the topic exists; librdkafka retries on its own.
+                std::cerr << "Kafka error: " << msg->errstr() << "\n";
+                std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     }
 
-    consumer.close();
+    consumer->close();
+    consumer.reset();
+    RdKafka::wait_destroyed(5000);
     if (g_pg_conn) PQfinish(g_pg_conn);
 
     std::cout << "Notification consumer shutdown complete\n";

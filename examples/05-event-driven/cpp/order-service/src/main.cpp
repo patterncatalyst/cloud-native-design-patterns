@@ -1,17 +1,37 @@
 #include <drogon/drogon.h>
-#include <kafka/KafkaProducer.h>
+#include <librdkafka/rdkafkacpp.h>
 #include <libpq-fe.h>
 #include <random>
 #include <sstream>
 #include <iomanip>
 #include <atomic>
 #include <csignal>
+#include <memory>
+#include <mutex>
+#include <thread>
 
 using namespace drogon;
 
 std::atomic<bool> g_shutdown{false};
 PGconn* g_pg_conn = nullptr;
-std::unique_ptr<kafka::clients::producer::KafkaProducer> g_producer;
+std::mutex g_pg_mu;
+std::unique_ptr<RdKafka::Producer> g_producer;
+std::atomic<bool> g_producer_running{false};
+std::thread g_poller;
+
+// Delivery reports arrive on the poller thread; the broker's ack (or failure) is logged here.
+class DeliveryLog : public RdKafka::DeliveryReportCb {
+public:
+    void dr_cb(RdKafka::Message& message) override {
+        if (message.err() != RdKafka::ERR_NO_ERROR) {
+            LOG_ERROR << "Kafka send failed: " << message.errstr();
+        } else {
+            LOG_INFO << "Event published to partition " << message.partition()
+                     << " offset " << message.offset();
+        }
+    }
+};
+DeliveryLog g_dr_cb;
 
 void signal_handler(int) { g_shutdown = true; }
 
@@ -62,11 +82,23 @@ void init_kafka() {
     const char* bootstrap = std::getenv("KAFKA_BOOTSTRAP");
     if (!bootstrap) bootstrap = "kafka:9094";
 
-    kafka::Properties props;
-    props.put("bootstrap.servers", bootstrap);
-    props.put("client.id", "order-service");
+    std::string errstr;
+    std::unique_ptr<RdKafka::Conf> conf(RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL));
+    if (conf->set("bootstrap.servers", bootstrap, errstr) != RdKafka::Conf::CONF_OK ||
+        conf->set("client.id", "order-service", errstr) != RdKafka::Conf::CONF_OK ||
+        conf->set("acks", "all", errstr) != RdKafka::Conf::CONF_OK ||
+        conf->set("dr_cb", &g_dr_cb, errstr) != RdKafka::Conf::CONF_OK) {
+        throw std::runtime_error("Kafka config: " + errstr);
+    }
 
-    g_producer = std::make_unique<kafka::clients::producer::KafkaProducer>(props);
+    g_producer.reset(RdKafka::Producer::create(conf.get(), errstr));
+    if (!g_producer) throw std::runtime_error("Kafka producer: " + errstr);
+
+    // produce() only enqueues; this thread serves delivery reports.
+    g_producer_running = true;
+    g_poller = std::thread([] {
+        while (g_producer_running) g_producer->poll(100);
+    });
     LOG_INFO << "Kafka producer initialized";
 }
 
@@ -115,8 +147,10 @@ int main() {
                 std::string status = "pending";
 
                 // Insert into DB
+                std::string quantity_s = std::to_string(quantity);
                 const char* params[4] = {order_id.c_str(), sku.c_str(),
-                                         std::to_string(quantity).c_str(), status.c_str()};
+                                         quantity_s.c_str(), status.c_str()};
+                std::unique_lock<std::mutex> pg_lock(g_pg_mu);
                 PGresult* res = PQexecParams(g_pg_conn,
                     "INSERT INTO orders (id, sku, quantity, status) VALUES ($1, $2, $3, $4)",
                     4, nullptr, params, nullptr, nullptr, 0);
@@ -130,6 +164,7 @@ int main() {
                     return;
                 }
                 PQclear(res);
+                pg_lock.unlock();
 
                 // Publish to Kafka
                 std::ostringstream event;
@@ -139,16 +174,12 @@ int main() {
                       << "\"status\":\"" << json_escape(status) << "\"}";
 
                 std::string event_str = event.str();
-                kafka::clients::producer::ProducerRecord record(
-                    kafka::Topic("order.placed"),
-                    kafka::NullKey,
-                    kafka::Value(event_str.c_str(), event_str.size()));
-
-                try {
-                    auto md = g_producer->syncSend(record);
-                    LOG_INFO << "Event published to partition " << md.partition();
-                } catch (const kafka::KafkaException& e) {
-                    LOG_ERROR << "Kafka send failed: " << e.what();
+                // Enqueue; the delivery report callback logs the outcome.
+                RdKafka::ErrorCode perr = g_producer->produce(
+                    "order.placed", RdKafka::Topic::PARTITION_UA, RdKafka::Producer::RK_MSG_COPY,
+                    event_str.data(), event_str.size(), nullptr, 0, 0, nullptr);
+                if (perr != RdKafka::ERR_NO_ERROR) {
+                    LOG_ERROR << "Kafka send failed: " << RdKafka::err2str(perr);
                 }
 
                 // Return response
@@ -174,6 +205,7 @@ int main() {
     // GET /orders
     app().registerHandler("/orders",
         [](const HttpRequestPtr&, std::function<void(const HttpResponsePtr&)>&& callback) {
+            std::lock_guard<std::mutex> pg_lock(g_pg_mu);
             PGresult* res = PQexec(g_pg_conn, "SELECT id, sku, quantity, status FROM orders");
 
             if (PQresultStatus(res) != PGRES_TUPLES_OK) {
@@ -204,6 +236,11 @@ int main() {
 
     app().run();
 
+    // Drain pending messages (delivery reports still fire), then stop the poller.
+    if (g_producer) g_producer->flush(10000);
+    g_producer_running = false;
+    if (g_poller.joinable()) g_poller.join();
+    g_producer.reset();
     if (g_pg_conn) PQfinish(g_pg_conn);
     return 0;
 }
