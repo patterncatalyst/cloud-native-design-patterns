@@ -184,7 +184,4 @@ The code is in [`examples/30-blazor-signalr/`](https://github.com/patterncatalys
 runs it; its `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: verified — [`examples/30-blazor-signalr/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/30-blazor-signalr/) passes 5/5 checks on Docker Engine (2026-10-10)
-(health, order placement and listing, the dashboard page, and the SignalR negotiate
-endpoint). Redis backplane scale-out and circuit recovery are not yet covered by the
-script.*
+*Verification status: verified — [`examples/30-blazor-signalr/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/30-blazor-signalr/) is checked by 10 assertions in `verify.sh`: health, order placement and listing, the dashboard page, the SignalR negotiate endpoint, a second dashboard instance, Redis backplane delivery in both directions between the two instances (a SignalR client on one receives an order posted to the other), orders listed across instances, and backplane delivery to a restarted instance. Blazor circuit reconnection is the framework default and is not covered by the script.*

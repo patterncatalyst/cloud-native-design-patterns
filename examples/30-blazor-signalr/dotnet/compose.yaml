@@ -4,33 +4,45 @@ include:
   - path: ../../_infra/compose-postgres.yaml
   - path: ../../_infra/compose-redis.yaml
 
+x-dashboard: &dashboard
+  build:
+    context: .
+    dockerfile: Containerfile
+  image: cndp-30-blazor-dashboard
+  environment:
+    - DATABASE_URL=Host=postgres;Port=5432;Database=appdb;Username=appuser;Password=apppass
+    - REDIS_URL=redis:6379
+    - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+    - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    lgtm:
+      condition: service_healthy
+  healthcheck:
+    test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+    interval: 5s
+    timeout: 3s
+    retries: 12
+    start_period: 15s
+
 services:
   postgres:
     volumes:
       - ../db/init:/docker-entrypoint-initdb.d:Z
 
   blazor-dashboard:
-    build:
-      context: .
-      dockerfile: Containerfile
+    <<: *dashboard
     container_name: cndp-order-service
     ports:
       - "8080:8080"
-    environment:
-      - DATABASE_URL=Host=postgres;Port=5432;Database=appdb;Username=appuser;Password=apppass
-      - REDIS_URL=redis:6379
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
-      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      lgtm:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
-      start_period: 15s
+
+  # Second instance behind the same Redis backplane: a message published through one
+  # instance reaches SignalR clients connected to the other.
+  blazor-dashboard-2:
+    <<: *dashboard
+    container_name: cndp-order-service-2
+    ports:
+      - "8081:8080"
