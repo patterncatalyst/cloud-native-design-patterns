@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: order-service
-          image: registry.access.redhat.com/ubi9/python-312:latest
+          image: registry.access.redhat.com/ubi10/python-314-minimal:10.2-1791464217
           securityContext:
             runAsUser: 1001
             privileged: false

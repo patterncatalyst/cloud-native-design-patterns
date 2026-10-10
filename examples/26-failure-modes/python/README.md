@@ -6,7 +6,7 @@ Circuit breaker, retry with backoff, timeout, and fallback — edge-service call
 
 - **Framework**: FastAPI + Uvicorn
 - **Libraries**: httpx (HTTP client), pydantic
-- **Container base**: python:3.12-slim
+- **Container base**: `ubi10/python-314-minimal` (Python 3.14, non-root UID 1001)
 
 ## Run
 

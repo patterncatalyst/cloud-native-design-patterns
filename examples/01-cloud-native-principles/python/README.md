@@ -6,7 +6,7 @@ Twelve-factor env-based config and liveness/readiness probes.
 
 - **Framework**: FastAPI + Uvicorn
 - **Libraries**: asyncpg (Postgres), OpenTelemetry auto-instrumentation
-- **Container base**: python:3.12-slim
+- **Container base**: `ubi10/python-314-minimal` (Python 3.14, non-root UID 1001)
 
 ## Run
 

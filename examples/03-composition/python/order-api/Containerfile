@@ -1,8 +1,10 @@
-FROM registry.access.redhat.com/ubi9/python-312
+FROM registry.access.redhat.com/ubi10/python-314-minimal:10.2-1791464217
+USER 1001
 
-COPY order-api/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY --chown=1001:0 --chmod=g=u order-api/requirements.txt .
+RUN --mount=type=cache,target=/opt/app-root/src/.cache/pip,uid=1001 \
+    pip install -r requirements.txt
 
-COPY order-api/ .
+COPY --chown=1001:0 --chmod=g=u order-api/ .
 EXPOSE 8081
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8081", "--log-level", "info"]

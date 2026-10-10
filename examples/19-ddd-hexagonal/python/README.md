@@ -6,7 +6,7 @@ Hexagonal (ports-and-adapters) architecture — domain logic isolated from infra
 
 - **Framework**: FastAPI + Uvicorn
 - **Libraries**: asyncpg, pydantic
-- **Container base**: python:3.12-slim
+- **Container base**: `ubi10/python-314-minimal` (Python 3.14, non-root UID 1001)
 
 ## Run
 

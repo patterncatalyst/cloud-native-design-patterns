@@ -6,7 +6,7 @@ API gateway pattern — BFF gateway aggregating order-api and inventory-service 
 
 - **Framework**: FastAPI + Uvicorn
 - **Libraries**: strawberry-graphql (GraphQL gateway), grpcio (gRPC client), asyncpg
-- **Container base**: python:3.12-slim
+- **Container base**: `ubi10/python-314-minimal` (Python 3.14, non-root UID 1001)
 
 ## Run
 

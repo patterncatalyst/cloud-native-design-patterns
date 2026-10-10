@@ -6,7 +6,7 @@ Two-part routing — Envoy weighted splits (90/10 + header override) and in-app 
 
 - **Framework**: FastAPI + Uvicorn
 - **Libraries**: aiokafka (Kafka), pydantic
-- **Container base**: python:3.12-slim
+- **Container base**: `ubi10/python-314-minimal` (Python 3.14, non-root UID 1001)
 
 ## Run
 

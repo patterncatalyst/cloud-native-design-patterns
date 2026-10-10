@@ -1,15 +1,17 @@
-FROM registry.access.redhat.com/ubi9/python-312
+FROM registry.access.redhat.com/ubi10/python-314-minimal:10.2-1791464217
+USER 1001
 
-COPY inventory-service/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY --chown=1001:0 --chmod=g=u inventory-service/requirements.txt .
+RUN --mount=type=cache,target=/opt/app-root/src/.cache/pip,uid=1001 \
+    pip install -r requirements.txt
 
-COPY proto/inventory.proto proto/inventory.proto
+COPY --chown=1001:0 --chmod=g=u proto/inventory.proto proto/inventory.proto
 RUN python -m grpc_tools.protoc \
     -Iproto \
     --python_out=. \
     --grpc_python_out=. \
     proto/inventory.proto
 
-COPY inventory-service/ .
+COPY --chown=1001:0 --chmod=g=u inventory-service/ .
 EXPOSE 50051
 CMD ["python", "main.py"]

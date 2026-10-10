@@ -6,7 +6,7 @@ Strangler fig pattern — router proxies to the monolith, decorator intercepts a
 
 - **Framework**: FastAPI + Uvicorn
 - **Libraries**: aiokafka (Kafka), redis, httpx (HTTP proxy)
-- **Container base**: python:3.12-slim
+- **Container base**: `ubi10/python-314-minimal` (Python 3.14, non-root UID 1001)
 
 ## Run
 

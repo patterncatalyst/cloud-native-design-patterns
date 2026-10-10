@@ -6,7 +6,7 @@ OpenFeature SDK with flagd provider — runtime feature toggles without redeploy
 
 - **Framework**: FastAPI + Uvicorn
 - **Libraries**: openfeature-sdk, openfeature-provider-flagd
-- **Container base**: python:3.12-slim
+- **Container base**: `ubi10/python-314-minimal` (Python 3.14, non-root UID 1001)
 
 ## Run
 
