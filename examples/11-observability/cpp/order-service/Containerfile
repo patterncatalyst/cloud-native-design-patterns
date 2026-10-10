@@ -39,19 +39,6 @@ RUN set -eux; \
     python3 -m zipfile -e /tmp/ninja.zip /opt/cmake/bin; chmod +x /opt/cmake/bin/ninja; \
     rm -f /tmp/cmake.tgz /tmp/ninja.zip
 
-# texinfo is not in UBI: flex (a libpq build tool) only wants its .info file touched.
-COPY --chmod=755 <<'MAKEINFO' /usr/local/bin/makeinfo
-#!/bin/sh
-while [ $# -gt 0 ]; do
-    case "$1" in
-        -o) shift; : > "$1" ;;
-        --version) echo "makeinfo (stand-in) 7.0" ;;
-    esac
-    shift
-done
-exit 0
-MAKEINFO
-
 # Conan 2.33.0, pinned, in its own venv.
 RUN python3 -m venv /opt/conan && /opt/conan/bin/pip install --no-cache-dir conan==2.33.0
 
@@ -62,12 +49,15 @@ WORKDIR /src
 COPY order-service/conanfile.py order-service/conan.lock ./
 # The Conan home is a cache mount (profile and packages persist between builds); the
 # deployer copies the built packages next to the sources so the later layers do not need it.
+# flex (a libpq build tool) runs makeinfo for its manual, and texinfo is not in UBI;
+# the scoped conf below makes flex's configure use `true` instead.
 RUN --mount=type=cache,target=/root/.conan2,sharing=locked \
     conan profile detect --force \
     && sed -i 's|^compiler.cppstd=.*|compiler.cppstd=23|' "$(conan profile path default)" \
     && conan install . --output-folder=build/conan --deployer=full_deploy \
            --lockfile=conan.lock --build=missing \
            -s build_type=Release \
+           -c 'flex/*:tools.gnu:extra_configure_args=["MAKEINFO=true"]' \
            -c tools.build:jobs="$(nproc)" -c tools.cmake.cmaketoolchain:generator=Ninja
 
 COPY proto/ ./proto/

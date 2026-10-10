@@ -39,19 +39,6 @@ RUN set -eux; \
     python3 -m zipfile -e /tmp/ninja.zip /opt/cmake/bin; chmod +x /opt/cmake/bin/ninja; \
     rm -f /tmp/cmake.tgz /tmp/ninja.zip
 
-# texinfo is not in UBI: flex (a libpq build tool) only wants its .info file touched.
-COPY --chmod=755 <<'MAKEINFO' /usr/local/bin/makeinfo
-#!/bin/sh
-while [ $# -gt 0 ]; do
-    case "$1" in
-        -o) shift; : > "$1" ;;
-        --version) echo "makeinfo (stand-in) 7.0" ;;
-    esac
-    shift
-done
-exit 0
-MAKEINFO
-
 # Conan 2.33.0, pinned, in its own venv.
 RUN python3 -m venv /opt/conan && /opt/conan/bin/pip install --no-cache-dir conan==2.33.0
 
