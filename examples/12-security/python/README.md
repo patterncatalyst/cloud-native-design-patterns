@@ -6,7 +6,7 @@ Three security patterns — sidecar trust (mTLS header check), valet key (HMAC-s
 
 - **Framework**: FastAPI + Uvicorn
 - **Libraries**: pydantic (no external security libs — patterns are hand-rolled)
-- **Container base**: python:3.12-slim
+- **Container base**: `ubi10/python-314-minimal` (Python 3.14, non-root UID 1001)
 
 ## Run
 

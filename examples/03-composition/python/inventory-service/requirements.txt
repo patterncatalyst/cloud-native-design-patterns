@@ -1,7 +1,26 @@
-grpcio==1.68.1
-grpcio-tools==1.68.1
-protobuf==5.29.2
-opentelemetry-api==1.29.0
-opentelemetry-sdk==1.29.0
-opentelemetry-exporter-otlp-proto-http==1.29.0
-opentelemetry-instrumentation-grpc==0.50b0
+# Beta pins (0.66b1); the packages have no stable release:
+#   contrib: opentelemetry-instrumentation-grpc, opentelemetry-instrumentation
+#   pulled in by the stable 1.45.1 SDK/exporter: opentelemetry-exporter-http-transport, opentelemetry-exporter-otlp-common, opentelemetry-semantic-conventions
+certifi==2026.7.22
+charset-normalizer==3.5.2
+googleapis-common-protos==1.75.5
+grpcio-tools==1.84.0
+grpcio==1.84.0
+idna==3.20
+opentelemetry-api==1.45.1
+opentelemetry-exporter-http-transport==0.66b1
+opentelemetry-exporter-otlp-common==0.66b1
+opentelemetry-exporter-otlp-proto-common==1.45.1
+opentelemetry-exporter-otlp-proto-http==1.45.1
+opentelemetry-instrumentation-grpc==0.66b1
+opentelemetry-instrumentation==0.66b1
+opentelemetry-proto==1.45.1
+opentelemetry-sdk==1.45.1
+opentelemetry-semantic-conventions==0.66b1
+packaging==26.3
+protobuf==7.36.2
+requests==2.34.2
+setuptools==84.0.0
+typing_extensions==4.16.0
+urllib3==2.8.0
+wrapt==2.5.0

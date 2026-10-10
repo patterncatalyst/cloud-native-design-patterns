@@ -117,18 +117,27 @@ await stream.StartAsync();
 
 ```python
 import faust
+from datetime import timedelta
 
-app = faust.App("revenue", broker="kafka://my-cluster-kafka-bootstrap")
+app = faust.App("stream-processor", broker="kafka://my-cluster-kafka-bootstrap",
+                store="memory://")      # state is rebuilt from the changelog topic
 orders_topic = app.topic("order.placed", value_type=Order)
+revenue_topic = app.topic("revenue.by-merchant", value_type=Revenue)
 
-# table = local, changelog-backed state (a materialised view), 5-min windows
-revenue = app.Table("revenue_by_merchant", default=float) \
-             .tumbling(300.0, expires=3600.0)
+# table = local, changelog-backed state (a materialised view): tumbling windows,
+# no grace (expires after one window), placed by the record's own timestamp
+revenue = app.Table("revenue", default=float) \
+             .tumbling(300, expires=timedelta(seconds=300)) \
+             .relative_to_stream()
 
 @app.agent(orders_topic)
 async def aggregate(stream):
-    async for order in stream.group_by(Order.merchant_id):
-        revenue[order.merchant_id] += order.total   # stateful, per key
+    async for order in stream.group_by(Order.merchant_id):   # repartition by merchant
+        revenue[order.merchant_id] += order.total            # stateful, per key and window
+        start = int(faust.current_event().message.timestamp // 300) * 300
+        await revenue_topic.send(key=order.merchant_id, value=Revenue(
+            window_start=start, window_end=start + 300, merchant_id=order.merchant_id,
+            revenue=revenue[order.merchant_id].value()))     # derived stream out
 ```
 
 ```cpp

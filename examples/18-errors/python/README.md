@@ -6,7 +6,7 @@ RFC 9457 Problem Details for REST errors, gRPC status codes with rich error deta
 
 - **Framework**: FastAPI + Uvicorn
 - **Libraries**: grpcio, pydantic
-- **Container base**: python:3.12-slim
+- **Container base**: `ubi10/python-314-minimal` (Python 3.14, non-root UID 1001)
 
 ## Run
 

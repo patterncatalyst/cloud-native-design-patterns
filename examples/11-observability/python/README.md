@@ -5,8 +5,8 @@ Distributed tracing, structured logging, and metrics across REST + gRPC + Kafka 
 ## Framework & libraries
 
 - **Framework**: FastAPI (order-service), standalone consumers
-- **Libraries**: opentelemetry-distro (auto-instrumentation), aiokafka, grpcio, asyncpg
-- **Container base**: python:3.12-slim
+- **Libraries**: OpenTelemetry SDK with OTLP export and FastAPI/gRPC instrumentation, aiokafka, grpcio, asyncpg
+- **Container base**: `ubi10/python-314-minimal` (Python 3.14, non-root UID 1001)
 
 ## Run
 

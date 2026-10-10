@@ -2,13 +2,13 @@ import asyncio
 import json
 import logging
 import os
+from contextlib import asynccontextmanager
 
 import httpx
 import redis.asyncio as aioredis
 from aiokafka import AIOKafkaProducer
 from fastapi import FastAPI
 
-app = FastAPI()
 logger = logging.getLogger("decorator")
 logging.basicConfig(level=logging.INFO)
 
@@ -23,8 +23,8 @@ producer: AIOKafkaProducer | None = None
 published_events: list[dict] = []
 
 
-@app.on_event("startup")
-async def startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     global redis_client, producer
     redis_client = aioredis.from_url(REDIS_URL)
     producer = AIOKafkaProducer(bootstrap_servers=KAFKA_BOOTSTRAP)
@@ -38,14 +38,14 @@ async def startup():
             await asyncio.sleep(2)
     else:
         logger.error("Failed to connect to Kafka after 30 attempts")
-
-
-@app.on_event("shutdown")
-async def shutdown():
+    yield
     if producer:
         await producer.stop()
     if redis_client:
-        await redis_client.close()
+        await redis_client.aclose()
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/orders/{order_id}")
