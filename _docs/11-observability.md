@@ -213,15 +213,15 @@ straight to its trace:
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-// Micrometer meter + SLF4J; the OpenTelemetry Java agent bridges the meter to OTLP and puts trace_id in the MDC
-private final Counter ordersPlaced = Counter.builder("orders.placed")
-    .tag("service", "order-service")
-    .register(registry);
+// OTel API counter + SLF4J. The OpenTelemetry Java agent supplies the SDK behind
+// GlobalOpenTelemetry (so the counter goes out over OTLP) and puts trace_id in the MDC.
+private final LongCounter ordersPlaced = GlobalOpenTelemetry.getMeter("order-service")
+    .counterBuilder("orders.placed").build();
 
 void recordOrder(Order o) {
-    ordersPlaced.increment();                              // metric
-    // trace_id is already in the MDC, so it lands on every log line
-    log.info("order placed sku={} id={}", o.sku(), o.id());   // correlated log
+    ordersPlaced.add(1, Attributes.of(stringKey("sku"), o.sku()));  // metric
+    // trace_id is already in the MDC; the logback pattern (%X{trace_id:-}) prints it
+    log.info("order placed sku={} id={}", o.sku(), o.id());          // correlated log
 }
 ```
 
