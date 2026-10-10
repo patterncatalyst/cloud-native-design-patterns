@@ -1,6 +1,6 @@
 # Example 11 — Observability (Quarkus)
 
-Quarkus 3.33.2 LTS implementation demonstrating distributed tracing, custom metrics, and correlated logging.
+Quarkus 3.40.1 LTS implementation demonstrating distributed tracing, custom metrics, and correlated logging.
 
 ## Services
 
@@ -25,7 +25,7 @@ Quarkus 3.33.2 LTS implementation demonstrating distributed tracing, custom metr
 
 ## Stack
 
-- Quarkus 3.33.2 LTS
+- Quarkus 3.40.1 LTS
 - UBI10 + OpenJDK 25
 - PostgreSQL (orders, notifications tables)
 - Kafka (order.placed topic)
@@ -78,3 +78,7 @@ docker compose down -v
 - **MDC trace correlation**: `Span.current().getSpanContext().getTraceId()` + `MDC.put("trace_id", ...)`
 - **Mutiny reactive gRPC**: `Uni<ReserveReply>` return type with `.await().atMost(Duration)`
 - **Fast-jar layout**: `target/quarkus-app/` with separated dependencies
+
+## Shared proto
+
+The gRPC contract lives in `proto/` next to the services. The poms set `quarkus.grpc.codegen.proto-directory` to `${project.basedir}/../proto`, so `mvn package` works from a service directory with no copy into `src/main/proto`. Containerfiles copy `proto/` beside the service sources for the same reason.

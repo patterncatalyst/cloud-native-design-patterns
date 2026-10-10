@@ -1,6 +1,6 @@
 # Example 24 — Monolith to Microservices (Quarkus)
 
-Quarkus 3.33.2 LTS implementation demonstrating Strangler Fig pattern with content-based routing and decorating collaborator.
+Quarkus 3.40.1 LTS implementation demonstrating Strangler Fig pattern with content-based routing and decorating collaborator.
 
 ## Services
 
@@ -28,7 +28,7 @@ Quarkus 3.33.2 LTS implementation demonstrating Strangler Fig pattern with conte
 
 ## Stack
 
-- Quarkus 3.33.2 LTS
+- Quarkus 3.40.1 LTS
 - UBI10 + OpenJDK 25
 - Redis (order caching)
 - Kafka (order.placed topic)

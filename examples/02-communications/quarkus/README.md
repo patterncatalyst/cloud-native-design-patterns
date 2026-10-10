@@ -1,6 +1,6 @@
 # Example 02 — Communications (Quarkus)
 
-Quarkus 3.33.2 LTS implementation demonstrating REST, GraphQL, gRPC, and Kafka.
+Quarkus 3.40.1 LTS implementation demonstrating REST, GraphQL, gRPC, and Kafka.
 
 ## Services
 
@@ -18,7 +18,7 @@ Quarkus 3.33.2 LTS implementation demonstrating REST, GraphQL, gRPC, and Kafka.
 
 ## Stack
 
-- Quarkus 3.33.2 LTS
+- Quarkus 3.40.1 LTS
 - UBI10 + OpenJDK 25
 - PostgreSQL (orders table)
 - Kafka (order.placed events)
@@ -84,3 +84,7 @@ docker compose down -v
 - **SmallRye Reactive Messaging**: Kafka producer via `@Channel` + `Emitter<String>`
 - **Fast-jar layout**: `target/quarkus-app/` with separated dependencies
 - **gRPC + HTTP on separate ports**: inventory uses 9000 (gRPC) + 8081 (HTTP health); order uses 8080
+
+## Shared proto
+
+The gRPC contract lives in `proto/` next to the services. The poms set `quarkus.grpc.codegen.proto-directory` to `${project.basedir}/../proto`, so `mvn package` works from a service directory with no copy into `src/main/proto`. Containerfiles copy `proto/` beside the service sources for the same reason.

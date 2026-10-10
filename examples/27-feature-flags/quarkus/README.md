@@ -4,9 +4,9 @@ OpenFeature SDK with flagd provider — runtime feature toggles without redeploy
 
 ## Framework & libraries
 
-- **Framework**: Quarkus 3.33.2 (REST + Jackson)
+- **Framework**: Quarkus 3.40.1 LTS (REST + Jackson)
 - **Libraries**: OpenFeature Java SDK, flagd provider
-- **Container base**: UBI10 / OpenJDK 25
+- **Container base**: `registry.access.redhat.com/ubi10/openjdk-25:1.24-15` (build), `registry.access.redhat.com/ubi10/openjdk-25-runtime:1.24-15` (runtime)
 
 ## Run
 
