@@ -139,9 +139,19 @@ jobs:
           python -m compileall -q .
 
   # Each C++ service builds in its own Containerfile (Conan 2.33.0 + GCC 15 / C++23 on
-  # UBI 10). The Conan home is a BuildKit cache mount that the GHA cache does not carry, but
-  # the dependency layer (conanfile.py + conan.lock) is cached, so only a dependency change
-  # recompiles Drogon, gRPC and the rest.
+  # UBI 10). The expensive part is compiling the Conan dependency tree (gRPC, Drogon,
+  # OpenTelemetry C++, libpq...): 30+ minutes cold for the largest projects on 4 CPUs. Its
+  # home is a BuildKit cache mount (id cndp-conan2), which neither the runner nor
+  # type=gha carries to the next job, so the cache is round-tripped by hand:
+  #   1. actions/cache restores the directory `conan-cache`, keyed on the runner OS, the
+  #      toolchain versions (UBI 10.2, GCC 15, Conan 2.33.0) and this project's conan.lock.
+  #      A lock change misses the exact key and falls back to the newest cache of the same
+  #      toolchain (restore-keys), so only the changed packages recompile.
+  #   2. buildkit-cache-dance injects that directory into the cache mount before the build
+  #      and extracts it afterwards (skipped on an exact key hit, so nothing is re-saved).
+  # The image layers use type=gha,mode=min: mode=max across 31 scopes would exceed the 10 GB
+  # Actions cache quota, and the layers that matter are the Conan cache above.
+  # Bump the toolchain key when the Containerfile base image, GCC or Conan version changes.
   # The build context is the service directory, or its parent cpp/ directory
   # for the multi-service examples; scripts/ci_changed_projects.py cpp-context
   # decides, mirroring each example's compose.yaml.
@@ -150,7 +160,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.cpp != '[]'
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -167,13 +177,31 @@ jobs:
           echo "context=$(python3 scripts/ci_changed_projects.py cpp-context "$DIR")" >> "$GITHUB_OUTPUT"
           echo "scope=cpp-${DIR//\//-}" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v4
+        id: buildx
+      - name: Restore the Conan cache
+        id: conan-cache
+        uses: actions/cache@v6.1.0
+        with:
+          path: conan-cache
+          key: conan-${{ runner.os }}-ubi10.2-gcc15-conan2.33.0-${{ hashFiles(format('{0}/conan.lock', matrix.dir)) }}
+          restore-keys: |
+            conan-${{ runner.os }}-ubi10.2-gcc15-conan2.33.0-
+      - name: Inject the Conan cache into the BuildKit cache mount
+        uses: reproducible-containers/buildkit-cache-dance@v3.4.0
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          cache-map: |
+            {
+              "conan-cache": { "target": "/root/.conan2", "id": "cndp-conan2" }
+            }
+          skip-extraction: ${{ steps.conan-cache.outputs.cache-hit }}
       - uses: docker/build-push-action@v7
         with:
           context: ${{ steps.ctx.outputs.context }}
           file: ${{ matrix.dir }}/Containerfile
           push: false
           cache-from: type=gha,scope=${{ steps.ctx.outputs.scope }}
-          cache-to: type=gha,mode=max,scope=${{ steps.ctx.outputs.scope }}
+          cache-to: type=gha,mode=min,scope=${{ steps.ctx.outputs.scope }}
 
   # Compose files and verify.sh scripts are cheap to check, so each kind is one
   # job that loops over its selection and reports every failure at the end.

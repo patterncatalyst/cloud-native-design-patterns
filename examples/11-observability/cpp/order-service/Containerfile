@@ -51,7 +51,7 @@ COPY order-service/conanfile.py order-service/conan.lock ./
 # deployer copies the built packages next to the sources so the later layers do not need it.
 # flex (a libpq build tool) runs makeinfo for its manual, and texinfo is not in UBI;
 # the scoped conf below makes flex's configure use `true` instead.
-RUN --mount=type=cache,target=/root/.conan2,sharing=locked \
+RUN --mount=type=cache,id=cndp-conan2,target=/root/.conan2,sharing=locked \
     conan profile detect --force \
     && sed -i 's|^compiler.cppstd=.*|compiler.cppstd=23|' "$(conan profile path default)" \
     && conan install . --output-folder=build/conan --deployer=full_deploy \
