@@ -19,12 +19,12 @@ C++ implementation of the cloud-native principles chapter using **Drogon** (REST
 
 ## Differences from the tutorial's Quarkus implementation
 
-| Quarkus 3.40.1 LTS                     | Drogon 1.9.x + libpq                           |
-|--------------------------------------|------------------------------------------------|
-| Reactive REST (Mutiny)               | Callback-based handlers (Drogon)               |
-| Hibernate Reactive + Vert.x PgClient | libpq direct (C API) + hand-rolled pool        |
-| SmallRye Health annotations          | Manual `/healthz` and `/readyz` handlers       |
-| MicroProfile Config                  | `std::getenv()` + defaults                     |
+| Quarkus 3.40.1 LTS                   | Drogon 1.9.x + libpq                     |
+|--------------------------------------|------------------------------------------|
+| Reactive REST (Mutiny)               | Callback-based handlers (Drogon)         |
+| Hibernate Reactive + Vert.x PgClient | libpq direct (C API) + hand-rolled pool  |
+| SmallRye Health annotations          | Manual `/healthz` and `/readyz` handlers |
+| MicroProfile Config                  | `std::getenv()` + defaults               |
 
 The pg_pool.hpp connection pool implements the same RAII discipline and exception safety patterns as the tutorial's Java/Kotlin examples, but for libpq's C API.
 
