@@ -1,19 +1,20 @@
-# Build the Jekyll site on every push and pull request; deploy to GitHub Pages
+# Build the Jekyll site on pull requests and on main; deploy to GitHub Pages
 # only from main. Uses the Jekyll version pinned in the Gemfile, not GitHub
 # Pages' built-in Jekyll 3.10.
 #
 # One-time setup: Settings → Pages → Build and deployment → Source: GitHub
-# Actions. After that, every push to main builds AND deploys automatically;
-# pushes to other branches and PRs build only (a green/red validation signal),
-# with no deploy.
+# Actions. Every push to main builds AND deploys; a PR builds only (a
+# green/red validation signal), with no deploy. The build job is named `site`,
+# which is the check name branch protection requires.
 
 name: Build and deploy site
 
 on:
+  # Once per change: on the PR, and on main after the merge. Pushes to other
+  # branches no longer start a second run next to the PR run.
   push:
-    branches: ["**"]      # build on a push to ANY branch
+    branches: [main]
   pull_request:
-    branches: [main]      # build on PRs targeting main
   workflow_dispatch:      # allow manual runs from the Actions UI
 
 permissions:
@@ -28,10 +29,11 @@ concurrency:
 
 jobs:
   build:
+    name: site
     runs-on: ubuntu-latest
     steps:
       - name: Check out repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1

@@ -374,7 +374,7 @@ to localhost; the sidecar intercepts every call, adds mutual TLS so traffic betw
 is encrypted and authenticated by SPIFFE identity, and applies the retry and timeout
 policy. The istiod control plane distributes that policy and identity to every sidecar,
 so the behaviour is uniform and centrally configured rather than coded per service. The
-`VirtualService` below is how that policy is expressed:
+`VirtualService` is how that policy is expressed:
 
 ```yaml
 # Istio VirtualService — retries and timeout for inventory, as config not code

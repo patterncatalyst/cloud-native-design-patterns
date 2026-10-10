@@ -94,7 +94,7 @@ event is a strictly downstream consequence of it.
    alt="An application issues ordinary INSERT/UPDATE SQL to a database (Postgres, MySQL, or SQL Server). Tables and rows commit into the write-ahead log (WAL), which is commit-ordered and durable. A Debezium connector tails the WAL through a logical replication slot, converts row deltas into events, and publishes them to Kafka topics (orders.public, orders.outbox, and others)."
    caption="Figure 4.3 — Change Data Capture: Debezium tails the WAL and turns every committed row into an ordered event" %}
 
-Two uses dominate. The first is the **outbox** below — shipping integration events
+Two uses dominate. The first is the **outbox** — shipping integration events
 safely. The second is **CQRS projections** — the change stream that drives a CQRS read model is most cleanly produced this way, so the read model is updated from the same
 committed log that everything else trusts. In both cases the property is identical:
 the commit is the only truth, and every event is a consequence of it, emitted in
@@ -313,7 +313,7 @@ after the order was created, the order service does not un-commit; it performs a
 local transaction that cancels the order and emits `order.cancelled`. Each forward
 step therefore needs a defined compensation, and because events are delivered
 at-least-once, every step and every compensation must be idempotent. Each local step
-is itself made atomic by the outbox pattern above — the saga is the multi-service
+is itself made atomic by the outbox pattern — the saga is the multi-service
 layer built on top of single-service atomicity. This is only the shape of the
 pattern; the choreography-versus-orchestration trade-off, how a saga holds its state,
 and how a later step gets an earlier step's data are taken up in depth in **Appendix D

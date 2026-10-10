@@ -191,7 +191,7 @@ a per-field resolver that calls another service, assume you will need batching.
 
 ## Three ways to compose — and where each belongs
 
-The resolver above is one shape of a more general idea. There are three, and all
+The resolver is one shape of a more general idea. There are three, and all
 three push aggregation outward — toward the client as coupling needs loosen.
 
 {% include excalidraw.html
@@ -222,7 +222,7 @@ buried in a chain of internal calls.
 
 **Appendix G** lays out Khononov's three coupling dimensions — **strength**,
 **distance**, and **volatility** — and a four-rung strength ladder: intrusive,
-functional, model, contract. Every composition choice above maps directly onto this
+functional, model, contract. Every composition choice in this chapter maps directly onto this
 model.
 
 The gateway keeps inter-service coupling at the **contract rung**: services expose
@@ -251,7 +251,7 @@ exactly why it becomes a distributed monolith.
 
 ### Cross-check it yourself
 
-The gateway is just HTTP. Send the query above with `curl` or Postman and request
+The gateway is just HTTP. Send the same query with `curl` or Postman and request
 `stock` in one call, then omit it in another — confirm the gateway only calls
 `inventory` when `stock` is actually selected. Then request a *list* of orders with
 `stock` and watch the back-end call count: without batching it climbs with the

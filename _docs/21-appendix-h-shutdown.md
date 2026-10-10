@@ -22,7 +22,7 @@ accepted, drain consumers and sockets, then exit before the grace period runs ou
 The promise is the second half of factor IX: a process should start fast *and* shut
 down cleanly on demand. Cleanly means a definite sequence — stop accepting new work,
 finish what you already accepted, release resources, then exit — and the platform hands
-you a fixed budget to do it in. Everything below is that sequence, on both sides of the
+you a fixed budget to do it in. Everything in this appendix is that sequence, on both sides of the
 app/Kubernetes boundary.
 
 ## What happens when Kubernetes stops a pod

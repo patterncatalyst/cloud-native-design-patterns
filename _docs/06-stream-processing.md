@@ -188,7 +188,7 @@ hand-roll it.
 
 ## Delivery guarantees in stream processing
 
-The windowed aggregation above has a silent assumption: what happens when the worker
+The windowed aggregation has a silent assumption: what happens when the worker
 crashes mid-window, or when a message is delivered twice? Stream processing has three
 delivery guarantee levels, and picking the right one is a design decision:
 
@@ -259,7 +259,7 @@ event-time we expect to be" — which is essential for multi-source joins where
 sources have different latencies.
 
 **When to reach for Flink** — in-process stream processing (Kafka Streams, Faust,
-Streamiz, the C++/Go loops in the example above) works well for single-topic,
+Streamiz, the C++/Go loops in this chapter's example) works well for single-topic,
 bounded-state computations. Once you need **stream-to-stream joins** (correlate
 orders with payments by key and time), **state larger than a single worker's
 memory**, or **exactly-once across multiple Kafka clusters**, a dedicated engine

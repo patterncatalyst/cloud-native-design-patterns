@@ -59,7 +59,7 @@ The **HTTP status class is the category**, and it is what drives client behaviou
 
 The discipline that makes this maintainable is **one mapping seam**: domain code
 raises a typed exception, and exactly one place turns it into the wire format, so
-ad-hoc error JSON never spreads across endpoints. Notice what every version below
+ad-hoc error JSON never spreads across endpoints. Notice what every version here
 deliberately omits — no stack trace, no exception class name, no SQL. The status
 matches the category (`409`, a conflict the client can act on), and the body carries
 the code and the trace id for correlation.
@@ -252,7 +252,7 @@ decide whether and when to retry.
 Beyond the code, attach a `google.rpc.Status` in the trailers carrying the rich
 details — `ErrorInfo` (a machine `reason` plus a `domain`) and `RetryInfo` (exactly
 how long to wait) — so a gRPC caller receives the same five facts as a REST caller.
-`UNAVAILABLE` below tells both the client and the mesh "transient, retryable," and
+`UNAVAILABLE` tells both the client and the mesh "transient, retryable," and
 the `RetryInfo` tells them precisely how long to back off.
 
 {% include excalidraw.html
@@ -787,7 +787,7 @@ bubble to the top is the whole discipline — the client sees the order, the tot
 
 ## How a retry storm forms — and how to stop it
 
-Everything above makes retryability explicit, which is exactly why this last section
+Everything so far makes retryability explicit, which is exactly why this last section
 matters: **retries that are not bounded are how a brief blip becomes a full outage.**
 The loop is a positive feedback loop. A service slows; calls start timing out; clients
 retry — often three times — which *triples* the load on the already-struggling
