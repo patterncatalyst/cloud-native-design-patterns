@@ -64,13 +64,10 @@ int main() {
         [](const HttpRequestPtr&, std::function<void(const HttpResponsePtr&)>&& cb,
            const std::string& order_id) {
             std::lock_guard<std::mutex> lock(g_pg_mu);
-            std::string escaped;
-            for (char c : order_id) {
-                if (c == '\'') escaped += "''";
-                else escaped += c;
-            }
-            std::string sql = "SELECT id, sku, quantity, status FROM orders WHERE id = '" + escaped + "'";
-            PGresult* res = PQexec(g_pg, sql.c_str());
+            const char* params[1] = {order_id.c_str()};
+            PGresult* res = PQexecParams(g_pg,
+                "SELECT id, sku, quantity, status FROM orders WHERE id = $1",
+                1, nullptr, params, nullptr, nullptr, 0);
             if (PQresultStatus(res) == PGRES_TUPLES_OK && PQntuples(res) > 0) {
                 Json::Value order;
                 order["id"] = PQgetvalue(res, 0, 0);
