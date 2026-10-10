@@ -26,14 +26,15 @@ ctr_pause()   { docker pause "$@"; }
 ctr_unpause() { docker unpause "$@"; }
 ctr_compose() { docker compose "$@"; }
 
-# The WebSocket checks use the Python `websockets` client. If the host python3
-# lacks it, install a pinned copy into a cached venv rather than the system.
+# The WebSocket checks use the Python `websockets` and `aiohttp` clients. If the
+# host python3 lacks them, install pinned copies into a cached venv rather than
+# the system.
 PY=python3
-if ! python3 -c 'import websockets' 2>/dev/null; then
+if ! python3 -c 'import websockets, aiohttp' 2>/dev/null; then
     VENV="${XDG_CACHE_HOME:-$HOME/.cache}/cndp-verify/venv"
     [ -x "$VENV/bin/python" ] || python3 -m venv "$VENV"
-    "$VENV/bin/python" -c 'import websockets' 2>/dev/null \
-        || "$VENV/bin/pip" install -q --disable-pip-version-check websockets==17.2
+    "$VENV/bin/python" -c 'import websockets, aiohttp' 2>/dev/null \
+        || "$VENV/bin/pip" install -q --disable-pip-version-check websockets==17.2 aiohttp==3.14.4
     PY="$VENV/bin/python"
 fi
 
