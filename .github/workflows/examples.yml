@@ -10,6 +10,11 @@ on:
 permissions:
   contents: read
 
+# A new push to a PR supersedes the previous run; main runs are never cancelled.
+concurrency:
+  group: examples-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   # Works out which example projects the change touches. The workflow itself
   # always runs, so the required `examples-ok` summary job always reports: a
