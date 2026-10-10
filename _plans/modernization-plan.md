@@ -22,8 +22,8 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 |---|---|---|---|
 | 0a-1 | lgtm-skills feature/github-branch-protection | prereq | done (lgtm-skills PR #36, #37, release r4.x) |
 | 0a-2 | lgtm-skills fix/docker-runtime-and-pins | 4 | done (lgtm-skills PR #36, #37, release r4.x) |
-| 0b | feature/ci-branch-protection | prereq | in progress |
-| S1 | feature/docker-engine-runtime | 6 | pending |
+| 0b | feature/ci-branch-protection | prereq | done (PR #58; ruleset main 24831520: site, content-ok, examples-ok) |
+| S1 | feature/docker-engine-runtime | 6 | in progress |
 | S2 | chore/quarkus-3.40-lts | 1 | pending |
 | S3 | chore/spring-boot-4.1 | 1 | pending |
 | S4 | chore/dotnet-10-pins (+ MassTransit/Streamiz) | 3 | pending |
