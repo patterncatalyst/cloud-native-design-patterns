@@ -23,6 +23,6 @@ FROM registry.access.redhat.com/ubi10/openjdk-25-runtime:1.24-15
 WORKDIR /deployments
 COPY --from=build --chown=185:0 --chmod=g=u /home/default/target/*.jar app.jar
 COPY --from=otel-agent --chown=185:0 --chmod=g=u /tmp/opentelemetry-javaagent.jar opentelemetry-javaagent.jar
-ENV JAVA_TOOL_OPTIONS="-javaagent:/deployments/opentelemetry-javaagent.jar"
+ENV JAVA_TOOL_OPTIONS="-javaagent:/deployments/opentelemetry-javaagent.jar --enable-native-access=ALL-UNNAMED"
 USER 185
 CMD ["java", "-jar", "/deployments/app.jar"]

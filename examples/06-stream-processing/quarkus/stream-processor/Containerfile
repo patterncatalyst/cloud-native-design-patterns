@@ -13,5 +13,6 @@ RUN --mount=type=cache,target=/home/default/.m2,uid=185 mvn package -DskipTests 
 FROM registry.access.redhat.com/ubi10/openjdk-25-runtime:1.24-15
 WORKDIR /deployments
 COPY --from=build --chown=185:0 --chmod=g=u /home/default/target/quarkus-app/ ./
+ENV JAVA_TOOL_OPTIONS="--enable-native-access=ALL-UNNAMED"
 USER 185
 CMD ["java", "-jar", "quarkus-run.jar"]
