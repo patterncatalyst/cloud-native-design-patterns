@@ -63,15 +63,22 @@ inline std::string_view status_of(const Machine& sm) {
 
 // Rebuild a machine at a persisted status by replaying the events that lead there from the
 // initial RUNNING state (a COMPLETED saga has step_index == total_steps, so AllStepsDone holds).
-inline void restore(Machine& sm, std::string_view status) {
-    if (status == "COMPENSATING") {
+// Returns false for a status it does not know; the machine is left untouched in that case, so
+// a corrupt row is never mistaken for a RUNNING saga.
+inline bool restore(Machine& sm, std::string_view status) {
+    if (status == "RUNNING") {
+        return true;
+    } else if (status == "COMPENSATING") {
         sm.process_event(StepFailed{});
     } else if (status == "COMPENSATED") {
         sm.process_event(StepFailed{});
         sm.process_event(Compensated{});
     } else if (status == "COMPLETED") {
         sm.process_event(AllStepsDone{});
+    } else {
+        return false;
     }
+    return true;
 }
 
 // Completed steps are undone in reverse order: indices step_index-1 .. 0.

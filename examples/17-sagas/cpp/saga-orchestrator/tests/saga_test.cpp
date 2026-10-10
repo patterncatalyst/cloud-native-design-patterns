@@ -56,6 +56,14 @@ int main() {
         sm.process_event(Compensated{});
         check(status_of(sm) == "COMPENSATED", "restored COMPENSATING finishes");
     }
+    {  // an unknown status is rejected, not treated as RUNNING
+        Progress p{1, 3};
+        Machine sm{p};
+        check(!restore(sm, "PAUSED"), "unknown status rejected");
+        check(!restore(sm, ""), "empty status rejected");
+        check(!restore(sm, "running"), "status match is exact");
+        check(restore(sm, "RUNNING") && restore(sm, "COMPLETED"), "known statuses accepted");
+    }
     check(compensation_order(0).empty(), "nothing to compensate before step 1");
     return failures == 0 ? 0 : 1;
 }

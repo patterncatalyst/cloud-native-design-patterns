@@ -132,42 +132,58 @@ static PgResult query(PGconn* conn, const char* sql, const std::vector<std::stri
                                  values.data(), nullptr, nullptr, 0));
 }
 
-static void logStep(PGconn* conn, const std::string& sagaId,
-                    const std::string& step, const std::string& action,
-                    const Json::Value& result) {
-    query(conn, "INSERT INTO saga_log (saga_id, step, action, result) VALUES ($1, $2, $3, $4::jsonb)",
-          {sagaId, step, action, toJsonString(result)});
+// A statement without parameters (BEGIN, COMMIT, ROLLBACK); the result is always released.
+static bool exec(PGconn* conn, const char* sql) {
+    PgResult r(PQexec(conn, sql));
+    if (!r.ok()) LOG_ERROR << sql << " failed: " << PQerrorMessage(conn);
+    return r.ok();
 }
 
-static void setState(PGconn* conn, const std::string& sagaId, std::string_view status,
+static bool logStep(PGconn* conn, const std::string& sagaId,
+                    const std::string& step, const std::string& action,
+                    const Json::Value& result) {
+    auto r = query(conn, "INSERT INTO saga_log (saga_id, step, action, result) VALUES ($1, $2, $3, $4::jsonb)",
+                   {sagaId, step, action, toJsonString(result)});
+    if (!r.ok()) LOG_ERROR << "saga_log insert failed: " << PQerrorMessage(conn);
+    return r.ok();
+}
+
+static bool setState(PGconn* conn, const std::string& sagaId, std::string_view status,
                      int stepIndex, const Json::Value* context) {
-    if (context) {
-        query(conn, "UPDATE sagas SET status = $1, step_index = $2, context = $3::jsonb, "
-                    "updated_at = now() WHERE id = $4",
-              {std::string(status), std::to_string(stepIndex), toJsonString(*context), sagaId});
-    } else {
-        query(conn, "UPDATE sagas SET status = $1, step_index = $2, updated_at = now() WHERE id = $3",
-              {std::string(status), std::to_string(stepIndex), sagaId});
-    }
+    auto r = context
+        ? query(conn, "UPDATE sagas SET status = $1, step_index = $2, context = $3::jsonb, "
+                      "updated_at = now() WHERE id = $4",
+                {std::string(status), std::to_string(stepIndex), toJsonString(*context), sagaId})
+        : query(conn, "UPDATE sagas SET status = $1, step_index = $2, updated_at = now() WHERE id = $3",
+                {std::string(status), std::to_string(stepIndex), sagaId});
+    if (!r.ok()) LOG_ERROR << "saga update failed: " << PQerrorMessage(conn);
+    return r.ok();
 }
 
 // Runs one saga to a terminal status. Every step is its own transaction, so a crash leaves the
 // saga RUNNING at the last committed step_index and resumeRunningSagas() picks it up.
 // The state machine (saga_machine.hpp) decides the next status; this function does the I/O.
+// Any failed statement rolls the step's transaction back and stops: nothing half-written is
+// committed, and the saga stays at its last committed state.
 static void advance(const std::string& sagaId) {
     PgConn db;
     if (!db.ok()) return;
     const int numSteps = static_cast<int>(g_steps.size());
 
     for (;;) {
-        PQexec(db.conn, "BEGIN");
+        if (!exec(db.conn, "BEGIN")) return;
+        auto abandon = [&] { exec(db.conn, "ROLLBACK"); };
         auto row = query(db.conn,
             "SELECT status, step_index, context FROM sagas WHERE id = $1 FOR UPDATE", {sagaId});
-        if (!row.ok() || row.rows() == 0) { PQexec(db.conn, "ROLLBACK"); return; }
+        if (!row.ok() || row.rows() == 0) { abandon(); return; }
 
         cndp::saga::Progress progress{std::stoi(row.get(0, 1)), numSteps};
         cndp::saga::Machine sm{progress};
-        cndp::saga::restore(sm, row.get(0, 0));
+        if (!cndp::saga::restore(sm, row.get(0, 0))) {
+            LOG_ERROR << "saga " << sagaId << " has unknown status '" << row.get(0, 0) << "'; leaving it alone";
+            abandon();
+            return;
+        }
         Json::Value context = parseJson(row.get(0, 2));
         const std::string status(cndp::saga::status_of(sm));
 
@@ -175,19 +191,26 @@ static void advance(const std::string& sagaId) {
             // Undo completed steps in reverse order, then record COMPENSATED.
             for (int i : cndp::saga::compensation_order(progress.step_index)) {
                 auto& step = g_steps[i];
-                logStep(db.conn, sagaId, step.compensationName, "compensate", step.compensate(context));
+                if (!logStep(db.conn, sagaId, step.compensationName, "compensate", step.compensate(context))) {
+                    abandon();
+                    return;
+                }
             }
             sm.process_event(cndp::saga::Compensated{});
-            setState(db.conn, sagaId, cndp::saga::status_of(sm), progress.step_index, nullptr);
-            PQexec(db.conn, "COMMIT");
+            if (!setState(db.conn, sagaId, cndp::saga::status_of(sm), progress.step_index, nullptr) ||
+                !exec(db.conn, "COMMIT")) {
+                abandon();
+            }
             return;
         }
-        if (status != "RUNNING") { PQexec(db.conn, "ROLLBACK"); return; }
+        if (status != "RUNNING") { abandon(); return; }
 
         if (progress.step_index >= numSteps) {
             sm.process_event(cndp::saga::AllStepsDone{});
-            setState(db.conn, sagaId, cndp::saga::status_of(sm), progress.step_index, nullptr);
-            PQexec(db.conn, "COMMIT");
+            if (!setState(db.conn, sagaId, cndp::saga::status_of(sm), progress.step_index, nullptr) ||
+                !exec(db.conn, "COMMIT")) {
+                abandon();
+            }
             return;
         }
 
@@ -195,17 +218,23 @@ static void advance(const std::string& sagaId) {
         try {
             Json::Value result = step.execute(context);
             context[step.name] = result;
-            logStep(db.conn, sagaId, step.name, "execute", result);
+            if (!logStep(db.conn, sagaId, step.name, "execute", result)) { abandon(); return; }
             sm.process_event(cndp::saga::StepSucceeded{});
-            setState(db.conn, sagaId, cndp::saga::status_of(sm), progress.step_index, &context);
-            PQexec(db.conn, "COMMIT");
+            if (!setState(db.conn, sagaId, cndp::saga::status_of(sm), progress.step_index, &context) ||
+                !exec(db.conn, "COMMIT")) {
+                abandon();
+                return;
+            }
         } catch (const std::exception& e) {
             Json::Value failResult;
             failResult["error"] = e.what();
-            logStep(db.conn, sagaId, step.name, "failed", failResult);
+            if (!logStep(db.conn, sagaId, step.name, "failed", failResult)) { abandon(); return; }
             sm.process_event(cndp::saga::StepFailed{});
-            setState(db.conn, sagaId, cndp::saga::status_of(sm), progress.step_index, nullptr);
-            PQexec(db.conn, "COMMIT");
+            if (!setState(db.conn, sagaId, cndp::saga::status_of(sm), progress.step_index, nullptr) ||
+                !exec(db.conn, "COMMIT")) {
+                abandon();
+                return;
+            }
         }
     }
 }
