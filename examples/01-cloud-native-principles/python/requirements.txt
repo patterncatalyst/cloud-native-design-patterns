@@ -1,4 +1,6 @@
-# opentelemetry-distro and opentelemetry-instrumentation-* are published only as beta (0.66b1) by opentelemetry-python-contrib
+# Beta pins (0.66b1); the packages have no stable release:
+#   contrib: opentelemetry-distro, opentelemetry-instrumentation-asgi, opentelemetry-instrumentation-asyncpg, opentelemetry-instrumentation-fastapi, opentelemetry-instrumentation
+#   pulled in by the stable 1.45.1 SDK/exporter: opentelemetry-exporter-http-transport, opentelemetry-exporter-otlp-common, opentelemetry-semantic-conventions, opentelemetry-util-http
 annotated-doc==0.0.5
 annotated-types==0.8.0
 anyio==4.15.1
