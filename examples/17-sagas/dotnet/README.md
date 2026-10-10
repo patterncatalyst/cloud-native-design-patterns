@@ -38,7 +38,7 @@ Key variables (set by compose.yaml, override for local dev):
 
 ## Local development (without containers)
 
-Requires the .NET 10 SDK (10.0.12).
+Requires the .NET 10 SDK (10.0.112, runtime 10.0.12).
 
 ```bash
 dotnet run --project SagaOrchestrator
