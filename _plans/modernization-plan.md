@@ -26,7 +26,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | S1 | feature/docker-engine-runtime | 6 | done (111/111 PASS on Docker; final rerun after the Opus review) |
 | S2 | chore/quarkus-3.40-lts | 1 | done (18/18 Quarkus PASS on 3.40.1; closes #32) |
 | S3 | chore/spring-boot-4.1 | 1 | done (111/111 PASS after the Opus review; closes #31) |
-| S4 | chore/dotnet-10-pins (+ Streamiz) | 3 | built and unit-checked; live matrix pending |
+| S4 | chore/dotnet-10-pins (+ Streamiz) | 3 | validated; 19/19 .NET PASS |
 | S5 | chore/python-3.14 (+ faust) | 5 | pending |
 | S6 | chore/go-toolchain (Go 1.27.2 + locked libraries) | 2+4 | pending |
 | S7 | chore/cpp-toolchain-ubi10 (C++23/26 + locked libraries) | 2+4 | pending |
@@ -157,7 +157,7 @@ Carried forward:
 
 ### S4 .NET 10.0.12 (2026-10-10)
 
-- 32 .NET projects (+ example 30) on net10.0 with every PackageReference pinned exactly: OpenTelemetry 1.19.1 (AspNetCore instrumentation 1.19.0), Npgsql 10.0.3, Confluent.Kafka 2.16.0, Streamiz.Kafka.Net 1.8.2, Grpc.AspNetCore/Grpc.Net.Client/Grpc.Tools 2.84.0, Google.Protobuf 3.36.2, StackExchange.Redis 3.4.0, HotChocolate 16.6.8, OpenFeature 2.14.1, OpenFeature.Contrib.Providers.Flagd 0.5.0, SignalR 10.0.12 (the preview.5 packages are gone).
+- 32 .NET projects (including example 30) on net10.0 with every PackageReference pinned exactly: OpenTelemetry 1.19.1 (AspNetCore instrumentation 1.19.0), Npgsql 10.0.3, Confluent.Kafka 2.16.0, Streamiz.Kafka.Net 1.8.2, Grpc.AspNetCore/Grpc.Net.Client/Grpc.Tools 2.84.0, Google.Protobuf 3.36.2, StackExchange.Redis 3.4.0, HotChocolate 16.6.8, OpenFeature 2.14.1, OpenFeature.Contrib.Providers.Flagd 0.5.0, SignalR 10.0.12 (the preview.5 packages are gone).
 - Images `ubi9/dotnet-100:9.8-1791421718` and `ubi9/dotnet-100-aspnet:9.8-1791363520`, non-root UID 1001, group-0 ownership, BuildKit NuGet cache mount. HOLD: Red Hat publishes no ubi10 .NET image.
 - Locked stack: 06 stream processor rewritten on Streamiz (same contract as Quarkus/Spring). Kafka producers/consumers stay on Confluent.Kafka; MassTransit dropped by user decision.
 - 30: second dashboard instance on port 8081 behind the same Redis backplane; verify.sh now has 10 checks (backplane both directions, restart). Circuit reconnection is framework default and not scripted.
