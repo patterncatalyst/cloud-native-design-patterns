@@ -33,7 +33,7 @@ if ! python3 -c 'import websockets' 2>/dev/null; then
     VENV="${XDG_CACHE_HOME:-$HOME/.cache}/cndp-verify/venv"
     [ -x "$VENV/bin/python" ] || python3 -m venv "$VENV"
     "$VENV/bin/python" -c 'import websockets' 2>/dev/null \
-        || "$VENV/bin/pip" install -q websockets==17.2
+        || "$VENV/bin/pip" install -q --disable-pip-version-check websockets==17.2
     PY="$VENV/bin/python"
 fi
 
