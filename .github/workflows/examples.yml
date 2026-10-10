@@ -186,9 +186,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      # The runner's bundled compose rejects overriding a service brought in
-      # with include: ("conflicts with imported resource"); the pinned plugin
-      # matches what the prerequisites install on Fedora/RHEL.
+      # The runner's bundled compose is older and rejects overriding a service
+      # brought in with include: ("conflicts with imported resource"). Pin the
+      # newest stable compose plugin (v5.6.0) and verify its checksum instead.
       - name: Install docker compose v5.6.0
         env:
           COMPOSE_VERSION: v5.6.0
