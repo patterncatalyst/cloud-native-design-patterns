@@ -1,3 +1,4 @@
+name: cndp-09
 include:
   - path: ../_infra/compose-apicurio.yaml
   - path: ../_infra/compose-lgtm.yaml

@@ -1,3 +1,4 @@
+name: cndp-19-dotnet
 include:
   - path: ../../_infra/compose-postgres.yaml
 

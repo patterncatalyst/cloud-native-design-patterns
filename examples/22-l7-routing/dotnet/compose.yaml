@@ -1,3 +1,4 @@
+name: cndp-22-dotnet
 services:
   envoy:
     image: docker.io/envoyproxy/envoy:v1.31-latest

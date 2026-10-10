@@ -1,4 +1,4 @@
-name: cndp-24
+name: cndp-24-go
 
 include:
   - path: ../../_infra/compose-kafka.yaml

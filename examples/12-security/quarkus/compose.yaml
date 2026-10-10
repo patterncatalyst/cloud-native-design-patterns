@@ -1,3 +1,4 @@
+name: cndp-12-quarkus
 services:
   order-service:
     build:

@@ -1,4 +1,4 @@
-name: cndp-25
+name: cndp-25-go
 
 include:
   - path: ../../_infra/compose-postgres.yaml

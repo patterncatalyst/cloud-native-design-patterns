@@ -1,4 +1,4 @@
-name: cndp-27
+name: cndp-27-go
 
 services:
   flagd:

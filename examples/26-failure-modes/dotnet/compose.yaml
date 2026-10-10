@@ -1,3 +1,4 @@
+name: cndp-26-dotnet
 services:
   backend:
     build:

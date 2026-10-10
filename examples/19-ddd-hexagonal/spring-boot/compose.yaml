@@ -1,3 +1,4 @@
+name: cndp-19-spring-boot
 include:
   - path: ../../_infra/compose-postgres.yaml
 

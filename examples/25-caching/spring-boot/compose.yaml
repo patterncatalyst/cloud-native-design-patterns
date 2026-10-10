@@ -1,3 +1,4 @@
+name: cndp-25-spring-boot
 include:
   - path: ../../_infra/compose-postgres.yaml
   - path: ../../_infra/compose-redis.yaml
