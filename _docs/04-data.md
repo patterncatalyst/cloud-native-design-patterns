@@ -199,7 +199,7 @@ public class OrderService(OrdersDbContext db) : IOrderService
         return order;
     }
 }
-// Wolverine and EF Core also offer built-in transactional outboxes if you prefer the framework path.
+// Wolverine (MIT) ships a transactional outbox with EF Core integration if you prefer the framework path.
 ```
 
 ```python
