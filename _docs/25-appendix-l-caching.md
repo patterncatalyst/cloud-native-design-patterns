@@ -273,8 +273,10 @@ public class CacheConfig {
         return RedisCacheManager.builder(cf)
             .cacheDefaults(RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofSeconds(60))
+                // json() = Jackson 3 with default typing and Spring cache null-value
+                // support, so cache hits come back as Product, not LinkedHashMap
                 .serializeValuesWith(SerializationPair.fromSerializer(
-                    GenericJacksonJsonRedisSerializer.builder().build())))
+                    RedisSerializer.json())))
             .build();
     }
 }
