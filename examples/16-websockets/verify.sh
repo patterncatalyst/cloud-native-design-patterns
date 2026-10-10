@@ -26,6 +26,17 @@ ctr_pause()   { docker pause "$@"; }
 ctr_unpause() { docker unpause "$@"; }
 ctr_compose() { docker compose "$@"; }
 
+# The WebSocket checks use the Python `websockets` client. If the host python3
+# lacks it, install a pinned copy into a cached venv rather than the system.
+PY=python3
+if ! python3 -c 'import websockets' 2>/dev/null; then
+    VENV="${XDG_CACHE_HOME:-$HOME/.cache}/cndp-verify/venv"
+    [ -x "$VENV/bin/python" ] || python3 -m venv "$VENV"
+    "$VENV/bin/python" -c 'import websockets' 2>/dev/null \
+        || "$VENV/bin/pip" install -q websockets==17.2
+    PY="$VENV/bin/python"
+fi
+
 PASS=0
 FAIL=0
 
@@ -55,7 +66,7 @@ check "ws-pod-2 healthz" \
 # --- Connect a WebSocket client to pod-1 ---
 printf '  \xe2\x86\x92 connecting WebSocket client to ws-pod-1...\n'
 WS_OUTPUT=$(mktemp)
-python3 -c "
+"$PY" -c "
 import asyncio, json, websockets, sys
 
 async def main():
@@ -89,7 +100,7 @@ fi
 printf '  \xe2\x86\x92 testing backplane: sending message via ws-pod-2 to client on ws-pod-1...\n'
 
 BACKPLANE_OUTPUT=$(mktemp)
-python3 -c "
+"$PY" -c "
 import asyncio, json, websockets, sys, aiohttp
 
 async def main():
@@ -130,7 +141,7 @@ fi
 printf '  \xe2\x86\x92 testing broadcast via backplane...\n'
 
 BCAST_OUTPUT=$(mktemp)
-python3 -c "
+"$PY" -c "
 import asyncio, json, websockets, sys, aiohttp
 
 async def main():
@@ -169,7 +180,7 @@ fi
 printf '  \xe2\x86\x92 testing sequence-number framing for resume...\n'
 
 SEQ_OUTPUT=$(mktemp)
-python3 -c "
+"$PY" -c "
 import asyncio, json, websockets, sys, aiohttp
 
 async def main():
