@@ -474,26 +474,45 @@ public void consume(Order order) {
 ```
 
 ```csharp
-// Confluent.Kafka: the loop is yours, so the invariant is explicit —
+// Confluent.Kafka + Polly 8: the loop is yours, so the invariant is explicit —
 // bounded in-place retries, then a delayed-retry topic, then a DLQ,
 // and the offset is committed on every branch.
+
+var pipeline = new ResiliencePipelineBuilder()
+    .AddRetry(new RetryStrategyOptions
+    {
+        MaxRetryAttempts = 3, Delay = TimeSpan.FromMilliseconds(200),   // in-place retries
+        BackoffType = DelayBackoffType.Exponential, UseJitter = true,
+        ShouldHandle = new PredicateBuilder().Handle<Exception>(e => e is not ValidationException),
+    })
+    .Build();
 
 while (!ct.IsCancellationRequested)
 {
     var cr = consumer.Consume(ct);
     try
     {
-        await Retry.ExponentialAsync(3, TimeSpan.FromMilliseconds(200),   // in-place retries
-            () => HandleAsync(cr.Message.Value), ignore: typeof(ValidationException));
+        await pipeline.ExecuteAsync(async t => await HandleAsync(cr.Message.Value, t), ct);
     }
     catch (Exception ex)
     {
-        var attempts = Header(cr, "retries");
-        var (topic, hdrs) = attempts < MaxRetries
-            ? ("orders.retry.30s", Headers("retries", attempts + 1))      // delayed retry
-            : ("orders.DLQ", Headers("error", ex.GetType().Name));        // humans or tooling
+        var attempts = cr.Message.Headers.TryGetLastBytes("retries", out var raw)
+            ? int.Parse(Encoding.UTF8.GetString(raw)) : 0;
+        var headers = new Headers();
+        string topic;
+        if (ex is ValidationException || attempts >= MaxRetries)      // 4xx or exhausted → DLQ
+        {
+            topic = "orders.DLQ";                                     // humans or tooling
+            headers.Add("error", Encoding.UTF8.GetBytes(ex.GetType().Name));
+            headers.Add("trace", Encoding.UTF8.GetBytes(Activity.Current?.TraceId.ToString() ?? ""));
+        }
+        else
+        {
+            topic = "orders.retry.30s";                               // delayed retry
+            headers.Add("retries", Encoding.UTF8.GetBytes((attempts + 1).ToString()));
+        }
         await producer.ProduceAsync(topic,
-            new Message<Null, string> { Value = cr.Message.Value, Headers = hdrs });
+            new Message<Null, string> { Value = cr.Message.Value, Headers = headers });
     }
     consumer.Commit(cr);                                // commit so head-of-line is free
 }
