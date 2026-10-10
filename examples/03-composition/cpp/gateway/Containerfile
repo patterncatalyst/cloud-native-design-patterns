@@ -52,11 +52,12 @@ ENV PATH="/opt/rh/gcc-toolset-15/root/usr/bin:/opt/cmake/bin:/opt/conan/bin:${PA
 FROM toolchain AS schemagen
 WORKDIR /src
 COPY gateway/conan-recipes/ conan-recipes/
+COPY gateway/schemagen.lock ./
 RUN --mount=type=cache,target=/root/.conan2,sharing=locked \
     conan profile detect --force \
     && sed -i 's|^compiler.cppstd=.*|compiler.cppstd=23|' "$(conan profile path default)" \
     && conan export conan-recipes/cppgraphqlgen \
-    && conan install --requires=cppgraphqlgen/4.5.9 -o 'cppgraphqlgen/*:schemagen=True' \
+    && conan install --requires=cppgraphqlgen/4.5.9 --lockfile=schemagen.lock -o 'cppgraphqlgen/*:schemagen=True' \
            -o '*/*:shared=False' --build=missing --deployer=full_deploy --deployer-folder=/opt/schemagen \
            -s build_type=Release -c tools.build:jobs="$(nproc)" -c tools.cmake.cmaketoolchain:generator=Ninja \
     && ln -s "$(find /opt/schemagen -name schemagen -type f | head -1)" /usr/local/bin/schemagen

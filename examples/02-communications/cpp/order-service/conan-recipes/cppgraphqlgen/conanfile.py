@@ -30,7 +30,7 @@ class CppGraphQLGenConan(ConanFile):
     def requirements(self):
         self.requires("taocpp-pegtl/3.2.8", transitive_headers=True)
         if self.options.schemagen:
-            self.requires("boost/1.90.0")
+            self.requires("boost/1.91.0")
 
     def validate(self):
         check_min_cppstd(self, 20)
