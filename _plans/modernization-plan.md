@@ -25,7 +25,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | 0b | feature/ci-branch-protection | prereq | done (PR #58; ruleset main 24831520: site, content-ok, examples-ok) |
 | S1 | feature/docker-engine-runtime | 6 | done (111/111 PASS on Docker; final rerun after the Opus review) |
 | S2 | chore/quarkus-3.40-lts | 1 | done (18/18 Quarkus PASS on 3.40.1; closes #32) |
-| S3 | chore/spring-boot-4.1 | 1 | pending |
+| S3 | chore/spring-boot-4.1 | 1 | in progress |
 | S4 | chore/dotnet-10-pins (+ MassTransit/Streamiz) | 3 | pending |
 | S5 | chore/python-3.14 (+ faust) | 5 | pending |
 | S6 | chore/go-toolchain (Go 1.27.2 + locked libraries) | 2+4 | pending |
