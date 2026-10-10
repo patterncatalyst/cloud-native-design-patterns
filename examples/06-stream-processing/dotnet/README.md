@@ -1,11 +1,11 @@
 # Example 06 — Stream Processing (.NET)
 
-Kafka stream processor with tumbling-window aggregation — real-time order counts per SKU.
+Kafka Streams-style topology on Streamiz: tumbling-window revenue per merchant.
 
 ## Framework & libraries
 
-- **Framework**: ASP.NET Core (.NET 10) + BackgroundService processor
-- **Libraries**: Confluent.Kafka, OTel
+- **Framework**: ASP.NET Core (.NET 10.0.12) order service; console host for the processor
+- **Libraries**: Confluent.Kafka 2.16.0 (order service), Streamiz.Kafka.Net 1.8.2 (processor), OTel 1.19
 - **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet (runtime)
 
 ## Run
@@ -25,17 +25,17 @@ cd .. && bash verify.sh
 | Path | Description |
 |------|-------------|
 | `OrderService/` | Program.cs — REST API + Kafka producer |
-| `StreamProcessor/` | Program.cs — BackgroundService with manual tumbling-window aggregation using Confluent.Kafka consumer/producer |
+| `StreamProcessor/` | Program.cs — Streamiz topology: re-key by merchant, tumbling window, aggregate |
 
 ## Implementation notes
 
-Implements tumbling windows manually (no Streamiz in this example) — time-bucketed dictionary flushed on window close. Uses `Confluent.Kafka` consumer + producer directly.
+Same contract as the Quarkus and Spring Boot stream processors: `order.placed` is re-keyed by `merchant_id`, aggregated in a tumbling window with no grace period (`WINDOW_SECONDS`, default 10), and every update is written to `revenue.by-merchant` as `window_start`, `window_end` (epoch seconds), `merchant_id`, `order_count`, `revenue`. `application.id` is `stream-processor` (also the consumer group). A total that is not a number is skipped with a warning; an undeserializable record is logged and skipped. The window state lives in RocksDB under `/tmp/kafka-streams`.
 
 ## Environment variables
 
 Key variables (set by compose.yaml, override for local dev):
 
-`KAFKA_BOOTSTRAP`
+`KAFKA_BOOTSTRAP`, `WINDOW_SECONDS`
 
 ## Local development (without containers)
 
