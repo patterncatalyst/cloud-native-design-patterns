@@ -39,10 +39,14 @@ record per `(merchant_id, window_start)`.
 
 - The Faust app id is the consumer group `stream-processor`; Faust also creates a repartition and
   a changelog topic.
-- The store is `memory://`: the state is small, a window is dropped one window length after it
-  closes, and Faust rebuilds it from the changelog topic on restart, so RocksDB (a native
-  dependency with no Python 3.14 wheel) is not needed.
-- A record that is not valid JSON, or whose `total` is not a number, is logged and skipped.
+- The store is `memory://`: the state is bounded (one entry per merchant and open window, and a
+  window is dropped one window length after it closes) and every write goes to the table's
+  changelog topic, which Faust replays on restart, so the store is rebuilt after a restart
+  and needs no volume.
+- A record that is not valid JSON, whose `total` is not a finite number, or whose total is too
+  large to round to two decimals is logged and skipped. Revenue rounds HALF_UP, like the JVM and
+  .NET versions. As in the Quarkus version, a numeric or boolean `merchant_id` is coerced to its
+  text; a missing, null or empty one drops the record.
 - Faust only declares its own internal topics, so the processor creates `order.placed` and
   `revenue.by-merchant` at startup.
 
