@@ -24,27 +24,28 @@ int main() {
     check(!verify(secret, "exports/report.csv", "GET", m.expires, "tampered"), "garbage token");
     check(!verify("other-secret", "exports/report.csv", "GET", m.expires, m.token), "wrong key");
 
-    // Wrong algorithm: same claims signed HS512 with the right secret.
-    auto hs512 = jwt::create()
-                     .set_issuer(kIssuer)
-                     .set_expires_at(std::chrono::system_clock::now() + std::chrono::minutes(5))
-                     .set_payload_claim("res", jwt::claim(std::string("r")))
-                     .set_payload_claim("op", jwt::claim(std::string("GET")))
-                     .sign(jwt::algorithm::hs512{secret});
-    auto exp = jwt::decode(hs512).get_expires_at().time_since_epoch();
-    check(!verify(secret, "r", "GET",
-                  std::chrono::duration_cast<std::chrono::seconds>(exp).count(), hs512),
+    // Wrong algorithm. Every token below carries identical claims (issuer, res, op, iat and the
+    // same exp), so the algorithm is the only thing that differs. The HS256 control proves the
+    // claims themselves are acceptable; HS512 and alg=none must then be rejected for the
+    // algorithm alone.
+    const auto now = std::chrono::system_clock::now();
+    const auto exp_tp = std::chrono::time_point_cast<std::chrono::seconds>(now + std::chrono::minutes(5));
+    const std::int64_t exp_s = exp_tp.time_since_epoch().count();
+    auto with_claims = [&](auto&& alg) {
+        return jwt::create()
+            .set_type("JWT")
+            .set_issuer(kIssuer)
+            .set_issued_at(now)
+            .set_expires_at(exp_tp)
+            .set_payload_claim("res", jwt::claim(std::string("r")))
+            .set_payload_claim("op", jwt::claim(std::string("GET")))
+            .sign(alg);
+    };
+    check(verify(secret, "r", "GET", exp_s, with_claims(jwt::algorithm::hs256{secret})),
+          "control: same claims signed HS256 verify");
+    check(!verify(secret, "r", "GET", exp_s, with_claims(jwt::algorithm::hs512{secret})),
           "HS512 token rejected");
-
-    // alg=none: unsigned token with valid-looking claims.
-    auto none = jwt::create()
-                    .set_issuer(kIssuer)
-                    .set_expires_at(std::chrono::system_clock::now() + std::chrono::minutes(5))
-                    .set_payload_claim("res", jwt::claim(std::string("r")))
-                    .set_payload_claim("op", jwt::claim(std::string("GET")))
-                    .sign(jwt::algorithm::none{});
-    check(!verify(secret, "r", "GET",
-                  std::chrono::duration_cast<std::chrono::seconds>(exp).count(), none),
+    check(!verify(secret, "r", "GET", exp_s, with_claims(jwt::algorithm::none{})),
           "alg=none token rejected");
 
     // Expired: minted with a negative ttl.
