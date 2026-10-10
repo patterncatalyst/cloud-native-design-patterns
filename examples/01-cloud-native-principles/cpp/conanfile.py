@@ -1,6 +1,6 @@
 """examples/01-cloud-native-principles/cpp: Conan 2 recipe.
 
-Drogon REST service with libpq (direct, no libpqxx), spdlog logging and OpenTelemetry
+Drogon REST service with libpq (the direct C client), spdlog logging and OpenTelemetry
 C++ (OTLP over HTTP). Exact pins; ConanCenter is the only remote.
 """
 

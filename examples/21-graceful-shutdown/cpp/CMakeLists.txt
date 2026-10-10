@@ -19,7 +19,7 @@ set(CMAKE_CXX_LINK_EXECUTABLE
 
 find_package(Drogon CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
-find_package(PostgreSQL REQUIRED)  # libpq from Conan (direct C client, no libpqxx)
+find_package(PostgreSQL REQUIRED)  # libpq from Conan (the direct C client)
 find_package(Threads REQUIRED)
 
 add_executable(order-service src/main.cpp)

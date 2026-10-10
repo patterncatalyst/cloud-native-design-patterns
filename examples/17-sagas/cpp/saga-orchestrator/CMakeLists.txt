@@ -16,7 +16,7 @@ set(CMAKE_CXX_LINK_EXECUTABLE
      <OBJECTS> -o <TARGET> -Wl,--start-group <LINK_LIBRARIES> -Wl,--end-group")
 
 find_package(Drogon CONFIG REQUIRED)
-find_package(PostgreSQL REQUIRED)  # libpq from Conan (direct C client, no libpqxx)
+find_package(PostgreSQL REQUIRED)  # libpq from Conan (the direct C client)
 find_package(sml CONFIG REQUIRED)  # boost::sml, standalone
 
 add_executable(saga-orchestrator src/main.cpp)
