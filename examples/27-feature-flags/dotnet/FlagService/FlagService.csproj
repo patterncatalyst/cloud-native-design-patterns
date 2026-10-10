@@ -6,8 +6,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="OpenFeature" Version="2.*" />
-    <PackageReference Include="OpenFeature.Contrib.Providers.Flagd" Version="0.*" />
+    <PackageReference Include="OpenFeature" Version="2.14.1" />
+    <PackageReference Include="OpenFeature.Contrib.Providers.Flagd" Version="0.5.0" />
   </ItemGroup>
 
 </Project>

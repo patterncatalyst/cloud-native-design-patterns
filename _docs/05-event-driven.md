@@ -114,7 +114,7 @@ public class Notifier {
 
 ```csharp
 // Confluent.Kafka — low-level Kafka client (Apache 2.0);
-// MassTransit wraps this when you need sagas, retries, and the outbox.
+// Pin the version (2.16.0 here) and disable auto-commit for at-least-once processing.
 
 // producer — order-service emits the fact
 var producer = new ProducerBuilder<Null, string>(
@@ -1102,14 +1102,18 @@ public PaymentResult onOrder(Order o) {
 ```
 
 ```csharp
-public async Task Consume(ConsumeContext<OrderPlaced> ctx)
+while (consumer.Consume(ct) is { } msg)                              // a choreographed saga step
 {
+    var o = JsonSerializer.Deserialize<OrderPlaced>(msg.Message.Value)!;
     try {
-        await _payments.Charge(ctx.Message.OrderId, ctx.Message.Total);  // local tx
-        await ctx.Publish(new PaymentTaken(ctx.Message.OrderId));        // advance
+        await payments.Charge(o.OrderId, o.Total);                   // local tx
+        await producer.ProduceAsync("payment.taken", new Message<string, string> {
+            Key = o.OrderId, Value = JsonSerializer.Serialize(new PaymentTaken(o.OrderId)) });   // advance
     } catch (PaymentDeclined) {
-        await ctx.Publish(new PaymentFailed(ctx.Message.OrderId));       // compensate
+        await producer.ProduceAsync("payment.failed", new Message<string, string> {
+            Key = o.OrderId, Value = JsonSerializer.Serialize(new PaymentFailed(o.OrderId)) });  // compensate
     }
+    consumer.Commit(msg);                                            // commit after the side effect
 }
 ```
 

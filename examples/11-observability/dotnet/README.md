@@ -4,9 +4,9 @@ Distributed tracing, structured logging, and metrics across REST + gRPC + Kafka 
 
 ## Framework & libraries
 
-- **Framework**: ASP.NET Core (.NET 10)
-- **Libraries**: OpenTelemetry.Extensions.Hosting, OpenTelemetry.Instrumentation.AspNetCore, Confluent.Kafka, Grpc.Net.Client
-- **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet (runtime)
+- **Framework**: ASP.NET Core (.NET 10.0.12)
+- **Libraries**: OpenTelemetry.Extensions.Hosting, OpenTelemetry.Instrumentation.AspNetCore, Confluent.Kafka 2.16.0, Grpc.Net.Client
+- **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520 (runtime), built with ubi9/dotnet-100:9.8-1791421718; runs as UID 1001
 
 ## Run
 
@@ -40,7 +40,7 @@ Key variables (set by compose.yaml, override for local dev):
 
 ## Local development (without containers)
 
-Requires .NET 10 SDK.
+Requires the .NET 10 SDK (10.0.112, runtime 10.0.12).
 
 ```bash
 dotnet run --project OrderService

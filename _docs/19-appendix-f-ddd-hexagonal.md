@@ -200,7 +200,7 @@ public class OrderController(PlaceOrder placeOrder) : ControllerBase
 }
 
 // outbound adapters (separate project): EfCoreOrderRepository : IOrderRepository,
-//                                       MassTransitEventPublisher : IEventPublisher.
+//                                       KafkaEventPublisher : IEventPublisher.
 // Wire them in Program.cs: builder.Services.AddScoped<IOrderRepository, …>();
 ```
 

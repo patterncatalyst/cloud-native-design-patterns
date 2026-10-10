@@ -6,9 +6,9 @@ circuit with no polling.
 
 ## Framework & libraries
 
-- **Framework**: ASP.NET Core (.NET 10) Blazor Server
-- **Libraries**: SignalR (hub + client), SignalR.StackExchangeRedis (backplane), Npgsql (Postgres), OTel
-- **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet (runtime)
+- **Framework**: ASP.NET Core (.NET 10.0.12) Blazor Server
+- **Libraries**: SignalR 10.0.12 (hub + client), SignalR.StackExchangeRedis 10.0.12 (backplane), Npgsql 10.0.3 (Postgres), OTel 1.19
+- **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520 (runtime), built with ubi9/dotnet-100:9.8-1791421718; runs as UID 1001
 
 ## Run
 
@@ -44,7 +44,7 @@ to push the event to all connected dashboard clients.
 
 The Redis backplane (`AddStackExchangeRedis`) ensures that push messages reach clients
 connected to any pod — the same scaling solution discussed in Appendix C, built into
-SignalR with one line of config.
+SignalR with one line of config. `compose.yaml` runs two instances of the dashboard (host ports 8080 and 8081) against the same Redis, and `verify.sh` publishes through one and receives on the other.
 
 ## Environment variables
 

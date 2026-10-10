@@ -4,9 +4,9 @@ API gateway pattern — BFF gateway aggregating order-api and inventory-service 
 
 ## Framework & libraries
 
-- **Framework**: ASP.NET Core (.NET 10) minimal API
+- **Framework**: ASP.NET Core (.NET 10.0.12) minimal API
 - **Libraries**: HotChocolate.AspNetCore (GraphQL), Grpc.Net.Client, Google.Protobuf
-- **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet (runtime)
+- **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520 (runtime), built with ubi9/dotnet-100:9.8-1791421718; runs as UID 1001
 
 ## Run
 
@@ -40,7 +40,7 @@ Key variables (set by compose.yaml, override for local dev):
 
 ## Local development (without containers)
 
-Requires .NET 10 SDK.
+Requires the .NET 10 SDK (10.0.112, runtime 10.0.12).
 
 ```bash
 dotnet run --project Gateway

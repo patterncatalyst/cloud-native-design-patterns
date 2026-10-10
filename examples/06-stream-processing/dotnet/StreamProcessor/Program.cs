@@ -1,159 +1,158 @@
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text.Json;
-using Confluent.Kafka;
+using Streamiz.Kafka.Net;
+using Streamiz.Kafka.Net.SerDes;
+using Streamiz.Kafka.Net.Stream;
+using Streamiz.Kafka.Net.Table;
 using OpenTelemetry;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
+// order.placed -> tumbling window per merchant -> revenue.by-merchant.
+//
+// The windowed aggregate is a KTable; every update to a (merchant, window) row is emitted
+// downstream, so a window yields a running total that settles when the window closes.
+// Consumers keep the latest record per (merchant_id, window_start).
+
+const string Orders = "order.placed";
+const string Revenue = "revenue.by-merchant";
+
 var kafkaBootstrap = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP") ?? "kafka:9094";
 var otelEndpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") ?? "http://lgtm:4318";
-var windowSeconds = int.Parse(Environment.GetEnvironmentVariable("WINDOW_SECONDS") ?? "300");
+var windowSeconds = int.Parse(Environment.GetEnvironmentVariable("WINDOW_SECONDS") ?? "10");
 
 using var tracerProvider = Sdk.CreateTracerProviderBuilder()
     .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("stream-processor"))
     .AddOtlpExporter(o => o.Endpoint = new Uri(otelEndpoint))
     .Build();
-var tracer = tracerProvider!.GetTracer("stream-processor");
+
+var config = new StreamConfig<StringSerDes, StringSerDes>
+{
+    // application.id is also the consumer group (verify.sh looks for "stream-processor")
+    ApplicationId = "stream-processor",
+    BootstrapServers = kafkaBootstrap,
+    AutoOffsetReset = Confluent.Kafka.AutoOffsetReset.Earliest,
+    // Emit updated window aggregates every second instead of every 30 s (default)
+    CommitIntervalMs = 1000,
+    DefaultStateStoreCacheMaxBytes = 0,
+    StateDir = "/tmp/kafka-streams",
+    // A record that cannot be deserialized is logged and skipped, not fatal
+    DeserializationExceptionHandler = (_, record, ex) =>
+    {
+        Console.WriteLine($"WARN skipping undeserializable record topic={record.Topic} offset={record.Offset}: {ex.Message}");
+        return ExceptionHandlerResponse.CONTINUE;
+    },
+};
+
+var builder = new StreamBuilder();
+
+builder.Stream<string, string>(Orders)
+    .Map((_, json, _) => Rekey(json))
+    .Filter((merchant, _, _) => merchant.Length > 0)
+    .GroupByKey()
+    .WindowedBy(TumblingWindowOptions.Of(TimeSpan.FromSeconds(windowSeconds), TimeSpan.Zero))
+    .Aggregate(
+        () => new Acc(),
+        (merchant, amount, acc) => Add(merchant, acc, amount),
+        RocksDbWindows.As<string, Acc>("revenue-store")
+            .WithKeySerdes(new StringSerDes())
+            .WithValueSerdes(new JsonSerDes<Acc>()))
+    .ToStream()
+    .Map((window, acc, _) =>
+    {
+        var merchant = window.Key;
+        var start = window.Window.StartMs / 1000;
+        var revenue = Math.Round(acc.Total, 2, MidpointRounding.AwayFromZero) + 0.00m; // scale 2, like BigDecimal
+        Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
+            "emitted revenue window={0} merchant={1} count={2} revenue={3:F2}",
+            start, merchant, acc.Count, revenue));
+        var json = JsonSerializer.Serialize(new Dictionary<string, object>
+        {
+            ["window_start"] = start,
+            ["window_end"] = start + windowSeconds,
+            ["merchant_id"] = merchant,
+            ["order_count"] = acc.Count,
+            ["revenue"] = revenue,
+        });
+        return KeyValuePair.Create(merchant, json);
+    })
+    .To<StringSerDes, StringSerDes>(Revenue);
+
+// Streamiz needs the source topic to size the repartition topic. Its clients default to
+// allow.auto.create.topics=false, so neither topic is created on first use: create both
+// up front (the broker defaults apply).
+await EnsureTopic(kafkaBootstrap, Orders);
+await EnsureTopic(kafkaBootstrap, Revenue);
+
+var stream = new KafkaStream(builder.Build(), config);
 
 using var cts = new CancellationTokenSource();
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 PosixSignalRegistration.Create(PosixSignal.SIGTERM, _ => cts.Cancel());
 
-var windows = new Dictionary<long, Dictionary<string, (int count, double total)>>();
+await stream.StartAsync(cts.Token);
+Console.WriteLine("Stream processor started");
+try { await Task.Delay(Timeout.Infinite, cts.Token); }
+catch (OperationCanceledException) { }
+stream.Dispose();
 
-long GetWindowStart(long epochSeconds) => epochSeconds / windowSeconds * windowSeconds;
-
-IConsumer<Ignore, string>? consumer = null;
-for (var i = 0; i < 30; i++)
+static async Task EnsureTopic(string bootstrap, string topic)
 {
-    try
+    using var admin = new Confluent.Kafka.AdminClientBuilder(
+        new Confluent.Kafka.AdminClientConfig { BootstrapServers = bootstrap }).Build();
+    for (var attempt = 1; attempt <= 30; attempt++)
     {
-        consumer = new ConsumerBuilder<Ignore, string>(new ConsumerConfig
-        {
-            BootstrapServers = kafkaBootstrap,
-            GroupId = "stream-processor",
-            AutoOffsetReset = AutoOffsetReset.Earliest,
-            EnableAutoCommit = false
-        }).Build();
-        consumer.Subscribe("order.placed");
-        Console.WriteLine("Stream processor started");
-        break;
-    }
-    catch
-    {
-        Console.WriteLine($"Kafka not ready, retry {i + 1}/30");
-        Thread.Sleep(2000);
-    }
-}
-
-if (consumer is null) { Console.WriteLine("Failed to connect to Kafka"); return; }
-
-IProducer<Null, string>? producer = null;
-for (var i = 0; i < 30; i++)
-{
-    try
-    {
-        producer = new ProducerBuilder<Null, string>(
-            new ProducerConfig { BootstrapServers = kafkaBootstrap }).Build();
-        break;
-    }
-    catch { Thread.Sleep(2000); }
-}
-
-if (producer is null) { Console.WriteLine("Failed to create Kafka producer"); return; }
-
-try
-{
-    while (!cts.Token.IsCancellationRequested)
-    {
-        ConsumeResult<Ignore, string>? cr;
-        try { cr = consumer.Consume(TimeSpan.FromSeconds(1)); }
-        catch (OperationCanceledException) { break; }
-        catch (ConsumeException) { Thread.Sleep(1000); continue; }
-        if (cr is null)
-        {
-            FlushExpiredWindows(producer, tracer);
-            continue;
-        }
-
-        using var span = tracer.StartActiveSpan("process_order");
         try
         {
-            using var doc = JsonDocument.Parse(cr.Message.Value);
-            var root = doc.RootElement;
-            var merchantId = root.GetProperty("merchant_id").GetString()!;
-            var orderTotal = root.GetProperty("total").GetDouble();
-
-            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var windowStart = GetWindowStart(now);
-
-            if (!windows.TryGetValue(windowStart, out var merchants))
+            await admin.CreateTopicsAsync(new[]
             {
-                merchants = new Dictionary<string, (int count, double total)>();
-                windows[windowStart] = merchants;
-            }
-
-            var current = merchants.GetValueOrDefault(merchantId);
-            merchants[merchantId] = (current.count + 1, current.total + orderTotal);
-
-            consumer.Commit(cr);
+                new Confluent.Kafka.Admin.TopicSpecification { Name = topic, NumPartitions = -1, ReplicationFactor = -1 },
+            });
+            return;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Confluent.Kafka.Admin.CreateTopicsException e)
+            when (e.Results.All(r => r.Error.Code == Confluent.Kafka.ErrorCode.TopicAlreadyExists))
         {
-            Console.WriteLine($"Error processing: {ex.Message}");
+            return;
         }
-
-        FlushExpiredWindows(producer, tracer);
+        catch (Exception e)
+        {
+            Console.WriteLine($"Kafka not ready, retry {attempt}/30: {e.Message}");
+            await Task.Delay(2000);
+        }
     }
-}
-finally
-{
-    FlushAllWindows(producer, tracer);
-    consumer.Close();
-    producer.Flush(TimeSpan.FromSeconds(5));
+    throw new InvalidOperationException($"could not reach Kafka at {bootstrap}");
 }
 
-void FlushExpiredWindows(IProducer<Null, string> p, Tracer t)
+/// <summary>Re-keys an order event by merchant (empty key = unusable record, filtered out); the value is the order total.</summary>
+static KeyValuePair<string, string> Rekey(string json)
 {
-    var currentWindow = GetWindowStart(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-    var expired = windows.Keys.Where(w => w < currentWindow).ToList();
-    foreach (var ws in expired)
+    try
     {
-        if (windows.Remove(ws, out var merchants))
-            EmitWindow(p, t, ws, merchants);
+        using var doc = JsonDocument.Parse(json);
+        var merchant = doc.RootElement.GetProperty("merchant_id").GetString() ?? "";
+        var amount = doc.RootElement.TryGetProperty("total", out var t) && t.ValueKind != JsonValueKind.Null
+            ? t.ToString() : "0";
+        return KeyValuePair.Create(merchant, amount);
     }
-}
-
-void FlushAllWindows(IProducer<Null, string> p, Tracer t)
-{
-    foreach (var (ws, merchants) in windows)
-        EmitWindow(p, t, ws, merchants);
-    windows.Clear();
-}
-
-void EmitWindow(IProducer<Null, string> p, Tracer t, long windowStart, Dictionary<string, (int count, double total)> merchants)
-{
-    var windowEnd = windowStart + windowSeconds;
-    foreach (var (merchantId, (count, total)) in merchants)
+    catch (Exception)
     {
-        using var span = t.StartActiveSpan("emit_aggregate");
-        var agg = new
-        {
-            window_start = windowStart,
-            window_end = windowEnd,
-            merchant_id = merchantId,
-            order_count = count,
-            revenue = Math.Round(total, 2)
-        };
-        var json = JsonSerializer.Serialize(agg);
-        try
-        {
-            p.Produce("revenue.by-merchant", new Message<Null, string> { Value = json });
-            Console.WriteLine($"Emitted aggregate: {merchantId} count={count} revenue={total:F2} window=[{windowStart},{windowEnd})");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Failed to emit aggregate: {ex.Message}");
-        }
+        return KeyValuePair.Create("", "");
     }
+}
+
+/// <summary>A total that is not a number skips the record instead of killing the stream thread.</summary>
+static Acc Add(string merchant, Acc acc, string amount)
+{
+    if (decimal.TryParse(amount, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+        return new Acc { Count = acc.Count + 1, Total = acc.Total + value };
+    Console.WriteLine($"WARN skipping order with invalid total merchant={merchant} total={amount}");
+    return acc;
+}
+
+public class Acc
+{
+    public int Count { get; set; }
+    public decimal Total { get; set; }
 }
