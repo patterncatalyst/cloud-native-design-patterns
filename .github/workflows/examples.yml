@@ -73,6 +73,11 @@ jobs:
           DIR: ${{ matrix.dir }}
         run: |
           test -f "$DIR/pom.xml" || { echo "::error::no pom.xml in $DIR"; exit 1; }
+          # gRPC services share <lang>/proto/; their Dockerfile copies it into
+          # src/main/proto before building, so do the same here.
+          if [ -d "$DIR/../proto" ] && [ ! -e "$DIR/src/main/proto" ]; then
+            cp -r "$DIR/../proto" "$DIR/src/main/proto"
+          fi
           mvn -B -ntp -q -f "$DIR/pom.xml" package -DskipTests
 
   dotnet:
