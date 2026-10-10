@@ -6,7 +6,7 @@ RFC 9457 Problem Details for REST errors, gRPC status codes with rich error deta
 
 - **Framework**: Quarkus 3.40.1 LTS (RESTEasy Reactive, gRPC)
 - **Libraries**: quarkus-rest, quarkus-rest-jackson, quarkus-grpc, quarkus-opentelemetry
-- **Container base**: UBI10 / OpenJDK 25
+- **Container base**: `registry.access.redhat.com/ubi10/openjdk-25:1.24-15` (build), `registry.access.redhat.com/ubi10/openjdk-25-runtime:1.24-15` (runtime)
 
 ## Run
 
