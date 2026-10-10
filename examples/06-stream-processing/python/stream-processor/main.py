@@ -11,7 +11,7 @@ import json
 import logging
 import os
 from datetime import timedelta
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 import faust
 from aiokafka.admin import AIOKafkaAdminClient, NewTopic
@@ -69,12 +69,20 @@ revenue = app.Table(
 
 
 def parse(raw: bytes | None) -> tuple[str, str] | None:
-    """Return (merchant_id, total) for a usable order event, otherwise None."""
+    """Return (merchant_id, total) for a usable order event, otherwise None.
+
+    merchant_id follows the Quarkus version (Jackson asText()): a string is used as is, a
+    number or boolean is coerced to its JSON text, and a missing, null, empty or
+    object/array merchant_id drops the record.
+    """
     try:
         event = json.loads(raw)
         merchant = event["merchant_id"]
         total = event.get("total")
-        if not isinstance(merchant, str) or not merchant:
+        if merchant is None or isinstance(merchant, (dict, list)):
+            return None
+        merchant = merchant if isinstance(merchant, str) else json.dumps(merchant)
+        if not merchant:
             return None
         return merchant, "0" if total is None else str(total)
     except (TypeError, ValueError, KeyError, AttributeError):
@@ -112,11 +120,17 @@ async def aggregate(orders):
             span.set_attribute("merchant.id", merchant)
             span.set_attribute("window.start", start)
             acc = revenue[merchant].value()
-            count = acc["count"] + 1
             total = Decimal(acc["total"]) + value
+            # HALF_UP, like the JVM version (and .NET MidpointRounding.AwayFromZero). A total
+            # too large to quantize is skipped, like an invalid one, before the state changes.
+            try:
+                shown = total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            except InvalidOperation:
+                log.warning("skipping order with total out of range merchant=%s total=%s", merchant, amount)
+                continue
+            count = acc["count"] + 1
             revenue[merchant] = {"count": count, "total": str(total)}
 
-        shown = total.quantize(Decimal("0.01"))
         log.info("emitted revenue window=%d merchant=%s count=%d revenue=%s", start, merchant, count, shown)
         # revenue is spliced in as a JSON number with exactly two decimals
         body = '{"window_start": %d, "window_end": %d, "merchant_id": %s, "order_count": %d, "revenue": %s}' % (
