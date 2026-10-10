@@ -1,3 +1,4 @@
+name: cndp-24-dotnet
 include:
   - path: ../../_infra/compose-kafka.yaml
   - path: ../../_infra/compose-redis.yaml

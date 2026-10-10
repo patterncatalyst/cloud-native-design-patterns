@@ -1,3 +1,4 @@
+name: cndp-11-python
 include:
   - path: ../../_infra/compose-lgtm.yaml
   - path: ../../_infra/compose-postgres.yaml

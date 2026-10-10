@@ -25,7 +25,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | 0b | feature/ci-branch-protection | prereq | done (PR #58; ruleset main 24831520: site, content-ok, examples-ok) |
 | S1 | feature/docker-engine-runtime | 6 | done (111/111 PASS on Docker; final rerun after the Opus review) |
 | S2 | chore/quarkus-3.40-lts | 1 | done (18/18 Quarkus PASS on 3.40.1; closes #32) |
-| S3 | chore/spring-boot-4.1 | 1 | pending |
+| S3 | chore/spring-boot-4.1 | 1 | done (111/111 PASS after the Opus review; closes #31) |
 | S4 | chore/dotnet-10-pins (+ MassTransit/Streamiz) | 3 | pending |
 | S5 | chore/python-3.14 (+ faust) | 5 | pending |
 | S6 | chore/go-toolchain (Go 1.27.2 + locked libraries) | 2+4 | pending |
@@ -142,6 +142,15 @@ Defects the baseline found and fixed in S1:
 - No source changes were needed for 3.33 to 3.40.
 - Live: **18/18 Quarkus targets PASS**, rerun from the final tree after the Opus review; counts unchanged.
 
+### S3 Spring Boot 4.1.1 (2026-10-10)
+
+- 31/31 Spring Boot projects on 4.1.1, Java 25, Spring Framework 7, Jackson 3 (`tools.jackson`), Boot 4 starters (`spring-boot-starter-webmvc`, `spring-boot-starter-kafka`), Spring Kafka 4 Jackson serializers.
+- OpenTelemetry Java agent 2.32.0 (SHA-256 verified against Maven Central) replaces the starter in the 16 services that export telemetry; logback MDC supplies `trace_id`.
+- Pinned `ubi10/openjdk-25[-runtime]:1.24-15`, non-root UID 185, group-0 ownership.
+- gRPC projects read `../proto` via `protoSourceRoot`; CI no longer copies protos.
+- Locked stack: 06 stream processor rewritten as a Kafka Streams topology (same contract as Quarkus); everything else already used Spring Kafka and spring-boot-starter-websocket.
+- Every example compose file has a unique project name `cndp-<NN>-<lang>`: before this, examples of one language shared images, networks and named volumes.
+- Live: 18/18 Spring Boot PASS on the first run; after the Opus review fixes (caching and observability codetabs, MDC-only trace_id, native access for RocksDB, dead OTEL env, compose names) the **full matrix was rerun: 111/111 PASS**.
+
 Carried forward:
 - S4: extend `examples/30-blazor-signalr/verify.sh` to cover Redis backplane scale-out and circuit recovery (the footer states they are not yet covered).
-- S3: make the Spring Boot gRPC projects build with plain `mvn package` (CI still copies `../proto` for them), and move the Spring Boot 06 stream processor to Kafka Streams (the lock; it is hand-rolled today).

@@ -1,3 +1,4 @@
+name: cndp-16-dotnet
 include:
   - path: ../../_infra/compose-lgtm.yaml
   - path: ../../_infra/compose-redis.yaml

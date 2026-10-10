@@ -74,11 +74,11 @@ infrastructure it needs. All containers use the `cndp-` prefix.
 
 - **Same API contract**: All language implementations expose identical REST/gRPC/GraphQL
   endpoints on the same ports — `verify.sh` works with any language.
-- **Red Hat UBI base images**: Application containers use UBI10 (Quarkus/JDK 25) or
-  UBI9 (Python, .NET, Spring Boot); infrastructure services use upstream images.
+- **Red Hat UBI base images**: Application containers use UBI10 (Spring Boot and Quarkus on JDK 25) or
+  UBI9 (Python, .NET); infrastructure services use upstream images.
 - **Per-language README**: Each language directory has its own README with framework details,
   implementation notes, and local development instructions.
-- **Six language stacks**: Spring Boot, Quarkus 3.40.1 LTS, .NET 10, Python (FastAPI), C++
+- **Six language stacks**: Spring Boot 4.1.1, Quarkus 3.40.1 LTS, .NET 10, Python (FastAPI), C++
   (Drogon) and Go (`net/http`) — all sharing the same API contract and `verify.sh`.
 - **Build files**: each service builds from a `Containerfile` (`Containerfile.<svc>` for
   .NET); compose references it with `build.dockerfile: Containerfile`.

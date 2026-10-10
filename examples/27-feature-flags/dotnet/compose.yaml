@@ -1,3 +1,4 @@
+name: cndp-27-dotnet
 services:
   flagd:
     image: ghcr.io/open-feature/flagd:latest

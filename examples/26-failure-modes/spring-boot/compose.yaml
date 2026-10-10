@@ -1,3 +1,4 @@
+name: cndp-26-spring-boot
 services:
   backend:
     build:

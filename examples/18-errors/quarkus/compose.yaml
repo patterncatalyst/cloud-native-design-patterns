@@ -1,3 +1,4 @@
+name: cndp-18-quarkus
 services:
   lgtm:
     image: docker.io/grafana/otel-lgtm:0.8.1

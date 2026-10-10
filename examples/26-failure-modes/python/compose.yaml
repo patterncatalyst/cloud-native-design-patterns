@@ -1,3 +1,4 @@
+name: cndp-26-python
 services:
   backend:
     build:

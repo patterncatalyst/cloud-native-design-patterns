@@ -1,4 +1,4 @@
-name: cndp-02
+name: cndp-02-cpp
 
 include:
   - path: ../../_infra/compose-lgtm.yaml

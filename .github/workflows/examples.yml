@@ -61,8 +61,7 @@ jobs:
         dir: ${{ fromJSON(needs.changes.outputs.jvm) }}
     steps:
       - uses: actions/checkout@v7
-      # The poms target Java 21 (Spring Boot) or 25 (Quarkus) through
-      # maven.compiler.release, and JDK 25 builds both.
+      # Spring Boot and Quarkus poms both target Java 25.
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
@@ -73,15 +72,6 @@ jobs:
           DIR: ${{ matrix.dir }}
         run: |
           test -f "$DIR/pom.xml" || { echo "::error::no pom.xml in $DIR"; exit 1; }
-          # gRPC projects share <lang>/proto/. Copy it under src/main/proto only
-          # when the pom generates code from protos (protobuf-maven-plugin or
-          # quarkus-grpc) and does not already point at the shared directory with
-          # quarkus.grpc.codegen.proto-directory, as the Quarkus poms do.
-          if [ -d "$DIR/../proto" ] && [ ! -e "$DIR/src/main/proto" ] \
-             && grep -qE 'protobuf-maven-plugin|quarkus-grpc' "$DIR/pom.xml" \
-             && ! grep -q 'quarkus.grpc.codegen.proto-directory' "$DIR/pom.xml"; then
-            cp -r "$DIR/../proto" "$DIR/src/main/proto"
-          fi
           mvn -B -ntp -q -f "$DIR/pom.xml" package -DskipTests
 
   dotnet:

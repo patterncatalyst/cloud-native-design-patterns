@@ -1,17 +1,20 @@
-FROM registry.access.redhat.com/ubi9/openjdk-21 AS build
+FROM registry.access.redhat.com/ubi10/openjdk-25:1.24-15 AS build
 USER root
 RUN microdnf install -y maven && microdnf clean all
 USER default
-WORKDIR /home/default
+RUN mkdir -p /home/default/build/inventory-service
+WORKDIR /home/default/build/inventory-service
 COPY inventory-service/pom.xml pom.xml
-COPY proto/ src/main/proto/
+COPY proto/ ../proto/
 # Maven Central throttles bursts of fresh downloads (HTTP 429); retry with backoff.
 ENV MAVEN_ARGS="-Daether.transport.http.retryHandler.count=8 -Daether.transport.http.retryHandler.interval=5000 -Daether.transport.http.retryHandler.serviceUnavailable=429,503"
 RUN --mount=type=cache,target=/home/default/.m2,uid=185 mvn dependency:go-offline -B
 COPY inventory-service/src src
 RUN --mount=type=cache,target=/home/default/.m2,uid=185 mvn package -DskipTests -B
 
-FROM registry.access.redhat.com/ubi9/openjdk-21-runtime
-COPY --from=build /home/default/target/*.jar /deployments/app.jar
+FROM registry.access.redhat.com/ubi10/openjdk-25-runtime:1.24-15
+WORKDIR /deployments
+COPY --from=build --chown=185:0 --chmod=g=u /home/default/build/inventory-service/target/*.jar app.jar
+USER 185
 EXPOSE 50051
 CMD ["java", "-jar", "/deployments/app.jar"]

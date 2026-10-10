@@ -4,9 +4,9 @@ RFC 9457 Problem Details for REST errors, gRPC status codes with rich error deta
 
 ## Framework & libraries
 
-- **Framework**: Spring Boot (Web, gRPC)
-- **Libraries**: spring-boot-starter-web, grpc-netty-shaded, grpc-protobuf
-- **Container base**: eclipse-temurin:21-jre
+- **Framework**: Spring Boot 4.1.1, Java 25 (Web, gRPC)
+- **Libraries**: spring-boot-starter-webmvc, grpc-netty-shaded, grpc-protobuf, OpenTelemetry Java agent 2.32.0
+- **Container base**: `ubi10/openjdk-25-runtime:1.24-15` (UID 185)
 
 ## Run
 
@@ -31,6 +31,8 @@ cd .. && bash verify.sh
 
 Uses Spring's `ProblemDetail` class (built-in since Spring 6). gRPC errors include trailing metadata with structured error info.
 
+The gRPC contract lives in `proto/` next to the services. The poms set the protobuf-maven-plugin `protoSourceRoot` to `${project.basedir}/../proto`, so `mvn package` works from a service directory with no copy into `src/main/proto`. Containerfiles copy `proto/` beside the service sources for the same reason.
+
 ## Environment variables
 
 Key variables (set by compose.yaml, override for local dev):
@@ -39,10 +41,10 @@ Key variables (set by compose.yaml, override for local dev):
 
 ## Local development (without containers)
 
-Requires JDK 21+, Maven (wrapper included).
+Requires JDK 25 and Maven 3.9+.
 
 ```bash
-./mvnw spring-boot:run
+mvn spring-boot:run
 ```
 
 Requires a running Postgres (and Kafka/Redis if the example uses them) —

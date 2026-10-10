@@ -1,3 +1,4 @@
+name: cndp-02-spring-boot
 include:
   - path: ../../_infra/compose-lgtm.yaml
   - path: ../../_infra/compose-postgres.yaml
@@ -17,9 +18,6 @@ services:
       lgtm:
         condition: service_healthy
     environment:
-      - OTEL_SERVICE_NAME=inventory
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
-      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
       - INITIAL_STOCK=100
 
   order-service:

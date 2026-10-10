@@ -1,3 +1,4 @@
+name: cndp-21-python
 include:
   - path: ../../_infra/compose-postgres.yaml
 
