@@ -64,7 +64,7 @@ check_status "readyz returns 200 (ready)" \
 
 # --- Place some orders to confirm service works ---
 check_status "POST /orders returns 201" \
-    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"widget\",\"quantity\":1}' $BASE/orders" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"widget-before-restart\",\"quantity\":1}' $BASE/orders" \
     "201"
 
 # --- Send SIGTERM and verify readiness flips ---
@@ -105,13 +105,13 @@ check_status "readyz returns 200 after restart" \
     "200"
 
 check_status "POST /orders works after restart" \
-    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"widget\",\"quantity\":1}' $BASE/orders" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"widget-after-restart\",\"quantity\":1}' $BASE/orders" \
     "201"
 
 # --- Verify previous orders survived the restart ---
 check "orders from before restart are still present" \
     "curl $CURL_OPTS -sf $BASE/orders" \
-    '"widget"'
+    'widget-before-restart'
 
 printf '\n==> Results: %d passed, %d failed\n' "$PASS" "$FAIL"
 [[ $FAIL -eq 0 ]] && printf '==> PASS\n' || { printf '==> FAIL\n'; exit 1; }
