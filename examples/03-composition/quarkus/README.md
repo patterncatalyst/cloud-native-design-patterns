@@ -64,3 +64,7 @@ Open http://localhost:8080/q/graphql-ui in your browser for interactive queries.
 ```bash
 docker compose down -v
 ```
+
+## Shared proto
+
+The gRPC contract lives in `proto/` next to the services. The poms set `quarkus.grpc.codegen.proto-directory` to `${project.basedir}/../proto`, so `mvn package` works from a service directory with no copy into `src/main/proto`. Containerfiles copy `proto/` beside the service sources for the same reason.

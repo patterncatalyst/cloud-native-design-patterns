@@ -4,7 +4,7 @@ RFC 9457 Problem Details for REST errors, gRPC status codes with rich error deta
 
 ## Framework & libraries
 
-- **Framework**: Quarkus 3.33.2 LTS (RESTEasy Reactive, gRPC)
+- **Framework**: Quarkus 3.40.1 LTS (RESTEasy Reactive, gRPC)
 - **Libraries**: quarkus-rest, quarkus-rest-jackson, quarkus-grpc, quarkus-opentelemetry
 - **Container base**: UBI10 / OpenJDK 25
 
@@ -50,3 +50,7 @@ mvn quarkus:dev
 ```bash
 docker compose down -v
 ```
+
+## Shared proto
+
+The gRPC contract lives in `proto/` next to the services. The poms set `quarkus.grpc.codegen.proto-directory` to `${project.basedir}/../proto`, so `mvn package` works from a service directory with no copy into `src/main/proto`. Containerfiles copy `proto/` beside the service sources for the same reason.

@@ -73,9 +73,11 @@ jobs:
           DIR: ${{ matrix.dir }}
         run: |
           test -f "$DIR/pom.xml" || { echo "::error::no pom.xml in $DIR"; exit 1; }
-          # gRPC services share <lang>/proto/; their Containerfile copies it into
-          # src/main/proto before building, so do the same here.
-          if [ -d "$DIR/../proto" ] && [ ! -e "$DIR/src/main/proto" ]; then
+          # gRPC projects share <lang>/proto/. Quarkus poms read it in place
+          # (quarkus.grpc.codegen.proto-directory), so nothing to copy; Spring Boot
+          # still needs it under src/main/proto until the S3 migration.
+          if [ -d "$DIR/../proto" ] && [ ! -e "$DIR/src/main/proto" ] \
+             && ! grep -q 'quarkus.grpc.codegen.proto-directory' "$DIR/pom.xml"; then
             cp -r "$DIR/../proto" "$DIR/src/main/proto"
           fi
           mvn -B -ntp -q -f "$DIR/pom.xml" package -DskipTests
