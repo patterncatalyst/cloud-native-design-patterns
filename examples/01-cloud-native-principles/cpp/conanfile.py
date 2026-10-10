@@ -1,14 +1,7 @@
-"""examples/01-cloud-native-principles/cpp — Conan 2 recipe.
+"""examples/01-cloud-native-principles/cpp: Conan 2 recipe.
 
-Drogon-based REST service demonstrating cloud-native principles. Uses libpq
-(PostgreSQL C client) installed from UBI's AppStream as a system package,
-not via Conan, to avoid libpqxx Conan recipe issues and simplify the runtime
-image.
-
-Dependencies:
-- Drogon (REST framework with jsoncpp for JSON)
-- spdlog (structured logging)
-- libpq (system package, not from Conan)
+Drogon REST service with libpq (direct, no libpqxx), spdlog logging and OpenTelemetry
+C++ (OTLP over HTTP). Exact pins; ConanCenter is the only remote.
 """
 
 from conan import ConanFile
@@ -21,12 +14,14 @@ class CloudNative01Conan(ConanFile):
     default_options = {
         # Static linkage everywhere for a portable runtime image.
         "*/*:shared": False,
-        # OpenSSL FIPS skipped (Digest::SHA on UBI 9 without EPEL).
-        "openssl/*:no_fips": True,
+        # Drogon only needs Boost for pre-C++17 toolchains.
+        "drogon/*:with_boost": False,
     }
 
     def requirements(self):
-        # Drogon REST framework (includes jsoncpp for JSON responses)
-        self.requires("drogon/1.9.8")
-        # Structured logging
-        self.requires("spdlog/1.15.0")
+        self.requires("drogon/1.9.13")
+        self.requires("libpq/17.11")
+        self.requires("spdlog/1.17.0")
+        self.requires("opentelemetry-cpp/1.26.0")
+        # opentelemetry-cpp pins nlohmann_json 3.11.3; take the newest release.
+        self.requires("nlohmann_json/3.12.0", override=True)
