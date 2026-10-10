@@ -1,7 +1,29 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2086  # $CURL_OPTS is intentionally word-split
 set -euo pipefail
 
-BASE="http://localhost:8080"
+RUNTIME="${RUNTIME:-docker}"
+BASE="${BASE:-http://localhost:8080}"
+CURL_OPTS="${CURL_OPTS:-}"
+
+# Container operations go through these helpers so the checks do not hard-code
+# an engine. RUNTIME=openshift is added later: a ctr_target function will map
+# a container name (cndp-kafka, cndp-postgres, ...) to its pod and each helper
+# will call `oc exec` / `oc logs` instead.
+case "$RUNTIME" in
+    docker) ;;
+    *) echo "RUNTIME=$RUNTIME not supported yet" >&2; exit 1 ;;
+esac
+ctr_exec()    { docker exec "$@"; }
+ctr_logs()    { docker logs "$@"; }
+ctr_stop()    { docker stop "$@"; }
+ctr_start()   { docker start "$@"; }
+ctr_rm()      { docker rm "$@"; }
+ctr_kill()    { docker kill --signal "${2:-KILL}" "$1"; }  # ctr_kill <container> [signal]
+ctr_pause()   { docker pause "$@"; }
+ctr_unpause() { docker unpause "$@"; }
+ctr_compose() { docker compose "$@"; }
+
 PASS=0
 FAIL=0
 
@@ -33,60 +55,63 @@ printf '==> Verifying Example 21: Graceful Shutdown\n\n'
 
 # --- Service is up ---
 check "healthz returns ok" \
-    "curl -sf $BASE/healthz" \
+    "curl $CURL_OPTS -sf $BASE/healthz" \
     '"status":"ok"'
 
 check_status "readyz returns 200 (ready)" \
-    "curl -s -o /dev/null -w '%{http_code}' $BASE/readyz" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' $BASE/readyz" \
     "200"
 
 # --- Place some orders to confirm service works ---
 check_status "POST /orders returns 201" \
-    "curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"widget\",\"quantity\":1}' $BASE/orders" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"widget-before-restart\",\"quantity\":1}' $BASE/orders" \
     "201"
 
 # --- Send SIGTERM and verify readiness flips ---
 printf '  \xe2\x86\x92 sending SIGTERM to order-service...\n'
-podman kill --signal SIGTERM cndp-order-service >/dev/null 2>&1
+ctr_kill cndp-order-service SIGTERM >/dev/null 2>&1
 sleep 2
 
 check "debug/state shows shutting_down=true" \
-    "curl -sf $BASE/debug/state" \
+    "curl $CURL_OPTS -sf $BASE/debug/state" \
     '"shutting_down":true'
 
 check_status "readyz returns 503 after SIGTERM" \
-    "curl -s -o /dev/null -w '%{http_code}' $BASE/readyz" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' $BASE/readyz" \
     "503"
 
 check "readyz body says shutting down" \
-    "curl -sf $BASE/readyz 2>/dev/null || curl -s $BASE/readyz" \
+    "curl $CURL_OPTS -sf $BASE/readyz 2>/dev/null || curl $CURL_OPTS -s $BASE/readyz" \
     '"shutting down"'
 
 # --- Verify logs show the drain protocol (capture before restart) ---
 check "logs show SIGTERM received" \
-    "podman logs cndp-order-service 2>&1" \
+    "ctr_logs cndp-order-service 2>&1" \
     "SIGTERM received"
 
 # --- Restart and verify recovery ---
 printf '  \xe2\x86\x92 restarting service and verifying recovery...\n'
-COMPOSE_FILE="${COMPOSE_FILE:-spring-boot/compose.yaml}"
-podman stop cndp-order-service >/dev/null 2>&1
-podman rm cndp-order-service >/dev/null 2>&1
-podman compose -f "$COMPOSE_FILE" up -d order-service >/dev/null 2>&1
-sleep 15
+# Start the same container again (it exited after draining), whichever
+# language is running, and wait for it to report ready.
+ctr_stop cndp-order-service >/dev/null 2>&1 || true
+ctr_start cndp-order-service >/dev/null 2>&1 || true
+for _ in $(seq 1 30); do
+    [ "$(curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' "$BASE/readyz" 2>/dev/null)" = 200 ] && break
+    sleep 2
+done
 
 check_status "readyz returns 200 after restart" \
-    "curl -s -o /dev/null -w '%{http_code}' $BASE/readyz" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' $BASE/readyz" \
     "200"
 
 check_status "POST /orders works after restart" \
-    "curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"widget\",\"quantity\":1}' $BASE/orders" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"sku\":\"widget-after-restart\",\"quantity\":1}' $BASE/orders" \
     "201"
 
 # --- Verify previous orders survived the restart ---
 check "orders from before restart are still present" \
-    "curl -sf $BASE/orders" \
-    '"widget"'
+    "curl $CURL_OPTS -sf $BASE/orders" \
+    'widget-before-restart'
 
 printf '\n==> Results: %d passed, %d failed\n' "$PASS" "$FAIL"
 [[ $FAIL -eq 0 ]] && printf '==> PASS\n' || { printf '==> FAIL\n'; exit 1; }

@@ -45,7 +45,7 @@ Demonstrates the **Transactional Outbox** pattern with Quarkus + PostgreSQL + De
 cd examples/04-data/quarkus
 
 # Start all services
-podman compose up --build -d
+docker compose up -d --build --wait
 
 # Wait for services to be ready (30-40 seconds)
 sleep 30
@@ -88,7 +88,7 @@ open http://localhost:8090
 ## Clean up
 
 ```bash
-podman compose down -v
+docker compose down -v
 ```
 
 ## Key files

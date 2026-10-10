@@ -10,13 +10,13 @@ services:
   inventory:
     build:
       context: .
-      dockerfile: Dockerfile.inventory
+      dockerfile: Containerfile.inventory
     container_name: cndp-inventory
 
   order-api:
     build:
       context: .
-      dockerfile: Dockerfile.order-api
+      dockerfile: Containerfile.order-api
     container_name: cndp-order-api
     ports:
       - "8081:8081"
@@ -36,7 +36,7 @@ services:
   gateway:
     build:
       context: .
-      dockerfile: Dockerfile.gateway
+      dockerfile: Containerfile.gateway
     container_name: cndp-gateway
     ports:
       - "8080:8080"

@@ -164,7 +164,7 @@ func main() {
 	s.shuttingDown.Store(true)
 	slog.Info("SIGTERM received — readiness flipped, draining in-flight requests")
 
-	// Second signal (from podman stop): shut down the HTTP server
+	// Second signal (from docker stop): shut down the HTTP server
 	<-sigCh
 	slog.Info(fmt.Sprintf("second signal received (in_flight=%d), shutting down HTTP server", s.inFlight.Load()))
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

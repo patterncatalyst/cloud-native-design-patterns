@@ -11,7 +11,7 @@ Hexagonal (ports-and-adapters) architecture — domain logic isolated from infra
 ## Run
 
 ```bash
-podman compose up --build -d
+docker compose up -d --build --wait
 ```
 
 Wait for healthy, then verify from the example root:
@@ -27,7 +27,7 @@ cd .. && LANG_DIR=quarkus bash verify.sh
 | `order-service/src/.../domain/` | Domain layer — Order aggregate, PlaceOrderCmd value object, OrderPlaced event, port interfaces (OrderRepository, EventPublisher), PlaceOrderUseCase. Zero framework imports. |
 | `order-service/src/.../adapter/` | Driven adapters — PostgresOrderRepository (raw JDBC via DataSource), LogEventPublisher (JBoss Logger). Driving adapter — OrderResource (JAX-RS REST). |
 | `order-service/src/.../OrderServiceApp.java` | CDI @Produces method wiring PlaceOrderUseCase from its ports — proves domain has no CDI dependency. |
-| `order-service/src/.../CliPlaceOrder.java` | CLI driving adapter — standalone main(), raw JDBC, no Quarkus/CDI. Proves port replaceability. |
+| `order-service/src/.../CliPlaceOrder.java` | CLI driving adapter — standalone main(), raw JDBC, no Quarkus/CDI. Proves port replaceability. Installed as `cli-place-order` (`order-service/cli-place-order`, on PATH in the image). |
 
 ## Implementation notes
 
@@ -52,5 +52,5 @@ Requires a running Postgres — see the compose.yaml `depends_on` for which infr
 ## Tear down
 
 ```bash
-podman compose down -v
+docker compose down -v
 ```

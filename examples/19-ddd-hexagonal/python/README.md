@@ -11,7 +11,7 @@ Hexagonal (ports-and-adapters) architecture — domain logic isolated from infra
 ## Run
 
 ```bash
-podman compose up --build -d
+docker compose up -d --build --wait
 ```
 
 Wait for healthy, then verify from the example root:
@@ -50,5 +50,13 @@ see the compose.yaml `depends_on` for which infrastructure services are needed.
 ## Tear down
 
 ```bash
-podman compose down -v
+docker compose down -v
+```
+
+## CLI driving adapter
+
+`cli-place-order <sku> <qty>` is on PATH in the image and drives the same PlaceOrder use case:
+
+```bash
+docker exec cndp-order-service cli-place-order bolt-x 5
 ```

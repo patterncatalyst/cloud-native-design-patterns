@@ -9,6 +9,7 @@ services:
   order-service:
     build:
       context: .
+      dockerfile: Containerfile
     container_name: cndp-order-service
     depends_on:
       postgres:

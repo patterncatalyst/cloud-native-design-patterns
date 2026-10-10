@@ -6,6 +6,7 @@ services:
   ws-pod-1:
     build:
       context: ws-server
+      dockerfile: Containerfile
     container_name: cndp-ws-pod-1
     depends_on:
       redis:
@@ -28,6 +29,7 @@ services:
   ws-pod-2:
     build:
       context: ws-server
+      dockerfile: Containerfile
     container_name: cndp-ws-pod-2
     depends_on:
       redis:

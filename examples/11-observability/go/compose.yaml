@@ -13,6 +13,7 @@ services:
   inventory:
     build:
       context: inventory-service
+      dockerfile: Containerfile
     container_name: cndp-inventory
     depends_on:
       lgtm:
@@ -24,6 +25,7 @@ services:
   order-service:
     build:
       context: order-service
+      dockerfile: Containerfile
     container_name: cndp-order-service
     depends_on:
       lgtm:
@@ -51,6 +53,7 @@ services:
   notification-consumer:
     build:
       context: notification-consumer
+      dockerfile: Containerfile
     container_name: cndp-notification
     depends_on:
       kafka:

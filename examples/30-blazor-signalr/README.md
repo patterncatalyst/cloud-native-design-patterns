@@ -6,7 +6,7 @@ circuit, no polling.
 
 ## Prerequisites
 
-- Podman & podman-compose
+- Docker Engine with the Compose plugin (see [Prerequisites](../PREREQUISITES.md))
 - curl / jq
 - ~1.5 GB memory (Postgres + Redis + LGTM + Blazor app)
 
@@ -23,7 +23,7 @@ circuit, no polling.
 ## Run it
 
 ```bash
-cd dotnet && podman compose up --build -d
+cd dotnet && docker compose up -d --build --wait
 ```
 
 Wait for healthy (~30s), then verify:
@@ -64,5 +64,5 @@ open http://localhost:8080/dashboard
 ## Tear down
 
 ```bash
-cd dotnet && podman compose down -v
+cd dotnet && docker compose down -v
 ```

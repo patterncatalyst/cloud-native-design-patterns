@@ -10,7 +10,7 @@ the *Designing Cloud-Native APIs* deck series; the decks themselves live in
 
 ## What's inside
 
-- **A setup guide, 13 chapters, 15 deep-dive appendices (A–O), and a glossary** —
+- **A setup guide, 13 chapters, 17 deep-dive appendices (A–Q), and a glossary** —
   covering REST, gRPC, GraphQL, WebSockets, event-driven architecture, schemas and
   versioning, observability, resilience, and the patterns that tie them together.
 - **Six languages, one set of tabs** — every code sample appears in Spring Boot,
@@ -25,7 +25,7 @@ the *Designing Cloud-Native APIs* deck series; the decks themselves live in
 
 The whole guide builds one system — `order`, `payment`, `inventory`, `notification`,
 and `shipping` services exchanging the `order.placed` fact — on infrastructure you can
-run yourself: Podman locally and plain Kubernetes in production (no managed cloud),
+run yourself: Docker Engine locally and plain Kubernetes in production (no managed cloud),
 with Kafka (Strimzi), PostgreSQL (CloudNativePG), Apicurio (schema registry), Istio,
 KEDA, Debezium, and the Grafana LGTM observability stack.
 
@@ -38,12 +38,24 @@ bundle exec jekyll serve --baseurl ""
 
 Then open <http://localhost:4000>.
 
+## Run the examples
+
+The examples run on Docker Engine with the Compose plugin on Fedora or RHEL. See
+[`examples/PREREQUISITES.md`](examples/PREREQUISITES.md) for the install steps, then:
+
+```bash
+cd examples/01-cloud-native-principles/python
+docker compose up -d --build --wait
+cd .. && ./verify.sh
+cd python && docker compose down -v
+```
+
 ## Repository layout
 
 | Path | What it holds |
 |---|---|
 | `_parts/` | the five Parts that form the homepage cards |
-| `_docs/` | the setup guide, chapters, appendices A–O, and the glossary |
+| `_docs/` | the setup guide, chapters, appendices A–Q, and the glossary |
 | `_includes/codetabs.html` + `assets/js/codetabs.js` | the multi-language code tabs (no plugin) |
 | `assets/diagrams/` | paired `name.svg` + `name.excalidraw` figures |
 | `lgtm-presentation/` | the six source decks + `BUILD.md` manifest |

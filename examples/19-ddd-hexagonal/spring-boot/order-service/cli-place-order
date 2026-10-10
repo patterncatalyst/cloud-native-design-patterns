@@ -1,0 +1,6 @@
+#!/bin/sh
+# CLI driving adapter entry point: runs CliPlaceOrder (plain JDBC, no Spring
+# context, no web server) from the application jar.
+exec java -cp /deployments/app.jar \
+  -Dloader.main=com.cndp.order.CliPlaceOrder \
+  org.springframework.boot.loader.launch.PropertiesLauncher "$@"

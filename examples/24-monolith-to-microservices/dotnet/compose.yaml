@@ -9,7 +9,7 @@ services:
   monolith:
     build:
       context: .
-      dockerfile: Dockerfile.stub
+      dockerfile: Containerfile.stub
     container_name: cndp-monolith
     environment:
       - SERVICE_NAME=monolith
@@ -23,7 +23,7 @@ services:
   new-service:
     build:
       context: .
-      dockerfile: Dockerfile.stub
+      dockerfile: Containerfile.stub
     container_name: cndp-new-service
     environment:
       - SERVICE_NAME=new-service
@@ -37,7 +37,7 @@ services:
   legacy:
     build:
       context: .
-      dockerfile: Dockerfile.stub
+      dockerfile: Containerfile.stub
     container_name: cndp-legacy
     environment:
       - SERVICE_NAME=legacy
@@ -51,7 +51,7 @@ services:
   router:
     build:
       context: .
-      dockerfile: Dockerfile.router
+      dockerfile: Containerfile.router
     container_name: cndp-router
     ports:
       - "8080:8080"
@@ -73,7 +73,7 @@ services:
   decorator:
     build:
       context: .
-      dockerfile: Dockerfile.decorator
+      dockerfile: Containerfile.decorator
     container_name: cndp-decorator
     ports:
       - "8091:8080"

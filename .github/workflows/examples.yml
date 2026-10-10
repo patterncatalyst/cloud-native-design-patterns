@@ -73,7 +73,7 @@ jobs:
           DIR: ${{ matrix.dir }}
         run: |
           test -f "$DIR/pom.xml" || { echo "::error::no pom.xml in $DIR"; exit 1; }
-          # gRPC services share <lang>/proto/; their Dockerfile copies it into
+          # gRPC services share <lang>/proto/; their Containerfile copies it into
           # src/main/proto before building, so do the same here.
           if [ -d "$DIR/../proto" ] && [ ! -e "$DIR/src/main/proto" ]; then
             cp -r "$DIR/../proto" "$DIR/src/main/proto"
@@ -144,7 +144,7 @@ jobs:
           pip install -r requirements.txt
           python -m compileall -q .
 
-  # Each C++ service builds in its own Dockerfile (Conan 2 + GCC 14 on UBI).
+  # Each C++ service builds in its own Containerfile (Conan 2 + GCC 14 on UBI).
   # The build context is the service directory, or its parent cpp/ directory
   # for the multi-service examples; scripts/ci_changed_projects.py cpp-context
   # decides, mirroring each example's compose.yaml.
@@ -159,20 +159,20 @@ jobs:
         dir: ${{ fromJSON(needs.changes.outputs.cpp) }}
     steps:
       - uses: actions/checkout@v7
-      - name: Locate Dockerfile and build context
+      - name: Locate Containerfile and build context
         id: ctx
         env:
           DIR: ${{ matrix.dir }}
         run: |
           test -f "$DIR/conanfile.py" || { echo "::error::no conanfile.py in $DIR"; exit 1; }
-          test -f "$DIR/Dockerfile" || { echo "::error::no Dockerfile in $DIR"; exit 1; }
+          test -f "$DIR/Containerfile" || { echo "::error::no Containerfile in $DIR"; exit 1; }
           echo "context=$(python3 scripts/ci_changed_projects.py cpp-context "$DIR")" >> "$GITHUB_OUTPUT"
           echo "scope=cpp-${DIR//\//-}" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v4
       - uses: docker/build-push-action@v7
         with:
           context: ${{ steps.ctx.outputs.context }}
-          file: ${{ matrix.dir }}/Dockerfile
+          file: ${{ matrix.dir }}/Containerfile
           push: false
           cache-from: type=gha,scope=${{ steps.ctx.outputs.scope }}
           cache-to: type=gha,mode=max,scope=${{ steps.ctx.outputs.scope }}
@@ -186,9 +186,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      # The runner's bundled compose rejects overriding a service brought in
-      # with include: ("conflicts with imported resource"); the pinned plugin
-      # matches what the prerequisites install on Fedora/RHEL.
+      # The runner's bundled compose is older and rejects overriding a service
+      # brought in with include: ("conflicts with imported resource"). Pin the
+      # newest stable compose plugin (v5.6.0) and verify its checksum instead.
       - name: Install docker compose v5.6.0
         env:
           COMPOSE_VERSION: v5.6.0

@@ -14,7 +14,7 @@ Output is one JSON object with a compact array per kind:
     dotnet   directories containing *.csproj
     go       directories containing go.mod
     python   directories containing requirements.txt
-    cpp      directories containing conanfile.py (each also has a Dockerfile)
+    cpp      directories containing conanfile.py (each also has a Containerfile)
     compose  compose*.yaml files
     scripts  verify.sh files
 
@@ -146,7 +146,7 @@ def select_for_changes(changed: list[str]) -> dict[str, set[str]]:
         if hit or len(parts) < 3:
             continue
         # No project above the file. A file under <example>/<lang>/ (a shared
-        # proto, a lock file, a Dockerfile next to several services) selects every
+        # proto, a lock file, a Containerfile next to several services) selects every
         # project of that language there. A file elsewhere in the example (e.g.
         # <example>/proto/) can feed any language, so it selects the whole example.
         example = "/".join(parts[:2])
@@ -177,11 +177,11 @@ def to_json(sel: dict[str, set[str]]) -> dict[str, str]:
 def cpp_context(directory: str) -> str:
     """Docker build context for a cpp project dir.
 
-    Most Dockerfiles use the service directory itself; those in a multi-service
+    Most Containerfiles use the service directory itself; those in a multi-service
     example copy `<service>/conanfile.py` and `proto/`, so their context is the
     parent (cpp/) directory, as in the example's compose.yaml."""
     d = Path(directory)
-    text = (ROOT / d / "Dockerfile").read_text()
+    text = (ROOT / d / "Containerfile").read_text()
     if re.search(rf"^COPY\s+(?:--\S+\s+)*{re.escape(d.name)}/", text, re.M):
         return str(d.parent)
     return str(d)

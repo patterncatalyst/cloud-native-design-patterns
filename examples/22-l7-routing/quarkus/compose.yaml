@@ -14,7 +14,9 @@ services:
       order-v2:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
+      # The envoy image has no curl; bash's /dev/tcp does the HTTP check. HTTP/1.1,
+      # because Envoy answers HTTP/1.0 with 426.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /healthz HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q 200"]
       interval: 5s
       timeout: 3s
       retries: 12
@@ -23,9 +25,8 @@ services:
   order-v1:
     build:
       context: order-service
+      dockerfile: Containerfile
     container_name: cndp-order-v1
-    devices:
-      - "/dev/null:/dev/null:rwm"
     environment:
       - APP_VERSION=v1
     healthcheck:
@@ -38,9 +39,8 @@ services:
   order-v2:
     build:
       context: order-service
+      dockerfile: Containerfile
     container_name: cndp-order-v2
-    devices:
-      - "/dev/null:/dev/null:rwm"
     environment:
       - APP_VERSION=v2
     healthcheck:
@@ -53,11 +53,10 @@ services:
   router-service:
     build:
       context: router-service
+      dockerfile: Containerfile
     container_name: cndp-router-service
     ports:
       - "8090:8080"
-    devices:
-      - "/dev/null:/dev/null:rwm"
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
       interval: 5s

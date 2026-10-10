@@ -33,21 +33,21 @@ handling, readiness flip, and in-flight request draining.
 
 ```bash
 # Start the stack (builds on first run, ~10-15 min cold Conan cache)
-podman compose up -d
+docker compose up -d
 
 # Verify graceful shutdown behavior
 ../verify.sh
 
 # Tail logs
-podman logs -f cndp-order-service
+docker logs -f cndp-order-service
 
 # Shutdown
-podman compose down
+docker compose down
 ```
 
 ## Verify script tests
 
-The `verify.sh` script (run with `COMPOSE_FILE=cpp/compose.yaml`) checks:
+The `verify.sh` script checks:
 
 1. Health and readiness endpoints
 2. Order creation (POST /orders)

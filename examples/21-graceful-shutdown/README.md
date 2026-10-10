@@ -6,9 +6,8 @@ traffic), drains in-flight requests, and then closes resources cleanly.
 
 ## Prerequisites
 
-- [Podman](https://podman.io/getting-started/installation) with
-  [podman-compose](https://github.com/containers/podman-compose) or the
-  Docker Compose plugin
+- [Docker Engine](https://docs.docker.com/engine/install/) with the Compose plugin, on
+  Fedora or RHEL (see [Prerequisites](../PREREQUISITES.md))
 - `curl` and `jq` for driving the API
 - ~1 GB free memory (Postgres + 1 app service)
 
@@ -34,10 +33,10 @@ Pick a language and start the stack:
 
 ```bash
 # Python (FastAPI)
-cd python && podman compose up --build -d
+cd python && docker compose up -d --build --wait
 
 # Spring Boot
-cd spring-boot && podman compose up --build -d
+cd spring-boot && docker compose up -d --build --wait
 ```
 
 Both implementations expose the same API on the same ports — `verify.sh` works with either.
@@ -54,7 +53,7 @@ curl -s -X POST -H 'Content-Type: application/json' \
   localhost:8080/orders | jq .
 
 # Send SIGTERM
-podman exec cndp-order-service kill -SIGTERM 1
+docker exec cndp-order-service kill -SIGTERM 1
 
 # Readiness should flip
 curl -s localhost:8080/readyz | jq .

@@ -6,9 +6,8 @@ on-demand and batching with DataLoader.
 
 ## Prerequisites
 
-- [Podman](https://podman.io/getting-started/installation) with
-  [podman-compose](https://github.com/containers/podman-compose) or the
-  Docker Compose plugin
+- [Docker Engine](https://docs.docker.com/engine/install/) with the Compose plugin, on
+  Fedora or RHEL (see [Prerequisites](../PREREQUISITES.md))
 - `curl` and `jq` for driving the API
 - ~2.5 GB free memory (LGTM + Postgres + three app services)
 
@@ -33,10 +32,10 @@ Pick a language and start the stack:
 
 ```bash
 # Python (FastAPI)
-cd python && podman compose up --build -d
+cd python && docker compose up -d --build --wait
 
 # Spring Boot
-cd spring-boot && podman compose up --build -d
+cd spring-boot && docker compose up -d --build --wait
 ```
 
 Both implementations expose the same API on the same ports — `verify.sh` works with either.
@@ -44,7 +43,7 @@ Both implementations expose the same API on the same ports — `verify.sh` works
 Wait for all services to report healthy:
 
 ```bash
-podman compose ps
+docker compose ps
 ```
 
 ## Drive it
@@ -66,7 +65,7 @@ curl -s -X POST -H 'Content-Type: application/json' \
   localhost:8080/graphql | jq .
 
 # Check gateway logs for DataLoader batching
-podman logs cndp-gateway 2>&1 | grep "DataLoader"
+docker logs cndp-gateway 2>&1 | grep "DataLoader"
 ```
 
 ## Verify

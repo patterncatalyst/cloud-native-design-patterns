@@ -7,9 +7,8 @@ cache is an optimisation, not a dependency.
 
 ## Prerequisites
 
-- [Podman](https://podman.io/getting-started/installation) with
-  [podman-compose](https://github.com/containers/podman-compose) or the
-  Docker Compose plugin
+- [Docker Engine](https://docs.docker.com/engine/install/) with the Compose plugin, on
+  Fedora or RHEL (see [Prerequisites](../PREREQUISITES.md))
 - `curl` and `jq` for driving the API
 - ~1 GB free memory (Postgres + Redis + 1 app service)
 
@@ -37,10 +36,10 @@ Pick a language and start the stack:
 
 ```bash
 # Python (FastAPI)
-cd python && podman compose up --build -d
+cd python && docker compose up -d --build --wait
 
 # Spring Boot
-cd spring-boot && podman compose up --build -d
+cd spring-boot && docker compose up -d --build --wait
 ```
 
 Both implementations expose the same API on the same ports — `verify.sh` works with either.
@@ -66,9 +65,9 @@ sleep 3
 curl -s localhost:8080/write-back/flush-status | jq .
 
 # Cache outage: stop Redis and confirm reads still work
-podman stop cndp-redis
+docker stop cndp-redis
 curl -s localhost:8080/cache-aside/products/p1 | jq .  # source: db
-podman start cndp-redis
+docker start cndp-redis
 ```
 
 ## Verify

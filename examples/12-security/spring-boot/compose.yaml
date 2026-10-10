@@ -2,11 +2,10 @@ services:
   order-service:
     build:
       context: order-service
+      dockerfile: Containerfile
     container_name: cndp-order-service
     ports:
       - "8080:8080"
-    devices:
-      - "/dev/null:/dev/null:rwm"
     environment:
       - VALET_SECRET=demo-secret-do-not-use-in-prod
     healthcheck:

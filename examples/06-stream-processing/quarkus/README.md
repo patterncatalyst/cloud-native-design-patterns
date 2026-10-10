@@ -28,7 +28,7 @@ Quarkus 3.33.2 LTS implementation demonstrating windowed stream aggregation with
 
 ```bash
 # Start all services
-podman compose up --build
+docker compose up --build
 
 # Test health
 curl http://localhost:8080/healthz
@@ -46,13 +46,13 @@ curl -X POST http://localhost:8080/orders \
   -d '{"merchant_id":"merchant-b","sku":"item-x","quantity":2,"total":49.99}'
 
 # Wait for window to flush, then check aggregated output
-podman exec cndp-kafka /opt/kafka/bin/kafka-console-consumer.sh \
+docker exec cndp-kafka /opt/kafka/bin/kafka-console-consumer.sh \
   --bootstrap-server localhost:9092 \
   --topic revenue.by-merchant \
   --from-beginning
 
 # Cleanup
-podman compose down -v
+docker compose down -v
 ```
 
 ## What to observe

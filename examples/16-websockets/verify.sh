@@ -1,8 +1,43 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2086  # $CURL_OPTS is intentionally word-split
 set -euo pipefail
 
-POD1="http://localhost:8081"
-POD2="http://localhost:8082"
+RUNTIME="${RUNTIME:-docker}"
+BASE="${BASE:-http://localhost:8081}"
+POD1="${POD1:-$BASE}"
+POD2="${POD2:-http://localhost:8082}"
+CURL_OPTS="${CURL_OPTS:-}"
+
+# Container operations go through these helpers so the checks do not hard-code
+# an engine. RUNTIME=openshift is added later: a ctr_target function will map
+# a container name (cndp-kafka, cndp-postgres, ...) to its pod and each helper
+# will call `oc exec` / `oc logs` instead.
+case "$RUNTIME" in
+    docker) ;;
+    *) echo "RUNTIME=$RUNTIME not supported yet" >&2; exit 1 ;;
+esac
+ctr_exec()    { docker exec "$@"; }
+ctr_logs()    { docker logs "$@"; }
+ctr_stop()    { docker stop "$@"; }
+ctr_start()   { docker start "$@"; }
+ctr_rm()      { docker rm "$@"; }
+ctr_kill()    { docker kill --signal "${2:-KILL}" "$1"; }  # ctr_kill <container> [signal]
+ctr_pause()   { docker pause "$@"; }
+ctr_unpause() { docker unpause "$@"; }
+ctr_compose() { docker compose "$@"; }
+
+# The WebSocket checks use the Python `websockets` and `aiohttp` clients. If the
+# host python3 lacks them, install pinned copies into a cached venv rather than
+# the system.
+PY=python3
+if ! python3 -c 'import websockets, aiohttp' 2>/dev/null; then
+    VENV="${XDG_CACHE_HOME:-$HOME/.cache}/cndp-verify/venv"
+    [ -x "$VENV/bin/python" ] || python3 -m venv "$VENV"
+    "$VENV/bin/python" -c 'import websockets, aiohttp' 2>/dev/null \
+        || "$VENV/bin/pip" install -q --disable-pip-version-check websockets==17.2 aiohttp==3.14.4
+    PY="$VENV/bin/python"
+fi
+
 PASS=0
 FAIL=0
 
@@ -22,17 +57,17 @@ printf '==> Verifying Example 16: WebSockets at Scale\n\n'
 
 # --- Both pods are up ---
 check "ws-pod-1 healthz" \
-    "curl -sf $POD1/healthz" \
+    "curl $CURL_OPTS -sf $POD1/healthz" \
     '"ws-pod-1"'
 
 check "ws-pod-2 healthz" \
-    "curl -sf $POD2/healthz" \
+    "curl $CURL_OPTS -sf $POD2/healthz" \
     '"ws-pod-2"'
 
 # --- Connect a WebSocket client to pod-1 ---
 printf '  \xe2\x86\x92 connecting WebSocket client to ws-pod-1...\n'
 WS_OUTPUT=$(mktemp)
-python3 -c "
+"$PY" -c "
 import asyncio, json, websockets, sys
 
 async def main():
@@ -66,7 +101,7 @@ fi
 printf '  \xe2\x86\x92 testing backplane: sending message via ws-pod-2 to client on ws-pod-1...\n'
 
 BACKPLANE_OUTPUT=$(mktemp)
-python3 -c "
+"$PY" -c "
 import asyncio, json, websockets, sys, aiohttp
 
 async def main():
@@ -107,7 +142,7 @@ fi
 printf '  \xe2\x86\x92 testing broadcast via backplane...\n'
 
 BCAST_OUTPUT=$(mktemp)
-python3 -c "
+"$PY" -c "
 import asyncio, json, websockets, sys, aiohttp
 
 async def main():
@@ -146,7 +181,7 @@ fi
 printf '  \xe2\x86\x92 testing sequence-number framing for resume...\n'
 
 SEQ_OUTPUT=$(mktemp)
-python3 -c "
+"$PY" -c "
 import asyncio, json, websockets, sys, aiohttp
 
 async def main():
@@ -185,7 +220,7 @@ wait "$SEQ_PID" 2>/dev/null || true
 SEQ_RESULT=$(cat "$SEQ_OUTPUT")
 rm -f "$SEQ_OUTPUT"
 
-if echo "$SEQ_RESULT" | grep -q "monotonic"; then
+if echo "$SEQ_RESULT" | grep -qx "monotonic"; then
     printf '  \xe2\x9c\x93 sequence numbers are monotonically increasing\n'
     PASS=$((PASS + 1))
 else

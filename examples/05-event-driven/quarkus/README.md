@@ -31,7 +31,7 @@ Quarkus 3.33.2 LTS implementation demonstrating event-driven microservices with 
 
 ```bash
 # Start all services
-podman compose up --build
+docker compose up --build
 
 # Test health
 curl http://localhost:8080/healthz
@@ -45,19 +45,19 @@ curl -X POST http://localhost:8080/orders \
 curl http://localhost:8080/orders
 
 # Check shipment was created
-podman exec cndp-postgres psql -U appuser -d appdb \
+docker exec cndp-postgres psql -U appuser -d appdb \
   -c "SELECT * FROM shipments"
 
 # Check notification was created
-podman exec cndp-postgres psql -U appuser -d appdb \
+docker exec cndp-postgres psql -U appuser -d appdb \
   -c "SELECT * FROM notifications"
 
 # Verify Kafka consumer groups
-podman exec cndp-kafka /opt/kafka/bin/kafka-consumer-groups.sh \
+docker exec cndp-kafka /opt/kafka/bin/kafka-consumer-groups.sh \
   --bootstrap-server localhost:9092 --list
 
 # Cleanup
-podman compose down -v
+docker compose down -v
 ```
 
 ## What to observe

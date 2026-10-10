@@ -5,7 +5,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - redis-data:/data:Z
+      - redis-data:/data
     mem_limit: 512m
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]

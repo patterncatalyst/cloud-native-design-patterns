@@ -11,13 +11,13 @@ SIGTERM handling — drain in-flight requests, stop accepting new ones, close DB
 ## Run
 
 ```bash
-podman compose up --build -d
+docker compose up -d --build --wait
 ```
 
 Wait for healthy, then verify from the example root:
 
 ```bash
-cd .. && COMPOSE_FILE=quarkus/compose.yaml bash verify.sh
+cd .. && ./verify.sh
 ```
 
 ## Project structure
@@ -30,11 +30,11 @@ cd .. && COMPOSE_FILE=quarkus/compose.yaml bash verify.sh
 
 ## SIGTERM behavior
 
-1. `podman kill --signal SIGTERM cndp-order-service` fires
+1. `docker kill --signal SIGTERM cndp-order-service` fires
 2. `SignalHandler` catches SIGTERM, calls `shutdownState.markShuttingDown()`
 3. `/readyz` immediately returns 503 — the load balancer (or Kubernetes kubelet) stops routing new traffic
 4. In-flight requests finish normally (tracked by the `inFlight` counter)
-5. The process remains alive until `podman stop` sends SIGKILL after `stop_grace_period` (30 s)
+5. The process remains alive until `docker stop` sends SIGKILL after `stop_grace_period` (30 s)
 
 ## Environment variables
 
@@ -55,5 +55,5 @@ Requires a running Postgres — see the compose.yaml `depends_on` for which infr
 ## Tear down
 
 ```bash
-podman compose down -v
+docker compose down -v
 ```

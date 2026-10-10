@@ -36,7 +36,7 @@ Quarkus 3.33.2 LTS implementation demonstrating distributed tracing, custom metr
 
 ```bash
 # Start all services
-podman compose up --build
+docker compose up --build
 
 # Test health
 curl http://localhost:8080/healthz
@@ -47,20 +47,20 @@ curl -X POST http://localhost:8080/orders \
   -d '{"sku":"widget-a","quantity":2}'
 
 # Check correlated logs (trace_id in output)
-podman logs cndp-order-service 2>&1 | grep "order placed"
+docker logs cndp-order-service 2>&1 | grep "order placed"
 
 # Query traces in Tempo
 curl -s http://localhost:3200/api/search | jq '.traces[:3]'
 
 # Query metrics in Prometheus
-curl -s 'http://localhost:9090/api/v1/query?query=orders_placed_total' | jq '.data.result'
-curl -s 'http://localhost:9090/api/v1/query?query=stock_reservations_total' | jq '.data.result'
+curl -s 'http://localhost:19090/api/v1/query?query=orders_placed_total' | jq '.data.result'
+curl -s 'http://localhost:19090/api/v1/query?query=stock_reservations_total' | jq '.data.result'
 
 # Grafana UI
 open http://localhost:3000
 
 # Cleanup
-podman compose down -v
+docker compose down -v
 ```
 
 ## What to observe

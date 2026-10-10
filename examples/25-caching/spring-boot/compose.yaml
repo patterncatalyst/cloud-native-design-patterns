@@ -10,6 +10,7 @@ services:
   cache-service:
     build:
       context: cache-service
+      dockerfile: Containerfile
     container_name: cndp-cache-service
     depends_on:
       postgres:
@@ -18,8 +19,6 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
-    devices:
-      - "/dev/null:/dev/null:rwm"
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/appdb
       - SPRING_DATASOURCE_USERNAME=appuser

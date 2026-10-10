@@ -7,9 +7,8 @@ the domain is protocol-agnostic.
 
 ## Prerequisites
 
-- [Podman](https://podman.io/getting-started/installation) with
-  [podman-compose](https://github.com/containers/podman-compose) or the
-  Docker Compose plugin
+- [Docker Engine](https://docs.docker.com/engine/install/) with the Compose plugin, on
+  Fedora or RHEL (see [Prerequisites](../PREREQUISITES.md))
 - `curl` and `jq` for driving the API
 - ~1 GB free memory (Postgres + 1 app service)
 
@@ -39,10 +38,10 @@ Pick a language and start the stack:
 
 ```bash
 # Python (FastAPI)
-cd python && podman compose up --build -d
+cd python && docker compose up -d --build --wait
 
 # Spring Boot
-cd spring-boot && podman compose up --build -d
+cd spring-boot && docker compose up -d --build --wait
 ```
 
 Both implementations expose the same API on the same ports — `verify.sh` works with either.
@@ -54,7 +53,7 @@ curl -s -X POST http://localhost:8080/orders \
   -d '{"sku":"widget-a","quantity":3}' | jq .
 
 # Place an order via CLI (same use case, different adapter)
-podman exec cndp-order-service python cli_place_order.py bolt-x 5
+docker exec cndp-order-service cli-place-order bolt-x 5
 
 # Verify both orders appear
 curl -s http://localhost:8080/orders | jq .

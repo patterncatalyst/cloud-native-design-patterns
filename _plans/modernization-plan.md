@@ -13,7 +13,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
    - Python: faust-streaming
    - C++: cppgraphqlgen, jwt-cpp, boost::sml, sol2, libpq (not libpqxx)
    Do this in each language's branch. Close #31–#35 after.
-4. lgtm-skills: add the branch-protection standard to lgtm-github; remove podman wording from lgtm-quarkus, lgtm-spring-boot, lgtm-python and lgtm-crc; update the version pins (including lgtm-docker-stack) to the newest stable.
+4. lgtm-skills: add the branch-protection standard to lgtm-github; remove the old container-engine wording from lgtm-quarkus, lgtm-spring-boot, lgtm-python and lgtm-crc; update the version pins (including lgtm-docker-stack) to the newest stable.
 5. C++: modernize to **C++23 (C++26 if the toolchain supports it)** and the newest tooling (GCC, CMake, Conan, Ninja). CRC appendix excludes C++, per the recommendation (interpretation; the user may correct it).
 
 ## Order and status
@@ -22,8 +22,8 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 |---|---|---|---|
 | 0a-1 | lgtm-skills feature/github-branch-protection | prereq | done (lgtm-skills PR #36, #37, release r4.x) |
 | 0a-2 | lgtm-skills fix/docker-runtime-and-pins | 4 | done (lgtm-skills PR #36, #37, release r4.x) |
-| 0b | feature/ci-branch-protection | prereq | in progress |
-| S1 | feature/docker-engine-runtime | 6 | pending |
+| 0b | feature/ci-branch-protection | prereq | done (PR #58; ruleset main 24831520: site, content-ok, examples-ok) |
+| S1 | feature/docker-engine-runtime | 6 | done (111/111 PASS on Docker; final rerun after the Opus review) |
 | S2 | chore/quarkus-3.40-lts | 1 | pending |
 | S3 | chore/spring-boot-4.1 | 1 | pending |
 | S4 | chore/dotnet-10-pins (+ MassTransit/Streamiz) | 3 | pending |
@@ -64,8 +64,8 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 ## Key facts from the inventory
 
 - 21 example directories; 18 have all six languages (108 variants); 09 is configuration only, 28 is Newman, 30 is .NET only.
-- 188 Dockerfile*, 0 Containerfile; 130 files mention podman.
-- 27 compose files carry a podman `devices: /dev/null` workaround.
+- 188 Dockerfile*, 0 Containerfile; 130 files mention the old container engine.
+- 27 compose files carry a `devices: /dev/null` workaround for the old container engine.
 - 04-data spring-boot and quarkus inline the infra instead of using `include:`.
 - No unit tests anywhere. No example CI. Disabled ruleset `force-push` (18550149).
 - 01/cpp uses libpqxx, which the stack lock forbids. Example 30 pins .NET preview packages.
@@ -76,10 +76,63 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 
 - 0a: lgtm-github has the branch-protection section and gh-protect-branch.sh; lgtm-skills has CI (skills-ok) and an active ruleset; release r4.x is published.
 - 0b: only the `main` ruleset (checks site, content-ok, examples-ok); a direct push to main is rejected; remote branches are main only.
-- S1: 0 podman outside _plans and the decks; 0 Dockerfile*; Fedora/RHEL-only prerequisites; baseline matrix green; #31–#35 handled.
+- S1: 0 references to the old container engine outside _plans and the decks; 0 Dockerfile*; Fedora/RHEL-only prerequisites; baseline matrix green; #31–#35 handled.
 - S2–S7: every project builds; verify.sh green for that language's variants; images pinned, with no :latest.
 - S8: 0 :latest, -latest or kafka-ui; full matrix green.
 - S9: minikube appendix with evidence; profile stopped.
 - S10: Appendix R with evidence for 5 languages; scrub clean; CRC stopped and clean.
 - S11: voice scan reports zero ban-tier hits and is enforced in CI.
-- S12: 0 podman in the decks; current versions; OpenShift Local slides; rendered and inspected.
+- S12: 0 references to the old container engine in the decks; current versions; OpenShift Local slides; rendered and inspected.
+
+## Evidence
+
+Run every example with `scripts/verify-matrix.sh` (one target at a time: `docker compose up -d --build --wait`, `verify.sh`, `docker compose down -v`).
+
+### S1 baseline on Docker Engine (2026-10-10)
+
+Docker 29.8.2, compose v5.5.1, Fedora 44. Versions as found (Spring Boot 3.4.1, Quarkus 3.33.2, .NET 10 with floating packages, Python 3.12, Go 1.26.5, C++ on ubi9; Kafka 3.8.0, Postgres 16, otel-lgtm 0.8.1).
+
+**111/111 targets PASS**: 18 examples × 6 languages, plus 09, 28 and 30. After the Opus validation round (footer claims aligned with verify.sh, conftest required, 21 restart check tightened, 30 summary format), the whole matrix was rerun from the final tree: 111/111 PASS with the same per-example counts.
+
+| Example | Checks per language |
+|---|---|
+| 01 | 10 |
+| 02 | 10 |
+| 03 | 8 |
+| 04 | 8 |
+| 05 | 10 |
+| 06 | 10 |
+| 09 | 8 |
+| 11 | 10 |
+| 12 | 16 |
+| 16 | 6 |
+| 17 | 11 |
+| 18 | 13 |
+| 19 | 17 |
+| 21 | 10 |
+| 22 | 15 |
+| 24 | 19 |
+| 25 | 26 |
+| 26 | 20 |
+| 27 | 14 |
+| 28 | 11 |
+| 30 | 5 |
+
+Defects the baseline found and fixed in S1:
+
+| Example | Defect | Fix |
+|---|---|---|
+| 02, 03 python | strawberry 0.254 broke when graphql-core 3.3 (unpinned transitive) dropped `ExecutionContext` | pin graphql-core 3.2.9 |
+| 11 | metric checks ran before the 60s SDK export interval | poll Prometheus for up to 90s |
+| 12 | conftest policy used pre-v1 Rego and only ever "passed" because conftest was missing | Rego v1 syntax; conftest 0.71.1 now required |
+| 16 | WebSocket checks needed `websockets` and `aiohttp` on the host | verify.sh installs pinned copies into a cached venv |
+| 17, 21 | restart checks always recreated the Spring Boot service, so other languages died mid-script | stop/start the running container and poll |
+| 18 | first check raced order-service startup (no healthcheck) | wait for healthz first |
+| 19 | CLI adapter check ran Python shims; .NET had no CLI adapter | `cli-place-order` on PATH in every image; .NET CLI driving adapter added |
+| 22 | envoy healthcheck used curl, which the image lacks | bash `/dev/tcp` with HTTP/1.1 (Envoy rejects 1.0 with 426) |
+| all JVM | each image build re-downloaded every dependency; Maven Central throttled the host's IPv4 (HTTP 429) for hours | BuildKit cache mount for `~/.m2` and resolver retry on 429/503 |
+| lgtm port 9090 | cockpit holds host 9090 on Fedora/RHEL | Prometheus published on host 19090 |
+
+Carried forward:
+- S4: extend `examples/30-blazor-signalr/verify.sh` to cover Redis backplane scale-out and circuit recovery (the footer states they are not yet covered).
+- S2/S3: make the gRPC JVM projects build with plain `mvn package` (CI currently copies `../proto` the way the Containerfiles do).

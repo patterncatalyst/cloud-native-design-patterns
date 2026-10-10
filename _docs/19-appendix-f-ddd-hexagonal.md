@@ -313,6 +313,13 @@ publisher) injected at startup. That injection is dependency inversion in servic
 the boundary: the protocols and the infrastructure are replaceable, and the domain is
 the stable thing they all depend on.
 
+The example proves it with a second driving adapter in every language: a CLI,
+`cli-place-order <sku> <quantity>`, installed on the `PATH` of each order-service image.
+It builds a command, calls the same `PlaceOrder` use case against the same Postgres, and
+prints a `CLI_ORDER_CREATED` line — no HTTP server, and no change to any domain file.
+Run it inside the running container with `docker exec cndp-order-service cli-place-order bolt-x 5`;
+the order is then readable through the REST adapter.
+
 ## Aggregates and domain events
 
 Tactical DDD is where the modelling inside a context ties three earlier parts of the
@@ -357,5 +364,5 @@ new adapter file appears. A clean domain import list plus a no-domain-change dif
 you bolt on a protocol is hexagonal architecture actually holding.
 
 ---
-*Verification status: verified — [`examples/19-ddd-hexagonal/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/19-ddd-hexagonal/) passes 11/11 checks
-(domain model isolation, port/adapter wiring, use-case orchestration, repository abstraction, event emission).*
+*Verification status: verified — [`examples/19-ddd-hexagonal/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/19-ddd-hexagonal/) passes 17/17 checks in each of the six languages on Docker Engine (2026-10-10)
+(source scans proving the domain layer imports no framework or persistence types, REST and CLI adapters driving the same use case, input validation, OrderPlaced event emission).*

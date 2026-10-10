@@ -2,7 +2,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile.backend
+      dockerfile: Containerfile.backend
     container_name: cndp-backend
     ports:
       - "8081:8081"
@@ -16,7 +16,7 @@ services:
   edge:
     build:
       context: .
-      dockerfile: Dockerfile.edge
+      dockerfile: Containerfile.edge
     container_name: cndp-edge
     depends_on:
       backend:
