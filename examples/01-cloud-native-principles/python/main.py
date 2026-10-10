@@ -87,5 +87,3 @@ async def create_order(customer: str, total: float):
     log.info("order_created id=%s customer=%s total=%.2f", row["id"], customer, total)
     return dict(row)
 
-
-FastAPIInstrumentor.instrument_app(app)
