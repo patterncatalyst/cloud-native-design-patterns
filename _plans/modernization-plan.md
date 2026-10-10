@@ -24,7 +24,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | 0a-2 | lgtm-skills fix/docker-runtime-and-pins | 4 | done (lgtm-skills PR #36, #37, release r4.x) |
 | 0b | feature/ci-branch-protection | prereq | done (PR #58; ruleset main 24831520: site, content-ok, examples-ok) |
 | S1 | feature/docker-engine-runtime | 6 | done (111/111 PASS on Docker; final rerun after the Opus review) |
-| S2 | chore/quarkus-3.40-lts | 1 | in progress |
+| S2 | chore/quarkus-3.40-lts | 1 | built (31/31 poms, 3 images); live matrix pending |
 | S3 | chore/spring-boot-4.1 | 1 | pending |
 | S4 | chore/dotnet-10-pins (+ MassTransit/Streamiz) | 3 | pending |
 | S5 | chore/python-3.14 (+ faust) | 5 | pending |
