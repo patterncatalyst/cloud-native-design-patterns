@@ -966,9 +966,13 @@ async def flusher():
             except Exception:                         # 3. on failure, re-mark dirty
                 await cache.sadd("metric:dirty", *[m for m, _ in rows])
 
-@app.on_event("startup")
-async def start_flusher():
-    asyncio.create_task(flusher())
+@asynccontextmanager
+async def lifespan(app):
+    task = asyncio.create_task(flusher())
+    yield
+    task.cancel()
+
+app = FastAPI(lifespan=lifespan)
 ```
 
 ```cpp
@@ -1221,9 +1225,13 @@ async def refresher():
                 if row:
                     await cache.setex(f"product:{pid}", TTL_S, json.dumps(dict(row)))
 
-@app.on_event("startup")
-async def start_refresher():
-    asyncio.create_task(refresher())
+@asynccontextmanager
+async def lifespan(app):
+    task = asyncio.create_task(refresher())
+    yield
+    task.cancel()
+
+app = FastAPI(lifespan=lifespan)
 ```
 
 ```cpp
