@@ -1,8 +1,9 @@
-FROM registry.access.redhat.com/ubi10/openjdk-25 AS build
+FROM registry.access.redhat.com/ubi10/openjdk-25:1.24-15 AS build
 USER root
 RUN microdnf install -y maven && microdnf clean all
 USER default
-WORKDIR /home/default
+RUN mkdir -p /home/default/build/notification-consumer
+WORKDIR /home/default/build/notification-consumer
 COPY pom.xml .
 # Maven Central throttles bursts of fresh downloads (HTTP 429); retry with backoff.
 ENV MAVEN_ARGS="-Daether.transport.http.retryHandler.count=8 -Daether.transport.http.retryHandler.interval=5000 -Daether.transport.http.retryHandler.serviceUnavailable=429,503"
@@ -10,7 +11,8 @@ RUN --mount=type=cache,target=/home/default/.m2,uid=185 mvn dependency:go-offlin
 COPY src src
 RUN --mount=type=cache,target=/home/default/.m2,uid=185 mvn package -DskipTests -B
 
-FROM registry.access.redhat.com/ubi10/openjdk-25-runtime
+FROM registry.access.redhat.com/ubi10/openjdk-25-runtime:1.24-15
 WORKDIR /deployments
-COPY --from=build /home/default/target/quarkus-app/ ./
+COPY --from=build --chown=185:0 --chmod=g=u /home/default/build/notification-consumer/target/quarkus-app/ ./
+USER 185
 CMD ["java", "-jar", "quarkus-run.jar"]

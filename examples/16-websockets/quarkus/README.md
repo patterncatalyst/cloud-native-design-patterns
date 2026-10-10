@@ -11,7 +11,7 @@ Both pods run identical code. Clients connect via WebSocket at `/ws/{clientId}`.
 
 ## Stack
 
-- **Quarkus 3.33.2 LTS** with `quarkus-websockets-next` (modern WebSocket API)
+- **Quarkus 3.40.1 LTS** with `quarkus-websockets-next` (modern WebSocket API)
 - **Redis** pub/sub backplane for cross-pod message delivery
 - **LGTM** observability stack (Loki, Grafana, Tempo, Mimir)
 - **OpenTelemetry** instrumentation with pod-level resource attributes

@@ -86,7 +86,7 @@ examples/
       Containerfile / services  # Spring Boot application code
     quarkus/
       compose.yaml
-      Containerfile / services  # Quarkus 3.33 LTS (JDK 25) application code
+      Containerfile / services  # Quarkus 3.40.1 LTS (JDK 25) application code
     dotnet/
       compose.yaml
       Containerfile.<svc> / services  # ASP.NET Core (.NET 10) application code

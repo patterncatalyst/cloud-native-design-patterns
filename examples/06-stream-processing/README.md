@@ -23,7 +23,7 @@ credentials, and the container naming convention.
 | Windowed aggregation | stream-processor | Groups `order.placed` by merchant, 10s tumbling windows |
 | Derived stream | `revenue.by-merchant` topic | Output is a new stream other services can consume |
 | Consumer lag as scaling signal | verify.sh | Pause processor → lag builds; resume → lag drains |
-| Stateful in-process | stream-processor | Running totals per merchant per window, flushed on expiry |
+| Stateful in-process | stream-processor | Running totals per merchant per window, emitted on every update and settled when the window closes |
 
 ## Architecture
 
@@ -86,7 +86,7 @@ cd ..  # if you're in a language directory
 Open Grafana at http://localhost:3000:
 
 - **Tempo** — traces from order-service and stream-processor show the flow
-- **Loki** — search for `emitted revenue` to see window flush events
+- **Loki** — search for `emitted revenue` to see each window update the processor emits
 
 ## Ports
 

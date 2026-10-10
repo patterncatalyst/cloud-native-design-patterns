@@ -199,7 +199,7 @@ container.
 
 | Language | Install |
 |----------|---------|
-| Java (Spring Boot, Quarkus) | [SDKMAN](https://sdkman.io/): `curl -s "https://get.sdkman.io" \| bash`, then `sdk install java 25-tem` and `sdk install maven` |
+| Java (Spring Boot, Quarkus) | [SDKMAN](https://sdkman.io/): `curl -s "https://get.sdkman.io" \| bash`, then `sdk install java 25-tem` and `sdk install maven`; optional Quarkus CLI: `sdk install quarkus 3.40.1` |
 | Go | Download the Linux tarball from [go.dev/dl](https://go.dev/dl/), then `sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go<version>.linux-amd64.tar.gz` and add `/usr/local/go/bin` to `PATH` |
 | .NET | `sudo dnf install -y dotnet-sdk-10.0` (from the Fedora or RHEL repositories) |
 | Python | `sudo dnf install -y python3.14` and [uv](https://docs.astral.sh/uv/): `curl -LsSf https://astral.sh/uv/install.sh \| sh` |

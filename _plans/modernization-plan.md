@@ -24,7 +24,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | 0a-2 | lgtm-skills fix/docker-runtime-and-pins | 4 | done (lgtm-skills PR #36, #37, release r4.x) |
 | 0b | feature/ci-branch-protection | prereq | done (PR #58; ruleset main 24831520: site, content-ok, examples-ok) |
 | S1 | feature/docker-engine-runtime | 6 | done (111/111 PASS on Docker; final rerun after the Opus review) |
-| S2 | chore/quarkus-3.40-lts | 1 | pending |
+| S2 | chore/quarkus-3.40-lts | 1 | done (18/18 Quarkus PASS on 3.40.1; closes #32) |
 | S3 | chore/spring-boot-4.1 | 1 | pending |
 | S4 | chore/dotnet-10-pins (+ MassTransit/Streamiz) | 3 | pending |
 | S5 | chore/python-3.14 (+ faust) | 5 | pending |
@@ -133,6 +133,15 @@ Defects the baseline found and fixed in S1:
 | all JVM | each image build re-downloaded every dependency; Maven Central throttled the host's IPv4 (HTTP 429) for hours | BuildKit cache mount for `~/.m2` and resolver retry on 429/503 |
 | lgtm port 9090 | cockpit holds host 9090 on Fedora/RHEL | Prometheus published on host 19090 |
 
+### S2 Quarkus 3.40.1 LTS (2026-10-10)
+
+- 31/31 Quarkus projects on quarkus.platform.version 3.40.1, Java 25, pinned `ubi10/openjdk-25[-runtime]:1.24-15`, non-root UID 185 with group-0 ownership.
+- gRPC projects read `../proto` through `quarkus.grpc.codegen.proto-directory`; plain `mvn package` works.
+- Locked stack: 06 stream processor rewritten on `quarkus-kafka-streams` (windowed aggregation by merchant, running updates, bad totals skipped, LogAndContinue deserialization). Every other Quarkus Kafka path already used SmallRye Reactive Messaging; 16 uses websockets-next.
+- Third-party pins: compiler 3.16.0, surefire/failsafe 3.6.0, micrometer-registry-otlp 3.7.0, OpenFeature sdk 1.23.0, flagd 0.14.2.
+- No source changes were needed for 3.33 to 3.40.
+- Live: **18/18 Quarkus targets PASS**, rerun from the final tree after the Opus review; counts unchanged.
+
 Carried forward:
 - S4: extend `examples/30-blazor-signalr/verify.sh` to cover Redis backplane scale-out and circuit recovery (the footer states they are not yet covered).
-- S2/S3: make the gRPC JVM projects build with plain `mvn package` (CI currently copies `../proto` the way the Containerfiles do).
+- S3: make the Spring Boot gRPC projects build with plain `mvn package` (CI still copies `../proto` for them), and move the Spring Boot 06 stream processor to Kafka Streams (the lock; it is hand-rolled today).
