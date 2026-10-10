@@ -166,6 +166,9 @@ in each case there is a workable .NET path, a polyglot path, or a commercial pat
 - **Deliberately simple DI.** Microsoft.Extensions.DependencyInjection is intentionally
   minimal. For property injection, decorators, or advanced lifetime scopes, Autofac or
   Lamar are drop-in replacements.
+- **MassTransit v9 is commercial.** The previously open-source service bus moved to a
+  commercial license, so this book uses Confluent.Kafka directly for Kafka messaging and
+  Wolverine (MIT) where a framework bus is wanted.
 - **MediatR is no longer open source.** It moved to a commercial license, and Wolverine is
   the modern MIT-licensed equivalent — arguably a better design — for new projects.
 
@@ -213,14 +216,12 @@ correlated trace on its first request has the spine of every pattern in this boo
 before you have written any business logic.
 
 ---
-*Verification status: unverified — the three tables were transcribed directly from the
-source deck's rendered table images, so the rows match the deck, but several entries are
-version- and license-sensitive and the sandbox is offline, so they were not re-checked
-against upstream. Confirm online before publishing: (1) **MassTransit's license** — v9 is
-commercial, which is why the examples use Confluent.Kafka; it belongs in the honest-gaps
-section alongside MediatR. (2) MediatR's commercial
-license and Wolverine as the OSS replacement. (3) The .NET 10 LTS support window (the deck
-says through Nov 2028). (4) Exact NuGet package ids and current licenses for Temporalio,
-Streamiz.Kafka.Net, Asp.Versioning, and Polly / Microsoft.Extensions.Resilience. There is no
-per-language `examples/` runner for this appendix; the recipe's cross-check is the closest
-thing to a runnable proof.*
+*Verification status: package versions and licenses were checked against nuget.org on
+2026-10-10 (Confluent.Kafka 2.16.0, Apache-2.0; Streamiz.Kafka.Net 1.8.2, MIT; Temporalio,
+Asp.Versioning and Microsoft.Extensions.Resilience, MIT; Polly 8, BSD-3-Clause). MassTransit
+v9 and MediatR are commercially licensed, which is why the examples use Confluent.Kafka
+directly and Wolverine is the OSS alternative (see the honest gaps above). The three tables
+were transcribed from the source deck, so the rows match the deck; the .NET 10 LTS support
+window (through Nov 2028) follows Microsoft's published policy. There is no per-language
+`examples/` runner for this appendix; the recipe's cross-check is the closest thing to a
+runnable proof.*
