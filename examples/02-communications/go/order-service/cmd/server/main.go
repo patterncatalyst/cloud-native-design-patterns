@@ -10,11 +10,15 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
+	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
+	"github.com/cenkalti/backoff/v7"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/patterncatalyst/cloud-native-design-patterns/examples/02-communications/go/order-service/graph"
 	pb "github.com/patterncatalyst/cloud-native-design-patterns/examples/02-communications/go/order-service/pb"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"google.golang.org/grpc"
@@ -22,9 +26,9 @@ import (
 )
 
 var (
-	pool     *pgxpool.Pool
-	producer *kgo.Client
-	invConn  *grpc.ClientConn
+	pool      *pgxpool.Pool
+	producer  *kgo.Client
+	invConn   *grpc.ClientConn
 	invClient pb.InventoryClient
 )
 
@@ -71,13 +75,17 @@ func main() {
 
 	mux.HandleFunc("POST /orders", handleCreateOrder)
 	mux.HandleFunc("GET /orders", handleListOrders)
-	mux.HandleFunc("POST /graphql", handleGraphQL)
+	// gqlgen serves graph/schema.graphqls; the resolver reads the same orders table.
+	gql := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{Pool: pool}}))
+	gql.AddTransport(transport.POST{})
+	gql.Use(extension.Introspection{})
+	mux.Handle("POST /graphql", gql)
 
 	srv := &http.Server{Addr: ":8080", Handler: mux}
 	go func() {
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
-		<-sigCh
+		sigCtx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+		defer stopSignals()
+		<-sigCtx.Done()
 		slog.Info("shutting down")
 		srv.Shutdown(context.Background())
 	}()
@@ -120,14 +128,16 @@ func handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 		"id": id, "sku": in.SKU, "quantity": in.Quantity, "status": status,
 	})
 	rec := &kgo.Record{Topic: "order.placed", Key: []byte(id), Value: event}
-	for attempt := range 5 {
-		results := producer.ProduceSync(r.Context(), rec)
-		if err := results.FirstErr(); err != nil {
-			slog.Warn("kafka produce retry", "attempt", attempt+1, "err", err)
-			time.Sleep(time.Duration(attempt+1) * 500 * time.Millisecond)
-			continue
-		}
-		break
+	produceBackoff := backoff.NewExponentialBackOff()
+	produceBackoff.InitialInterval = 500 * time.Millisecond
+	produceBackoff.MaxInterval = 2 * time.Second
+	if _, err := backoff.Retry(r.Context(), func() (struct{}, error) {
+		return struct{}{}, producer.ProduceSync(r.Context(), rec).FirstErr()
+	}, backoff.WithBackOff(produceBackoff), backoff.WithMaxTries(5),
+		backoff.WithNotify(func(err error, next time.Duration) {
+			slog.Warn("kafka produce retry", "err", err, "next_in", next)
+		})); err != nil {
+		slog.Error("kafka produce failed", "err", err)
 	}
 
 	slog.Info("order created", "id", id, "sku", in.SKU, "status", status)
@@ -184,38 +194,6 @@ func handleListOrders(w http.ResponseWriter, r *http.Request) {
 		result["next_cursor"] = *nextCursor
 	}
 	writeJSON(w, 200, result)
-}
-
-func handleGraphQL(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Query string `json:"query"`
-	}
-	json.NewDecoder(r.Body).Decode(&req)
-
-	if strings.Contains(req.Query, "orders") {
-		limit := 10
-		rows, err := pool.Query(r.Context(),
-			"SELECT id, sku, quantity, status FROM orders ORDER BY id LIMIT $1", limit)
-		if err != nil {
-			writeJSON(w, 200, map[string]any{"data": nil, "errors": []map[string]string{{"message": err.Error()}}})
-			return
-		}
-		defer rows.Close()
-
-		orders := make([]map[string]any, 0)
-		for rows.Next() {
-			var id, sku, status string
-			var quantity int
-			rows.Scan(&id, &sku, &quantity, &status)
-			orders = append(orders, map[string]any{
-				"id": id, "sku": sku, "quantity": quantity, "status": status,
-			})
-		}
-		writeJSON(w, 200, map[string]any{"data": map[string]any{"orders": orders}})
-		return
-	}
-
-	writeJSON(w, 200, map[string]any{"data": nil})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

@@ -120,14 +120,30 @@ for i in $(seq 1 10); do
 done
 sleep 3
 
-LAG=$(ctr_exec cndp-kafka /opt/kafka/bin/kafka-consumer-groups.sh \
-    --bootstrap-server localhost:9092 --describe --group stream-processor 2>/dev/null \
-    | awk 'NR>1 {sum+=$6} END {print sum}')
+# Lag on the input topic only (order.placed): stream frameworks also put their own
+# internal topics in the group (Faust reads its changelog without committing).
+# Per partition, lag is LOG-END-OFFSET minus CURRENT-OFFSET; a partition the group
+# has not committed on yet shows CURRENT-OFFSET "-", so count its whole log rather
+# than zero (a sticky partitioner can put the whole burst there).
+group_lag() {
+    ctr_exec cndp-kafka /opt/kafka/bin/kafka-consumer-groups.sh \
+        --bootstrap-server localhost:9092 --describe --group stream-processor 2>/dev/null \
+        | awk '$1 == "stream-processor" && $2 == "order.placed" && $5 ~ /^[0-9]+$/ {
+                   cur = ($4 ~ /^[0-9]+$/) ? $4 : 0; sum += $5 - cur
+               } END {print sum + 0}'
+}
+show_group() {
+    ctr_exec cndp-kafka /opt/kafka/bin/kafka-consumer-groups.sh \
+        --bootstrap-server localhost:9092 --describe --group stream-processor 2>/dev/null | sed 's/^/      /'
+}
+
+LAG=$(group_lag)
 if [ "${LAG:-0}" -gt 0 ]; then
     printf '  \xe2\x9c\x93 consumer lag is %s (lag builds when processor paused)\n' "$LAG"
     PASS=$((PASS + 1))
 else
     printf '  \xe2\x9c\x97 consumer lag should be > 0 when processor paused (got %s)\n' "${LAG:-0}"
+    show_group
     FAIL=$((FAIL + 1))
 fi
 
@@ -136,16 +152,31 @@ printf '  \xe2\x86\x92 resuming stream-processor to drain lag...\n'
 ctr_unpause cndp-stream-processor >/dev/null 2>&1
 sleep 10
 
-LAG_AFTER=$(ctr_exec cndp-kafka /opt/kafka/bin/kafka-consumer-groups.sh \
-    --bootstrap-server localhost:9092 --describe --group stream-processor 2>/dev/null \
-    | awk 'NR>1 {sum+=$6} END {print sum}')
+LAG_AFTER=$(group_lag)
 if [ "${LAG_AFTER:-0}" -lt "${LAG:-1}" ]; then
     printf '  \xe2\x9c\x93 consumer lag drained after resume (was %s, now %s)\n' "$LAG" "$LAG_AFTER"
     PASS=$((PASS + 1))
 else
     printf '  \xe2\x9c\x97 consumer lag did not drain (was %s, now %s)\n' "$LAG" "$LAG_AFTER"
+    show_group
     FAIL=$((FAIL + 1))
 fi
+
+# --- The burst reaches the derived stream ---
+# The lag checks cover the first sub-topology (order.placed). The revenue stream shows
+# the re-keyed aggregation also processed the burst: merchant-c exists only in the burst.
+printf '  \xe2\x86\x92 waiting for the burst to appear in revenue.by-merchant...\n'
+REVENUE_C=""
+for _ in $(seq 1 6); do
+    REVENUE_C=$(ctr_exec cndp-kafka /opt/kafka/bin/kafka-console-consumer.sh \
+        --bootstrap-server localhost:9092 --topic revenue.by-merchant \
+        --from-beginning --timeout-ms 5000 2>/dev/null || true)
+    if grep -q "merchant-c" <<<"$REVENUE_C"; then break; fi
+done
+
+check "revenue stream contains merchant-c aggregation (burst processed end to end)" \
+    "echo '$REVENUE_C'" \
+    "merchant-c"
 
 printf '\n==> Results: %d passed, %d failed\n' "$PASS" "$FAIL"
 [[ $FAIL -eq 0 ]] && printf '==> PASS\n' || { printf '==> FAIL\n'; exit 1; }

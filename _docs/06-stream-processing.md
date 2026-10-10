@@ -164,27 +164,25 @@ while (!stop_token.stop_requested()) {
 ```
 
 ```go
-// In-process windowed aggregation: revenue-per-merchant, 5-minute tumbling.
-// Stateful but bounded — fits in-process. Go has no Faust/Flink-class framework;
-// for joins or large state, use Flink and treat Go as the producer/consumer.
-type window struct {
-	start   time.Time
-	revenue map[string]float64 // per merchant
-}
+// goka: a group (the Kafka consumer group) with a changelog-backed table. Stage one re-keys
+// each order by merchant; stage two folds it into the merchant's tumbling windows and emits
+// every update to revenue.by-merchant. Window state lives in the group table, so a restart
+// replays the changelog topic and picks up where it stopped.
+graph := goka.DefineGroup("stream-processor",
+	goka.Input("order.placed", new(codec.Bytes), rekey),
+	goka.Output("stream-processor-by-merchant", rekeyedCodec{}),
+	goka.Input("stream-processor-by-merchant", rekeyedCodec{}, aggregate),
+	goka.Output("revenue.by-merchant", new(codec.Bytes)),
+	goka.Persist(stateCodec{}), // the group table
+)
 
-func aggregate(ctx context.Context, cl *kgo.Client) {
-	cur := window{floorTo5Min(time.Now()), map[string]float64{}}
-	for {
-		cl.PollFetches(ctx).EachRecord(func(r *kgo.Record) {
-			o := deserialize(r.Value)
-			start := floorTo5Min(o.PlacedAt)
-			if start != cur.start { // window rolled over
-				emitWindow(cur)                            // flush to revenue.by-merchant
-				cur = window{start, map[string]float64{}}
-			}
-			cur.revenue[o.MerchantID] += o.Total // stateful, in-process
-		})
-	}
+func aggregate(ctx goka.Context, msg any) {
+	in := msg.(*rekeyed)                          // {ts, total} for one order
+	state := loadState(ctx)                       // this merchant's windows, from the table
+	start := (in.TS / 1000 / windowSeconds) * windowSeconds // 5-minute floor in the book, WINDOW_SECONDS in the example
+	cur := state.add(start, in.Total)             // count + running total for the window
+	ctx.SetValue(state)                           // goka writes the changelog
+	ctx.Emit(revenue, ctx.Key(), revenueJSON(ctx.Key(), start, cur)) // revenue.by-merchant
 }
 ```
 
@@ -192,7 +190,7 @@ func aggregate(ctx context.Context, cl *kgo.Client) {
 
 Every tab is the same topology: read `order.placed`, group by merchant, bucket into
 five-minute windows, fold each window into a running total, and write the result to
-a derived `revenue.by-merchant` stream. The JVM and .NET versions get the
+a derived `revenue.by-merchant` stream. The JVM, .NET, Python and Go versions (Kafka Streams, Streamiz, Faust, goka) get the
 changelog-backed store for free — kill the pod and the window state rebuilds by
 replaying the changelog topic. The C++ version keeps the window map in process,
 which is fine while the state is bounded; once you need joins or state larger than a
@@ -272,7 +270,7 @@ event-time we expect to be" — which is essential for multi-source joins where
 sources have different latencies.
 
 **When to reach for Flink** — in-process stream processing (Kafka Streams, Faust,
-Streamiz, the C++/Go loops in this chapter's example) works well for single-topic,
+Streamiz, goka, the C++ loop in this chapter's example) works well for single-topic,
 bounded-state computations. Once you need **stream-to-stream joins** (correlate
 orders with payments by key and time), **state larger than a single worker's
 memory**, or **exactly-once across multiple Kafka clusters**, a dedicated engine
@@ -327,5 +325,5 @@ The code is in [`examples/06-stream-processing/`](https://github.com/patterncata
 runs it; its `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: verified — [`examples/06-stream-processing/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/06-stream-processing/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-10)
-(per-merchant revenue aggregation onto a derived Kafka topic, the stream-processor consumer group, and consumer lag that builds while the processor is paused and drains on resume).*
+*Verification status: verified — [`examples/06-stream-processing/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/06-stream-processing/) passes 11/11 checks in each of the six languages on Docker Engine (2026-10-10)
+(per-merchant revenue aggregation onto a derived Kafka topic, the stream-processor consumer group, consumer lag that builds while the processor is paused and drains on resume, and the burst appearing in the revenue stream).*

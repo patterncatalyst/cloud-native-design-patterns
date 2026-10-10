@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
+	"time"
 
 	"github.com/open-feature/go-sdk-contrib/providers/flagd/pkg"
 	"github.com/open-feature/go-sdk/openfeature"
@@ -46,7 +50,19 @@ func main() {
 	mux.HandleFunc("GET /flags", handleFlags)
 
 	slog.Info("starting flag-service on :8080")
-	http.ListenAndServe(":8080", mux)
+	httpSrv := &http.Server{Addr: ":8080", Handler: mux}
+	sigCtx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stopSignals()
+	go func() {
+		<-sigCtx.Done()
+		slog.Info("shutting down")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		httpSrv.Shutdown(shutdownCtx)
+	}()
+	if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		slog.Error("server error", "err", err)
+	}
 }
 
 func evalCtx(r *http.Request) openfeature.EvaluationContext {
@@ -99,9 +115,9 @@ func handleFlags(w http.ResponseWriter, r *http.Request) {
 	recsEnabled, _ := ofClient.BooleanValue(r.Context(), "recommendations-enabled", true, ctx)
 	darkMode, _ := ofClient.BooleanValue(r.Context(), "dark-mode", false, ctx)
 	writeJSON(w, 200, map[string]any{
-		"new-checkout":           newCheckout,
+		"new-checkout":            newCheckout,
 		"recommendations-enabled": recsEnabled,
-		"dark-mode":              darkMode,
+		"dark-mode":               darkMode,
 	})
 }
 

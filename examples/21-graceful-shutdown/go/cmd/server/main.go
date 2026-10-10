@@ -148,8 +148,9 @@ func main() {
 		Handler: mux,
 	}
 
-	sigCh := make(chan os.Signal, 2)
-	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
+	// First signal cancels ctx. The second one is caught by a fresh NotifyContext below.
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer stop()
 
 	go func() {
 		slog.Info("starting order-service", "pid", os.Getpid())
@@ -160,12 +161,15 @@ func main() {
 	}()
 
 	// First signal: flip readiness, keep serving during drain
-	<-sigCh
+	<-ctx.Done()
 	s.shuttingDown.Store(true)
 	slog.Info("SIGTERM received — readiness flipped, draining in-flight requests")
 
 	// Second signal (from docker stop): shut down the HTTP server
-	<-sigCh
+	second, stopSecond := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer stopSecond()
+	stop() // release the first registration; later signals reach only `second`
+	<-second.Done()
 	slog.Info(fmt.Sprintf("second signal received (in_flight=%d), shutting down HTTP server", s.inFlight.Load()))
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

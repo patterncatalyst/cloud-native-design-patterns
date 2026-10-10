@@ -74,12 +74,12 @@ infrastructure it needs. All containers use the `cndp-` prefix.
 
 - **Same API contract**: All language implementations expose identical REST/gRPC/GraphQL
   endpoints on the same ports — `verify.sh` works with any language.
-- **Red Hat UBI base images**: Application containers use UBI10 (Spring Boot and Quarkus on JDK 25, Python 3.14) or
+- **Red Hat UBI base images**: Application containers use UBI10 (Spring Boot and Quarkus on JDK 25, Python 3.14, and Go 1.27.2 as static binaries on `ubi-minimal`; the Go builder is the official `golang:1.27.2` image because the UBI 10 go-toolset ships only Go 1.26) or
   UBI9 (.NET); infrastructure services use upstream images.
 - **Per-language README**: Each language directory has its own README with framework details,
   implementation notes, and local development instructions.
 - **Six language stacks**: Spring Boot 4.1.1, Quarkus 3.40.1 LTS, .NET 10.0.12, Python 3.14 (FastAPI 0.143, faust-streaming 0.15.3), C++
-  (Drogon) and Go (`net/http`) — all sharing the same API contract and `verify.sh`.
+  (Drogon) and Go 1.27.2 (`net/http`, goka, gqlgen, golang-jwt, gopher-lua, franz-go, pgx) — all sharing the same API contract and `verify.sh`.
 - **Build files**: each service builds from a `Containerfile` (`Containerfile.<svc>` for
   .NET); compose references it with `build.dockerfile: Containerfile`.
 - **Host ports**: Prometheus-compatible metrics (Mimir) are on host port 19090, because

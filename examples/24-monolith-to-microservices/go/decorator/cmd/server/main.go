@@ -2,15 +2,19 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
+	"github.com/cenkalti/backoff/v7"
 	"github.com/redis/go-redis/v9"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
@@ -55,7 +59,19 @@ func main() {
 	mux.HandleFunc("GET /events", handleEvents)
 
 	slog.Info("starting decorator on :8080")
-	http.ListenAndServe(":8080", mux)
+	httpSrv := &http.Server{Addr: ":8080", Handler: mux}
+	sigCtx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stopSignals()
+	go func() {
+		<-sigCtx.Done()
+		slog.Info("shutting down")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		httpSrv.Shutdown(shutdownCtx)
+	}()
+	if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		slog.Error("server error", "err", err)
+	}
 }
 
 func handleCreateOrder(w http.ResponseWriter, r *http.Request) {
@@ -80,14 +96,16 @@ func handleCreateOrder(w http.ResponseWriter, r *http.Request) {
 	eventData, _ := json.Marshal(event)
 
 	rec := &kgo.Record{Topic: "order.placed", Key: []byte(orderID), Value: eventData}
-	for attempt := range 5 {
-		results := producer.ProduceSync(r.Context(), rec)
-		if err := results.FirstErr(); err != nil {
-			slog.Warn("kafka produce retry", "attempt", attempt+1, "err", err)
-			time.Sleep(time.Duration(attempt+1) * 500 * time.Millisecond)
-			continue
-		}
-		break
+	produceBackoff := backoff.NewExponentialBackOff()
+	produceBackoff.InitialInterval = 500 * time.Millisecond
+	produceBackoff.MaxInterval = 2 * time.Second
+	if _, err := backoff.Retry(r.Context(), func() (struct{}, error) {
+		return struct{}{}, producer.ProduceSync(r.Context(), rec).FirstErr()
+	}, backoff.WithBackOff(produceBackoff), backoff.WithMaxTries(5),
+		backoff.WithNotify(func(err error, next time.Duration) {
+			slog.Warn("kafka produce retry", "err", err, "next_in", next)
+		})); err != nil {
+		slog.Error("kafka produce failed", "err", err)
 	}
 	slog.Info("EVENT order.placed", "order_id", orderID)
 

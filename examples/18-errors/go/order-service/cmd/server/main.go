@@ -8,7 +8,10 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
+	"time"
 
 	"github.com/google/uuid"
 	pb "github.com/patterncatalyst/cloud-native-design-patterns/examples/18-errors/go/order-service/pb"
@@ -27,13 +30,13 @@ func randomTraceID() string {
 }
 
 type problemResponse struct {
-	Type      string `json:"type"`
-	Title     string `json:"title"`
-	Status    int    `json:"status"`
-	Code      string `json:"code"`
-	TraceID   string `json:"traceId"`
-	Retryable bool   `json:"retryable"`
-	RetryAfter *int  `json:"retryAfter,omitempty"`
+	Type       string `json:"type"`
+	Title      string `json:"title"`
+	Status     int    `json:"status"`
+	Code       string `json:"code"`
+	TraceID    string `json:"traceId"`
+	Retryable  bool   `json:"retryable"`
+	RetryAfter *int   `json:"retryAfter,omitempty"`
 }
 
 func writeProblem(w http.ResponseWriter, status int, code, message string, retryable bool, retryAfter *int) {
@@ -133,7 +136,17 @@ func main() {
 	})
 
 	slog.Info("starting order-service", "pid", os.Getpid())
-	if err := http.ListenAndServe(":8080", mux); err != nil {
+	httpSrv := &http.Server{Addr: ":8080", Handler: mux}
+	sigCtx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stopSignals()
+	go func() {
+		<-sigCtx.Done()
+		slog.Info("shutting down")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		httpSrv.Shutdown(shutdownCtx)
+	}()
+	if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("server error", "err", err)
 		os.Exit(1)
 	}
