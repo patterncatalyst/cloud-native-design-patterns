@@ -3,8 +3,6 @@ spring:
     name: shipping-consumer
   main:
     web-application-type: none
-    # A listener-only service has no web server to keep the JVM alive
-    keep-alive: true
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/appdb}
     username: ${SPRING_DATASOURCE_USERNAME:appuser}
