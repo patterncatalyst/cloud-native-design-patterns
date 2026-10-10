@@ -26,7 +26,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | S1 | feature/docker-engine-runtime | 6 | done (111/111 PASS on Docker; final rerun after the Opus review) |
 | S2 | chore/quarkus-3.40-lts | 1 | done (18/18 Quarkus PASS on 3.40.1; closes #32) |
 | S3 | chore/spring-boot-4.1 | 1 | done (111/111 PASS after the Opus review; closes #31) |
-| S4 | chore/dotnet-10-pins (+ Streamiz) | 3 | validated; 19/19 .NET PASS |
+| S4 | chore/dotnet-10-pins | 3 | done (19/19 .NET PASS after the Opus review; closes #33) |
 | S5 | chore/python-3.14 (+ faust) | 5 | pending |
 | S6 | chore/go-toolchain (Go 1.27.2 + locked libraries) | 2+4 | pending |
 | S7 | chore/cpp-toolchain-ubi10 (C++23/26 + locked libraries) | 2+4 | pending |
@@ -152,8 +152,16 @@ Defects the baseline found and fixed in S1:
 - Every example compose file has a unique project name `cndp-<NN>-<lang>`: before this, examples of one language shared images, networks and named volumes.
 - Live: 18/18 Spring Boot PASS on the first run; after the Opus review fixes (caching and observability codetabs, MDC-only trace_id, native access for RocksDB, dead OTEL env, compose names) the **full matrix was rerun: 111/111 PASS**.
 
+### S4 .NET 10 (2026-10-10)
+
+- 32 csproj on net10.0 (SDK 10.0.112, runtime 10.0.12 LTS); every PackageReference exact and newest stable; all licenses open source (checked on nuget.org). Example 30's preview SignalR packages replaced with 10.0.12.
+- Images `ubi9/dotnet-100:9.8-1791421718` and `ubi9/dotnet-100-aspnet:9.8-1791363520` (no ubi10 .NET image exists), non-root 1001, NuGet cache mount.
+- Lock changed (user decision): Kafka stays on Confluent.Kafka 2.16.0; MassTransit dropped (it hides the Kafka semantics the examples teach, and v9 is commercial). 06 stream processor rewritten on Streamiz.Kafka.Net 1.8.2 (same contract as Kafka Streams).
+- Example 30: second dashboard instance on the Redis backplane; verify.sh grows from 5 to 10 checks (cross-instance delivery both ways, restart asserted).
+- Chapter .NET codetabs (05, 06, 18, 22) compile against the pinned packages.
+- Live: **19/19 .NET targets PASS** on the final tree after the Opus review.
+
 Carried forward:
-- S4: extend `examples/30-blazor-signalr/verify.sh` to cover Redis backplane scale-out and circuit recovery (the footer states they are not yet covered).
 
 ### S4 .NET 10.0.12 (2026-10-10)
 
