@@ -16,7 +16,7 @@ public:
         stock_["limited"] = 5;
     }
 
-    grpc::Status ReserveStock(grpc::ServerContext* context,
+    grpc::Status ReserveStock(grpc::ServerContext*,
                               const inventory::ReserveRequest* request,
                               inventory::ReserveResponse* response) override {
         std::lock_guard<std::mutex> lock(mutex_);

@@ -138,7 +138,10 @@ jobs:
           pip install -r requirements.txt
           python -m compileall -q .
 
-  # Each C++ service builds in its own Containerfile (Conan 2 + GCC 14 on UBI).
+  # Each C++ service builds in its own Containerfile (Conan 2.33.0 + GCC 15 / C++23 on
+  # UBI 10). The Conan home is a BuildKit cache mount that the GHA cache does not carry, but
+  # the dependency layer (conanfile.py + conan.lock) is cached, so only a dependency change
+  # recompiles Drogon, gRPC and the rest.
   # The build context is the service directory, or its parent cpp/ directory
   # for the multi-service examples; scripts/ci_changed_projects.py cpp-context
   # decides, mirroring each example's compose.yaml.
@@ -147,6 +150,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.cpp != '[]'
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:

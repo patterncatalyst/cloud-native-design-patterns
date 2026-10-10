@@ -1,8 +1,19 @@
+"""26-failure-modes/cpp/backend-service: Conan 2 recipe.
+
+Exact pins from ConanCenter (the only remote); static libraries, built with GCC 15 / C++23.
+"""
+
 from conan import ConanFile
 
-class BackendServiceConan(ConanFile):
+
+class Cndp26FailureModesCppBackendServiceConan(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
-    generators = "CMakeToolchain", "CMakeDeps"
+    generators = "CMakeDeps", "CMakeToolchain"
+
+    default_options = {
+        "*/*:shared": False,
+        "drogon/*:with_boost": False,
+    }
 
     def requirements(self):
-        self.requires("drogon/1.9.8")
+        self.requires("drogon/1.9.13")

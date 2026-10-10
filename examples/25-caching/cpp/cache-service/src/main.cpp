@@ -244,7 +244,7 @@ int main() {
 
     // GET /cache-aside/products/:id
     app().registerHandler("/cache-aside/products/{id}",
-        [](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& callback,
+        [](const HttpRequestPtr&, std::function<void(const HttpResponsePtr&)>&& callback,
            const std::string& id) {
             Json::Value resp;
 
@@ -317,7 +317,7 @@ int main() {
 
     // GET /read-through/products/:id
     app().registerHandler("/read-through/products/{id}",
-        [](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& callback,
+        [](const HttpRequestPtr&, std::function<void(const HttpResponsePtr&)>&& callback,
            const std::string& id) {
             Json::Value resp;
 
@@ -397,7 +397,7 @@ int main() {
 
     // GET /write-through/products/:id
     app().registerHandler("/write-through/products/{id}",
-        [](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& callback,
+        [](const HttpRequestPtr&, std::function<void(const HttpResponsePtr&)>&& callback,
            const std::string& id) {
             Json::Value resp;
 
@@ -459,7 +459,7 @@ int main() {
 
     // GET /write-around/events/:id
     app().registerHandler("/write-around/events/{id}",
-        [](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& callback,
+        [](const HttpRequestPtr&, std::function<void(const HttpResponsePtr&)>&& callback,
            const std::string& id) {
             Json::Value resp;
 
@@ -528,7 +528,7 @@ int main() {
 
     // GET /write-back/metrics/:id
     app().registerHandler("/write-back/metrics/{id}",
-        [](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& callback,
+        [](const HttpRequestPtr&, std::function<void(const HttpResponsePtr&)>&& callback,
            const std::string& id) {
             Json::Value resp;
 
@@ -557,7 +557,7 @@ int main() {
 
     // GET /write-back/flush-status
     app().registerHandler("/write-back/flush-status",
-        [](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& callback) {
+        [](const HttpRequestPtr&, std::function<void(const HttpResponsePtr&)>&& callback) {
             Json::Value resp;
             resp["persisted_rows"] = g_persisted_rows.load();
             auto http_resp = HttpResponse::newHttpJsonResponse(resp);
@@ -571,7 +571,7 @@ int main() {
 
     // GET /refresh-ahead/products/:id
     app().registerHandler("/refresh-ahead/products/{id}",
-        [](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& callback,
+        [](const HttpRequestPtr&, std::function<void(const HttpResponsePtr&)>&& callback,
            const std::string& id) {
             Json::Value resp;
 
@@ -612,7 +612,7 @@ int main() {
 
     // GET /cache-keys
     app().registerHandler("/cache-keys",
-        [](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& callback) {
+        [](const HttpRequestPtr&, std::function<void(const HttpResponsePtr&)>&& callback) {
             Json::Value resp(Json::arrayValue);
 
             auto product_keys = redis_keys("product:*");

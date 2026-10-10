@@ -79,11 +79,20 @@ CloudNativePG, Strimzi/Kafka, Apicurio, Istio, KEDA, Debezium, and OTel → the 
   flagd; `signal.NotifyContext` + `atomic.Bool` shutdown.
   - Go builds use `docker.io/library/golang:1.27.2` (pinned) on a `ubi10/ubi-minimal` runtime. HOLD:
     the UBI 10 `go-toolset` ships only Go 1.26.x, so it is not used as the builder.
-- **C++**: Drogon (REST + WebSocket); grpc++ sync; cppgraphqlgen; modern-cpp-kafka;
-  **libpq direct (not libpqxx)**; sw/redis++; jwt-cpp; boost::sml (saga); sol2 + Lua; OTel
-  C++ + spdlog; Conan 2 + CMake 3.27 + Ninja + GCC 14.
+- **C++**: C++23 (`CMAKE_CXX_STANDARD 23`, required, no extensions); Drogon (REST +
+  WebSocket); grpc++ sync; cppgraphqlgen; **librdkafka C++ API (`rdkafka++`)** for Kafka
+  (modern-cpp-kafka is archived upstream); **libpq direct (not libpqxx)**; sw/redis++;
+  jwt-cpp; boost::sml (saga); sol2 + Lua; OTel C++ + spdlog; Conan 2.33.0 + CMake 4.4.4 +
+  Ninja 1.13.2 + GCC 15 (`gcc-toolset-15`).
+  - C++ builds use `ubi10/ubi:10.2` (pinned) as the builder with `gcc-toolset-15`; CMake and Ninja
+    come from the upstream release binaries (sha256-verified; UBI ships cmake 3.31 / ninja 1.11)
+    and Conan from a pinned pip venv. The runtime is `ubi10/ubi-minimal` with libstdc++/libgcc linked
+    statically (the toolset's libstdc++ is newer than the one in the minimal image).
+  - ConanCenter lags upstream for some libraries (see `_plans/modernization-plan.md` S7); take the newest
+    ConanCenter version and record the gap. cppgraphqlgen is not on ConanCenter: its recipe lives next to
+    the examples that use it.
   - ⚠️ Reconcile: the r76 outbox codetab in `_docs/05-event-driven.md` used `pqxx` for
-    brevity; the example must use **libpq** per this lock (and consider fixing the codetab).
+    brevity; it now shows libpq, as the example does.
 - **JVM / .NET / Python** (as used in the site codetabs): Spring Boot (Spring Kafka,
   `spring-boot-starter-websocket`, Kafka Streams); Quarkus (`websockets-next`, SmallRye
   Reactive Messaging, Kafka Streams); .NET 10.0.12 (**Confluent.Kafka** 2.16.0 for Kafka —

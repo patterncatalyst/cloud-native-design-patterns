@@ -1,11 +1,21 @@
+"""27-feature-flags/cpp/flag-service: Conan 2 recipe.
+
+Exact pins from ConanCenter (the only remote); static libraries, built with GCC 15 / C++23.
+"""
+
 from conan import ConanFile
 
-class CloudNative27Conan(ConanFile):
+
+class Cndp27FeatureFlagsCppFlagServiceConan(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
     generators = "CMakeDeps", "CMakeToolchain"
-    default_options = {"*/*:shared": False}
+
+    default_options = {
+        "*/*:shared": False,
+        "drogon/*:with_boost": False,
+    }
 
     def requirements(self):
-        self.requires("drogon/1.9.8")
-        self.requires("grpc/1.54.3")
-        self.requires("protobuf/3.21.12")
+        self.requires("drogon/1.9.13")
+        self.requires("grpc/1.84.0")
+        self.requires("protobuf/6.33.5")

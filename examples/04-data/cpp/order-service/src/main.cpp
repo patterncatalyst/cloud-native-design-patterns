@@ -24,7 +24,7 @@ std::string generate_uuid() {
     oss << "-4";
     for (int i = 0; i < 3; i++) oss << hex(gen);
     oss << '-';
-    oss << (hex(gen) & 0x3 | 0x8);
+    oss << ((hex(gen) & 0x3) | 0x8);
     for (int i = 0; i < 3; i++) oss << hex(gen);
     oss << '-';
     for (int i = 0; i < 12; i++) oss << hex(gen);
@@ -37,7 +37,7 @@ std::string pg_conninfo() {
     return env ? env : "postgresql://appuser:apppass@postgres:5432/appdb";
 }
 
-void handle_healthz(const HttpRequestPtr& req,
+void handle_healthz(const HttpRequestPtr&,
                     std::function<void(const HttpResponsePtr&)>&& callback) {
     Json::Value resp;
     resp["status"] = "ok";
@@ -163,7 +163,7 @@ void handle_post_orders(const HttpRequestPtr& req,
     callback(http_resp);
 }
 
-void handle_get_orders(const HttpRequestPtr& req,
+void handle_get_orders(const HttpRequestPtr&,
                       std::function<void(const HttpResponsePtr&)>&& callback) {
     PGconn* conn = PQconnectdb(pg_conninfo().c_str());
     if (PQstatus(conn) != CONNECTION_OK) {
@@ -211,7 +211,7 @@ void handle_get_orders(const HttpRequestPtr& req,
     callback(http_resp);
 }
 
-void handle_get_outbox(const HttpRequestPtr& req,
+void handle_get_outbox(const HttpRequestPtr&,
                       std::function<void(const HttpResponsePtr&)>&& callback) {
     PGconn* conn = PQconnectdb(pg_conninfo().c_str());
     if (PQstatus(conn) != CONNECTION_OK) {
