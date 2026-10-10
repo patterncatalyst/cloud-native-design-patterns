@@ -2,7 +2,7 @@
 //
 // Manual offset commit: the offset is committed only after the INSERT, so a crash between the
 // two replays the record (the notifications table has a unique key on order_id, so the replay
-// is a logged duplicate, not a second email).
+// is a logged duplicate, not a second email). A failed INSERT is retried, never skipped.
 
 #include <atomic>
 #include <chrono>
@@ -11,6 +11,7 @@
 #include <memory>
 #include <random>
 #include <string>
+#include <thread>
 
 #include <libpq-fe.h>
 #include <librdkafka/rdkafkacpp.h>
@@ -132,21 +133,34 @@ int main() {
             {{"order.id", order_id}, {"messaging.system", "kafka"}, {"messaging.destination", "order.placed"}},
             so);
 
-        const char* params[1] = {order_id.c_str()};
-        PGresult* res = PQexecParams(pg,
-            "INSERT INTO notifications (order_id, channel) VALUES ($1, 'email')",
-            1, nullptr, params, nullptr, nullptr, 0);
-        if (PQresultStatus(res) == PGRES_COMMAND_OK) {
-            std::cerr << "notification sent order_id=" << order_id << std::endl;
-        } else {
-            std::string e = PQerrorMessage(pg);
-            if (e.find("duplicate") != std::string::npos || e.find("unique") != std::string::npos)
-                std::cerr << "duplicate skipped order_id=" << order_id << std::endl;
-            else
-                std::cerr << "insert failed: " << e << std::endl;
+        // Retry until the row is written or confirmed to exist (SQLSTATE 23505, unique
+        // violation). Any other failure (connection lost, database restarting) resets the
+        // connection and tries again; the offset is committed only after one of the two,
+        // so the event is never dropped.
+        bool done = false;
+        while (!done && !g_shutdown) {
+            if (PQstatus(pg) != CONNECTION_OK) PQreset(pg);
+            const char* params[1] = {order_id.c_str()};
+            PGresult* res = PQexecParams(pg,
+                "INSERT INTO notifications (order_id, channel) VALUES ($1, 'email')",
+                1, nullptr, params, nullptr, nullptr, 0);
+            if (PQresultStatus(res) == PGRES_COMMAND_OK) {
+                std::cerr << "notification sent order_id=" << order_id << std::endl;
+                done = true;
+            } else {
+                const char* state = PQresultErrorField(res, PG_DIAG_SQLSTATE);
+                if (state && std::string(state) == "23505") {
+                    std::cerr << "duplicate skipped order_id=" << order_id << std::endl;
+                    done = true;
+                } else {
+                    std::cerr << "insert failed, retrying: " << PQerrorMessage(pg) << std::endl;
+                }
+            }
+            PQclear(res);
+            if (!done) std::this_thread::sleep_for(std::chrono::seconds(1));
         }
-        PQclear(res);
         span->End();
+        if (!done) break;  // shutting down: leave the offset uncommitted, the event is redelivered
 
         // Commit only after the side effect.
         if (auto rc = consumer->commitSync(msg.get()); rc != RdKafka::ERR_NO_ERROR)
