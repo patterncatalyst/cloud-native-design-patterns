@@ -418,7 +418,7 @@ you **commit the offset either way**, so the main consumer always makes progress
 DLQ record carries the original payload plus error and trace headers.
 
 The frameworks differ in how much they do for you. Spring Kafka, SmallRye Reactive
-Messaging, and MassTransit express the policy declaratively; with `aiokafka` and
+Messaging express the policy declaratively; with `Confluent.Kafka`, `aiokafka` and
 `modern-cpp-kafka` you write the loop yourself — which makes the invariant explicit:
 the commit happens on *every* branch.
 
@@ -474,40 +474,28 @@ public void consume(Order order) {
 ```
 
 ```csharp
-// MassTransit treats Kafka topics as receive endpoints with full retry policies
-// (in-process) and redelivery policies (delayed retry via scheduler).
+// Confluent.Kafka: the loop is yours, so the invariant is explicit —
+// bounded in-place retries, then a delayed-retry topic, then a DLQ,
+// and the offset is committed on every branch.
 
-builder.Services.AddMassTransit(x =>
+while (!ct.IsCancellationRequested)
 {
-    x.AddConsumer<OrderConsumer>(cfg =>
+    var cr = consumer.Consume(ct);
+    try
     {
-        cfg.UseMessageRetry(r =>                          // in-place retries
-            r.Exponential(retryLimit: 3,
-                          minInterval: TimeSpan.FromMilliseconds(200),
-                          maxInterval: TimeSpan.FromSeconds(5),
-                          intervalDelta: TimeSpan.FromMilliseconds(500))
-             .Ignore<ValidationException>());             // 4xx → fault now
-        cfg.UseScheduledRedelivery(r =>                   // delayed-retry topics
-            r.Intervals(TimeSpan.FromSeconds(5),
-                        TimeSpan.FromSeconds(30),
-                        TimeSpan.FromMinutes(5)));
-    });
-
-    x.UsingKafka((ctx, k) =>
+        await Retry.ExponentialAsync(3, TimeSpan.FromMilliseconds(200),   // in-place retries
+            () => HandleAsync(cr.Message.Value), ignore: typeof(ValidationException));
+    }
+    catch (Exception ex)
     {
-        k.Host("kafka:9092");
-        k.TopicEndpoint<Order>("orders", "order-group", e =>
-        {
-            e.ConfigureConsumer<OrderConsumer>(ctx);
-            // faulted messages → orders_error topic automatically
-        });
-    });
-});
-
-public class OrderConsumer(IEmailSender mail) : IConsumer<Order>
-{
-    public Task Consume(ConsumeContext<Order> ctx) => mail.SendAsync(ctx.Message);
-    // retry policy fires; exhausted → redelivery; exhausted again → _error topic
+        var attempts = Header(cr, "retries");
+        var (topic, hdrs) = attempts < MaxRetries
+            ? ("orders.retry.30s", Headers("retries", attempts + 1))      // delayed retry
+            : ("orders.DLQ", Headers("error", ex.GetType().Name));        // humans or tooling
+        await producer.ProduceAsync(topic,
+            new Message<Null, string> { Value = cr.Message.Value, Headers = hdrs });
+    }
+    consumer.Commit(cr);                                // commit so head-of-line is free
 }
 ```
 

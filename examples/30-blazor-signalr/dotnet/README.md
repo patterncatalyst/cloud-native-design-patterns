@@ -8,7 +8,7 @@ circuit with no polling.
 
 - **Framework**: ASP.NET Core (.NET 10.0.12) Blazor Server
 - **Libraries**: SignalR 10.0.12 (hub + client), SignalR.StackExchangeRedis 10.0.12 (backplane), Npgsql 10.0.3 (Postgres), OTel 1.19
-- **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet (runtime)
+- **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520 (runtime), built with ubi9/dotnet-100:9.8-1791421718; runs as UID 1001
 
 ## Run
 

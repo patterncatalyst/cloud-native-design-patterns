@@ -29,7 +29,7 @@ cloud.
 
 | Concern | Library | Purpose | License | NuGet |
 |---|---|---|---|---|
-| Runtime | .NET 10 | LTS through Nov 2028; cross-platform | MIT | (built in) |
+| Runtime | .NET 10 (10.0.12) | LTS through Nov 2028; cross-platform | MIT | (built in) |
 | Hosting | ASP.NET Core 10 | Web host, minimal APIs, controllers, DI, config | MIT | (built in) |
 | REST | Microsoft.AspNetCore.OpenApi | OpenAPI 3 spec generation from endpoints | MIT | Microsoft.AspNetCore.OpenApi |
 | REST | FluentValidation | Expressive request validation | Apache 2.0 | FluentValidation |
@@ -40,9 +40,8 @@ cloud.
 | Data · ORM | Entity Framework Core | Full-fat ORM; LINQ; migrations | MIT | Microsoft.EntityFrameworkCore |
 | Data · micro | Dapper | Lightweight micro-ORM | Apache 2.0 | Dapper |
 | Event store | Marten | Document + event sourcing on Postgres | MIT | Marten |
-| Messaging | MassTransit | Bus abstraction, sagas, retries, outbox, RoutingSlip | Apache 2.0 | MassTransit |
-| Messaging | Confluent.Kafka | Low-level Kafka client | Apache 2.0 | Confluent.Kafka |
-| Streaming | Streamiz.Kafka.Net | .NET port of Kafka Streams | MIT | Streamiz.Kafka.Net |
+| Messaging | Confluent.Kafka 2.16.0 | Kafka client: producers, consumer groups, explicit offset commits | Apache 2.0 | Confluent.Kafka |
+| Streaming | Streamiz.Kafka.Net 1.8.2 | .NET port of Kafka Streams | MIT | Streamiz.Kafka.Net |
 | Workflow | Temporalio.Temporal | Temporal .NET SDK — durable execution | Apache 2.0 | Temporalio.Temporal |
 | Workflow | Stateless | In-process state machine library | Apache 2.0 | Stateless |
 | Rules | NRules | Rete-algorithm rules engine | MIT | NRules.Fluent |
@@ -60,8 +59,7 @@ cloud.
 | Scheduling | DistributedLock | Distributed mutex over Postgres / Redis / SQL Server | MIT | DistributedLock.* |
 
 A few choices are worth calling out. `Microsoft.AspNetCore.OpenApi` and SignalR are built
-into ASP.NET Core 10 — no extra package. **MassTransit** is the open-source heir to BizTalk
-and NServiceBus, giving one programming model across Kafka, RabbitMQ, and Azure Service Bus.
+into ASP.NET Core 10 — no extra package. **Confluent.Kafka** is the Kafka client the examples use directly: a bus abstraction such as MassTransit would hide the consumer-group, offset-commit, and partition semantics the chapters teach, and MassTransit v9 moved to a commercial license.
 **Streamiz.Kafka.Net** is a .NET port of Kafka Streams, which means windowed aggregations
 without standing up a Flink cluster. **Temporalio.Temporal** pairs with the Temporal Server
 in the platform stack for durable workflows; **Stateless** fills the lightweight in-process
@@ -123,8 +121,8 @@ open-source and cluster-native.
 | Service shape | WCF [ServiceContract] / [OperationContract] | ASP.NET Core minimal API, Grpc.AspNetCore service, HotChocolate type | Pick the protocol per call site, not per binding |
 | Contracts | DataContract / .svc / WSDL | Microsoft.AspNetCore.OpenApi; Grpc.Tools; HotChocolate SDL | Contracts live in Apicurio; consumers code against the contract |
 | Wire | NetTcpBinding (binary), BasicHttpBinding (SOAP) | gRPC over HTTP/2 (binary); REST / JSON | Binary on internal paths; REST at the edge |
-| Distributed txn | COM+ / MSDTC two-phase commit | Saga + outbox (EF Core + Debezium / MassTransit outbox) | No two-phase commit across services; compensation replaces rollback |
-| Messaging | MSMQ, SQL Server Service Broker | Apache Kafka (Strimzi) + MassTransit | Replayable log + consumer groups + dead-letter routing |
+| Distributed txn | COM+ / MSDTC two-phase commit | Saga + outbox (EF Core + Debezium) | No two-phase commit across services; compensation replaces rollback |
+| Messaging | MSMQ, SQL Server Service Broker | Apache Kafka (Strimzi) + Confluent.Kafka | Replayable log + consumer groups + dead-letter routing |
 | Background work | Windows Service hosting a queue listener | BackgroundService in a Pod, scaled by KEDA | Long-running concerns ride the same Pod lifecycle as your web host |
 | Scheduled work | Windows Scheduled Tasks | Kubernetes CronJob / KEDA Cron / Quartz.NET | Pick by scope: cluster-wide → CronJob; in-app → Quartz.NET |
 | Config | web.config + Web.Release.config xforms | appsettings.json + env vars + ConfigMap | Config flows via the platform; the image never embeds env |
@@ -135,7 +133,7 @@ open-source and cluster-native.
 | Sessions | ASP.NET Session State | Stateless services + Redis (or no sessions, use JWT) | 12-factor disposability; do not pin users to Pods |
 | .NET Remoting | Remoting, MarshalByRefObject | gRPC over HTTP/2 / HTTP API | Wire boundary is explicit; serialization is contractual |
 | Distributed transactions UI | BizTalk orchestration | Temporal .NET workflows / Stateless (lightweight) | Orchestration is plain C#; the engine handles durability |
-| Routing logic | BizTalk pipelines + content-based routing | MassTransit RoutingSlip + NRules | EIP patterns in code; rules in their own .csproj |
+| Routing logic | BizTalk pipelines + content-based routing | NRules + Confluent.Kafka producers | EIP patterns in code; rules in their own .csproj |
 | UI · LOB | ASP.NET Web Forms / MVC + jQuery | Blazor Server (SignalR) or Blazor WebAssembly (browser .NET) | Same C# both sides of the wire; no Azure required |
 | Reverse proxy | ARR (IIS Application Request Routing) | YARP (in-app) / Istio Gateway (mesh edge) | Code-level routing or declarative platform routing |
 | Resilience | Hand-coded try/retry loops, Polly v6 standalone | M.E.Resilience pipelines (built on Polly) | Composable: retry + circuit breaker + timeout + hedging |
@@ -144,7 +142,7 @@ open-source and cluster-native.
 Only two rows are genuine conceptual rewrites rather than substrate swaps. **COM+ / MSDTC
 distributed transactions become sagas** — you write compensations explicitly because there
 is no two-phase commit across services. And **BizTalk orchestration becomes a Temporal
-workflow or a MassTransit + NRules routing pipeline** — orchestration is now C# code in your
+workflow or an NRules routing pipeline** — orchestration is now C# code in your
 repository, not a separately-authored artifact in a separate runtime. Everything else is the
 platform owning more and your code owning less.
 
@@ -158,7 +156,7 @@ in each case there is a workable .NET path, a polyglot path, or a commercial pat
   Camunda or Kogito DMN as a separate service and call it over REST from the enrichment
   step. NRules covers the rule-*engine* slot but not the DMN authoring experience.
 - **No Apache Camel-scale connector ecosystem.** Nothing in .NET matches Camel's 300-plus
-  component connectors. MassTransit's RoutingSlip covers the EIP patterns well, but for
+  component connectors. Routing code over plain Kafka producers covers the EIP patterns well, but for
   long-tail integration — HL7 over MLLP, AS2, EDI, mainframe gateways — you may still run a
   Camel sidecar in a JVM Pod, or accept a commercial option like Boomi or MuleSoft if open
   source is not a hard constraint.
@@ -189,7 +187,7 @@ settle data ownership, then pick a workflow tier, then let the cluster do the he
    `Grpc.AspNetCore` for internal service-to-service, HotChocolate only if you genuinely
    need GraphQL aggregation. Do not surface all three by default.
 3. **Settle data ownership.** EF Core for the OLTP store, with the outbox table in the same
-   `DbContext` as your aggregates; Debezium to Kafka via Strimzi. Add MassTransit only when
+   `DbContext` as your aggregates; Debezium to Kafka via Strimzi. Add a bus framework only when
    you actually need bus abstraction, or use `Confluent.Kafka` directly for tighter control.
 4. **Choose a workflow tier.** Temporal .NET SDK when the saga is durable, long, or
    cross-service; Stateless when it is small and in-process. Persist *every* transition;
@@ -198,7 +196,7 @@ settle data ownership, then pick a workflow tier, then let the cluster do the he
    retries; OpenTelemetry exporting to LGTM. Use Asp.Versioning for media-type evolution
    rather than inventing your own scheme.
 
-Six libraries get you most of the way: **ASP.NET Core, EF Core, MassTransit,
+Six libraries get you most of the way: **ASP.NET Core, EF Core, Confluent.Kafka,
 Temporalio.Temporal, OpenTelemetry, and Polly.** Add NRules, Streamiz, HotChocolate, or
 SignalR per workload — only when the use case earns it.
 
@@ -218,10 +216,9 @@ before you have written any business logic.
 *Verification status: unverified — the three tables were transcribed directly from the
 source deck's rendered table images, so the rows match the deck, but several entries are
 version- and license-sensitive and the sandbox is offline, so they were not re-checked
-against upstream. Confirm online before publishing: (1) **MassTransit's license** — the deck
-lists it as Apache 2.0 and the toolkit's "no commercial dependencies" claim depends on that;
-if MassTransit has shifted to a commercial model it belongs in the honest-gaps section
-alongside MediatR, and several migration rows would need a note. (2) MediatR's commercial
+against upstream. Confirm online before publishing: (1) **MassTransit's license** — v9 is
+commercial, which is why the examples use Confluent.Kafka; it belongs in the honest-gaps
+section alongside MediatR. (2) MediatR's commercial
 license and Wolverine as the OSS replacement. (3) The .NET 10 LTS support window (the deck
 says through Nov 2028). (4) Exact NuGet package ids and current licenses for Temporalio,
 Streamiz.Kafka.Net, Asp.Versioning, and Polly / Microsoft.Extensions.Resilience. There is no

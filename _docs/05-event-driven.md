@@ -114,7 +114,7 @@ public class Notifier {
 
 ```csharp
 // Confluent.Kafka — low-level Kafka client (Apache 2.0);
-// MassTransit wraps this when you need sagas, retries, and the outbox.
+// Pin the version (2.16.0 here) and disable auto-commit for at-least-once processing.
 
 // producer — order-service emits the fact
 var producer = new ProducerBuilder<Null, string>(

@@ -6,7 +6,7 @@ Kafka Streams-style topology on Streamiz: tumbling-window revenue per merchant.
 
 - **Framework**: ASP.NET Core (.NET 10.0.12) order service; console host for the processor
 - **Libraries**: Confluent.Kafka 2.16.0 (order service), Streamiz.Kafka.Net 1.8.2 (processor), OTel 1.19
-- **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet (runtime)
+- **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520 (runtime), built with ubi9/dotnet-100:9.8-1791421718; runs as UID 1001
 
 ## Run
 
@@ -39,7 +39,7 @@ Key variables (set by compose.yaml, override for local dev):
 
 ## Local development (without containers)
 
-Requires .NET 10 SDK.
+Requires the .NET 10 SDK (10.0.12).
 
 ```bash
 dotnet run --project OrderService

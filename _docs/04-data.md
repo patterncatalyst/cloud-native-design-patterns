@@ -199,7 +199,7 @@ public class OrderService(OrdersDbContext db) : IOrderService
         return order;
     }
 }
-// MassTransit ships a built-in transactional outbox if you prefer the framework path.
+// Wolverine and EF Core also offer built-in transactional outboxes if you prefer the framework path.
 ```
 
 ```python
