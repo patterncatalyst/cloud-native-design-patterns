@@ -1,4 +1,4 @@
-name: cndp-05
+name: cndp-05-go
 
 include:
   - path: ../../_infra/compose-lgtm.yaml

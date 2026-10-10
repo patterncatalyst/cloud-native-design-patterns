@@ -3,21 +3,13 @@ spring:
     name: order-service
   kafka:
     producer:
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
 
 server:
   port: 8080
 
 inventory:
   addr: ${INVENTORY_ADDR:inventory:50051}
-
-otel:
-  service:
-    name: order-service
-  exporter:
-    otlp:
-      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://lgtm:4318}
-      protocol: http/protobuf
 
 logging:
   pattern:

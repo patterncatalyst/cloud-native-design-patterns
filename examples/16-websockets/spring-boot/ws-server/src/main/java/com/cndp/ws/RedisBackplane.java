@@ -1,7 +1,7 @@
 package com.cndp.ws;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,7 +26,7 @@ import java.util.Map;
 public class RedisBackplane implements MessageListener {
 
     private static final Logger log = LoggerFactory.getLogger(RedisBackplane.class);
-    private static final ObjectMapper mapper = new ObjectMapper();
+    private static final JsonMapper mapper = JsonMapper.builder().build();
     private static final String CHANNEL = "ws:broadcast";
 
     @Value("${POD_NAME:ws-pod-unknown}")

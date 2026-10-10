@@ -1,3 +1,4 @@
+name: cndp-12-dotnet
 services:
   order-service:
     build:

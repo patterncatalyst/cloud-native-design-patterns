@@ -4,9 +4,9 @@ Distributed tracing, structured logging, and metrics across REST + gRPC + Kafka 
 
 ## Framework & libraries
 
-- **Framework**: Spring Boot (Web, gRPC, Kafka)
-- **Libraries**: spring-boot-starter-web, spring-kafka, grpc-netty-shaded, micrometer-tracing, OTel exporter
-- **Container base**: eclipse-temurin:21-jre
+- **Framework**: Spring Boot 4.1.1, Java 25 (Web, gRPC, Kafka)
+- **Libraries**: spring-boot-starter-webmvc, spring-boot-starter-kafka (Spring Kafka 4), grpc-netty-shaded, OpenTelemetry API (agent supplies the SDK)
+- **Container base**: `ubi10/openjdk-25-runtime:1.24-15` (UID 185)
 
 ## Run
 
@@ -30,20 +30,22 @@ cd .. && bash verify.sh
 
 ## Implementation notes
 
-Spring Boot auto-configures OTel via Micrometer Tracing bridge. Kafka trace headers propagated automatically by Spring Kafka.
+The OpenTelemetry Java agent (2.32.0) is attached with `JAVA_TOOL_OPTIONS=-javaagent:/deployments/opentelemetry-javaagent.jar`. The Containerfile downloads the jar from Maven Central and checks it against a pinned SHA-256. The agent instruments Spring MVC, gRPC, JDBC and the Kafka clients, propagates W3C trace context across REST, gRPC and Kafka, and writes `trace_id` and `span_id` into the logback MDC. The services use only the OpenTelemetry API (`GlobalOpenTelemetry`) for the custom counters. The agent is used instead of the OpenTelemetry Spring Boot starter because one jar gives zero-code instrumentation of HTTP, gRPC, JDBC and Kafka, identical across services, plus `trace_id` injection into the MDC.
+
+The gRPC contract lives in `proto/` next to the services. The poms set the protobuf-maven-plugin `protoSourceRoot` to `${project.basedir}/../proto`, so `mvn package` works from a service directory with no copy into `src/main/proto`. Containerfiles copy `proto/` beside the service sources for the same reason.
 
 ## Environment variables
 
 Key variables (set by compose.yaml, override for local dev):
 
-`management.otlp.tracing.endpoint, spring.kafka.bootstrap-servers`
+`OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_SERVICE_NAME, SPRING_KAFKA_BOOTSTRAP_SERVERS`
 
 ## Local development (without containers)
 
-Requires JDK 21+, Maven (wrapper included).
+Requires JDK 25 and Maven 3.9+.
 
 ```bash
-./mvnw spring-boot:run
+mvn spring-boot:run
 ```
 
 Requires a running Postgres (and Kafka/Redis if the example uses them) —

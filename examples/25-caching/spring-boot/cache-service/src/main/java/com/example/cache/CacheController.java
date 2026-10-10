@@ -15,20 +15,20 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 @RestController
 public class CacheController {
 
     private final JdbcClient jdbc;
     private final SafeRedis cache;
-    private final ObjectMapper mapper;
+    private final JsonMapper mapper;
 
     @Value("${cache-service.ttl-seconds:60}")
     private long ttl;
 
-    public CacheController(JdbcClient jdbc, SafeRedis cache, ObjectMapper mapper) {
+    public CacheController(JdbcClient jdbc, SafeRedis cache, JsonMapper mapper) {
         this.jdbc = jdbc;
         this.cache = cache;
         this.mapper = mapper;
@@ -327,7 +327,7 @@ public class CacheController {
     private String toJson(Object obj) {
         try {
             return mapper.writeValueAsString(obj);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new RuntimeException("JSON serialization failed", e);
         }
     }
@@ -336,7 +336,7 @@ public class CacheController {
     private Map<String, Object> parseJson(String json) {
         try {
             return new LinkedHashMap<>(mapper.readValue(json, Map.class));
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new RuntimeException("JSON deserialization failed", e);
         }
     }

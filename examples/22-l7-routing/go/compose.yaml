@@ -1,4 +1,4 @@
-name: cndp-22
+name: cndp-22-go
 
 services:
   envoy:

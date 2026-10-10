@@ -4,9 +4,9 @@ Two-part routing — Envoy weighted splits (90/10 + header override) and in-app 
 
 ## Framework & libraries
 
-- **Framework**: Spring Boot (Web)
-- **Libraries**: spring-boot-starter-web
-- **Container base**: eclipse-temurin:21-jre
+- **Framework**: Spring Boot 4.1.1, Java 25 (Web)
+- **Libraries**: spring-boot-starter-webmvc
+- **Container base**: `ubi10/openjdk-25-runtime:1.24-15` (UID 185)
 
 ## Run
 
@@ -39,10 +39,10 @@ Key variables (set by compose.yaml, override for local dev):
 
 ## Local development (without containers)
 
-Requires JDK 21+, Maven (wrapper included).
+Requires JDK 25 and Maven 3.9+.
 
 ```bash
-./mvnw spring-boot:run
+mvn spring-boot:run
 ```
 
 Requires a running Postgres (and Kafka/Redis if the example uses them) —

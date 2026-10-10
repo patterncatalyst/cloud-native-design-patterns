@@ -1,4 +1,4 @@
-name: cndp-26
+name: cndp-26-go
 
 services:
   backend:

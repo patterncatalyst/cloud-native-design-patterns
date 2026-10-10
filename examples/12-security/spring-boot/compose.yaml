@@ -1,3 +1,4 @@
+name: cndp-12-spring-boot
 services:
   order-service:
     build:

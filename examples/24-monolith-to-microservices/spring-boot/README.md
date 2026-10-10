@@ -4,9 +4,9 @@ Strangler fig pattern — router proxies to the monolith, decorator intercepts a
 
 ## Framework & libraries
 
-- **Framework**: Spring Boot (Web, Data Redis, Kafka)
-- **Libraries**: spring-boot-starter-web, spring-boot-starter-data-redis, spring-kafka
-- **Container base**: eclipse-temurin:21-jre
+- **Framework**: Spring Boot 4.1.1, Java 25 (Web, Data Redis, Kafka)
+- **Libraries**: spring-boot-starter-webmvc, spring-boot-starter-data-redis, spring-boot-starter-kafka (Spring Kafka 4)
+- **Container base**: `ubi10/openjdk-25-runtime:1.24-15` (UID 185)
 
 ## Run
 
@@ -40,10 +40,10 @@ Key variables (set by compose.yaml, override for local dev):
 
 ## Local development (without containers)
 
-Requires JDK 21+, Maven (wrapper included).
+Requires JDK 25 and Maven 3.9+.
 
 ```bash
-./mvnw spring-boot:run
+mvn spring-boot:run
 ```
 
 Requires a running Postgres (and Kafka/Redis if the example uses them) —

@@ -83,7 +83,7 @@ examples/
       Containerfile / services  # FastAPI application code
     spring-boot/
       compose.yaml
-      Containerfile / services  # Spring Boot application code
+      Containerfile / services  # Spring Boot 4.1.1 (JDK 25) application code
     quarkus/
       compose.yaml
       Containerfile / services  # Quarkus 3.40.1 LTS (JDK 25) application code

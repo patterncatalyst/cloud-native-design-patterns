@@ -96,6 +96,6 @@ remain unprefixed — only `container_name:` gets the prefix.
 Application service containers use **Red Hat UBI** (Universal Base Image):
 - Python: `registry.access.redhat.com/ubi9/python-312`
 - Go: multi-stage with `registry.access.redhat.com/ubi9/ubi-minimal` as runtime
-- Java: `registry.access.redhat.com/ubi9/openjdk-21`
+- Java: `registry.access.redhat.com/ubi10/openjdk-25` (build) and `ubi10/openjdk-25-runtime` (runtime), tag `1.24-15`
 
 Infrastructure services (Postgres, Kafka, Redis, etc.) keep their upstream images.

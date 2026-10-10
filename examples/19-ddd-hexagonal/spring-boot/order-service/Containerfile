@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/openjdk-21 AS build
+FROM registry.access.redhat.com/ubi10/openjdk-25:1.24-15 AS build
 USER root
 RUN microdnf install -y maven && microdnf clean all
 USER default
@@ -10,9 +10,10 @@ RUN --mount=type=cache,target=/home/default/.m2,uid=185 mvn dependency:go-offlin
 COPY src src
 RUN --mount=type=cache,target=/home/default/.m2,uid=185 mvn package -DskipTests -B
 
-FROM registry.access.redhat.com/ubi9/openjdk-21-runtime
-COPY --from=build /home/default/target/*.jar /deployments/app.jar
-COPY --chmod=755 cli-place-order /usr/local/bin/cli-place-order
+FROM registry.access.redhat.com/ubi10/openjdk-25-runtime:1.24-15
 WORKDIR /deployments
+COPY --from=build --chown=185:0 --chmod=g=u /home/default/target/*.jar app.jar
+COPY --chmod=755 cli-place-order /usr/local/bin/cli-place-order
+USER 185
 EXPOSE 8080
-CMD ["java", "-jar", "app.jar"]
+CMD ["java", "-jar", "/deployments/app.jar"]

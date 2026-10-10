@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,9 +23,9 @@ public class OrderController {
 
     private static final Logger log = LoggerFactory.getLogger(OrderController.class);
     private final JdbcClient jdbc;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper objectMapper;
 
-    public OrderController(JdbcClient jdbc, ObjectMapper objectMapper) {
+    public OrderController(JdbcClient jdbc, JsonMapper objectMapper) {
         this.jdbc = jdbc;
         this.objectMapper = objectMapper;
     }

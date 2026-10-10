@@ -11,8 +11,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Background scheduled tasks for write-back flushing and refresh-ahead warming.
@@ -25,7 +25,7 @@ public class BackgroundTasks {
 
     private final SafeRedis cache;
     private final JdbcClient jdbc;
-    private final ObjectMapper mapper;
+    private final JsonMapper mapper;
 
     @Value("${cache-service.ttl-seconds:60}")
     private long ttl;
@@ -33,7 +33,7 @@ public class BackgroundTasks {
     @Value("${cache-service.refresh-before-seconds:10}")
     private long refreshBefore;
 
-    public BackgroundTasks(SafeRedis cache, JdbcClient jdbc, ObjectMapper mapper) {
+    public BackgroundTasks(SafeRedis cache, JdbcClient jdbc, JsonMapper mapper) {
         this.cache = cache;
         this.jdbc = jdbc;
         this.mapper = mapper;
@@ -112,7 +112,7 @@ public class BackgroundTasks {
     private String toJson(Object obj) {
         try {
             return mapper.writeValueAsString(obj);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new RuntimeException("JSON serialization failed", e);
         }
     }

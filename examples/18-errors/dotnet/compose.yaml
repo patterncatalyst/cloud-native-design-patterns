@@ -1,3 +1,4 @@
+name: cndp-18-dotnet
 include:
   - path: ../../_infra/compose-lgtm.yaml
 

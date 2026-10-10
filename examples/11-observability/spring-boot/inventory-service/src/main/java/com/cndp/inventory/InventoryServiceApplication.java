@@ -7,14 +7,13 @@ import com.cndp.proto.ReserveReply;
 import com.cndp.proto.ReserveRequest;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
-import io.grpc.ServerInterceptors;
 import io.grpc.stub.StreamObserver;
+import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
-import io.opentelemetry.instrumentation.grpc.v1_6.GrpcTelemetry;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,8 +39,9 @@ public class InventoryServiceApplication extends InventoryServiceGrpc.InventoryS
     private Server server;
     private LongCounter stockReservationsCounter;
 
-    public InventoryServiceApplication(OpenTelemetry openTelemetry) {
-        this.openTelemetry = openTelemetry;
+    public InventoryServiceApplication() {
+        // The OpenTelemetry Java agent installs the global instance and instruments the gRPC server.
+        this.openTelemetry = GlobalOpenTelemetry.get();
     }
 
     public static void main(String[] args) {
@@ -55,10 +55,8 @@ public class InventoryServiceApplication extends InventoryServiceGrpc.InventoryS
                 .setDescription("Number of stock reservation attempts")
                 .build();
 
-        GrpcTelemetry grpcTelemetry = GrpcTelemetry.create(openTelemetry);
-
         server = ServerBuilder.forPort(grpcPort)
-                .addService(ServerInterceptors.intercept(this, grpcTelemetry.newServerInterceptor()))
+                .addService(this)
                 .build()
                 .start();
         log.info("inventory gRPC server listening on :{}", grpcPort);

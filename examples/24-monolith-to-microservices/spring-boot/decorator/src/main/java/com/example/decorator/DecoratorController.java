@@ -7,8 +7,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,13 +37,13 @@ public class DecoratorController {
     private final RestClient restClient;
     private final StringRedisTemplate redisTemplate;
     private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper objectMapper;
     private final List<Map<String, Object>> publishedEvents = Collections.synchronizedList(new ArrayList<>());
 
     public DecoratorController(RestClient restClient,
                                StringRedisTemplate redisTemplate,
                                KafkaTemplate<String, String> kafkaTemplate,
-                               ObjectMapper objectMapper) {
+                               JsonMapper objectMapper) {
         this.restClient = restClient;
         this.redisTemplate = redisTemplate;
         this.kafkaTemplate = kafkaTemplate;
@@ -71,7 +71,7 @@ public class DecoratorController {
         try {
             Map<String, Object> data = objectMapper.readValue(response, Map.class);
             orderId = String.valueOf(data.get("id"));
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             logger.warn("Failed to parse legacy response: {}", e.getMessage());
         }
 
@@ -82,7 +82,7 @@ public class DecoratorController {
         try {
             Map<String, Object> bodyMap = objectMapper.readValue(body, Map.class);
             event.putAll(bodyMap);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             // ignore
         }
         publishedEvents.add(event);
