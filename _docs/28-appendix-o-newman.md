@@ -4,7 +4,7 @@ marker: "O"
 label: "Appendix O"
 order: 28
 part: "Deep-dive appendices"
-description: "Turning Postman collections into an automated API test gate with Newman: the anatomy of a collection, writing assertions, running one collection against all five implementations, data-driven tests, schema and contract validation, and wiring it into CI on plain Docker Engine — no new test framework to learn."
+description: "Turning Postman collections into an automated API test gate with Newman: the anatomy of a collection, writing assertions, running one collection against all six implementations, data-driven tests, schema and contract validation, and wiring it into CI on plain Docker Engine — no new test framework to learn."
 duration: 20 minutes
 ---
 
@@ -69,7 +69,7 @@ That last line stores the new id in a variable so a later request — fetch, can
 order — can chain off it. Chaining requests through variables is how a collection models a whole
 flow, not just isolated calls.
 
-## One collection, five backends
+## One collection, six backends
 
 Because Newman exercises the API as a black box over HTTP, the collection does not know or care
 which language implements the service. The same collection is the conformance suite for every
@@ -77,8 +77,8 @@ implementation in this book.
 
 {% include excalidraw.html
    file="27-black-box"
-   alt="One collection running under Newman tests the same HTTP API (/orders, /payments) against five order-service implementations — Spring Boot, Quarkus, .NET, Python, and C++. Because Newman tests the API as a black box, one collection validates every implementation; the contract is the spec, not the code."
-   caption="Figure O.3 — One collection is the conformance suite for all five implementations" %}
+   alt="One collection running under Newman tests the same HTTP API (/orders, /payments) against six order-service implementations — Spring Boot, Quarkus, .NET, Python, C++, and Go. Because Newman tests the API as a black box, one collection validates every implementation; the contract is the spec, not the code."
+   caption="Figure O.3 — One collection is the conformance suite for all six implementations" %}
 
 This is a quietly powerful idea: the collection *is* the API specification made executable. Point
 it at whichever implementation is running and the assertions are identical. Bringing the service
@@ -254,7 +254,7 @@ tested, not just its success behaviour.
 
 Treat the Postman collection as the executable specification of your API, and let Newman run it
 headlessly so the same assertions guard every change. Because Newman tests over HTTP, one
-collection is the conformance suite for all five implementations. Validate response *shape* against
+collection is the conformance suite for all six implementations. Validate response *shape* against
 a schema, not just status codes; drive edge cases from data rather than duplicated requests; and
 assert the failure paths as carefully as the happy path. Wire it into CI on plain Docker Engine so the
 build fails on a broken contract, and keep Newman in its lane — the API/contract tier, on top of unit
