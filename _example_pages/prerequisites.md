@@ -22,6 +22,17 @@ own Fedora or RHEL repository.
 
 ### Fedora
 
+Remove conflicting packages first. Fedora and distribution-provided Docker or Moby
+packages conflict with Docker's own. `dnf` reports if none are installed.
+
+```bash
+sudo dnf remove docker docker-client docker-client-latest docker-common docker-latest \
+  docker-latest-logrotate docker-logrotate docker-selinux docker-engine-selinux \
+  docker-engine moby-engine podman-docker
+```
+
+Then install:
+
 ```bash
 sudo dnf install -y dnf-plugins-core
 sudo dnf config-manager addrepo --from-repofile=https://download.docker.com/linux/fedora/docker-ce.repo
@@ -29,6 +40,15 @@ sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin d
 ```
 
 ### RHEL
+
+Remove conflicting packages first. `dnf` reports if none are installed.
+
+```bash
+sudo dnf remove docker docker-client docker-client-latest docker-common docker-latest \
+  docker-latest-logrotate docker-logrotate docker-engine podman runc
+```
+
+Then install:
 
 ```bash
 sudo dnf install -y dnf-plugins-core
@@ -76,8 +96,16 @@ sudo install kubectl /usr/local/bin/kubectl
 
 ### Helm
 
+Helm 4, pinned, with the tarball checked against its published SHA-256 file:
+
 ```bash
-curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+HELM_VERSION=4.3.0
+cd "$(mktemp -d)"
+curl -fsSLO "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz"
+curl -fsSLO "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum"
+sha256sum -c "helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum"
+tar -xzf "helm-v${HELM_VERSION}-linux-amd64.tar.gz" linux-amd64/helm
+sudo install linux-amd64/helm /usr/local/bin/helm
 ```
 
 Verify:
@@ -104,6 +132,33 @@ repository.
 sudo dnf install -y curl jq git
 ```
 
+### python3
+
+The `verify.sh` scripts use `python3` to parse JSON. Fedora and RHEL ship it. Example 16
+also needs the `websockets` and `aiohttp` packages; its script installs pinned copies into a
+cached virtual environment under `~/.cache/cndp-verify` when the host Python lacks them
+(this needs `python3 -m venv` and network access on first run).
+
+### conftest 0.71.1 (required for example 12)
+
+Example 12 evaluates its Rego policies with conftest, and `verify.sh` fails without it.
+Install the pinned release into `~/.local/bin`, checking the archive against the release's
+`checksums.txt`:
+
+```bash
+CONFTEST_VERSION=0.71.1
+BASE="https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}"
+cd "$(mktemp -d)"
+curl -fsSLO "${BASE}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
+curl -fsSLO "${BASE}/checksums.txt"
+grep " conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz\$" checksums.txt | sha256sum -c -
+mkdir -p ~/.local/bin
+tar -xzf "conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz" -C ~/.local/bin conftest
+conftest --version
+```
+
+`~/.local/bin` is on the default `PATH` for Fedora and RHEL login shells.
+
 ### hey (HTTP load testing)
 
 Used by examples that demonstrate scaling or performance patterns. Download a binary from
@@ -118,13 +173,14 @@ go install github.com/rakyll/hey@latest
 Used by examples with gRPC endpoints. Download a binary from the
 [ghz releases](https://github.com/bojand/ghz/releases) page.
 
-### newman (Postman CLI)
+### newman 6.2.3 (Postman CLI, required for example 28)
 
-Used by example 28 (Newman API testing). Requires Node.js.
+Used by example 28 (Newman API testing). Requires Node.js. Install into the user prefix
+`~/.local` so no `sudo` is needed:
 
 ```bash
 sudo dnf install -y nodejs npm
-sudo npm install -g newman newman-reporter-htmlextra
+npm install -g --prefix ~/.local newman@6.2.3
 ```
 
 Verify:
@@ -134,7 +190,8 @@ curl --version
 jq --version
 hey -h 2>&1 | head -1          # optional
 ghz --version                   # optional
-newman --version                # optional
+newman --version                # required for example 28
+conftest --version              # required for example 12
 ```
 
 ---
@@ -185,11 +242,11 @@ docker compose version 2>/dev/null || echo "  MISSING"
 printf "\nDocker daemon:\n"
 docker info >/dev/null 2>&1 && echo "  ok" || echo "  NOT RUNNING (or user not in the docker group)"
 printf "\nCLI tools:\n"
-for cmd in curl jq git; do
+for cmd in curl jq git python3 conftest newman; do
   printf "  %-10s %s\n" "$cmd" "$(command -v $cmd >/dev/null && echo 'ok' || echo 'MISSING')"
 done
 printf "\nOptional:\n"
-for cmd in minikube kubectl helm hey ghz newman; do
+for cmd in minikube kubectl helm hey ghz; do
   printf "  %-10s %s\n" "$cmd" "$(command -v $cmd >/dev/null && echo 'ok' || echo 'not installed')"
 done
 ```
