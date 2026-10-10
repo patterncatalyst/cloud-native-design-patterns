@@ -83,7 +83,7 @@ public class StockBatchDataLoader : BatchDataLoader<string, int?>
     public StockBatchDataLoader(
         Inventory.InventoryClient client,
         IBatchScheduler batchScheduler,
-        DataLoaderOptions? options = null)
+        DataLoaderOptions options)
         : base(batchScheduler, options) => _client = client;
 
     protected override async Task<IReadOnlyDictionary<string, int?>> LoadBatchAsync(

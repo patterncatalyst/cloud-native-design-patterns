@@ -84,8 +84,11 @@ CloudNativePG, Strimzi/Kafka, Apicurio, Istio, KEDA, Debezium, and OTel → the 
     brevity; the example must use **libpq** per this lock (and consider fixing the codetab).
 - **JVM / .NET / Python** (as used in the site codetabs): Spring Boot (Spring Kafka,
   `spring-boot-starter-websocket`, Kafka Streams); Quarkus (`websockets-next`, SmallRye
-  Reactive Messaging, Kafka Streams); .NET (**MassTransit** for Kafka, **Streamiz** for
-  stream processing, Grpc.Net); Python (FastAPI, **aiokafka**, **faust-streaming** for
+  Reactive Messaging, Kafka Streams); .NET 10.0.12 (**Confluent.Kafka** 2.16.0 for Kafka —
+  MassTransit dropped: its abstraction hides the Kafka semantics the examples teach, and v9
+  moved to a commercial license; **Streamiz** 1.8.2 for stream processing; Grpc.Net for gRPC;
+  images `ubi9/dotnet-100:9.8-1791421718` and `ubi9/dotnet-100-aspnet:9.8-1791363520`, held on
+  ubi9 because Red Hat publishes no ubi10 .NET image; every NuGet package pinned exactly); Python (FastAPI, **aiokafka**, **faust-streaming** for
   stateful processing, grpcio).
 
 ## House test tools (prefer these; don't introduce alternatives)

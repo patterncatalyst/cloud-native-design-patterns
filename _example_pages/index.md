@@ -89,7 +89,7 @@ examples/
       Containerfile / services  # Quarkus 3.40.1 LTS (JDK 25) application code
     dotnet/
       compose.yaml
-      Containerfile.<svc> / services  # ASP.NET Core (.NET 10) application code
+      Containerfile.<svc> / services  # ASP.NET Core (.NET 10.0.12) application code
     cpp/
       compose.yaml
       Containerfile / services  # Drogon application code

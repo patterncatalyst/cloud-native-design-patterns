@@ -1,13 +1,14 @@
-FROM registry.access.redhat.com/ubi9/dotnet-100 AS build
-USER root
-WORKDIR /src
-COPY BackendService/BackendService.csproj BackendService/
-RUN dotnet restore BackendService/BackendService.csproj
-COPY BackendService/ BackendService/
-RUN dotnet publish BackendService/BackendService.csproj -c Release -o /app
+FROM registry.access.redhat.com/ubi9/dotnet-100:9.8-1791421718 AS build
+ENV NUGET_PACKAGES=/nuget-cache
+WORKDIR /opt/app-root/src
+COPY --chown=1001:0 BackendService/BackendService.csproj BackendService/
+RUN --mount=type=cache,target=/nuget-cache,uid=1001 dotnet restore BackendService/BackendService.csproj
+COPY --chown=1001:0 BackendService/ BackendService/
+RUN --mount=type=cache,target=/nuget-cache,uid=1001 dotnet publish BackendService/BackendService.csproj -c Release --no-restore -o /opt/app-root/app
 
-FROM registry.access.redhat.com/ubi9/dotnet-100-aspnet
-WORKDIR /app
-COPY --from=build /app .
+FROM registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520
+COPY --from=build --chown=1001:0 --chmod=g=u /opt/app-root/app /opt/app-root/app
+WORKDIR /opt/app-root/app
 EXPOSE 8081
+USER 1001
 ENTRYPOINT ["dotnet", "BackendService.dll"]

@@ -1,13 +1,14 @@
-FROM registry.access.redhat.com/ubi9/dotnet-100 AS build
-USER root
-WORKDIR /src
-COPY CacheService/CacheService.csproj CacheService/
-RUN dotnet restore CacheService/CacheService.csproj
-COPY CacheService/ CacheService/
-RUN dotnet publish CacheService/CacheService.csproj -c Release -o /app
+FROM registry.access.redhat.com/ubi9/dotnet-100:9.8-1791421718 AS build
+ENV NUGET_PACKAGES=/nuget-cache
+WORKDIR /opt/app-root/src
+COPY --chown=1001:0 CacheService/CacheService.csproj CacheService/
+RUN --mount=type=cache,target=/nuget-cache,uid=1001 dotnet restore CacheService/CacheService.csproj
+COPY --chown=1001:0 CacheService/ CacheService/
+RUN --mount=type=cache,target=/nuget-cache,uid=1001 dotnet publish CacheService/CacheService.csproj -c Release --no-restore -o /opt/app-root/app
 
-FROM registry.access.redhat.com/ubi9/dotnet-100-aspnet
-WORKDIR /app
-COPY --from=build /app .
+FROM registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520
+COPY --from=build --chown=1001:0 --chmod=g=u /opt/app-root/app /opt/app-root/app
+WORKDIR /opt/app-root/app
 EXPOSE 8080
+USER 1001
 ENTRYPOINT ["dotnet", "CacheService.dll"]

@@ -267,7 +267,7 @@ Per CLAUDE.md locked stacks, default to **Python** for most examples unless:
 - Python: FastAPI, aiokafka, faust-streaming, grpcio, asyncpg, redis-py, OTel distro
 - Java: Spring Boot, Quarkus, Kafka Streams
 - C++: Drogon, libpq (not libpqxx), sw/redis++, modern-cpp-kafka
-- .NET: MassTransit, Streamiz
+- .NET: MassTransit, Streamiz  _(Note 2026-10-10: the Kafka lock is now Confluent.Kafka 2.16.0; MassTransit v9 is commercial and was dropped.)_
 
 ## Testing Convention
 

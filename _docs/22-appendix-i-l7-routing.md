@@ -403,36 +403,47 @@ public class OrderRoutes extends RouteBuilder {
 ```
 
 ```csharp
-// MassTransit RoutingSlip + NRules — consumer enriches, evaluates, dispatches.
+// NRules + Confluent.Kafka — consumer enriches, evaluates, dispatches.
 public record OrderFact(string OrderId, long AmountCents, Customer Customer)
 {
     public string? WhereTo { get; set; }                   // rules write this
 }
 
 public class OrderRouter(
-    HttpClient lookup,                                     // customer-svc
-    ISession rulesSession) : IConsumer<OrderInbound>       // NRules session
+    HttpClient http,                                       // customer-svc + http: destinations
+    ISessionFactory rules,                                 // NRules; one session per message
+    IProducer<Null, string> producer)
 {
-    public async Task Consume(ConsumeContext<OrderInbound> ctx)
+    public async Task Route(OrderInbound msg)
     {
         // 1) enrich — fetch the customer for the decision
-        var customer = await lookup.GetFromJsonAsync<Customer>(
-            $"http://customer-svc/lookup/{ctx.Message.OrderId}")
+        var customer = await http.GetFromJsonAsync<Customer>(
+            $"http://customer-svc/lookup/{msg.OrderId}")
             ?? throw new NotFoundException();
-        var fact = new OrderFact(ctx.Message.OrderId,
-                                 ctx.Message.AmountCents, customer);
+        var fact = new OrderFact(msg.OrderId, msg.AmountCents, customer);
 
         // 2) evaluate — NRules fires matching rules, sets fact.WhereTo
-        rulesSession.Insert(fact);
-        rulesSession.Fire();
+        var session = rules.CreateSession();               // sessions are not thread-safe
+        session.Insert(fact);
+        session.Fire();
 
-        // 3) dispatch — build a RoutingSlip from WhereTo and execute
-        var builder = new RoutingSlipBuilder(NewId.NextGuid());
-        foreach (var dest in (fact.WhereTo ?? "queue:orders.default").Split(','))
-            builder.AddActivity("Forward",
-                new Uri($"queue:forward-to_{Sanitize(dest)}"),
-                new { Destination = dest });
-        await ctx.Execute(builder.Build());                 // MassTransit dispatches
+        // 3) dispatch — "kafka:<topic>" produces, "http:<url>" POSTs
+        var body = JsonSerializer.Serialize(msg);
+        foreach (var dest in (fact.WhereTo ?? "kafka:orders.default").Split(','))
+        {
+            var parts = dest.Split(':', 2);
+            switch (parts[0])
+            {
+                case "kafka":
+                    await producer.ProduceAsync(parts[1],
+                        new Message<Null, string> { Value = body });
+                    break;
+                case "http":
+                    await http.PostAsync(parts[1],
+                        new StringContent(body, Encoding.UTF8, "application/json"));
+                    break;
+            }
+        }
     }
 }
 ```

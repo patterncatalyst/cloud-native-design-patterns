@@ -166,28 +166,33 @@ published DLLs; it does not need the SDK, Roslyn, NuGet, or MSBuild.
 Every example in this book uses a two-stage Containerfile:
 
 ```dockerfile
-FROM registry.access.redhat.com/ubi9/dotnet-100 AS build
-USER root
-WORKDIR /src
-COPY OrderService/OrderService.csproj OrderService/
-RUN dotnet restore OrderService/OrderService.csproj
-COPY OrderService/ OrderService/
-RUN dotnet publish OrderService/OrderService.csproj -c Release -o /app
+FROM registry.access.redhat.com/ubi9/dotnet-100:9.8-1791421718 AS build
+ENV NUGET_PACKAGES=/nuget-cache
+WORKDIR /opt/app-root/src
+COPY --chown=1001:0 OrderService/OrderService.csproj OrderService/
+RUN --mount=type=cache,target=/nuget-cache,uid=1001 dotnet restore OrderService/OrderService.csproj
+COPY --chown=1001:0 OrderService/ OrderService/
+RUN --mount=type=cache,target=/nuget-cache,uid=1001 \
+    dotnet publish OrderService/OrderService.csproj -c Release --no-restore -o /opt/app-root/app
 
-FROM registry.access.redhat.com/ubi9/dotnet-100-aspnet
-WORKDIR /app
-COPY --from=build /app .
+FROM registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520
+COPY --from=build --chown=1001:0 --chmod=g=u /opt/app-root/app /opt/app-root/app
+WORKDIR /opt/app-root/app
 EXPOSE 8080
+USER 1001
 ENTRYPOINT ["dotnet", "OrderService.dll"]
 ```
 
-**Stage 1 (build)** uses the SDK image (`ubi9/dotnet-100`, ~780 MB). It restores
-NuGet packages first (this layer is cached if the `.csproj` has not changed), then copies
-source and publishes. `USER root` is required because the UBI SDK image runs as a
-non-root user by default, but `dotnet restore` needs write access to the NuGet cache.
+**Stage 1 (build)** uses the SDK image (`ubi9/dotnet-100`, .NET 10.0.12, ~780 MB). It
+restores NuGet packages first (this layer is cached if the `.csproj` has not changed),
+then copies source and publishes. Both steps run as the image's non-root user (UID 1001,
+group 0); a BuildKit cache mount keeps the NuGet package cache across builds, and
+`--no-restore` makes the publish reuse what the restore step fetched. Every package in the
+`.csproj` files is pinned to an exact version. Red Hat does not publish a `ubi10` .NET
+image, so the examples stay on `ubi9` and pin the exact tags.
 
 **Stage 2 (runtime)** uses the ASP.NET runtime image (`ubi9/dotnet-100-aspnet`,
-~170 MB). It copies only the published output from stage 1. The SDK, NuGet cache, source
+~170 MB). It copies only the published output from stage 1, owned by UID 1001 with group-0 permissions, and runs as that user. The SDK, NuGet cache, source
 code, and intermediate build artifacts are all discarded. The final image is typically
 ~200 MB.
 
@@ -204,8 +209,10 @@ The examples use **Red Hat Universal Base Images** (UBI) instead of the
   producing smaller images.
 
 The .NET UBI images (`ubi9/dotnet-100` for SDK, `ubi9/dotnet-100-aspnet` for runtime)
-are built by Red Hat and published to `registry.access.redhat.com`. They contain the
-same .NET runtime bits as Microsoft's images — the difference is the base OS layer.
+are built by Red Hat and published to `registry.access.redhat.com`. Red Hat
+builds .NET from source for RHEL (the SDK uses feature band 1xx, for example 10.0.112
+alongside runtime 10.0.12) rather than repackaging Microsoft's binaries, so versions track
+Microsoft's releases but the build, base OS layer and support lifecycle are Red Hat's.
 
 ### What is inside the final image
 

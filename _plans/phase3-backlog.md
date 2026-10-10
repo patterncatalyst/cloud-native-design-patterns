@@ -59,7 +59,7 @@ the other five language stacks. Chosen to parallel the existing per-language pic
 | HTTP / REST | `net/http` stdlib (1.22+ `ServeMux`) — no router dep | FastAPI / minimal API |
 | gRPC | `google.golang.org/grpc` + `google.golang.org/protobuf` | Grpc.* / grpc++ |
 | GraphQL | `99designs/gqlgen` (schema-first) | HotChocolate / Strawberry |
-| Kafka | `twmb/franz-go` (pure Go, no cgo) — **LOCKED** | modern-cpp-kafka / MassTransit |
+| Kafka | `twmb/franz-go` (pure Go, no cgo) — **LOCKED** | modern-cpp-kafka / MassTransit (2026-10-10: now Confluent.Kafka 2.16.0, MassTransit dropped) |
 | Postgres | `jackc/pgx` v5 (direct, no ORM) | C++ `libpq` direct |
 | Redis | `redis/go-redis` v9 | sw/redis++ |
 | JWT | `golang-jwt/jwt` v5 | jwt-cpp |

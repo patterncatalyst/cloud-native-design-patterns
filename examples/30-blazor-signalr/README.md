@@ -16,7 +16,7 @@ circuit, no polling.
 |---|---|---|
 | SignalR hub | `OrderHub.cs` | Server-to-client push via hub groups |
 | Blazor Server circuit | `Dashboard.razor` | Server-rendered UI, DOM diffs over WebSocket |
-| Redis backplane | `Program.cs` | `AddStackExchangeRedis` for multi-pod scale-out |
+| Redis backplane | `Program.cs`, `compose.yaml` | `AddStackExchangeRedis`; two dashboard instances (8080, 8081) share it, so a push published through one reaches clients on the other |
 | REST API | `Program.cs` | Same POST/GET /orders contract as other examples |
 | OTel integration | `Program.cs` | Traces exported to Tempo via OTLP |
 
@@ -26,7 +26,7 @@ circuit, no polling.
 cd dotnet && docker compose up -d --build --wait
 ```
 
-Wait for healthy (~30s), then verify:
+Wait for healthy (~30s), then verify (health, orders, the dashboard page, SignalR negotiate, and Redis backplane delivery across the two instances, including after a restart of one):
 
 ```bash
 cd .. && bash verify.sh
@@ -56,7 +56,8 @@ open http://localhost:8080/dashboard
 
 | Service | Port |
 |---|---|
-| Blazor Dashboard (REST + UI) | 8080 |
+| Blazor Dashboard, instance 1 (REST + UI) | 8080 |
+| Blazor Dashboard, instance 2 (same backplane) | 8081 |
 | Grafana (LGTM) | 3000 |
 | Postgres | 5432 |
 | Redis | 6379 |
