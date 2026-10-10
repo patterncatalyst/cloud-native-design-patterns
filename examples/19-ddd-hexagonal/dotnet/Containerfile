@@ -1,14 +1,15 @@
-FROM registry.access.redhat.com/ubi9/dotnet-100 AS build
-USER root
-WORKDIR /src
-COPY OrderService/OrderService.csproj OrderService/
-RUN dotnet restore OrderService/OrderService.csproj
-COPY OrderService/ OrderService/
-RUN dotnet publish OrderService/OrderService.csproj -c Release -o /app
+FROM registry.access.redhat.com/ubi9/dotnet-100:9.8-1791421718 AS build
+ENV NUGET_PACKAGES=/nuget-cache
+WORKDIR /opt/app-root/src
+COPY --chown=1001:0 OrderService/OrderService.csproj OrderService/
+RUN --mount=type=cache,target=/nuget-cache,uid=1001 dotnet restore OrderService/OrderService.csproj
+COPY --chown=1001:0 OrderService/ OrderService/
+RUN --mount=type=cache,target=/nuget-cache,uid=1001 dotnet publish OrderService/OrderService.csproj -c Release --no-restore -o /opt/app-root/app
 
-FROM registry.access.redhat.com/ubi9/dotnet-100-aspnet
-WORKDIR /app
-COPY --from=build /app .
+FROM registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520
+COPY --from=build --chown=1001:0 --chmod=g=u /opt/app-root/app /opt/app-root/app
+WORKDIR /opt/app-root/app
 COPY --chmod=755 cli-place-order /usr/local/bin/cli-place-order
 EXPOSE 8080
+USER 1001
 ENTRYPOINT ["dotnet", "OrderService.dll"]
