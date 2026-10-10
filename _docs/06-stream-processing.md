@@ -90,7 +90,7 @@ public class RevenueTopology {
 // Streamiz.Kafka.Net (MIT) — a .NET port of Kafka Streams: same
 // topology / state-store / changelog model, native C#, no JVM in the container.
 
-var config = new StreamConfig<StringSerDes, OrderSerDes>
+var config = new StreamConfig<StringSerDes, StringSerDes>
 {
     ApplicationId    = "revenue-aggregator",
     BootstrapServers = "kafka:9092",
@@ -99,13 +99,17 @@ var config = new StreamConfig<StringSerDes, OrderSerDes>
 
 var builder = new StreamBuilder();
 
-builder.Stream<string, Order>("order.placed")
-    .GroupBy((k, o) => o.MerchantId)
-    .WindowedBy(TumblingWindowOptions.Of(TimeSpan.FromMinutes(5)))
+builder.Stream<string, Order, StringSerDes, JsonSerDes<Order>>("order.placed")
+    .GroupBy((k, o, _) => o.MerchantId)
+    .WindowedBy(TumblingWindowOptions.Of(TimeSpan.FromMinutes(5), TimeSpan.Zero))  // no grace
     .Aggregate(() => 0.0,                        // local, changelog-backed
-               (mId, o, total) => total + o.Total)
+               (mId, o, total) => total + o.Total,
+               RocksDbWindows.As<string, double>("revenue-by-merchant")
+                   .WithKeySerdes(new StringSerDes())
+                   .WithValueSerdes(new DoubleSerDes()))
     .ToStream()
-    .To("revenue.by-merchant");                  // derived stream out
+    .Map((w, t, _) => KeyValuePair.Create(w.Key, t))   // unwrap Windowed<string> to the merchant id
+    .To<StringSerDes, DoubleSerDes>("revenue.by-merchant");   // derived stream out
 
 var stream = new KafkaStream(builder.Build(), config);
 await stream.StartAsync();
