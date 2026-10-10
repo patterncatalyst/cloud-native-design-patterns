@@ -293,13 +293,19 @@ PODMAN_HISTORY = {
 }
 PODMAN_SCAN_ROOTS = ["examples", "assets/diagrams", "scripts", "_plans", "_docs",
                      "_parts", "_example_pages", ".github", "_includes", "_layouts"]
-PODMAN_SCAN_SUFFIXES = {".md", ".html", ".yml", ".yaml", ".py", ".sh", ".svg", ".excalidraw", ".json"}
+PODMAN_SCAN_SUFFIXES = {
+    ".md", ".html", ".yml", ".yaml", ".py", ".sh", ".svg", ".excalidraw", ".json",
+    # source and config files under examples/ and scripts/
+    ".go", ".cs", ".java", ".cpp", ".h", ".hpp", ".rego", ".toml", ".properties", ".conf",
+}
+PODMAN_ROOT_FILES = ["_config.yml", "Gemfile"]
 
 
 def check_podman(rep: Report, site_files: list[Path]) -> None:
     files = set(site_files)
     files.update(ROOT.glob("*.md"))
     files.update(ROOT.glob("*.html"))
+    files.update(ROOT / name for name in PODMAN_ROOT_FILES if (ROOT / name).is_file())
     for sub in PODMAN_SCAN_ROOTS:
         base = ROOT / sub
         if base.is_dir():
@@ -308,14 +314,22 @@ def check_podman(rep: Report, site_files: list[Path]) -> None:
         rel = p.relative_to(ROOT)
         if PODMAN_SKIP_DIRS & set(rel.parts) or rel.as_posix() in PODMAN_HISTORY:
             continue
-        if p.suffix not in PODMAN_SCAN_SUFFIXES and p.name not in {"Containerfile", "Dockerfile"} \
+        if p.suffix not in PODMAN_SCAN_SUFFIXES and p.name not in {"Containerfile", "Dockerfile", "Gemfile"} \
                 and not p.name.startswith("Containerfile"):
             continue
         try:
             data = p.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
             continue
+        # A `dnf remove ...` command (with its backslash continuations) may name
+        # the distribution's podman packages: removing them is the instruction.
+        in_remove = False
         for i, line in enumerate(data.split("\n"), 1):
+            if "dnf remove" in line:
+                in_remove = True
+            if in_remove:
+                in_remove = line.rstrip().endswith("\\")
+                continue
             if re.search(r"podman", line, re.I):
                 rep.error(p, i, f"podman reference: {line.strip()[:100]}")
 
