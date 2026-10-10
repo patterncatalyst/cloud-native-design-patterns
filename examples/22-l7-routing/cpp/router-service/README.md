@@ -9,7 +9,7 @@ script contract as the Go service: `route(order, rules)` returns `topic, vip`.
 `src/routing_engine.hpp`:
 
 - Only the base, table, string and math libraries are opened. `dofile`, `loadfile`, `load`,
-  `loadstring`, `require`, `print`, `collectgarbage` and `string.dump` are removed; `io`, `os`,
+  `loadstring`, `require`, `print`, `collectgarbage`, `string.dump`, `pcall`, `xpcall` and the backtracking string patterns are removed; `io`, `os`,
   `debug` and `package` do not exist.
 - Every call builds a fresh Lua state, loads the script and discards the state, so nothing is
   shared between concurrent requests and a script cannot leave globals behind for the next one.

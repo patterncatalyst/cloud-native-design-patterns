@@ -1,8 +1,16 @@
 // routing_engine.hpp — the Lua routing policy, run with sol2 in a sandbox.
 //
 //  * Libraries: base, table, string and math only. dofile, loadfile, load, loadstring,
-//    require, print, collectgarbage and string.dump are removed; io, os, debug and package
-//    are never opened.
+//    require, print, collectgarbage, string.dump, pcall and xpcall are removed; io, os, debug,
+//    coroutine and package are never opened. pcall/xpcall are removed because a script could
+//    otherwise catch the limit error raised by the count hook and keep looping; as a second
+//    line of defence the hook records that it tripped and the C++ side fails the request
+//    whenever the flag is set, whatever the script returned.
+//  * Pattern matching: the count hook only fires between VM instructions, never inside a C
+//    function, so a backtracking pattern (string.find/match/gmatch/gsub) could run far past
+//    the deadline. Those functions are therefore removed, except string.find with plain=true
+//    (a literal substring search, linear time). The strings handed to Lua are also capped
+//    (kMaxInput bytes); string.rep and friends are bounded by the memory cap.
 //  * State safety: a lua_State is not thread-safe and scripts may keep globals, so every
 //    call builds a fresh state, loads the script into it and throws it away. Nothing is
 //    shared between concurrent requests or leaks from one request to the next.
@@ -68,7 +76,10 @@ private:
     struct Budget {
         std::uint64_t remaining = 0;
         std::chrono::steady_clock::time_point deadline;
+        bool tripped = false;  // set by the hook when a limit is hit
     };
+
+    static constexpr std::size_t kMaxInput = 256;  // longest string passed into Lua
 
     static void* alloc(void* ud, void* ptr, std::size_t osize, std::size_t nsize) {
         auto* m = static_cast<Mem*>(ud);
@@ -88,9 +99,15 @@ private:
 
     static void hook(lua_State* L, lua_Debug*) {
         auto* b = *static_cast<Budget**>(lua_getextraspace(L));
-        if (b->remaining <= kHookEvery) luaL_error(L, "instruction limit exceeded");
+        if (b->remaining <= kHookEvery) {
+            b->tripped = true;
+            luaL_error(L, "instruction limit exceeded");
+        }
         b->remaining -= kHookEvery;
-        if (std::chrono::steady_clock::now() > b->deadline) luaL_error(L, "time limit exceeded");
+        if (std::chrono::steady_clock::now() > b->deadline) {
+            b->tripped = true;
+            luaL_error(L, "time limit exceeded");
+        }
     }
 
     class Sandbox {
@@ -106,11 +123,23 @@ private:
             sol::state_view lua(L_);
             lua.open_libraries(sol::lib::base, sol::lib::table, sol::lib::string, sol::lib::math);
             for (const char* name : {"dofile", "loadfile", "load", "loadstring", "require", "print",
-                                     "collectgarbage"}) {
+                                     "collectgarbage", "pcall", "xpcall"}) {
                 lua[name] = sol::lua_nil;
             }
             lua["string"]["dump"] = sol::lua_nil;
+            // Backtracking patterns run inside C and are not interruptible by the hook.
+            lua["string"]["match"] = sol::lua_nil;
+            lua["string"]["gmatch"] = sol::lua_nil;
+            lua["string"]["gsub"] = sol::lua_nil;
+            auto r = lua.safe_script(R"(
+                local find = string.find
+                string.find = function(s, p, init, plain)
+                  if plain ~= true then error("string.find: only plain=true is available") end
+                  return find(s, p, init, true)
+                end)", sol::script_pass_on_error);
+            if (!r.valid()) throw std::runtime_error("cannot install sandbox prelude");
         }
+        bool tripped() const { return budget_.tripped; }
         ~Sandbox() { lua_close(L_); }
         Sandbox(const Sandbox&) = delete;
         Sandbox& operator=(const Sandbox&) = delete;
@@ -118,9 +147,10 @@ private:
         void load(const std::string& script) {
             sol::state_view lua(L_);
             auto r = lua.safe_script(script, sol::script_pass_on_error, "routing.lua");
-            if (!r.valid()) {
-                sol::error e = r;
-                throw std::runtime_error(std::string("rules script failed to load: ") + e.what());
+            if (!r.valid() || budget_.tripped) {
+                std::string why = "limit exceeded";
+                if (!r.valid()) { sol::error e = r; why = e.what(); }
+                throw std::runtime_error("rules script failed to load: " + why);
             }
         }
 
@@ -133,6 +163,9 @@ private:
             sol::state_view lua(L_);
             sol::protected_function fn = lua["route"];
             if (!fn.valid()) throw std::runtime_error("rules script must define route(order, rules)");
+            if (sku.size() > kMaxInput || rules.priority_topic.size() > kMaxInput ||
+                rules.default_topic.size() > kMaxInput)
+                throw std::runtime_error("input string too long for the rules script");
             sol::table order = lua.create_table();
             order["sku"] = sku;
             order["quantity"] = quantity;
@@ -143,6 +176,7 @@ private:
             cfg["default_topic"] = rules.default_topic;
 
             sol::protected_function_result res = fn(order, cfg);
+            if (budget_.tripped) throw std::runtime_error("rule evaluation exceeded its limits");
             if (!res.valid()) {
                 sol::error e = res;
                 throw std::runtime_error(std::string("rule evaluation failed: ") + e.what());
