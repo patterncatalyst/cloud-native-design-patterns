@@ -11,9 +11,9 @@ import com.example.saga.model.Saga;
 import com.example.saga.model.SagaLogEntry;
 import com.example.saga.model.SagaRequest;
 import com.example.saga.model.SagaStep;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,11 +35,11 @@ public class SagaService {
     );
 
     private final JdbcClient jdbc;
-    private final ObjectMapper mapper;
+    private final JsonMapper mapper;
     private final StepExecutor stepExecutor;
     private final TransactionTemplate txTemplate;
 
-    public SagaService(JdbcClient jdbc, ObjectMapper mapper, StepExecutor stepExecutor,
+    public SagaService(JdbcClient jdbc, JsonMapper mapper, StepExecutor stepExecutor,
                        PlatformTransactionManager txManager) {
         this.jdbc = jdbc;
         this.mapper = mapper;
@@ -215,7 +215,7 @@ public class SagaService {
     private String toJson(Object obj) {
         try {
             return mapper.writeValueAsString(obj);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new RuntimeException("Failed to serialize to JSON", e);
         }
     }
@@ -226,7 +226,7 @@ public class SagaService {
         }
         try {
             return mapper.readValue(json, MAP_TYPE);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new RuntimeException("Failed to parse JSON", e);
         }
     }

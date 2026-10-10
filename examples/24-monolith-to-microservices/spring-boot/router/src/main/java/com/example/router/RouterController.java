@@ -4,7 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -27,12 +27,12 @@ public class RouterController {
     private String newServiceUrl;
 
     private final RestClient restClient;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper objectMapper;
 
     private final Map<String, String> tenantRoutes = new ConcurrentHashMap<>();
     private volatile String defaultRoute = "monolith";
 
-    public RouterController(RestClient restClient, ObjectMapper objectMapper) {
+    public RouterController(RestClient restClient, JsonMapper objectMapper) {
         this.restClient = restClient;
         this.objectMapper = objectMapper;
         tenantRoutes.put("acme", "new-service");

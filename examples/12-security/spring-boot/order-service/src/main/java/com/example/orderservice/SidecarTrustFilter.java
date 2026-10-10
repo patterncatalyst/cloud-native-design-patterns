@@ -1,6 +1,6 @@
 package com.example.orderservice;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -32,7 +32,7 @@ public class SidecarTrustFilter implements Filter {
     public static final String ATTR_IDENTITY = "sidecar.identity";
     public static final String ATTR_SUBJECT = "sidecar.subject";
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final JsonMapper mapper = JsonMapper.builder().build();
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response,
