@@ -73,10 +73,12 @@ jobs:
           DIR: ${{ matrix.dir }}
         run: |
           test -f "$DIR/pom.xml" || { echo "::error::no pom.xml in $DIR"; exit 1; }
-          # gRPC projects share <lang>/proto/. Quarkus poms read it in place
-          # (quarkus.grpc.codegen.proto-directory), so nothing to copy; Spring Boot
-          # still needs it under src/main/proto until the S3 migration.
+          # gRPC projects share <lang>/proto/. Copy it under src/main/proto only
+          # when the pom generates code from protos (protobuf-maven-plugin or
+          # quarkus-grpc) and does not already point at the shared directory with
+          # quarkus.grpc.codegen.proto-directory, as the Quarkus poms do.
           if [ -d "$DIR/../proto" ] && [ ! -e "$DIR/src/main/proto" ] \
+             && grep -qE 'protobuf-maven-plugin|quarkus-grpc' "$DIR/pom.xml" \
              && ! grep -q 'quarkus.grpc.codegen.proto-directory' "$DIR/pom.xml"; then
             cp -r "$DIR/../proto" "$DIR/src/main/proto"
           fi
