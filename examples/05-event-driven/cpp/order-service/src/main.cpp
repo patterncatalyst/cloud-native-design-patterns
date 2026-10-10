@@ -180,6 +180,13 @@ int main() {
                     event_str.data(), event_str.size(), nullptr, 0, 0, nullptr);
                 if (perr != RdKafka::ERR_NO_ERROR) {
                     LOG_ERROR << "Kafka send failed: " << RdKafka::err2str(perr);
+                    // The event was not even queued: do not report the order as placed.
+                    Json::Value err;
+                    err["error"] = "event not published";
+                    auto resp = HttpResponse::newHttpJsonResponse(err);
+                    resp->setStatusCode(k503ServiceUnavailable);
+                    callback(resp);
+                    return;
                 }
 
                 // Return response

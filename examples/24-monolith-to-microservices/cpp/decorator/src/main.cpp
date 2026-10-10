@@ -1,6 +1,7 @@
 #include <drogon/drogon.h>
 #include <sw/redis++/redis++.h>
 #include <librdkafka/rdkafkacpp.h>
+#include <functional>
 #include <mutex>
 #include <vector>
 #include <iostream>
@@ -18,16 +19,25 @@ static std::unique_ptr<RdKafka::Producer> g_producer;
 static std::atomic<bool> g_producer_running{false};
 static std::thread g_poller;
 
+// Carried as the message opaque. `done` is the request's continuation: the legacy response
+// is returned only after the delivery report, as the other languages' decorators do.
+struct Pending {
+    std::string order_id;
+    std::function<void()> done;
+};
+
 // The delivery report confirms the broker's ack; only then is the EVENT line logged.
+// message.timeout.ms guarantees a report (success, timeout or purge) for every message.
 class DeliveryLog : public RdKafka::DeliveryReportCb {
 public:
     void dr_cb(RdKafka::Message& message) override {
-        std::unique_ptr<std::string> order_id(static_cast<std::string*>(message.msg_opaque()));
+        std::unique_ptr<Pending> pending(static_cast<Pending*>(message.msg_opaque()));
         if (message.err() != RdKafka::ERR_NO_ERROR) {
             std::cerr << "kafka send failed: " << message.errstr() << std::endl;
-        } else {
-            std::cerr << "EVENT order.placed order_id=" << *order_id << std::endl;
+        } else if (pending) {
+            std::cerr << "EVENT order.placed order_id=" << pending->order_id << std::endl;
         }
+        if (pending && pending->done) pending->done();
     }
 };
 static DeliveryLog g_dr_cb;
@@ -74,7 +84,10 @@ static void forward_get(const std::string& order_id,
         });
 }
 
-static void publish_event(const std::string& order_id, const std::string& order_json) {
+// Queues the event; `done` runs once the broker acked it, or the delivery failed or timed out.
+// If nothing could be queued, `done` runs immediately.
+static void publish_event(const std::string& order_id, const std::string& order_json,
+                          std::function<void()> done) {
     Json::Value evt;
     evt["type"] = "order.placed";
     evt["order_id"] = order_id;
@@ -91,17 +104,17 @@ static void publish_event(const std::string& order_id, const std::string& order_
         Json::StreamWriterBuilder wb;
         wb["indentation"] = "";
         std::string msg = Json::writeString(wb, envelope);
-        auto* opaque = new std::string(order_id);  // owned by the delivery report callback
+        auto* opaque = new Pending{order_id, done};  // owned by the delivery report callback
         RdKafka::ErrorCode err = g_producer->produce(
             "order.placed", RdKafka::Topic::PARTITION_UA, RdKafka::Producer::RK_MSG_COPY,
             msg.data(), msg.size(), nullptr, 0, 0, opaque);
-        if (err != RdKafka::ERR_NO_ERROR) {
-            delete opaque;
-            std::cerr << "kafka send failed: " << RdKafka::err2str(err) << std::endl;
-        }
+        if (err == RdKafka::ERR_NO_ERROR) return;
+        delete opaque;
+        std::cerr << "kafka send failed: " << RdKafka::err2str(err) << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "kafka send failed: " << e.what() << std::endl;
     }
+    if (done) done();
 }
 
 int main() {
@@ -119,6 +132,7 @@ int main() {
     if (conf->set("bootstrap.servers", kafka_bs, errstr) != RdKafka::Conf::CONF_OK ||
         conf->set("client.id", "decorator", errstr) != RdKafka::Conf::CONF_OK ||
         conf->set("acks", "all", errstr) != RdKafka::Conf::CONF_OK ||
+        conf->set("message.timeout.ms", "10000", errstr) != RdKafka::Conf::CONF_OK ||
         conf->set("dr_cb", &g_dr_cb, errstr) != RdKafka::Conf::CONF_OK) {
         std::cerr << "kafka config: " << errstr << std::endl;
         return 1;
@@ -157,7 +171,10 @@ int main() {
                     if (Json::parseFromStream(rbuilder, ss, &parsed, nullptr) &&
                         parsed.isMember("id")) {
                         std::string oid = parsed["id"].asString();
-                        publish_event(oid, resp_body);
+                        // The legacy order already exists, so its response goes back either
+                        // way, but only after the event's delivery report.
+                        publish_event(oid, resp_body, [cb, resp] { cb(resp); });
+                        return;
                     }
                     cb(resp);
                 });
@@ -214,7 +231,11 @@ int main() {
 
     app().run();
 
-    g_producer->flush(10000);
+    if (g_producer->flush(10000) != RdKafka::ERR_NO_ERROR) {
+        // Still queued after the grace period: purge so every report fires and frees its opaque.
+        g_producer->purge(RdKafka::Producer::PURGE_QUEUE | RdKafka::Producer::PURGE_INFLIGHT);
+        g_producer->flush(2000);
+    }
     g_producer_running = false;
     g_poller.join();
     g_producer.reset();

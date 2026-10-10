@@ -2,6 +2,7 @@
 // correlated logs through OpenTelemetry C++ and spdlog.
 
 #include <atomic>
+#include <future>
 #include <chrono>
 #include <csignal>
 #include <iomanip>
@@ -61,11 +62,19 @@ std::string json_escape(const std::string& s) {
     return oss.str();
 }
 
+// Per-message state carried as the message opaque: the delivery report completes the promise
+// the request is waiting on (empty string = delivered, otherwise the error).
+struct Pending {
+    std::promise<std::string> result;
+};
+
 class DeliveryLog : public RdKafka::DeliveryReportCb {
 public:
     void dr_cb(RdKafka::Message& m) override {
+        std::unique_ptr<Pending> pending(static_cast<Pending*>(m.msg_opaque()));
         if (m.err() != RdKafka::ERR_NO_ERROR)
             spdlog::error("order.placed delivery failed: {}", m.errstr());
+        if (pending) pending->result.set_value(m.err() == RdKafka::ERR_NO_ERROR ? std::string() : m.errstr());
     }
 };
 DeliveryLog g_dr;
@@ -77,6 +86,7 @@ bool init_kafka(const std::string& bootstrap) {
         conf->set("client.id", "order-service", err) != RdKafka::Conf::CONF_OK ||
         conf->set("linger.ms", "5", err) != RdKafka::Conf::CONF_OK ||
         conf->set("acks", "all", err) != RdKafka::Conf::CONF_OK ||
+        conf->set("message.timeout.ms", "10000", err) != RdKafka::Conf::CONF_OK ||
         conf->set("enable.idempotence", "true", err) != RdKafka::Conf::CONF_OK ||
         conf->set("dr_cb", &g_dr, err) != RdKafka::Conf::CONF_OK) {
         spdlog::error("Kafka producer config failed: {}", err);
@@ -94,25 +104,33 @@ bool init_kafka(const std::string& bootstrap) {
     return true;
 }
 
-// Publishes the event with a W3C traceparent header so the consumer continues the trace.
-void publish(const std::string& event, const std::string& traceparent) {
+// Publishes the event with a W3C traceparent header so the consumer continues the trace, and
+// waits for the broker's delivery report (message.timeout.ms bounds the wait). Returns true
+// only when the event was acknowledged.
+bool publish(const std::string& event, const std::string& traceparent) {
     for (int attempt = 0; attempt < 50; ++attempt) {
         RdKafka::Headers* headers = RdKafka::Headers::create();
         headers->add("traceparent", traceparent);
+        auto* pending = new Pending;
+        auto delivered = pending->result.get_future();
         auto rc = g_producer->produce("order.placed", RdKafka::Topic::PARTITION_UA,
                                       RdKafka::Producer::RK_MSG_COPY,
                                       const_cast<char*>(event.data()), event.size(),
-                                      nullptr, 0, 0, headers, nullptr);
-        if (rc == RdKafka::ERR_NO_ERROR) return;  // librdkafka owns the headers now
+                                      nullptr, 0, 0, headers, pending);
+        if (rc == RdKafka::ERR_NO_ERROR) {  // librdkafka owns the headers and the opaque now
+            return delivered.get().empty();
+        }
         delete headers;
+        delete pending;
         if (rc == RdKafka::ERR__QUEUE_FULL) {
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
             continue;
         }
         spdlog::error("Kafka send failed: {}", RdKafka::err2str(rc));
-        return;
+        return false;
     }
     spdlog::error("Kafka send failed: producer queue full");
+    return false;
 }
 
 }  // namespace
@@ -223,7 +241,7 @@ int main() {
                   << R"(","sku":")" << json_escape(sku)
                   << R"(","quantity":)" << quantity
                   << R"(,"status":")" << json_escape(status) << R"("})";
-            publish(event.str(), cndp::telemetry::traceparent_of(root));
+            const bool published = publish(event.str(), cndp::telemetry::traceparent_of(root));
 
             root->SetAttribute("order.id", order_id);
             root->SetAttribute("sku", sku);
@@ -234,6 +252,15 @@ int main() {
 
             spdlog::info("order placed sku={} id={} status={} trace_id={}", sku, order_id, status,
                          trace_id);
+
+            if (!published) {
+                Json::Value err;
+                err["error"] = "event not published";
+                auto http_resp = HttpResponse::newHttpJsonResponse(err);
+                http_resp->setStatusCode(k503ServiceUnavailable);
+                callback(http_resp);
+                return;
+            }
 
             Json::Value resp;
             resp["id"] = order_id;

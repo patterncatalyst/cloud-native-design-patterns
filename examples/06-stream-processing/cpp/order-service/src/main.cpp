@@ -6,6 +6,7 @@
 #include <thread>
 #include <csignal>
 #include <cstdlib>
+#include <functional>
 #include <memory>
 #include <random>
 #include <sstream>
@@ -56,13 +57,22 @@ bool init_postgres() {
     return true;
 }
 
-// Delivery reports arrive on the thread that calls poll(); a failed delivery is logged.
+// One per produced message, carried as the message opaque: the request's continuation, run
+// when the delivery report arrives (on the poller thread). The producer's
+// message.timeout.ms guarantees a report, success or error, so the request always answers.
+struct Pending {
+    std::function<void(const std::string& error)> done;  // empty error = delivered
+};
+
+// Delivery reports arrive on the thread that calls poll().
 class DeliveryLog : public RdKafka::DeliveryReportCb {
 public:
     void dr_cb(RdKafka::Message& m) override {
+        std::unique_ptr<Pending> pending(static_cast<Pending*>(m.msg_opaque()));
         if (m.err() != RdKafka::ERR_NO_ERROR) {
             LOG_ERROR << "order.placed delivery failed: " << m.errstr();
         }
+        if (pending) pending->done(m.err() == RdKafka::ERR_NO_ERROR ? std::string() : m.errstr());
     }
 };
 static DeliveryLog g_dr;
@@ -77,6 +87,7 @@ bool init_kafka() {
         conf->set("client.id", "order-service", err) != RdKafka::Conf::CONF_OK ||
         conf->set("linger.ms", "5", err) != RdKafka::Conf::CONF_OK ||
         conf->set("acks", "all", err) != RdKafka::Conf::CONF_OK ||
+        conf->set("message.timeout.ms", "10000", err) != RdKafka::Conf::CONF_OK ||
         conf->set("enable.idempotence", "true", err) != RdKafka::Conf::CONF_OK ||
         conf->set("dr_cb", &g_dr, err) != RdKafka::Conf::CONF_OK) {
         LOG_ERROR << "Kafka producer config failed: " << err;
@@ -96,22 +107,27 @@ bool init_kafka() {
     return true;
 }
 
-void publish_order_event(const std::string& order_json) {
-    if (!g_producer) return;
+// Enqueues the event. On true the delivery report will run done(); on false the message was
+// not queued and done is never called (the caller answers the request itself).
+bool publish_order_event(const std::string& order_json, std::function<void(const std::string&)> done) {
+    if (!g_producer) return false;
     for (int attempt = 0; attempt < 50; ++attempt) {
+        auto* pending = new Pending{done};
         auto rc = g_producer->produce("order.placed", RdKafka::Topic::PARTITION_UA,
                                       RdKafka::Producer::RK_MSG_COPY,
                                       const_cast<char*>(order_json.data()), order_json.size(),
-                                      nullptr, 0, 0, nullptr, nullptr);
-        if (rc == RdKafka::ERR_NO_ERROR) return;
+                                      nullptr, 0, 0, nullptr, pending);
+        if (rc == RdKafka::ERR_NO_ERROR) return true;
+        delete pending;
         if (rc == RdKafka::ERR__QUEUE_FULL) {
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
             continue;
         }
         LOG_ERROR << "Failed to publish order event: " << RdKafka::err2str(rc);
-        return;
+        return false;
     }
     LOG_ERROR << "Failed to publish order event: producer queue full";
+    return false;
 }
 
 int main() {
@@ -197,13 +213,23 @@ int main() {
             builder["indentation"] = "";
             std::string event_json = Json::writeString(builder, event);
 
-            // Publish to Kafka
-            publish_order_event(event_json);
-
-            // Return response
-            auto resp = HttpResponse::newHttpJsonResponse(event);
-            resp->setStatusCode(k201Created);
-            callback(resp);
+            // Publish to Kafka; answer 201 only once the broker has acknowledged the event.
+            auto reply = [callback = std::move(callback), event](const std::string& error) {
+                if (!error.empty()) {
+                    Json::Value err;
+                    err["error"] = "event not published";
+                    auto resp = HttpResponse::newHttpJsonResponse(err);
+                    resp->setStatusCode(k503ServiceUnavailable);
+                    callback(resp);
+                    return;
+                }
+                auto resp = HttpResponse::newHttpJsonResponse(event);
+                resp->setStatusCode(k201Created);
+                callback(resp);
+            };
+            auto shared_reply = std::make_shared<decltype(reply)>(std::move(reply));
+            if (!publish_order_event(event_json, [shared_reply](const std::string& e) { (*shared_reply)(e); }))
+                (*shared_reply)("not queued");
         },
         {Post});
 
