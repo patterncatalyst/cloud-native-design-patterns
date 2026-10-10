@@ -9,7 +9,6 @@ import com.cndp.proto.ReserveRequest;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounter;
-import io.opentelemetry.api.trace.Span;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -75,9 +74,8 @@ public class OrderController {
         kafka.send("order.placed", order);
 
         // The OpenTelemetry Java agent puts trace_id and span_id in the logback MDC; the log
-        // pattern in application.yaml prints it. The explicit field keeps the id in the message too.
-        String traceId = Span.current().getSpanContext().getTraceId();
-        log.info("order placed id={} sku={} status={} trace_id={}", orderId, sku, status, traceId);
+        // pattern in application.yaml (%X{trace_id:-}) prints it, so the message carries no id.
+        log.info("order placed id={} sku={} status={}", orderId, sku, status);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(order);
     }
