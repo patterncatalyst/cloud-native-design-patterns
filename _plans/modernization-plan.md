@@ -27,7 +27,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | S2 | chore/quarkus-3.40-lts | 1 | done (18/18 Quarkus PASS on 3.40.1; closes #32) |
 | S3 | chore/spring-boot-4.1 | 1 | done (111/111 PASS after the Opus review; closes #31) |
 | S4 | chore/dotnet-10-pins | 3 | done (19/19 .NET PASS after the Opus review; closes #33) |
-| S5 | chore/python-3.14 (+ faust) | 5 | in progress |
+| S5 | chore/python-3.14 | 5 | done (19/19 Python + 28 PASS after the Opus review) |
 | S6 | chore/go-toolchain (Go 1.27.2 + locked libraries) | 2+4 | pending |
 | S7 | chore/cpp-toolchain-ubi10 (C++23/26 + locked libraries) | 2+4 | pending |
 | S8 | chore/infra-images | 2 | pending |
@@ -161,7 +161,17 @@ Defects the baseline found and fixed in S1:
 - Chapter .NET codetabs (05, 06, 18, 22) compile against the pinned packages.
 - Live: **19/19 .NET targets PASS** on the final tree after the Opus review.
 
+### S5 Python 3.14 (2026-10-10)
+
+- 32 Python services (+ 28's) on `ubi10/python-314-minimal:10.2-1791464217` (Python 3.14.8), non-root 1001, working pip cache mount (the base image's PIP_NO_CACHE_DIR had disabled it).
+- Every requirements.txt is a full `==` freeze from a python3.14 venv; direct deps newest stable and open source (fastapi 0.143.0, pydantic 2.14.0, aiokafka 0.14.0, grpcio 1.84.0, strawberry 0.333.0, redis 8.1.0, OTel 1.45.1 / contrib 0.66b1 — contrib only publishes b versions, documented per file). The S1 graphql-core pin is gone.
+- FastAPI `on_event` replaced by lifespan; chapter 25 and 04 snippets fixed.
+- Locked stack: 06 stream processor rewritten on faust-streaming 0.15.3 (memory store; same contract incl. HALF_UP rounding). Tested by the validator against apache/kafka:4.3.1: works (aiokafka 0.14 negotiates API versions), so S8 is low risk for Faust.
+- 01 Python now really auto-instruments with opentelemetry-instrument; 03/04 wire asyncpg instrumentation.
+- Live: **19/19 PASS** (18 Python + 28) on the final tree after the Opus review.
+
 Carried forward:
+- S6/S7: example 01 Go and C++ set OTEL_* in compose but export nothing; make them export like the other languages (or drop the env and claims).
 
 ### S4 .NET 10.0.12 (2026-10-10)
 
