@@ -100,8 +100,8 @@ void handle_post_orders(const HttpRequestPtr& req,
     PQclear(res);
 
     // Insert into orders
-    const char* params_order[4] = {id.c_str(), sku.c_str(),
-                                    std::to_string(quantity).c_str(), status.c_str()};
+    const std::string quantity_s = std::to_string(quantity);  // must outlive the call
+    const char* params_order[4] = {id.c_str(), sku.c_str(), quantity_s.c_str(), status.c_str()};
     res = PQexecParams(conn,
         "INSERT INTO orders (id, sku, quantity, status) VALUES ($1, $2, $3, $4)",
         4, nullptr, params_order, nullptr, nullptr, 0);
