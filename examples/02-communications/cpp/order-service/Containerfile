@@ -79,7 +79,7 @@ RUN --mount=type=cache,id=cndp-conan2,target=/root/.conan2,sharing=locked \
     && conan install . --output-folder=build/conan --deployer=full_deploy \
            --lockfile=conan.lock --build=missing \
            -s build_type=Release \
-           -c 'flex/*:tools.gnu:extra_configure_args=["MAKEINFO=true"]' \
+           -c:a 'flex/*:tools.gnu:extra_configure_args=["MAKEINFO=true"]' \
            -c tools.build:jobs="$(nproc)" -c tools.cmake.cmaketoolchain:generator=Ninja
 
 COPY proto/ ../proto/
