@@ -5,9 +5,11 @@ USER default
 WORKDIR /home/default
 COPY order-service/pom.xml pom.xml
 COPY proto/ src/main/proto/
-RUN mvn dependency:go-offline -B
+# Maven Central throttles bursts of fresh downloads (HTTP 429); retry with backoff.
+ENV MAVEN_ARGS="-Daether.transport.http.retryHandler.count=8 -Daether.transport.http.retryHandler.interval=5000 -Daether.transport.http.retryHandler.serviceUnavailable=429,503"
+RUN --mount=type=cache,target=/home/default/.m2,uid=185 mvn dependency:go-offline -B
 COPY order-service/src src
-RUN mvn package -DskipTests -B
+RUN --mount=type=cache,target=/home/default/.m2,uid=185 mvn package -DskipTests -B
 
 FROM registry.access.redhat.com/ubi10/openjdk-25-runtime
 WORKDIR /deployments
