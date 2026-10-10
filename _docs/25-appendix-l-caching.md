@@ -264,7 +264,7 @@ declaratively (Spring's `@Cacheable`, Quarkus's `@CacheResult`, .NET FusionCache
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-// Spring Cache abstraction with Redis backing.
+// Spring Cache abstraction with Redis backing (Spring Boot 4, Jackson 3).
 @Configuration
 @EnableCaching
 public class CacheConfig {
@@ -274,7 +274,7 @@ public class CacheConfig {
             .cacheDefaults(RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofSeconds(60))
                 .serializeValuesWith(SerializationPair.fromSerializer(
-                    new GenericJackson2JsonRedisSerializer())))
+                    GenericJacksonJsonRedisSerializer.builder().build())))
             .build();
     }
 }

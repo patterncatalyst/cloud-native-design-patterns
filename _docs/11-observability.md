@@ -69,21 +69,21 @@ the Collector; the framework integrations do the rest.
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-# application.yml — Micrometer Tracing + OTLP exporter
-management:
-  tracing:
-    sampling.probability: 1.0                 # 100% in dev; sample lower in prod
-  otlp:
-    tracing.endpoint: http://otel-collector:4317
+# Containerfile — attach the OpenTelemetry Java agent (Spring Boot 4 needs no starter)
+ENV JAVA_TOOL_OPTIONS="-javaagent:/deployments/opentelemetry-javaagent.jar"
+# environment: OTEL_SERVICE_NAME=order-service
+#              OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+#              OTEL_TRACES_SAMPLER=parentbased_traceidratio, OTEL_TRACES_SAMPLER_ARG=1.0
 
-// Spring Web, RestTemplate/WebClient, gRPC, and Spring Kafka are instrumented
-// automatically. Custom business spans use the Micrometer Observation API:
+// The agent instruments Spring MVC, RestClient, gRPC, JDBC and the Kafka clients,
+// and puts trace_id/span_id in the logback MDC. Custom business spans use the
+// OpenTelemetry API annotation (io.opentelemetry.instrumentation.annotations):
 @Service
 public class OrderService {
     private final InventoryGrpcClient inventory;
     public OrderService(InventoryGrpcClient i) { this.inventory = i; }
 
-    @Observed(name = "reserve_stock")          // custom span
+    @WithSpan("reserve_stock")                 // custom span
     public ReserveReply reserve(String sku, int qty) {
         return inventory.reserveStock(sku, qty);
     }
@@ -213,7 +213,7 @@ straight to its trace:
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-// Micrometer meter + SLF4J; the OTel logback appender puts trace_id in the MDC
+// Micrometer meter + SLF4J; the OpenTelemetry Java agent bridges the meter to OTLP and puts trace_id in the MDC
 private final Counter ordersPlaced = Counter.builder("orders.placed")
     .tag("service", "order-service")
     .register(registry);

@@ -68,6 +68,7 @@ changing its schema). Both are simple HTTP calls from any language:
 
 ```java
 // MetadataClient.java — tag an asset and query lineage via OpenMetadata REST API
+// (JsonNode is tools.jackson.databind.JsonNode: Spring Boot 4 uses Jackson 3)
 @Service
 public class MetadataClient {
     private static final String CATALOG = "http://openmetadata.svc/api/v1";
