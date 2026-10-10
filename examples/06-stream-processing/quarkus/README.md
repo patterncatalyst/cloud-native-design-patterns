@@ -1,6 +1,6 @@
 # Example 06 — Stream Processing (Quarkus)
 
-Quarkus 3.33.2 LTS implementation demonstrating windowed stream aggregation with Kafka.
+Quarkus 3.40.1 LTS implementation demonstrating windowed stream aggregation with Kafka.
 
 ## Services
 
@@ -11,14 +11,14 @@ Quarkus 3.33.2 LTS implementation demonstrating windowed stream aggregation with
 - PostgreSQL persistence via Agroal connection pool
 
 **stream-processor** (headless — no HTTP server)
-- Consumes `order.placed` events from Kafka
-- Performs windowed aggregation of revenue by merchant
+- Kafka Streams topology (`quarkus-kafka-streams`) over `order.placed`
+- Tumbling-window aggregation of revenue by merchant (`TimeWindows`, record timestamps)
 - Emits aggregated results to `revenue.by-merchant` topic
 - Configurable window size via `WINDOW_SECONDS` (default: 10)
 
 ## Stack
 
-- Quarkus 3.33.2 LTS
+- Quarkus 3.40.1 LTS
 - UBI10 + OpenJDK 25
 - PostgreSQL (orders table)
 - Kafka (order.placed, revenue.by-merchant topics)
@@ -60,12 +60,11 @@ docker compose down -v
 1. **Windowed aggregation**: orders are grouped by merchant within time windows
 2. **Revenue rollup**: each window emits `order_count` and `total_revenue` per merchant
 3. **Configurable window**: `WINDOW_SECONDS` controls the aggregation interval
-4. **Automatic flush**: expired windows flush on a 1-second schedule; remaining windows flush on shutdown
+4. **Updating results**: each update to a (merchant, window) row is emitted (commit interval 1 s), so a window produces a running total that settles when it closes; consumers keep the latest record per `merchant_id` and `window_start`
 
 ## Quarkus-specific features
 
-- **SmallRye Reactive Messaging**: `@Incoming` for consumption, `@Channel` + `Emitter` for emission
-- **`@Scheduled` timer**: periodic window flush via `quarkus-scheduler`
-- **`@PreDestroy` hook**: flushes remaining windows on graceful shutdown
-- **ConcurrentHashMap**: thread-safe windowed accumulation without Kafka Streams
+- **`quarkus-kafka-streams`**: the `Topology` is a CDI-produced bean (`RevenueTopology`); `application.id` is `stream-processor`, which is also the consumer group
+- **Windowed KTable**: `groupByKey().windowedBy(TimeWindows.ofSizeWithNoGrace(...)).aggregate(...)` with a Jackson-based `ObjectMapperSerde` for the accumulator
+- **Topic bootstrap**: the producer method creates `order.placed` and `revenue.by-merchant` with an `Admin` client, because Kafka Streams refuses to start when a source topic is missing
 - **Fast-jar layout**: `target/quarkus-app/` with separated dependencies
