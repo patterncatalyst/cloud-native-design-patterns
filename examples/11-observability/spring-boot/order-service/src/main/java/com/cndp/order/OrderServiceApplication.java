@@ -3,10 +3,10 @@ package com.cndp.order;
 import com.cndp.proto.InventoryServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
-import io.opentelemetry.instrumentation.grpc.v1_6.GrpcTelemetry;
 import jakarta.annotation.PreDestroy;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
@@ -25,13 +25,17 @@ public class OrderServiceApplication {
         SpringApplication.run(OrderServiceApplication.class, args);
     }
 
+    // The OpenTelemetry Java agent installs the global instance and instruments the gRPC client.
     @Bean
-    public InventoryServiceGrpc.InventoryServiceBlockingStub inventoryStub(OpenTelemetry openTelemetry) {
+    public OpenTelemetry openTelemetry() {
+        return GlobalOpenTelemetry.get();
+    }
+
+    @Bean
+    public InventoryServiceGrpc.InventoryServiceBlockingStub inventoryStub() {
         String[] parts = inventoryAddr.split(":");
-        GrpcTelemetry grpcTelemetry = GrpcTelemetry.create(openTelemetry);
         channel = ManagedChannelBuilder.forAddress(parts[0], Integer.parseInt(parts[1]))
                 .usePlaintext()
-                .intercept(grpcTelemetry.newClientInterceptor())
                 .build();
         return InventoryServiceGrpc.newBlockingStub(channel);
     }
