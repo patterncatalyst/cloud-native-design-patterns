@@ -6,7 +6,6 @@ from contextlib import asynccontextmanager
 import asyncpg
 from fastapi import FastAPI
 from pydantic_settings import BaseSettings
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 
 class Settings(BaseSettings):
