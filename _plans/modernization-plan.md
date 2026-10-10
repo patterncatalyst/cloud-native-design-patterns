@@ -29,7 +29,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | S4 | chore/dotnet-10-pins | 3 | done (19/19 .NET PASS after the Opus review; closes #33) |
 | S5 | chore/python-3.14 | 5 | done (19/19 Python + 28 PASS after the Opus review) |
 | S6 | chore/go-toolchain | 2+4 | done (18/18 Go + 06 in all six languages PASS after the Opus review; closes #34) |
-| S7 | chore/cpp-toolchain-ubi10 (C++23/26 + locked libraries) | 2+4 | pending |
+| S7 | chore/cpp-toolchain-ubi10 (C++23 + locked libraries) | 2+4 | in progress |
 | S8 | chore/infra-images | 2 | pending |
 | S9 | docs/minikube-docker-driver (+ 05 on minikube) | 7 | pending |
 | S10 | feature/openshift-local-appendix | 8 | pending |
