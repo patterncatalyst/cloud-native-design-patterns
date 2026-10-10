@@ -13,19 +13,31 @@ diagrams, and a companion **six-deck PPTX series** in `lgtm-presentation/`.
 - Owner: `patterncatalyst`. Deploy: GitHub Actions → Pages (`.github/workflows/pages.yml`).
 - Run locally: `bundle exec jekyll serve --baseurl ""` → http://localhost:4000
 
-## Current focus — add the runnable examples
+## Current focus — modernization
 
-Doc footers reference `examples/NN-<slug>/` runners that **do not exist yet**. The job is
-to build them, run them locally, and flip each chapter's `*Verification status: …*` footer
-from "unverified" to **verified**. This is exactly why we moved to Claude Code: it can
-actually run the stack and assert behaviour.
+The 20 runnable examples exist in all six languages. The work now is the staged
+modernization (runtime, versions, tests, CI) tracked step by step in
+`_plans/modernization-plan.md`. Read it before starting a step, and update its status
+table when a step lands. Examples are flipped to **verified** (footer in the chapter) only
+after their `verify.sh` runs green.
 
-**The 20 promised runners** (by doc number): 01, 02, 03, 04, 05, 06, 09, 11, 12, 16, 17,
-18, 19, 21, 22, 24, 25, 26, 27, 28.
+## CI and branch protection
 
-Build **one end-to-end first** as a proof-of-pattern, get sign-off, then roll out the rest.
+`main` is protected by a repository ruleset: **PR-only, squash merge, zero required
+approvals**, no direct pushes. The required checks are summary jobs that always report:
 
-### Proposed example structure
+| Check | Workflow | Covers |
+|-------|----------|--------|
+| `site` | `pages.yml` | Jekyll build (deploys only on a push to main) |
+| `content-ok` | `content.yml` | `scripts/validate_site.py` (the "Validate before commit" rules) |
+| `examples-ok` | `examples.yml` | build matrix per changed example project |
+
+Workflows trigger on `push: branches: [main]` plus `pull_request:` (no `paths:` filters).
+`examples.yml` selects projects with `scripts/ci_changed_projects.py`, which you can run
+locally (`--base origin/main`). Run `python3 scripts/validate_site.py` before committing doc
+changes. Work on a branch, open a PR, wait for the three checks, squash-merge.
+
+## Example layout
 
 ```
 examples/
