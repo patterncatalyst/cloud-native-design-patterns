@@ -152,12 +152,19 @@ check "order posted to instance 1 is listed by instance 2" \
 
 # 10 — the backplane survives an instance restart: a fresh client on the restarted
 # instance still receives a push published through the other one
+restart_instance2() {  # fails unless the container really restarted and came back healthy
+  local before after
+  before=$(docker inspect -f '{{.State.StartedAt}}' cndp-order-service-2) || return 1
+  ctr_stop cndp-order-service-2 >/dev/null 2>&1 || return 1
+  ctr_start cndp-order-service-2 >/dev/null 2>&1 || return 1
+  after=$(docker inspect -f '{{.State.StartedAt}}' cndp-order-service-2) || return 1
+  [[ "$before" != "$after" ]] || return 1
+  wait_healthy "$BASE2"
+}
+
 printf '  → restarting instance 2...\n'
-ctr_stop cndp-order-service-2 >/dev/null 2>&1 || true
-ctr_start cndp-order-service-2 >/dev/null 2>&1 || true
-wait_healthy "$BASE2" || true
-check "backplane: restarted instance 2 still receives pushes published through instance 1" \
-  bash -c "$(declare -f relay_check); PY='$PY'; relay_check '$BASE2' '$BASE' after-restart | grep -q 'RECEIVED after-restart'"
+check "backplane: restarted instance 2 (new start time, healthy again) still receives pushes published through instance 1" \
+  bash -c "$(declare -f restart_instance2 wait_healthy ctr_stop ctr_start relay_check); PY='$PY'; CURL_OPTS='$CURL_OPTS'; BASE='$BASE'; BASE2='$BASE2'; restart_instance2 && relay_check '$BASE2' '$BASE' after-restart | grep -q 'RECEIVED after-restart'"
 
 printf '\n==> Results: %d passed, %d failed\n' "$PASS" "$FAIL"
 [[ $FAIL -eq 0 ]] && printf '==> PASS\n' || { printf '==> FAIL\n'; exit 1; }
