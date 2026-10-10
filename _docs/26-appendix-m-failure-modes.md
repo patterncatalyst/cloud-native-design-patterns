@@ -25,7 +25,7 @@ cases: the call that *hangs* indefinitely, and the call that *succeeded on the s
 whose response was lost*, leaving the client unsure whether retrying is safe. Two further
 properties make distributed failure hard: failures are **correlated** (one failure causes
 others), and some are **actively deceptive** (a component that reports healthy while serving
-errors). Everything below follows from accepting this and designing to bound it.
+errors). Everything that follows comes from accepting this and designing to bound it.
 
 ## A taxonomy of failure modes
 
@@ -161,7 +161,7 @@ The rest of the appendix is the toolkit, and the thing to hold onto is that **no
 sufficient alone** — several interact, and production resilience is their deliberate
 composition. Retry without a circuit breaker amplifies; a circuit breaker without a fallback
 just fails faster; a bulkhead without a timeout still lets threads block within its pool. The
-patterns below each get a diagram and per-language code; the platform-level pieces (Istio,
+patterns here each get a diagram and per-language code; the platform-level pieces (Istio,
 shutdown, observability) sit underneath the application-level ones.
 
 ## Timeouts and deadline propagation
@@ -625,7 +625,7 @@ A bulkhead bounds concurrency so one saturated dependency cannot consume all of 
 threads or connections. It got its full per-language treatment in the Security chapter, so the
 point to re-state here is the interaction: **a bulkhead bounds how many, a timeout bounds how
 long** — concurrency-limiting alone does not help if the bounded calls block forever, so the two
-must be combined. The mesh provides bulkheading at the connection-pool level, covered just below.
+must be combined. The mesh provides bulkheading at the connection-pool level, covered next in this appendix.
 
 ## Load shedding and graceful degradation
 
@@ -748,7 +748,7 @@ slow, and watch the downstream call count — without a breaker it climbs and th
 fill (cascading); with a per-dependency breaker configured, the count *plateaus* as the breaker
 trips and the caller returns its fallback fast. **Deadline propagation:** issue a request with a
 small deadline header to a chain of two services and confirm from the logs that the *second* hop
-refuses to start work when the remaining budget is below its minimum, rather than running a query
+refuses to start work when the remaining budget has fallen under its minimum, rather than running a query
 whose result will be discarded. A breaker that flattens downstream load under failure, and a
 deadline that stops doomed work early, are the two load-bearing behaviours of everything here.
 

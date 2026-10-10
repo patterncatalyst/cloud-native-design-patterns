@@ -100,7 +100,7 @@ topic, with the `ScaledObject` from the stream-processing chapter giving it
 scale-to-zero. The shape of the work picks the home: run-once is a Job, scheduled
 is a CronJob, continuous is a scaled Deployment.
 
-## The queue worker the YAML above never shows
+## The queue worker the YAML never shows
 
 The CronJob and the ScaledObject are infra — they schedule and scale the work. But
 the *worker itself* is application code: a loop that drains a topic, processes each

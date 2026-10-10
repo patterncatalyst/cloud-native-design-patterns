@@ -295,7 +295,7 @@ func push(ctx context.Context, c *websocket.Conn, seq uint64, ev *pb.OrderPlaced
 
 ### Receiving and dispatching the envelope
 
-The send side above is half the story. The receive side is the mirror: read the
+The send side is half the story. The receive side is the mirror: read the
 binary frame, parse the `Envelope`, and dispatch on `type`. Every language follows
 the same structure — read binary, deserialize, switch.
 

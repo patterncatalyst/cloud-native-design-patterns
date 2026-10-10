@@ -74,7 +74,7 @@ MediatR has moved to a commercial license.
 The other half of the bill of materials: the cluster-side components the Pods talk *to*.
 None of them know the workload is .NET — the same stack serves Spring Boot, Quarkus, or
 Python identically, which is the entire point. If you already run this platform under a
-Java or Python application, .NET services drop in alongside without changing anything below
+Java or Python application, .NET services drop in alongside without changing anything under
 the application layer.
 
 | Concern | Component | Purpose | License |

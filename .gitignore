@@ -1,0 +1,16 @@
+# Jekyll
+_site/
+.jekyll-cache/
+.sass-cache/
+vendor/
+.bundle/
+
+# Example build output
+target/
+bin/
+obj/
+build/
+__pycache__/
+*.pyc
+.venv/
+CMakeUserPresets.json

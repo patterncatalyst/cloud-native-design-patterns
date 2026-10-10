@@ -226,7 +226,7 @@ boot and fail spuriously.
 
 ## Where Newman fits
 
-Newman is not a replacement for unit tests — it is the layer above them. It owns the
+Newman is not a replacement for unit tests — it is the layer that sits on top of them. It owns the
 API/contract tier: real HTTP against a running service, fast enough to run on every pull request.
 
 {% include excalidraw.html
@@ -257,8 +257,8 @@ headlessly so the same assertions guard every change. Because Newman tests over 
 collection is the conformance suite for all five implementations. Validate response *shape* against
 a schema, not just status codes; drive edge cases from data rather than duplicated requests; and
 assert the failure paths as carefully as the happy path. Wire it into CI on plain Podman so the
-build fails on a broken contract, and keep Newman in its lane — the API/contract tier, above unit
-tests and below a thin end-to-end layer. The canonical references are the Postman documentation and
+build fails on a broken contract, and keep Newman in its lane — the API/contract tier, on top of unit
+tests and under a thin end-to-end layer. The canonical references are the Postman documentation and
 the Newman command-line documentation (install, reporters, and the `--iteration-data` and
 `--bail` flags), and the Postman Learning Center's guides on writing tests with the `pm` API and on
 JSON-schema validation.

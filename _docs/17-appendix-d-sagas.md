@@ -285,7 +285,7 @@ answer is to have **B call A directly** — which recreates the exact service-to
 coupling the architecture exists to avoid, and hides a dependency the orchestrator
 can't see.
 
-The right answer is already in the code above: A's result goes into the saga's
+The right answer is already in the code: A's result goes into the saga's
 **`context` blob** (`s.context[step] = result`), and the orchestrator passes that
 context into B. The data flows *through the orchestrator*, the only component that
 legitimately knows the whole flow. B stays unaware of A, and because the context is
