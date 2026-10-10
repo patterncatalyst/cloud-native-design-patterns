@@ -49,7 +49,7 @@ var builder = new StreamBuilder();
 
 builder.Stream<string, string>(Orders)
     .Map((_, json, _) => Rekey(json))
-    .Filter((merchant, _, _) => merchant != null)
+    .Filter((merchant, _, _) => merchant.Length > 0)
     .GroupByKey()
     .WindowedBy(TumblingWindowOptions.Of(TimeSpan.FromSeconds(windowSeconds), TimeSpan.Zero))
     .Aggregate(
@@ -79,8 +79,9 @@ builder.Stream<string, string>(Orders)
     })
     .To<StringSerDes, StringSerDes>(Revenue);
 
-// Streamiz needs the source topic to size the repartition topic, and its sink producer does
-// not create the output topic, so create both up front (the broker defaults apply).
+// Streamiz needs the source topic to size the repartition topic. Its clients default to
+// allow.auto.create.topics=false, so neither topic is created on first use: create both
+// up front (the broker defaults apply).
 await EnsureTopic(kafkaBootstrap, Orders);
 await EnsureTopic(kafkaBootstrap, Revenue);
 
@@ -124,20 +125,20 @@ static async Task EnsureTopic(string bootstrap, string topic)
     throw new InvalidOperationException($"could not reach Kafka at {bootstrap}");
 }
 
-/// <summary>Re-keys an order event by merchant; the value is the order total.</summary>
-static KeyValuePair<string?, string> Rekey(string json)
+/// <summary>Re-keys an order event by merchant (empty key = unusable record, filtered out); the value is the order total.</summary>
+static KeyValuePair<string, string> Rekey(string json)
 {
     try
     {
         using var doc = JsonDocument.Parse(json);
-        var merchant = doc.RootElement.GetProperty("merchant_id").GetString();
+        var merchant = doc.RootElement.GetProperty("merchant_id").GetString() ?? "";
         var amount = doc.RootElement.TryGetProperty("total", out var t) && t.ValueKind != JsonValueKind.Null
             ? t.ToString() : "0";
         return KeyValuePair.Create(merchant, amount);
     }
     catch (Exception)
     {
-        return KeyValuePair.Create<string?, string>(null, "");
+        return KeyValuePair.Create("", "");
     }
 }
 
