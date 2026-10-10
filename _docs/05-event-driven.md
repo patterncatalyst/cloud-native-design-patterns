@@ -1102,14 +1102,18 @@ public PaymentResult onOrder(Order o) {
 ```
 
 ```csharp
-public async Task Consume(ConsumeContext<OrderPlaced> ctx)
+while (consumer.Consume(ct) is { } msg)                              // a choreographed saga step
 {
+    var o = JsonSerializer.Deserialize<OrderPlaced>(msg.Message.Value)!;
     try {
-        await _payments.Charge(ctx.Message.OrderId, ctx.Message.Total);  // local tx
-        await ctx.Publish(new PaymentTaken(ctx.Message.OrderId));        // advance
+        await payments.Charge(o.OrderId, o.Total);                   // local tx
+        await producer.ProduceAsync("payment.taken", new Message<string, string> {
+            Key = o.OrderId, Value = JsonSerializer.Serialize(new PaymentTaken(o.OrderId)) });   // advance
     } catch (PaymentDeclined) {
-        await ctx.Publish(new PaymentFailed(ctx.Message.OrderId));       // compensate
+        await producer.ProduceAsync("payment.failed", new Message<string, string> {
+            Key = o.OrderId, Value = JsonSerializer.Serialize(new PaymentFailed(o.OrderId)) });  // compensate
     }
+    consumer.Commit(msg);                                            // commit after the side effect
 }
 ```
 
