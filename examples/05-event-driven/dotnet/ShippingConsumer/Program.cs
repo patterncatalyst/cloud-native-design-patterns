@@ -1,8 +1,11 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 using Confluent.Kafka;
 using Npgsql;
 using OpenTelemetry;
+using OpenTelemetry.Context.Propagation;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -22,7 +25,7 @@ using var tracerProvider = Sdk.CreateTracerProviderBuilder()
         o.Protocol = OtlpExportProtocol.HttpProtobuf;
     })
     .Build();
-var tracer = tracerProvider!.GetTracer("shipping-consumer");
+var source = new ActivitySource("shipping-consumer");
 
 var dsBuilder = new NpgsqlDataSourceBuilder(dbUrl);
 await using var dataSource = dsBuilder.Build();
@@ -66,12 +69,22 @@ try
         catch (ConsumeException) { Thread.Sleep(1000); continue; }
         if (cr is null) continue;
 
-        using var span = tracer.StartActiveSpan("process_shipment");
+        // Continue the producer's trace: read the W3C traceparent that order-service wrote into the record headers.
+        var parent = Propagators.DefaultTextMapPropagator.Extract(
+            default,
+            cr.Message.Headers,
+            (headers, key) => headers is null
+                ? Array.Empty<string>()
+                : headers.Where(h => h.Key == key).Select(h => Encoding.UTF8.GetString(h.GetValueBytes())));
+        Baggage.Current = parent.Baggage;
+        using var span = source.StartActivity("process_shipment", ActivityKind.Consumer, parent.ActivityContext);
+        span?.SetTag("messaging.system", "kafka");
+        span?.SetTag("messaging.destination.name", "order.placed");
         try
         {
             using var doc = JsonDocument.Parse(cr.Message.Value);
             var orderId = doc.RootElement.GetProperty("id").GetString()!;
-            span.SetAttribute("order.id", orderId);
+            span?.SetTag("order.id", orderId);
 
             await using var conn = await dataSource.OpenConnectionAsync(cts.Token);
             await using var cmd = conn.CreateCommand();

@@ -1,9 +1,16 @@
+using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using Confluent.Kafka;
 using Npgsql;
+using OpenTelemetry;
+using OpenTelemetry.Context.Propagation;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+
+// Producer spans come from this source; AddSource below makes the SDK record and export them.
+var orderSource = new ActivitySource("order-service");
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://+:8080");
@@ -12,6 +19,7 @@ builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("order-service"))
     .WithTracing(t => t
         .AddAspNetCoreInstrumentation()
+        .AddSource("order-service")
         // 4318 is the OTLP/HTTP port: the exporter defaults to gRPC, and a code-set endpoint is used as given.
         .AddOtlpExporter(o =>
         {
@@ -71,8 +79,17 @@ app.MapPost("/orders", async (HttpContext ctx) =>
     {
         try
         {
-            await producer.ProduceAsync("order.placed",
-                new Message<Null, string> { Value = json });
+            // Confluent.Kafka has no built-in tracing: write the W3C traceparent into the record headers
+            // so the consumers can continue this trace.
+            using var publish = orderSource.StartActivity("order.placed publish", ActivityKind.Producer);
+            publish?.SetTag("messaging.system", "kafka");
+            publish?.SetTag("messaging.destination.name", "order.placed");
+            var message = new Message<Null, string> { Value = json, Headers = new Headers() };
+            Propagators.DefaultTextMapPropagator.Inject(
+                new PropagationContext(publish?.Context ?? Activity.Current?.Context ?? default, Baggage.Current),
+                message.Headers,
+                (headers, key, value) => headers.Add(key, Encoding.UTF8.GetBytes(value)));
+            await producer.ProduceAsync("order.placed", message);
         }
         catch (Exception ex)
         {
