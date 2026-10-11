@@ -5,10 +5,10 @@ handling, readiness flip, and in-flight request draining.
 
 ## Stack
 
-- **REST framework**: Drogon 1.9.8
-- **Database client**: libpq (system package, C client)
-- **Logging**: spdlog 1.15.0
-- **Base image**: UBI 9 (GCC 14, Conan 2)
+- **REST framework**: Drogon 1.9.13
+- **Database client**: libpq 17.11 (Conan, direct C client)
+- **Logging**: spdlog 1.17.0
+- **Base image**: UBI 10 (GCC 15, C++23, CMake 4.4.4, Conan 2.33.0); runtime `ubi10/ubi-minimal`
 
 ## Key implementation details
 
@@ -32,7 +32,7 @@ handling, readiness flip, and in-flight request draining.
 ## Running
 
 ```bash
-# Start the stack (builds on first run, ~10-15 min cold Conan cache)
+# Start the stack (builds on first run, about 7 min cold Conan cache)
 docker compose up -d
 
 # Verify graceful shutdown behavior

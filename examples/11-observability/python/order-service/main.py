@@ -13,7 +13,7 @@ from opentelemetry import trace, metrics, context
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.instrumentation.grpc import GrpcInstrumentorClient
+from opentelemetry.instrumentation.grpc import GrpcAioInstrumentorClient
 from opentelemetry.propagate import inject
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
@@ -50,7 +50,8 @@ metrics.set_meter_provider(mp)
 meter = metrics.get_meter("order-service")
 orders_placed_counter = meter.create_counter("orders.placed", description="Number of orders placed")
 
-GrpcInstrumentorClient().instrument()
+# The gRPC call uses grpc.aio, so the aio instrumentor injects traceparent.
+GrpcAioInstrumentorClient().instrument()
 
 db_pool: Optional[asyncpg.Pool] = None
 producer: Optional[AIOKafkaProducer] = None

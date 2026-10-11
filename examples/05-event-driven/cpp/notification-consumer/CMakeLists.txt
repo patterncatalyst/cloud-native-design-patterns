@@ -1,12 +1,18 @@
-cmake_minimum_required(VERSION 3.25)
-project(notification-consumer CXX)
+cmake_minimum_required(VERSION 3.31)
+project(notification-consumer LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(modern-cpp-kafka CONFIG REQUIRED)
+add_compile_options(-Wall -Wextra)
+# gcc-toolset-15's libstdc++ is newer than the one in ubi-minimal: link it statically.
+add_link_options(-static-libstdc++ -static-libgcc)
+
+find_package(RdKafka CONFIG REQUIRED)  # librdkafka C++ API (rdkafka++) from Conan
 find_package(jsoncpp CONFIG REQUIRED)
+find_package(PostgreSQL REQUIRED)      # libpq from Conan (direct C client)
+find_package(Threads REQUIRED)
 
 add_executable(notification-consumer src/main.cpp)
-target_link_libraries(notification-consumer PRIVATE modern-cpp-kafka::modern-cpp-kafka jsoncpp_lib pq)
+target_link_libraries(notification-consumer PRIVATE RdKafka::rdkafka++ JsonCpp::JsonCpp PostgreSQL::PostgreSQL Threads::Threads)

@@ -285,13 +285,14 @@ await producer.send_and_wait(
 ```
 
 ```cpp
-// modern-cpp-kafka — key is identity, version is a header
-kafka::Headers headers;
-headers.emplace_back("schema.version", kafka::Header::Value("2", 1));
-auto rec = kafka::clients::producer::ProducerRecord(
-    "order.placed", kafka::Key(order.id),        // key = identity
-    kafka::Value(serialize(order)), headers);    // value + version header
-producer.send(rec, deliveryCb);
+// librdkafka C++ API — key is identity, version is a header
+RdKafka::Headers* headers = RdKafka::Headers::create();
+headers->add("schema.version", "2");               // version as metadata
+auto value = serialize(order);
+producer->produce("order.placed", RdKafka::Topic::PARTITION_UA, RdKafka::Producer::RK_MSG_COPY,
+                  value.data(), value.size(),      // value
+                  order.id.data(), order.id.size(), // key = identity
+                  0, headers, nullptr);            // headers are owned by librdkafka on success
 ```
 
 ```go

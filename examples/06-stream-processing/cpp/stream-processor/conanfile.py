@@ -1,10 +1,25 @@
+"""06-stream-processing/cpp/stream-processor: Conan 2 recipe.
+
+Exact pins from ConanCenter (the only remote); static libraries, built with GCC 15 / C++23.
+Kafka is librdkafka's C++ API (rdkafka++); there is no Kafka Streams in the C++ stack, so
+the windowed aggregation is written explicitly (see README).
+"""
+
 from conan import ConanFile
 
-class CloudNative06StreamConan(ConanFile):
+
+class Cndp06StreamProcessorConan(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
     generators = "CMakeDeps", "CMakeToolchain"
-    default_options = {"*/*:shared": False}
+
+    default_options = {
+        "*/*:shared": False,
+        "drogon/*:with_boost": False,
+    }
 
     def requirements(self):
-        self.requires("modern-cpp-kafka/2024.07.03")
-        self.requires("jsoncpp/1.9.6")
+        self.requires("librdkafka/2.14.2")
+        self.requires("nlohmann_json/3.12.0")
+        self.requires("spdlog/1.17.0")
+        self.requires("fmt/12.2.0", override=True)  # spdlog pins fmt 12.1.0
+        self.requires("lz4/1.10.0", override=True)  # librdkafka and libpq pin lz4 1.9.4

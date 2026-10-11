@@ -18,6 +18,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/propagation"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -72,6 +73,9 @@ func main() {
 	tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(traceExp), sdktrace.WithResource(res))
 	defer tp.Shutdown(ctx)
 	otel.SetTracerProvider(tp)
+	// otelgrpc reads the global propagator: without this the caller's traceparent is ignored
+	// and the inventory span starts a new trace instead of joining the order's.
+	otel.SetTextMapPropagator(propagation.TraceContext{})
 
 	metricExp, _ := otlpmetrichttp.New(ctx, otlpmetrichttp.WithEndpoint(stripScheme(endpoint)), otlpmetrichttp.WithInsecure())
 	mp := sdkmetric.NewMeterProvider(

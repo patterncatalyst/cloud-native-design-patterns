@@ -21,7 +21,7 @@ void register_rest_handlers(domain::PlaceOrderUseCase& use_case,
 
     // Healthcheck
     drogon_app.registerHandler("/healthz",
-        [](const HttpRequestPtr& req,
+        [](const HttpRequestPtr&,
            std::function<void(const HttpResponsePtr&)>&& cb) {
             Json::Value resp;
             resp["status"] = "ok";
@@ -77,7 +77,7 @@ void register_rest_handlers(domain::PlaceOrderUseCase& use_case,
 
     // GET /orders/{id} — retrieve a single order
     drogon_app.registerHandler("/orders/{1}",
-        [&repository](const HttpRequestPtr& req,
+        [&repository](const HttpRequestPtr&,
                       std::function<void(const HttpResponsePtr&)>&& cb,
                       const std::string& id) {
             try {
@@ -109,7 +109,7 @@ void register_rest_handlers(domain::PlaceOrderUseCase& use_case,
 
     // GET /orders — list all orders
     drogon_app.registerHandler("/orders",
-        [&repository](const HttpRequestPtr& req,
+        [&repository](const HttpRequestPtr&,
                       std::function<void(const HttpResponsePtr&)>&& cb) {
             try {
                 auto orders = repository.find_all();

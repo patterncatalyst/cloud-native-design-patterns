@@ -473,7 +473,7 @@ async def route(order: dict,
 ```
 
 ```cpp
-{% raw %}// dispatcher.cpp — Drogon controller + sol2 + modern-cpp-kafka
+{% raw %}// dispatcher.cpp — Drogon controller + sol2 + librdkafka
 #include <sol/sol.hpp>
 #include <drogon/HttpController.h>
 class Router {                                // process-scoped
@@ -494,7 +494,7 @@ Task<> Orders::route(HttpRequestPtr req, auto cb) {
   auto dests = router.evaluate(order, ctx);   // rules
   for (const auto& dest : dests) {            // fan-out
     auto [proto, target] = split(dest, ':');
-    if (proto == "kafka") producer_.send(target, to_json(order));
+    if (proto == "kafka") produce_to(*producer_, target, order.id, to_json(order));
     else if (proto == "http") co_await http_.post(target, order);
   }
   cb(json_response({{"routed_to", dests}}));

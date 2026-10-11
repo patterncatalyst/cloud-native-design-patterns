@@ -38,6 +38,7 @@ services:
       context: stream-processor
       dockerfile: Containerfile
     container_name: cndp-stream-processor
+    restart: on-failure
     depends_on:
       kafka: { condition: service_healthy }
       lgtm: { condition: service_healthy }

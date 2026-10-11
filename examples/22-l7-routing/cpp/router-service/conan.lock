@@ -1,0 +1,28 @@
+{
+    "version": "0.5",
+    "requires": [
+        "zlib/1.3.2#1cb806da49011867778ffb6ac7190fcb%1777558780.503",
+        "util-linux-libuuid/2.41.2#3ba347c98172dadfe417700cf399adac%1781172622.732",
+        "trantor/1.5.28#76c9f6691d885fb26e60b3d68890375d%1785222775.93",
+        "sol2/3.5.0#fd3c55a708ff1d23db3fe4e026f3af32%1742996322.952",
+        "openssl/3.6.5#3c1311f37543e7140f33fe5989f315c2%1790692982.113",
+        "lua/5.4.8#07c9bbe8e38abd76a586d3b2a8787c3a%1763549144.866",
+        "jsoncpp/1.9.8#5be5e85394fc94f13f6451e5822ea759%1787912339.522",
+        "drogon/1.9.13#251680a44562cf10050d53c0259876d5%1778471907.643",
+        "c-ares/1.34.8#074b97a9e38159813ed5e2dcfeb290ca%1784539118.141"
+    ],
+    "build_requires": [],
+    "python_requires": [],
+    "overrides": {
+        "jsoncpp/1.9.5": [
+            "jsoncpp/1.9.8"
+        ],
+        "util-linux-libuuid/2.39.2": [
+            "util-linux-libuuid/2.41.2"
+        ],
+        "lua/5.4.6": [
+            "lua/5.4.8"
+        ]
+    },
+    "config_requires": []
+}

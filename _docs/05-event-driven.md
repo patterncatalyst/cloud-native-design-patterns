@@ -163,32 +163,34 @@ async for msg in consumer:
 ```
 
 ```cpp
-// producer — process-scoped, constructed once in main()
-kafka::clients::producer::KafkaProducer producer({
-    {"bootstrap.servers", cfg.kafka_bootstrap},
-    {"acks", "all"},                  // wait for ISR ack — durable
-    {"enable.idempotence", "true"},   // no dupes on producer retry
-});
+// librdkafka C++ API (rdkafka++) — producer, process-scoped, constructed once in main()
+std::string err;
+std::unique_ptr<RdKafka::Conf> conf(RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL));
+conf->set("bootstrap.servers", cfg.kafka_bootstrap, err);
+conf->set("acks", "all", err);                 // wait for ISR ack — durable
+conf->set("enable.idempotence", "true", err);  // no dupes on producer retry
+conf->set("dr_cb", &delivery_report, err);     // RdKafka::DeliveryReportCb logs failures
+std::unique_ptr<RdKafka::Producer> producer(RdKafka::Producer::create(conf.get(), err));
 
 void publish_order_placed(const Order& o) {
-  auto rec = kafka::clients::producer::ProducerRecord(
-      "order.placed", kafka::Key{o.id}, kafka::Value{serialize(o)});  // serde
-  producer.send(rec, [](const auto& md, const auto& err) {
-    if (err) LOG_ERROR("publish failed: {}", err.message());
-  });
+  auto value = serialize(o);                                          // serde
+  producer->produce("order.placed", RdKafka::Topic::PARTITION_UA, RdKafka::Producer::RK_MSG_COPY,
+                    value.data(), value.size(), o.id.data(), o.id.size(), 0, nullptr);
+  producer->poll(0);                           // serve delivery reports
 }
 
 // consumer — notification-service, Kafka-only by design
-kafka::clients::consumer::KafkaConsumer consumer({
-    {"bootstrap.servers", cfg.kafka_bootstrap},
-    {"group.id", "notification"},     // offset tracked per group
-    {"enable.auto.commit", "false"},  // commit AFTER the side-effect
-});
+std::unique_ptr<RdKafka::Conf> cconf(RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL));
+cconf->set("bootstrap.servers", cfg.kafka_bootstrap, err);
+cconf->set("group.id", "notification", err);       // offset tracked per group
+cconf->set("enable.auto.commit", "false", err);    // commit AFTER the side-effect
+std::unique_ptr<RdKafka::KafkaConsumer> consumer(RdKafka::KafkaConsumer::create(cconf.get(), err));
+consumer->subscribe({"order.placed"});
 for (;;) {
-  for (auto& rec : consumer.poll(std::chrono::milliseconds(500))) {
-    send_email(deserialize(rec.value()));   // do the work first
-    consumer.commitSync();                  // at-least-once; handler idempotent
-  }
+  std::unique_ptr<RdKafka::Message> msg(consumer->consume(500));
+  if (msg->err() != RdKafka::ERR_NO_ERROR) continue;     // timeout / partition EOF
+  send_email(deserialize(payload_of(*msg)));             // do the work first
+  consumer->commitSync(msg.get());                       // at-least-once; handler idempotent
 }
 ```
 
@@ -521,12 +523,13 @@ async for msg in consumer:                            # consume order.placed
 ```
 
 ```cpp
-auto records = consumer.poll(std::chrono::milliseconds(200));  // consume
-for (const auto& rec : records) {
-  Order o = deserialize(rec.value());
-  auto out = serialize(OrderValidated{o.id, validate(o)});     // transform
-  producer.send(kafka::clients::producer::ProducerRecord(
-      "order.validated", kafka::Key(o.id), kafka::Value(out)), cb);  // produce
+std::unique_ptr<RdKafka::Message> msg(consumer->consume(200));     // consume
+if (msg->err() == RdKafka::ERR_NO_ERROR) {
+  Order o = deserialize(payload_of(*msg));
+  auto out = serialize(OrderValidated{o.id, validate(o)});          // transform
+  producer->produce("order.validated", RdKafka::Topic::PARTITION_UA,
+                    RdKafka::Producer::RK_MSG_COPY, out.data(), out.size(),
+                    o.id.data(), o.id.size(), 0, nullptr);          // produce
 }
 ```
 
@@ -716,9 +719,9 @@ async for msg in consumer:                            # ECST consumer
 ```
 
 ```cpp
-auto records = consumer.poll(std::chrono::milliseconds(200));
-for (const auto& rec : records) {
-  Order o = deserialize(rec.value());
+std::unique_ptr<RdKafka::Message> msg(consumer->consume(200));
+if (msg->err() == RdKafka::ERR_NO_ERROR) {
+  Order o = deserialize(payload_of(*msg));
   views.upsert(OrderView{o.id, o.customer, o.total, o.status});  // local view, no call-back
 }
 ```
@@ -810,9 +813,10 @@ async def aggregate(orders):
 // no Kafka Streams in C++: keep a local store, mirror each write to a compacted topic
 double total = store.get(o.customer);            // local state store
 store.put(o.customer, total + o.total);          // update local state
-producer.send(kafka::clients::producer::ProducerRecord(
-    "customer-totals", kafka::Key(o.customer),
-    kafka::Value(serialize(total + o.total))), cb);   // changelog: replay to rebuild
+auto changelog = serialize(total + o.total);
+producer->produce("customer-totals", RdKafka::Topic::PARTITION_UA, RdKafka::Producer::RK_MSG_COPY,
+                  changelog.data(), changelog.size(),
+                  o.customer.data(), o.customer.size(), 0, nullptr);  // changelog: replay to rebuild
 ```
 
 ```go
@@ -901,7 +905,7 @@ async for msg in consumer:
 ```
 
 ```cpp
-OrderStatus e = deserialize(rec.value());
+OrderStatus e = deserialize(payload_of(*msg));
 auto cur = views.find(e.id);
 if (!cur || e.version > cur->version)                  // last-writer-wins by version
   views.upsert(OrderView{e.id, e.status, e.version});  // stale / duplicate ignored
@@ -1004,11 +1008,11 @@ async with producer.transaction():
 ```
 
 ```cpp
-// modern-cpp-kafka transactions
-producer.beginTransaction();
-producer.send(record("order.validated", o.id, validate(o)));   // produce
-producer.sendOffsetsToTransaction(offsets, groupMeta, timeout);
-producer.commitTransaction();                                   // atomic
+// rdkafka++ transactions (conf: transactional.id; init_transactions() once at startup)
+producer->begin_transaction();
+produce_to(*producer, "order.validated", o.id, validate(o));    // produce
+producer->send_offsets_to_transaction(offsets, consumer->groupMetadata(), timeout_ms);
+producer->commit_transaction(timeout_ms);                       // atomic
 ```
 
 ```go
@@ -1128,12 +1132,12 @@ async for msg in consumer:                            # a choreographed saga ste
 ```
 
 ```cpp
-Order o = deserialize(rec.value());
+Order o = deserialize(payload_of(*msg));
 try {
   payments.charge(o.id, o.total);                     // local transaction
-  producer.send(rec_for("payment.taken", o.id, PaymentTaken{o.id}));    // advance
+  produce_to(*producer, "payment.taken", o.id, PaymentTaken{o.id});     // advance
 } catch (const PaymentDeclined&) {
-  producer.send(rec_for("payment.failed", o.id, PaymentFailed{o.id}));  // compensate
+  produce_to(*producer, "payment.failed", o.id, PaymentFailed{o.id});   // compensate
 }
 ```
 
@@ -1211,11 +1215,13 @@ async with session.begin():                          # one DB transaction
 ```
 
 ```cpp
-pqxx::work tx(conn);                                  // one DB transaction
-tx.exec_params("INSERT INTO orders ...", o.id, o.total);          // business state
-tx.exec_params("INSERT INTO outbox(topic, key, payload) VALUES($1,$2,$3)",
-    "order.placed", o.id, serialize(OrderPlaced{o}));             // event row
-tx.commit();                                          // atomic — a relay ships it
+// libpq: one DB transaction, two statements
+PQclear(PQexec(conn, "BEGIN"));
+PQclear(PQexecParams(conn, "INSERT INTO orders (id, total) VALUES ($1, $2)",
+    2, nullptr, order_params, nullptr, nullptr, 0));              // business state
+PQclear(PQexecParams(conn, "INSERT INTO outbox(topic, key, payload) VALUES($1,$2,$3)",
+    3, nullptr, outbox_params, nullptr, nullptr, 0));             // event row
+PQclear(PQexec(conn, "COMMIT"));                      // atomic — a relay ships it
 ```
 
 ```go

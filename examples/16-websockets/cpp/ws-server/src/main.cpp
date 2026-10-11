@@ -182,7 +182,7 @@ int main() {
 
     app().registerPreRoutingAdvice(
         [](const HttpRequestPtr& req,
-           std::function<void(const HttpResponsePtr&)>&& callback,
+           std::function<void(const HttpResponsePtr&)>&&,
            std::function<void()>&& pass) {
             auto path = req->path();
             if (path.size() > 4 && path.substr(0, 4) == "/ws/") {

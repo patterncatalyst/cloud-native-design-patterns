@@ -52,7 +52,7 @@ std::string generate_uuid() {
     oss << "-4"; // version 4
     for (int i = 0; i < 3; ++i) oss << std::setw(1) << dist(gen);
     oss << "-";
-    oss << std::setw(1) << (dist(gen) & 0x3 | 0x8); // variant bits
+    oss << std::setw(1) << ((dist(gen) & 0x3) | 0x8); // variant bits
     for (int i = 0; i < 3; ++i) oss << std::setw(1) << dist(gen);
     oss << "-";
     for (int i = 0; i < 12; ++i) oss << std::setw(1) << dist(gen);

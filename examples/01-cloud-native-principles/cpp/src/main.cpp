@@ -7,6 +7,7 @@
 #include <spdlog/spdlog.h>
 
 #include "pg_pool.hpp"
+#include "telemetry.hpp"
 
 using namespace drogon;
 
@@ -28,9 +29,24 @@ int main() {
         "postgresql://appuser:apppass@postgres:5432/appdb");
     const int pool_sz = std::atoi(env("PG_POOL_SIZE", "4"));
 
+    // One line per event on stdout; handlers add trace_id so Loki lines join Tempo traces.
+    spdlog::set_pattern("%Y-%m-%dT%H:%M:%S.%e [%l] %v");
+    cndp::telemetry::init("order-service");
     spdlog::info("order-service {} starting, pool={}", g_version, pool_sz);
     g_pool = std::make_unique<cndp::PgPool>(pg, pool_sz);
     spdlog::info("PostgreSQL pool ready");
+
+    // One server span per request; it continues an incoming traceparent.
+    app().registerPreRoutingAdvice(
+        [](const HttpRequestPtr& req, AdviceCallback&& cb, AdviceChainCallback&& next) {
+            cndp::telemetry::start_server_span(req);
+            next();
+            (void)cb;
+        });
+    app().registerPreSendingAdvice(
+        [](const HttpRequestPtr& req, const HttpResponsePtr& resp) {
+            cndp::telemetry::end_server_span(req, resp);
+        });
 
     app().registerHandler(
         "/",
@@ -98,7 +114,7 @@ int main() {
 
     app().registerHandler(
         "/orders",
-        [](const HttpRequestPtr&,
+        [](const HttpRequestPtr& req,
            std::function<void(const HttpResponsePtr&)>&& cb) {
             try {
                 auto c = g_pool->acquire(std::chrono::milliseconds(5000));
@@ -119,7 +135,7 @@ int main() {
                 PQclear(r);
                 cb(HttpResponse::newHttpJsonResponse(arr));
             } catch (const std::exception& e) {
-                spdlog::error("list orders: {}", e.what());
+                spdlog::error("list orders: {} trace_id={}", e.what(), cndp::telemetry::trace_id(req));
                 auto resp = HttpResponse::newHttpResponse();
                 resp->setStatusCode(k500InternalServerError);
                 cb(resp);
@@ -152,6 +168,8 @@ int main() {
                 }
                 int id = std::stoi(PQgetvalue(r, 0, 0));
                 PQclear(r);
+                spdlog::info("created order id={} customer={} trace_id={}", id, customer,
+                             cndp::telemetry::trace_id(req));
                 Json::Value j;
                 j["id"] = id;
                 j["customer"] = customer;
@@ -160,7 +178,7 @@ int main() {
                 resp->setStatusCode(k201Created);
                 cb(resp);
             } catch (const std::exception& e) {
-                spdlog::error("create order: {}", e.what());
+                spdlog::error("create order: {} trace_id={}", e.what(), cndp::telemetry::trace_id(req));
                 auto resp = HttpResponse::newHttpResponse();
                 resp->setStatusCode(k500InternalServerError);
                 cb(resp);
@@ -174,5 +192,6 @@ int main() {
 
     spdlog::info("listening on 0.0.0.0:8080");
     app().run();
+    cndp::telemetry::shutdown();
     return 0;
 }

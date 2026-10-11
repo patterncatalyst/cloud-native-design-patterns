@@ -1,47 +1,44 @@
+// order-service: REST -> gRPC (inventory) -> Postgres -> Kafka, with traces, metrics and
+// correlated logs through OpenTelemetry C++ and spdlog.
+
+#include <atomic>
+#include <future>
+#include <chrono>
+#include <csignal>
+#include <iomanip>
+#include <memory>
+#include <mutex>
+#include <random>
+#include <sstream>
+#include <string>
+#include <thread>
+
 #include <drogon/drogon.h>
 #include <grpcpp/grpcpp.h>
 #include <inventory.grpc.pb.h>
-#include <kafka/KafkaProducer.h>
 #include <libpq-fe.h>
-#include <random>
-#include <sstream>
-#include <iomanip>
-#include <atomic>
-#include <csignal>
-#include <thread>
-#include <mutex>
-#include <chrono>
-#include <cstdio>
+#include <librdkafka/rdkafkacpp.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/spdlog.h>
+
+#include "opentelemetry/metrics/provider.h"
+
+#include "telemetry.hpp"
 
 using namespace drogon;
 
-static std::atomic<bool> g_shutdown{false};
-static PGconn* g_pg = nullptr;
-static std::unique_ptr<kafka::clients::producer::KafkaProducer> g_producer;
-static std::shared_ptr<grpc::Channel> g_grpc_channel;
-static std::unique_ptr<inventory::InventoryService::Stub> g_inventory_stub;
-static std::string g_otel_endpoint;
-static std::string g_service_name = "order-service";
+namespace {
 
-void signal_handler(int) { g_shutdown = true; }
+PGconn* g_pg = nullptr;
+std::mutex g_pg_mu;
+std::unique_ptr<RdKafka::Producer> g_producer;
+std::thread g_poller;
+std::atomic<bool> g_polling{false};
+std::shared_ptr<grpc::Channel> g_grpc_channel;
+std::unique_ptr<inventory::InventoryService::Stub> g_inventory_stub;
+opentelemetry::nostd::unique_ptr<opentelemetry::metrics::Counter<uint64_t>> g_orders_placed;
 
-static std::string random_hex(int bytes) {
-    static thread_local std::mt19937_64 rng(std::random_device{}());
-    std::uniform_int_distribution<uint64_t> dist;
-    std::ostringstream oss;
-    oss << std::hex << std::setfill('0');
-    uint64_t v1 = dist(rng);
-    for (int i = 0; i < std::min(bytes, 8); ++i)
-        oss << std::setw(2) << ((v1 >> (i * 8)) & 0xFF);
-    if (bytes > 8) {
-        uint64_t v2 = dist(rng);
-        for (int i = 0; i < bytes - 8; ++i)
-            oss << std::setw(2) << ((v2 >> (i * 8)) & 0xFF);
-    }
-    return oss.str();
-}
-
-static std::string generate_uuid() {
+std::string generate_uuid() {
     std::random_device rd;
     std::mt19937_64 gen(rd());
     std::uniform_int_distribution<uint64_t> dis;
@@ -56,12 +53,7 @@ static std::string generate_uuid() {
     return oss.str();
 }
 
-static int64_t now_nano() {
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count();
-}
-
-static std::string json_escape(const std::string& s) {
+std::string json_escape(const std::string& s) {
     std::ostringstream oss;
     for (char c : s) {
         if (c == '"' || c == '\\') oss << '\\';
@@ -70,147 +62,103 @@ static std::string json_escape(const std::string& s) {
     return oss.str();
 }
 
-struct SpanData {
-    std::string trace_id, span_id, parent_span_id, name;
-    int kind;
-    int64_t start_nano, end_nano;
-    std::vector<std::pair<std::string, std::string>> attrs;
+// Per-message state carried as the message opaque: the delivery report completes the promise
+// the request is waiting on (empty string = delivered, otherwise the error).
+struct Pending {
+    std::promise<std::string> result;
 };
 
-struct MetricSeries {
-    std::map<std::string, int64_t> series;
-    int64_t start_nano = 0;
-};
-
-static std::mutex g_otel_mu;
-static std::vector<SpanData> g_spans;
-static MetricSeries g_orders_metric;
-
-static void otlp_post(const std::string& path, const std::string& json) {
-    std::string cmd = "curl -sf -X POST -H 'Content-Type: application/json' -d @- "
-                      + g_otel_endpoint + path + " >/dev/null 2>&1";
-    FILE* pipe = popen(cmd.c_str(), "w");
-    if (pipe) {
-        fwrite(json.c_str(), 1, json.size(), pipe);
-        pclose(pipe);
+class DeliveryLog : public RdKafka::DeliveryReportCb {
+public:
+    void dr_cb(RdKafka::Message& m) override {
+        std::unique_ptr<Pending> pending(static_cast<Pending*>(m.msg_opaque()));
+        if (m.err() != RdKafka::ERR_NO_ERROR)
+            spdlog::error("order.placed delivery failed: {}", m.errstr());
+        if (pending) pending->result.set_value(m.err() == RdKafka::ERR_NO_ERROR ? std::string() : m.errstr());
     }
+};
+DeliveryLog g_dr;
+
+bool init_kafka(const std::string& bootstrap) {
+    std::string err;
+    std::unique_ptr<RdKafka::Conf> conf(RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL));
+    if (conf->set("bootstrap.servers", bootstrap, err) != RdKafka::Conf::CONF_OK ||
+        conf->set("client.id", "order-service", err) != RdKafka::Conf::CONF_OK ||
+        conf->set("linger.ms", "5", err) != RdKafka::Conf::CONF_OK ||
+        conf->set("acks", "all", err) != RdKafka::Conf::CONF_OK ||
+        conf->set("message.timeout.ms", "10000", err) != RdKafka::Conf::CONF_OK ||
+        conf->set("enable.idempotence", "true", err) != RdKafka::Conf::CONF_OK ||
+        conf->set("dr_cb", &g_dr, err) != RdKafka::Conf::CONF_OK) {
+        spdlog::error("Kafka producer config failed: {}", err);
+        return false;
+    }
+    g_producer.reset(RdKafka::Producer::create(conf.get(), err));
+    if (!g_producer) {
+        spdlog::error("Kafka producer init failed: {}", err);
+        return false;
+    }
+    g_polling.store(true);
+    g_poller = std::thread([] {
+        while (g_polling.load()) g_producer->poll(100);  // serves delivery reports
+    });
+    return true;
 }
 
-static void flush_spans() {
-    std::vector<SpanData> spans;
-    {
-        std::lock_guard<std::mutex> lock(g_otel_mu);
-        spans.swap(g_spans);
-    }
-    if (spans.empty()) return;
-
-    std::ostringstream json;
-    json << R"({"resourceSpans":[{"resource":{"attributes":[)"
-         << R"({"key":"service.name","value":{"stringValue":")" << g_service_name << R"("}}]},)"
-         << R"("scopeSpans":[{"scope":{"name":")" << g_service_name << R"("},"spans":[)";
-
-    for (size_t i = 0; i < spans.size(); ++i) {
-        auto& s = spans[i];
-        if (i > 0) json << ",";
-        json << R"({"traceId":")" << s.trace_id
-             << R"(","spanId":")" << s.span_id << R"(")";
-        if (!s.parent_span_id.empty())
-            json << R"(,"parentSpanId":")" << s.parent_span_id << R"(")";
-        json << R"(,"name":")" << json_escape(s.name)
-             << R"(","kind":)" << s.kind
-             << R"(,"startTimeUnixNano":")" << s.start_nano
-             << R"(","endTimeUnixNano":")" << s.end_nano << R"(")";
-        if (!s.attrs.empty()) {
-            json << R"(,"attributes":[)";
-            for (size_t j = 0; j < s.attrs.size(); ++j) {
-                if (j > 0) json << ",";
-                json << R"({"key":")" << json_escape(s.attrs[j].first)
-                     << R"(","value":{"stringValue":")" << json_escape(s.attrs[j].second) << R"("}})";
-            }
-            json << "]";
+// Publishes the event with a W3C traceparent header so the consumer continues the trace, and
+// waits for the broker's delivery report (message.timeout.ms bounds the wait). Returns true
+// only when the event was acknowledged.
+bool publish(const std::string& event, const std::string& traceparent) {
+    for (int attempt = 0; attempt < 50; ++attempt) {
+        RdKafka::Headers* headers = RdKafka::Headers::create();
+        headers->add("traceparent", traceparent);
+        auto* pending = new Pending;
+        auto delivered = pending->result.get_future();
+        auto rc = g_producer->produce("order.placed", RdKafka::Topic::PARTITION_UA,
+                                      RdKafka::Producer::RK_MSG_COPY,
+                                      const_cast<char*>(event.data()), event.size(),
+                                      nullptr, 0, 0, headers, pending);
+        if (rc == RdKafka::ERR_NO_ERROR) {  // librdkafka owns the headers and the opaque now
+            return delivered.get().empty();
         }
-        json << R"(,"status":{"code":0}})";
+        delete headers;
+        delete pending;
+        if (rc == RdKafka::ERR__QUEUE_FULL) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            continue;
+        }
+        spdlog::error("Kafka send failed: {}", RdKafka::err2str(rc));
+        return false;
     }
-    json << "]}]}]}";
-    otlp_post("/v1/traces", json.str());
+    spdlog::error("Kafka send failed: producer queue full");
+    return false;
 }
 
-static void flush_metrics() {
-    std::map<std::string, int64_t> series;
-    int64_t start_nano;
-    {
-        std::lock_guard<std::mutex> lock(g_otel_mu);
-        if (g_orders_metric.series.empty()) return;
-        series = g_orders_metric.series;
-        start_nano = g_orders_metric.start_nano;
-    }
-
-    int64_t now = now_nano();
-    std::ostringstream json;
-    json << R"({"resourceMetrics":[{"resource":{"attributes":[)"
-         << R"({"key":"service.name","value":{"stringValue":")" << g_service_name << R"("}}]},)"
-         << R"("scopeMetrics":[{"scope":{"name":")" << g_service_name << R"("},"metrics":[)"
-         << R"({"name":"orders.placed","sum":{)"
-         << R"("dataPoints":[)";
-
-    bool first = true;
-    for (auto& [key, count] : series) {
-        if (!first) json << ",";
-        first = false;
-        auto sep = key.find('|');
-        std::string sku = key.substr(0, sep);
-        std::string status = key.substr(sep + 1);
-        json << R"({"asInt":")" << count
-             << R"(","startTimeUnixNano":")" << start_nano
-             << R"(","timeUnixNano":")" << now
-             << R"(","attributes":[)"
-             << R"({"key":"sku","value":{"stringValue":")" << json_escape(sku) << R"("}},)"
-             << R"({"key":"status","value":{"stringValue":")" << json_escape(status) << R"("}}]})";
-    }
-    json << R"(],"aggregationTemporality":2,"isMonotonic":true}}]}]}]})";
-    otlp_post("/v1/metrics", json.str());
-}
-
-static void otel_flush_loop() {
-    while (!g_shutdown) {
-        std::this_thread::sleep_for(std::chrono::seconds(3));
-        flush_spans();
-        flush_metrics();
-    }
-    flush_spans();
-    flush_metrics();
-}
+}  // namespace
 
 int main() {
-    std::signal(SIGTERM, signal_handler);
-    std::signal(SIGINT, signal_handler);
+    auto logger = spdlog::stderr_color_mt("order-service");
+    spdlog::set_default_logger(logger);
+    spdlog::set_pattern("%Y-%m-%dT%H:%M:%S.%e [%l] %v");
 
-    const char* env;
-
-    env = std::getenv("OTEL_EXPORTER_OTLP_ENDPOINT");
-    g_otel_endpoint = env ? env : "http://lgtm:4318";
-
-    env = std::getenv("PG_CONNINFO");
-    const char* conninfo = env ? env : "postgresql://appuser:apppass@postgres:5432/appdb";
-    g_pg = PQconnectdb(conninfo);
+    const char* env = std::getenv("PG_CONNINFO");
+    g_pg = PQconnectdb(env ? env : "postgresql://appuser:apppass@postgres:5432/appdb");
     if (PQstatus(g_pg) != CONNECTION_OK) {
-        LOG_ERROR << "Postgres failed: " << PQerrorMessage(g_pg);
+        spdlog::error("Postgres failed: {}", PQerrorMessage(g_pg));
         return 1;
     }
 
     env = std::getenv("KAFKA_BOOTSTRAP");
-    std::string kafka_bootstrap = env ? env : "kafka:9094";
-    kafka::Properties props;
-    props.put("bootstrap.servers", kafka_bootstrap);
-    props.put("client.id", "order-service");
-    g_producer = std::make_unique<kafka::clients::producer::KafkaProducer>(props);
+    if (!init_kafka(env ? env : "kafka:9094")) return 1;
 
     env = std::getenv("INVENTORY_ADDR");
-    std::string inventory_addr = env ? env : "inventory:50051";
-    g_grpc_channel = grpc::CreateChannel(inventory_addr, grpc::InsecureChannelCredentials());
+    g_grpc_channel = grpc::CreateChannel(env ? env : "inventory:50051",
+                                         grpc::InsecureChannelCredentials());
     g_inventory_stub = inventory::InventoryService::NewStub(g_grpc_channel);
 
-    std::thread flusher(otel_flush_loop);
+    cndp::telemetry::init("order-service");
+    g_orders_placed = opentelemetry::metrics::Provider::GetMeterProvider()
+                          ->GetMeter("order-service")
+                          ->CreateUInt64Counter("orders.placed", "Orders placed", "{order}");
 
     app().setLogLevel(trantor::Logger::kInfo);
     app().addListener("0.0.0.0", 8080);
@@ -235,95 +183,84 @@ int main() {
                 return;
             }
 
-            std::string sku = (*json)["sku"].asString();
-            int quantity = (*json)["quantity"].asInt();
-            std::string order_id = generate_uuid();
+            const std::string sku = (*json)["sku"].asString();
+            const int quantity = (*json)["quantity"].asInt();
+            const std::string order_id = generate_uuid();
 
-            std::string trace_id = random_hex(16);
-            std::string root_span_id = random_hex(8);
-            int64_t root_start = now_nano();
+            auto tracer = cndp::telemetry::tracer("order-service");
+            opentelemetry::trace::StartSpanOptions root_opts;
+            root_opts.kind = opentelemetry::trace::SpanKind::kServer;
+            cndp::telemetry::SpanPtr root = tracer->StartSpan(
+                "POST /orders",
+                {{"http.method", "POST"}, {"http.target", "/orders"}}, root_opts);
+            const std::string trace_id = cndp::telemetry::trace_id_of(root);
 
+            // Child client span around the gRPC reservation; its context goes out as metadata.
             std::string status;
             {
-                std::string grpc_span_id = random_hex(8);
-                int64_t grpc_start = now_nano();
+                opentelemetry::trace::StartSpanOptions child_opts;
+                child_opts.kind = opentelemetry::trace::SpanKind::kClient;
+                child_opts.parent = root->GetContext();
+                cndp::telemetry::SpanPtr rpc = tracer->StartSpan(
+                    "reserve-stock",
+                    {{"rpc.system", "grpc"},
+                     {"rpc.service", "inventory.InventoryService"},
+                     {"rpc.method", "ReserveStock"},
+                     {"sku", sku},
+                     {"quantity", std::to_string(quantity)}},
+                    child_opts);
 
                 inventory::ReserveRequest grpc_req;
                 grpc_req.set_sku(sku);
                 grpc_req.set_quantity(quantity);
-
                 inventory::ReserveResponse grpc_resp;
                 grpc::ClientContext ctx;
                 ctx.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(5));
-                std::string traceparent = "00-" + trace_id + "-" + grpc_span_id + "-01";
-                ctx.AddMetadata("traceparent", traceparent);
-
+                ctx.AddMetadata("traceparent", cndp::telemetry::traceparent_of(rpc));
                 auto grpc_status = g_inventory_stub->ReserveStock(&ctx, grpc_req, &grpc_resp);
                 status = (grpc_status.ok() && grpc_resp.confirmed()) ? "confirmed" : "rejected";
-
-                int64_t grpc_end = now_nano();
-                std::lock_guard<std::mutex> lock(g_otel_mu);
-                g_spans.push_back({trace_id, grpc_span_id, root_span_id, "reserve-stock",
-                                  3, grpc_start, grpc_end,
-                                  {{"rpc.system", "grpc"},
-                                   {"rpc.service", "inventory.InventoryService"},
-                                   {"rpc.method", "ReserveStock"},
-                                   {"sku", sku},
-                                   {"quantity", std::to_string(quantity)},
-                                   {"stock.confirmed", status == "confirmed" ? "true" : "false"}}});
+                rpc->SetAttribute("stock.confirmed", status == "confirmed");
+                rpc->End();
             }
 
-            const char* params[4] = {order_id.c_str(), sku.c_str(),
-                                     std::to_string(quantity).c_str(), status.c_str()};
-            PGresult* res = PQexecParams(g_pg,
-                "INSERT INTO orders (id, sku, quantity, status) VALUES ($1, $2, $3, $4)",
-                4, nullptr, params, nullptr, nullptr, 0);
-            if (PQresultStatus(res) != PGRES_COMMAND_OK)
-                LOG_ERROR << "Insert failed: " << PQerrorMessage(g_pg);
-            PQclear(res);
+            {
+                const std::string quantity_s = std::to_string(quantity);
+                const char* params[4] = {order_id.c_str(), sku.c_str(), quantity_s.c_str(),
+                                         status.c_str()};
+                std::lock_guard<std::mutex> lock(g_pg_mu);
+                PGresult* res = PQexecParams(g_pg,
+                    "INSERT INTO orders (id, sku, quantity, status) VALUES ($1, $2, $3, $4)",
+                    4, nullptr, params, nullptr, nullptr, 0);
+                if (PQresultStatus(res) != PGRES_COMMAND_OK)
+                    spdlog::error("Insert failed: {}", PQerrorMessage(g_pg));
+                PQclear(res);
+            }
 
             std::ostringstream event;
             event << R"({"id":")" << json_escape(order_id)
                   << R"(","sku":")" << json_escape(sku)
                   << R"(","quantity":)" << quantity
                   << R"(,"status":")" << json_escape(status) << R"("})";
+            const bool published = publish(event.str(), cndp::telemetry::traceparent_of(root));
 
-            std::string event_str = event.str();
-            std::string traceparent = "00-" + trace_id + "-" + root_span_id + "-01";
+            root->SetAttribute("order.id", order_id);
+            root->SetAttribute("sku", sku);
+            root->SetAttribute("status", status);
+            root->End();
 
-            kafka::clients::producer::ProducerRecord record(
-                kafka::Topic("order.placed"),
-                kafka::NullKey,
-                kafka::Value(event_str.c_str(), event_str.size()));
-            record.headers().push_back(
-                kafka::Header(kafka::Header::Key("traceparent"),
-                              kafka::Header::Value(traceparent.c_str(), traceparent.size())));
+            g_orders_placed->Add(1, std::map<std::string, std::string>{{"sku", sku}, {"status", status}});
 
-            try {
-                g_producer->syncSend(record);
-            } catch (const kafka::KafkaException& e) {
-                LOG_ERROR << "Kafka send failed: " << e.what();
+            spdlog::info("order placed sku={} id={} status={} trace_id={}", sku, order_id, status,
+                         trace_id);
+
+            if (!published) {
+                Json::Value err;
+                err["error"] = "event not published";
+                auto http_resp = HttpResponse::newHttpJsonResponse(err);
+                http_resp->setStatusCode(k503ServiceUnavailable);
+                callback(http_resp);
+                return;
             }
-
-            int64_t root_end = now_nano();
-            {
-                std::lock_guard<std::mutex> lock(g_otel_mu);
-                g_spans.push_back({trace_id, root_span_id, "", "POST /orders",
-                                  2, root_start, root_end,
-                                  {{"http.method", "POST"},
-                                   {"http.target", "/orders"},
-                                   {"order.id", order_id},
-                                   {"sku", sku},
-                                   {"status", status}}});
-
-                std::string metric_key = sku + "|" + status;
-                if (g_orders_metric.start_nano == 0)
-                    g_orders_metric.start_nano = now_nano();
-                g_orders_metric.series[metric_key]++;
-            }
-
-            std::cerr << "order placed sku=" << sku << " id=" << order_id
-                      << " status=" << status << " trace_id=" << trace_id << std::endl;
 
             Json::Value resp;
             resp["id"] = order_id;
@@ -338,6 +275,7 @@ int main() {
 
     app().registerHandler("/orders",
         [](const HttpRequestPtr&, std::function<void(const HttpResponsePtr&)>&& callback) {
+            std::lock_guard<std::mutex> lock(g_pg_mu);
             PGresult* res = PQexec(g_pg,
                 "SELECT id, sku, quantity, status FROM orders ORDER BY created_at DESC LIMIT 50");
             if (PQresultStatus(res) != PGRES_TUPLES_OK) {
@@ -361,10 +299,13 @@ int main() {
         },
         {Get});
 
-    app().run();
+    app().run();  // returns on SIGINT/SIGTERM
 
-    g_shutdown = true;
-    flusher.join();
+    g_polling.store(false);
+    if (g_poller.joinable()) g_poller.join();
+    g_producer->flush(10000);
+    g_producer.reset();
+    cndp::telemetry::shutdown();
     if (g_pg) PQfinish(g_pg);
     return 0;
 }

@@ -1,0 +1,13 @@
+{
+    "version": "0.5",
+    "requires": [
+        "taocpp-pegtl/3.2.8#2bf8e42be8198d83de8c276fd4b8859d%1726766797.372",
+        "cppgraphqlgen/4.5.9#aa491c3c7ac5fd947de949ae0809724d%1791677122.138845",
+        "boost/1.91.0#857a04e51881582791677311c881b00d%1790854183.122"
+    ],
+    "build_requires": [
+        "b2/5.5.3#043a75bcbb090e3f81f7ac849850d0ca%1784261134.143"
+    ],
+    "python_requires": [],
+    "config_requires": []
+}
