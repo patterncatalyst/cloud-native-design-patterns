@@ -81,6 +81,21 @@ k8s/setup-profile.sh && k8s/build-images.sh go && k8s/deploy.sh go
 RUNTIME=kubernetes BASE=http://127.0.0.1:30080 ./verify.sh
 ```
 
+## Run on OpenShift Local
+
+The same services (Spring Boot, Quarkus, .NET, Python and Go) and the same `verify.sh` run on
+OpenShift Local with AMQ Streams for Kafka, the Red Hat Postgres image, pods under the
+`restricted-v2` SCC and edge-TLS Routes. See [`openshift/README.md`](openshift/README.md) for the
+commands and Appendix S in the site for the design. It needs CRC sized 12 vCPU and 32768 MiB, and it
+refuses to start while minikube or any container is running.
+
+```bash
+openshift/setup-crc.sh && openshift/build-push-images.sh go && openshift/deploy.sh go
+RUNTIME=kubernetes KUBECTL=oc KUBE_CONTEXT=crc-admin BASE=https://order-service-cndp-05.apps-crc.testing \
+  CURL_OPTS="--cacert $HOME/.local/state/cndp-05-crc/ingress-ca.crt" ./verify.sh
+openshift/teardown.sh
+```
+
 ## Verify
 
 From the example root (not the language directory):
@@ -94,7 +109,7 @@ cd ..  # if you're in a language directory
 
 Open Grafana at http://localhost:3000:
 
-- **Tempo** — traces from order-service, shipping-consumer, notification-consumer
+- **Tempo** — traces from order-service, shipping-consumer, notification-consumer (the trace context travels in the Kafka record headers, so one trace spans the producer and both consumers)
 - **Loki** — search for `order.placed` to see the event flow across services
 
 ## Ports

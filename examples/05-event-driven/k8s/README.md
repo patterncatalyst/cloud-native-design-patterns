@@ -2,7 +2,8 @@
 
 The same three services and the same `verify.sh`, on a single-node Kubernetes cluster:
 minikube with the Docker driver and containerd, Kubernetes v1.36.5. Appendix R in the
-site walks through the design; this page is the command reference.
+site walks through the design; this page is the command reference. The OpenShift Local variant
+(Appendix S) reuses these manifests from [`../openshift`](../openshift/README.md).
 
 ## Layout
 
@@ -13,6 +14,7 @@ site walks through the design; this page is the command reference.
 | `base/` | The three Deployments and the order-service NodePort Service |
 | `overlays/<lang>/` | Image names and the environment variables that language reads |
 | `setup-profile.sh` | Create or start the `cndp-k8s` profile with the NodePorts published on 127.0.0.1 |
+| `images.sh` | The image table (18 Containerfile rows), sourced by this directory's and `../openshift`'s build scripts |
 | `build-images.sh` | `docker build` each image, then `minikube image load` it |
 | `deploy.sh` | Strimzi operator, infrastructure, one language overlay |
 | `verify-matrix.sh` | Build, deploy, verify and tear down each language in turn |

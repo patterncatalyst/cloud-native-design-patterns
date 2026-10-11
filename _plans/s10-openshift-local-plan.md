@@ -88,6 +88,21 @@ packagemanifest `amq-streams` channels/currentCSV; CSV `STRIMZI_KAFKA_IMAGES`; `
 | 0 plan | done |
 | 1 pins re-check | done (offline): crc 2.64.0 and kubeconform v0.8.0 still newest, otel-lgtm 0.36.0 newest tag, CRDs-catalog route/imagestream schemas present at the pinned commit; the AMQ Streams CSV and the registry.redhat.io postgresql-18 tag need a login or the cluster, so they stay in the live confirmations |
 | 2 .NET trace propagation | done (a0f03c4): compose verify 10/10, one trace holds order-service, shipping-consumer and notification-consumer |
-| 3-9 offline | pending |
+| 3 images.sh | done (8e2992a): `k8s/images.sh` sourced by both build scripts, 18 rows unchanged |
+| 4 manifests and rehearsals | done (9b19ce3): see "Offline results" |
+| 5 scripts | done (7646ef7): lib.sh, setup-crc.sh, build-push-images.sh, deploy.sh, verify-matrix.sh, teardown.sh, README.md; shellcheck 0.11.0 clean |
+| 6 verify.sh | done (de36779): comments only |
+| 7 CI | done (f62dc44): selector and `k8s` job; actionlint 1.7.12 clean |
+| 8 diagrams | done (d059628): S.1 and S.2 |
+| 9 docs | done offline: Appendix S with S10-LIVE placeholders, index, README, chapter 05, READMEs, prerequisites, CLAUDE.md |
 | 10 live | pending |
 | 11-12 | pending |
+
+## Offline results (steps 4 to 9)
+
+- Renders: `operators`, `infra` and five overlays are identical with kubectl 1.36.5 and oc 4.22.17 kustomize; kubeconform v0.8.0 (checksum verified) `-strict -kubernetes-version 1.35.6`: 0 invalid, 0 errors, 0 skipped. The k8s overlays and infra render byte-identical to main. The Kubernetes version 1.35.6 is a to-confirm against `oc version` on the cluster.
+- otel-lgtm 0.36.0 as `--user 1000700000:0 --read-only --cap-drop ALL --security-opt no-new-privileges`: writes `/data` (exec), `/tmp`, `/var/tempo`; needs `GF_PLUGINS_PREINSTALL_DISABLED=true` (otherwise Grafana removes the bundled data source plugins and fails to replace them on a read-only tree). Grafana `/api/health` ok, four data sources healthy, OTLP POST to 4318 accepted and the trace readable from Tempo. emptyDir path chosen; anyuid fallback not needed.
+- sclorg postgresql-18-c10s (digest sha256:1da2e7d2f7ede454d37b73a874d78d307c4d776762206f887b586f0e9fa11549, rehearsal only): `postgresql-init` hooks run before the role and database exist, so the schema hook is `postgresql-start/10-cndp-schema.sh` (runs every start, SQL is idempotent). appuser owns the three tables, `uuid-ossp` loads, local socket auth is `trust` (no password), `log_statement` is `all`, restart is a no-op.
+- All 15 app images report a numeric non-zero `User` (185 for Spring Boot and Quarkus, 1001 for .NET, Python and Go).
+- skopeo 1.22.3 reads a process-substitution `--dest-authfile` (pushed to a local htpasswd registry; an unauthenticated read failed with 401).
+- Not verifiable offline: the Red Hat `rhel10/postgresql-18:10.2-1791491063` tag (registry.redhat.io needs a login), the AMQ Streams CSV, and Kafka CR `kafka.strimzi.io/v1` acceptance by AMQ Streams 3.2.
