@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Generate diagrams for Appendix S: Running Example 05 on OpenShift Local."""
+import generate_diagram as g
+g.OUT = "../assets/diagrams"
+
+# ── Figure S.1 — cluster topology and host access ───────────────────────
+g.emit("32-openshift-topology", 880, 440,
+    bands=[
+        {"x": 10, "y": 10, "w": 200, "h": 420, "fill": "#eef4fb",
+         "label": "Host"},
+        {"x": 230, "y": 10, "w": 640, "h": 420, "fill": "#f7f7f7",
+         "label": "OpenShift Local (CRC VM, OpenShift 4.22)"},
+        {"x": 250, "y": 40, "w": 160, "h": 380, "fill": "#ffffff",
+         "label": "cndp-amq-streams"},
+        {"x": 430, "y": 40, "w": 425, "h": 380, "fill": "#fff8ef",
+         "label": "namespace cndp-05 (restricted-v2)"},
+    ],
+    nodes=[
+        {"x": 25, "y": 60, "w": 170, "h": 55, "style": "user",
+         "lines": ["curl, verify.sh", "--cacert ingress CA"]},
+        {"x": 25, "y": 135, "w": 170, "h": 55, "style": "user",
+         "lines": ["Browser", "lgtm-grafana Route"]},
+        {"x": 25, "y": 210, "w": 170, "h": 55, "style": "kernel",
+         "lines": ["oc --context crc-admin", "exec into pods"]},
+        {"x": 25, "y": 285, "w": 170, "h": 55, "style": "ghost",
+         "lines": ["minikube profiles", "stopped"]},
+        {"x": 265, "y": 125, "w": 130, "h": 60, "style": "accent",
+         "lines": ["Subscription", "Manual, pinned CSV"]},
+        {"x": 265, "y": 310, "w": 130, "h": 60, "style": "accent",
+         "lines": ["AMQ Streams", "operator 3.2"]},
+        {"x": 450, "y": 80, "w": 190, "h": 55, "style": "ink",
+         "lines": ["order-service", "Route, edge TLS"]},
+        {"x": 660, "y": 80, "w": 180, "h": 55, "style": "box",
+         "lines": ["shipping-consumer", "notification-consumer"]},
+        {"x": 450, "y": 180, "w": 190, "h": 60, "style": "accent",
+         "lines": ["Kafka cndp 4.2.0", "cndp-kafka-bootstrap:9092"]},
+        {"x": 660, "y": 180, "w": 180, "h": 60, "style": "accent",
+         "lines": ["Postgres 18 (sclorg)", "cndp-postgres-rw:5432"]},
+        {"x": 450, "y": 285, "w": 190, "h": 60, "style": "kernel",
+         "lines": ["LGTM (otel-lgtm)", "lgtm:4318, Grafana Route"]},
+        {"x": 660, "y": 285, "w": 180, "h": 60, "style": "sub",
+         "lines": ["Secret cndp-postgres-app", "username, password"]},
+    ],
+    edges=[
+        {"x1": 195, "y1": 87, "x2": 450, "y2": 107, "amber": True},
+        {"x1": 195, "y1": 162, "x2": 450, "y2": 315, "amber": True},
+        {"x1": 195, "y1": 237, "x2": 450, "y2": 215, "dashed": True},
+        {"x1": 330, "y1": 310, "x2": 450, "y2": 225, "dashed": True, "label": "manages", "lx": 20, "ly": 10},
+        {"x1": 330, "y1": 185, "x2": 330, "y2": 310, "dashed": True, "label": "OLM installs", "lx": 0, "ly": 40},
+        {"x1": 545, "y1": 135, "x2": 545, "y2": 180, "label": "produce"},
+        {"x1": 750, "y1": 135, "x2": 750, "y2": 180, "label": "insert"},
+        {"x1": 640, "y1": 208, "x2": 660, "y2": 208},
+    ],
+    notes=[
+        {"x": 25, "y": 415, "text": "Routes terminate TLS at the router; HTTP is redirected. No port-forward, tunnel or insecure curl.",
+         "size": 11, "color": "#888888"},
+    ],
+)
+
+# ── Figure S.2 — image flow ─────────────────────────────────────────────
+g.emit("32-openshift-image-flow", 880, 320,
+    bands=[
+        {"x": 10, "y": 10, "w": 540, "h": 210, "fill": "#eef4fb",
+         "label": "Host"},
+        {"x": 570, "y": 10, "w": 300, "h": 210, "fill": "#fff8ef",
+         "label": "OpenShift Local"},
+    ],
+    nodes=[
+        {"x": 30, "y": 55, "w": 150, "h": 55, "style": "box",
+         "lines": ["Containerfile", "per language, per service"]},
+        {"x": 210, "y": 55, "w": 150, "h": 55, "style": "accent",
+         "lines": ["docker build", "host BuildKit cache"]},
+        {"x": 390, "y": 55, "w": 140, "h": 55, "style": "user",
+         "lines": ["Docker image store", "localhost/cndp-05/..."]},
+        {"x": 590, "y": 55, "w": 130, "h": 55, "style": "kernel",
+         "lines": ["Internal registry", "ImageStream :v1"]},
+        {"x": 740, "y": 55, "w": 110, "h": 55, "style": "ink",
+         "lines": ["Pod", "pulls, Always"]},
+        {"x": 390, "y": 140, "w": 140, "h": 60, "style": "sub",
+         "lines": ["skopeo copy", "docker-daemon: to route"]},
+        {"x": 590, "y": 140, "w": 260, "h": 60, "style": "sub",
+         "lines": ["Token: builder, 10 minutes", "shell variable and pipe only"]},
+        {"x": 30, "y": 250, "w": 820, "h": 45, "style": "ghost",
+         "lines": ["Rejected: docker push (needs a root-owned certs.d entry), in-cluster builds, skopeo login (writes a file)"]},
+    ],
+    edges=[
+        {"x1": 180, "y1": 82, "x2": 210, "y2": 82},
+        {"x1": 360, "y1": 82, "x2": 390, "y2": 82},
+        {"x1": 530, "y1": 82, "x2": 590, "y2": 82, "amber": True, "label": "HTTPS", "lx": 0, "ly": -14},
+        {"x1": 720, "y1": 82, "x2": 740, "y2": 82},
+        {"x1": 460, "y1": 110, "x2": 460, "y2": 140, "dashed": True},
+        {"x1": 590, "y1": 170, "x2": 530, "y2": 170, "dashed": True},
+    ],
+    notes=[],
+)
+print("Done — generated 2 diagrams for Appendix S")
