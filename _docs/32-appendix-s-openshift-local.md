@@ -427,9 +427,12 @@ Order matters because OLM-managed resources have finalizers that need their oper
 deletes KafkaTopics and KafkaUsers, then the Kafka and KafkaNodePool resources while the operator
 still runs, then the project. It then removes the Subscription, the CSV, its InstallPlans, the
 OperatorGroup, the CRDs the CSV owns (read from the CSV's `.spec.customresourcedefinitions.owned`)
-and the operator namespace. The CRDs go only when our Subscription or CSV existed, and only after a
-foreign check: another project's Subscription, CSV or Kafka custom resource keeps them in place, the
-script prints what it kept and why, and carries on. No other `*.strimzi.io` CRD is ever removed. It
+and the operator namespace. OLM labels each CRD it installs for this Subscription with
+`operators.coreos.com/amq-streams.cndp-amq-streams`, and the script also removes CRDs that carry that
+label, so a CRD kept by an earlier run is still found after the CSV is gone. The CRDs go only when
+something of ours exists, and only after a foreign check: another project's Subscription, CSV or
+Kafka custom resource keeps them in place, the script prints what it kept and why, and carries on.
+No other `*.strimzi.io` CRD is ever removed. It
 reverts the registry route only if `setup-crc.sh` enabled it. A step that fails or times out is
 reported and the script continues, so the route is reverted and CRC is stopped anyway; the exit code
 is non-zero if a step failed or something of Example 05's is left. A leftover check lists those

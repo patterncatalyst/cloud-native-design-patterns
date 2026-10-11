@@ -75,8 +75,9 @@ openshift/teardown.sh --keep-running     # leave CRC running
 openshift/teardown.sh --namespace-only   # only the cndp-05 project
 ```
 
-Only the CRDs the AMQ Streams CSV owns are removed, and only when our Subscription or CSV existed and
-no other project's Kafka operator or Kafka resource uses them; otherwise they are kept and the script says
+Only the CRDs the AMQ Streams CSV owns, or that carry OLM's `operators.coreos.com/amq-streams.cndp-amq-streams`
+label, are removed, and only when something of ours exists and no other project's Kafka operator or
+Kafka resource uses them; otherwise they are kept and the script says
 why. Other `*.strimzi.io` CRDs and everything else that is not Example 05's are reported as untouched.
 A failed step is reported and the script continues; the exit code is non-zero if a step failed or
 something of ours is left. Full mode always ends with `crc stop` (an EXIT trap); `--keep-running` and
