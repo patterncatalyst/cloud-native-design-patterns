@@ -77,11 +77,12 @@ app.MapPost("/orders", async (HttpContext ctx) =>
 
     if (producer is not null)
     {
+        Activity? publish = null;
         try
         {
             // Confluent.Kafka has no built-in tracing: write the W3C traceparent into the record headers
             // so the consumers can continue this trace.
-            using var publish = orderSource.StartActivity("order.placed publish", ActivityKind.Producer);
+            publish = orderSource.StartActivity("order.placed publish", ActivityKind.Producer);
             publish?.SetTag("messaging.system", "kafka");
             publish?.SetTag("messaging.destination.name", "order.placed");
             var message = new Message<Null, string> { Value = json, Headers = new Headers() };
@@ -93,7 +94,12 @@ app.MapPost("/orders", async (HttpContext ctx) =>
         }
         catch (Exception ex)
         {
+            publish?.SetStatus(ActivityStatusCode.Error, ex.Message);
             app.Logger.LogWarning("Kafka publish failed: {Error}", ex.Message);
+        }
+        finally
+        {
+            publish?.Dispose();
         }
     }
 

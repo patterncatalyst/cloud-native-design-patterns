@@ -75,7 +75,10 @@ try
             cr.Message.Headers,
             (headers, key) => headers is null
                 ? Array.Empty<string>()
-                : headers.Where(h => h.Key == key).Select(h => Encoding.UTF8.GetString(h.GetValueBytes())));
+                : headers.Where(h => h.Key == key)
+                         .Select(h => h.GetValueBytes())
+                         .Where(b => b is not null)
+                         .Select(b => Encoding.UTF8.GetString(b!)));
         Baggage.Current = parent.Baggage;
         using var span = source.StartActivity("send_notification", ActivityKind.Consumer, parent.ActivityContext);
         span?.SetTag("messaging.system", "kafka");
@@ -98,6 +101,7 @@ try
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            span?.SetStatus(ActivityStatusCode.Error, ex.Message);
             Console.WriteLine($"Error processing message: {ex.Message}");
         }
     }
