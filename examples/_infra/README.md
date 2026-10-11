@@ -14,6 +14,7 @@ Composable infrastructure services for the runnable examples. Each example
 | `compose-redis.yaml` | Redis 8 | Example uses caching or pub/sub |
 | `compose-debezium.yaml` | Debezium / Kafka Connect | Example uses change data capture |
 | `compose-flagd.yaml` | flagd (OpenFeature) | Example uses feature flags |
+| `compose-apicurio.yaml` | Apicurio Registry 3.3 (in-memory H2) | Example uses a schema/API registry |
 
 ## Usage
 
@@ -62,6 +63,8 @@ not inside the language directory.
 | Redis | 6379 | 6379 |
 | Kafka Connect | 8083 | 8083 |
 | flagd (gRPC) | 8013 | 8013 |
+| Apicurio Registry (API) | 8081 | 8080 |
+| Apicurio management (`/health/ready`) | 19000 | 9000 |
 
 ## Credentials
 
@@ -84,6 +87,7 @@ on the same machine:
 | redis | cndp-redis |
 | kafka-connect | cndp-kafka-connect |
 | flagd | cndp-flagd |
+| apicurio | cndp-apicurio |
 | (app services) | cndp-{service-name} |
 
 The shared network is named `cndp`. Service names (used for DNS inside compose)

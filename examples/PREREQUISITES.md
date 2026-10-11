@@ -155,6 +155,16 @@ conftest --version
 
 `~/.local/bin` is on the default `PATH` for Fedora and RHEL login shells.
 
+### kcat (Kafka inspection)
+
+Lists topics and reads or produces Kafka messages from the host (example 04 uses it); it
+replaces the removed kafka-ui. Optional, since `kafka-console-consumer.sh` inside the
+`kafka` container does the same:
+
+```bash
+sudo dnf install -y kcat
+```
+
 ### hey v0.1.5 (HTTP load testing)
 
 Used by examples that demonstrate scaling or performance patterns. Download a binary from
@@ -171,8 +181,14 @@ Used by examples with gRPC endpoints. Download the pinned binary from the
 
 ```bash
 GHZ_VERSION=0.121.0
-curl -fsSL "https://github.com/bojand/ghz/releases/download/v${GHZ_VERSION}/ghz-linux-x86_64.tar.gz" \
-  | tar -xzf - -C ~/.local/bin ghz
+BASE="https://github.com/bojand/ghz/releases/download/v${GHZ_VERSION}"
+cd "$(mktemp -d)"
+curl -fsSLO "${BASE}/ghz-linux-x86_64.tar.gz"
+curl -fsSLO "${BASE}/ghz-linux-x86_64.tar.gz.sha256"
+echo "$(cat ghz-linux-x86_64.tar.gz.sha256)  ghz-linux-x86_64.tar.gz" | sha256sum -c -
+mkdir -p ~/.local/bin
+tar -xzf ghz-linux-x86_64.tar.gz -C ~/.local/bin ghz
+ghz --version
 ```
 
 ### newman 6.2.3 (Postman CLI, required for example 28)
@@ -190,6 +206,7 @@ Verify:
 ```bash
 curl --version
 jq --version
+kcat -V 2>&1 | head -1          # optional
 hey -h 2>&1 | head -1          # optional
 ghz --version                   # optional
 newman --version                # required for example 28

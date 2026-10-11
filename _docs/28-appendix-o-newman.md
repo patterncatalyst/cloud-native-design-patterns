@@ -129,7 +129,7 @@ audience. `cli` is for a human watching; `junit` emits the XML that CI systems t
 reports; `htmlextra` (a community reporter) produces a shareable page.
 
 ```bash
-# install once (Node.js): npm i -g newman@6.2.3 newman-reporter-htmlextra@1.23.1
+# install once (Node.js): npm install -g --prefix ~/.local newman@6.2.3 newman-reporter-htmlextra@1.23.1
 newman run orders.postman_collection.json \
   --environment local.postman_environment.json \
   --reporters cli,junit,htmlextra \
