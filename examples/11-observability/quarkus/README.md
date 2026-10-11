@@ -50,7 +50,7 @@ curl -X POST http://localhost:8080/orders \
 docker logs cndp-order-service 2>&1 | grep "order placed"
 
 # Query traces in Tempo
-curl -s http://localhost:3200/api/search | jq '.traces[:3]'
+curl -s "http://localhost:3200/api/search?limit=20&start=$(($(date +%s)-900))&end=$(date +%s)" | jq '.traces[:3]'
 
 # Query metrics in Prometheus
 curl -s 'http://localhost:19090/api/v1/query?query=orders_placed_total' | jq '.data.result'

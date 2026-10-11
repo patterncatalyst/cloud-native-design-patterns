@@ -52,7 +52,7 @@ check "healthz returns ok" \
 printf '\n--- 1. Newman collection run ---\n'
 
 if ! command -v newman &>/dev/null; then
-    printf '  \xe2\x9c\x97 newman not installed (npm install -g --prefix ~/.local newman@6.2.3)\n'
+    printf '  \xe2\x9c\x97 newman not installed (npm install -g --prefix ~/.local newman@6.2.3 newman-reporter-htmlextra@1.23.1)\n'
     FAIL=$((FAIL + 1))
     printf '\n==> Results: %d passed, %d failed\n' "$PASS" "$FAIL"
     printf '==> FAIL\n'

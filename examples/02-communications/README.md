@@ -108,5 +108,4 @@ Open Grafana at http://localhost:3000 and explore:
 | Grafana | 3000 |
 | Postgres | 5432 |
 | Kafka (host) | 9092 |
-| Kafka UI | 8090 |
 | OTLP HTTP | 4318 |

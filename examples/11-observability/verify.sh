@@ -92,7 +92,15 @@ sleep 10
 # --- Traces in Tempo ---
 printf '  \xe2\x86\x92 checking traces in Tempo...\n'
 
-TEMPO_SEARCH=$(curl $CURL_OPTS -sf "$TEMPO/api/search" 2>/dev/null || echo "")
+# Tempo 3 indexes new traces a little later than the trace-by-id path, and a search needs
+# a time window. Retry for up to 60 s.
+TEMPO_SEARCH=""
+for _ in $(seq 1 12); do
+    NOW=$(date +%s)
+    TEMPO_SEARCH=$(curl $CURL_OPTS -sf "$TEMPO/api/search?limit=20&start=$((NOW - 900))&end=$((NOW + 60))" 2>/dev/null || echo "")
+    case "$TEMPO_SEARCH" in *traceID*) break ;; esac
+    sleep 5
+done
 check "Tempo has traces" \
     "echo '$TEMPO_SEARCH'" \
     "traceID"

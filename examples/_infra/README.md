@@ -8,10 +8,10 @@ Composable infrastructure services for the runnable examples. Each example
 | File | Services | Use when |
 |------|----------|----------|
 | `compose-lgtm.yaml` | Grafana LGTM (Loki, Grafana, Tempo, Mimir) + OTel Collector | Every example (observability) |
-| `compose-postgres.yaml` | Postgres 16 | Example needs relational storage |
-| `compose-postgres-logical.yaml` | Postgres 16 with `wal_level=logical` | Example uses CDC / Debezium |
-| `compose-kafka.yaml` | Kafka 3.8 (KRaft) + Kafka UI | Example uses event streaming |
-| `compose-redis.yaml` | Redis 7 | Example uses caching or pub/sub |
+| `compose-postgres.yaml` | Postgres 18 | Example needs relational storage |
+| `compose-postgres-logical.yaml` | Postgres 18 with `wal_level=logical` | Example uses CDC / Debezium |
+| `compose-kafka.yaml` | Kafka 4.3 (KRaft) | Example uses event streaming |
+| `compose-redis.yaml` | Redis 8 | Example uses caching or pub/sub |
 | `compose-debezium.yaml` | Debezium / Kafka Connect | Example uses change data capture |
 | `compose-flagd.yaml` | flagd (OpenFeature) | Example uses feature flags |
 
@@ -59,7 +59,6 @@ not inside the language directory.
 | Postgres | 5432 | 5432 |
 | Kafka (host) | 9092 | 9092 |
 | Kafka (compose) | 9094 | 9094 |
-| Kafka UI | 8090 | 8080 |
 | Redis | 6379 | 6379 |
 | Kafka Connect | 8083 | 8083 |
 | flagd (gRPC) | 8013 | 8013 |
@@ -82,7 +81,6 @@ on the same machine:
 | lgtm | cndp-lgtm |
 | postgres | cndp-postgres |
 | kafka | cndp-kafka |
-| kafka-ui | cndp-kafka-ui |
 | redis | cndp-redis |
 | kafka-connect | cndp-kafka-connect |
 | flagd | cndp-flagd |

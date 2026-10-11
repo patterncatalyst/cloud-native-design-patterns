@@ -56,7 +56,7 @@ printf '==> Verifying Example 09: API Registry\n\n'
 
 # --- Apicurio is up ---
 check "Apicurio health check" \
-    "curl $CURL_OPTS -sf http://localhost:8081/health/ready" \
+    "curl $CURL_OPTS -sf http://localhost:19000/health/ready" \
     '"status"'
 
 # --- Create a group ---
@@ -109,7 +109,7 @@ check "compatibility rule is BACKWARD" \
     "curl $CURL_OPTS -sf '$REGISTRY/groups/orders/artifacts/order-placed/rules/COMPATIBILITY'" \
     "BACKWARD"
 
-# --- Try a BREAKING change (rename required fields) → expect 409 ---
+# --- Try a BREAKING change (rename required fields) → expect 400 ---
 printf '  \xe2\x86\x92 attempting breaking schema change (renamed fields)...\n'
 BREAKING_CODE=$(curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST \
     "$REGISTRY/groups/orders/artifacts/order-placed/versions" \
@@ -122,11 +122,11 @@ BREAKING_CODE=$(curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST \
         }
     }")
 
-if [ "$BREAKING_CODE" = "409" ]; then
-    printf '  \xe2\x9c\x93 breaking change rejected with 409 Conflict\n'
+if [ "$BREAKING_CODE" = "400" ]; then
+    printf '  \xe2\x9c\x93 breaking change rejected with 400 Bad Request\n'
     PASS=$((PASS + 1))
 else
-    printf '  \xe2\x9c\x97 breaking change should return 409 (got %s)\n' "$BREAKING_CODE"
+    printf '  \xe2\x9c\x97 breaking change should return 400 (got %s)\n' "$BREAKING_CODE"
     FAIL=$((FAIL + 1))
 fi
 

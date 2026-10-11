@@ -9,7 +9,7 @@ JUnit XML for CI.
 
 - [Docker Engine](https://docs.docker.com/engine/install/) with the Compose plugin, on
   Fedora or RHEL (see [Prerequisites](../PREREQUISITES.md))
-- [Newman](https://www.npmjs.com/package/newman): `npm install -g --prefix ~/.local newman@6.2.3`
+- [Newman](https://www.npmjs.com/package/newman): `npm install -g --prefix ~/.local newman@6.2.3 newman-reporter-htmlextra@1.23.1`
 - `curl` and `jq` for driving the API
 - ~1 GB free memory (Postgres + 1 app service)
 
