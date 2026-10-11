@@ -66,13 +66,28 @@ jobs:
         with:
           distribution: temurin
           java-version: "25"
-          cache: maven
+      # Cache policy (see the cache note above the cpp job): every run restores,
+      # only a push to main writes.
+      - name: Restore the Maven repository
+        id: m2
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ runner.os }}-${{ hashFiles(format('{0}/pom.xml', matrix.dir)) }}
+          restore-keys: |
+            maven-${{ runner.os }}-
       - name: Build
         env:
           DIR: ${{ matrix.dir }}
         run: |
           test -f "$DIR/pom.xml" || { echo "::error::no pom.xml in $DIR"; exit 1; }
           mvn -B -ntp -q -f "$DIR/pom.xml" package -DskipTests
+      - name: Save the Maven repository (main only)
+        if: github.ref == 'refs/heads/main' && steps.m2.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6.1.0
+        with:
+          path: ~/.m2/repository
+          key: ${{ steps.m2.outputs.cache-primary-key }}
 
   dotnet:
     name: .NET — ${{ matrix.dir }}
@@ -110,10 +125,30 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: ${{ matrix.dir }}/go.mod
-          cache-dependency-path: ${{ matrix.dir }}/go.sum
+          cache: false
+      # Cache policy (see the cache note above the cpp job): every run restores,
+      # only a push to main writes.
+      - name: Restore the Go module and build caches
+        id: gocache
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-${{ runner.os }}-${{ hashFiles(format('{0}/go.mod', matrix.dir), format('{0}/go.sum', matrix.dir)) }}
+          restore-keys: |
+            go-${{ runner.os }}-
       - name: Vet and build
         working-directory: ${{ matrix.dir }}
         run: go vet ./... && go build -o /dev/null ./... && go test ./...
+      - name: Save the Go caches (main only)
+        if: github.ref == 'refs/heads/main' && steps.gocache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6.1.0
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ steps.gocache.outputs.cache-primary-key }}
 
   python:
     name: Python — ${{ matrix.dir }}
@@ -138,6 +173,19 @@ jobs:
           pip install -r requirements.txt
           python -m compileall -q .
 
+  # Cache policy. The repository gets 10 GB of Actions cache, shared by every branch, and the
+  # C++ Conan caches used to take more than that on their own (one 350-670 MB entry per
+  # conan.lock, written by PR runs as well). The rule now: every run RESTORES, only a push to
+  # main WRITES, and what is written is slimmed first.
+  #   - Maven and Go caches: actions/cache/restore always, actions/cache/save on main only.
+  #   - Conan: restore always; on main the cache is pruned of sources, build folders and
+  #     downloads (about 90% of the bytes; only the built packages are kept) and saved.
+  #   - BuildKit image layers (type=gha, mode=min): cache-from always, cache-to on main only.
+  #   - Sizing: ~22 distinct conan.lock files x <=150 MB pruned (~3 GB worst case), ~20 Go
+  #     entries (~2.3 GB) and Maven (<0.1 GB), layers ~0.2 GB: about 4-6 GB steady state.
+  #   - Hygiene: .github/workflows/cache-cleanup.yml deletes the caches of a PR ref when the
+  #     PR closes; `gh cache delete --all` clears everything (CLAUDE.md, "CI cache budget").
+  #
   # Each C++ service builds in its own Containerfile (Conan 2.33.0 + GCC 15 / C++23 on
   # UBI 10). The expensive part is compiling the Conan dependency tree (gRPC, Drogon,
   # OpenTelemetry C++, libpq...): 30+ minutes cold for the largest projects on 4 CPUs. Its
@@ -146,12 +194,14 @@ jobs:
   #   1. actions/cache restores the directory `conan-cache`, keyed on the runner OS, the
   #      toolchain versions (UBI 10.2, GCC 15, Conan 2.33.0) and this project's conan.lock.
   #      A lock change misses the exact key and falls back to the newest cache of the same
-  #      toolchain (restore-keys), so only the changed packages recompile.
-  #   2. buildkit-cache-dance injects that directory into the cache mount before the build
-  #      and extracts it afterwards (skipped on an exact key hit, so nothing is re-saved).
-  # The image layers use type=gha,mode=min: mode=max across 31 scopes would exceed the 10 GB
-  # Actions cache quota, and the layers that matter are the Conan cache above.
-  # Bump the toolchain key when the Containerfile base image, GCC or Conan version changes.
+  #      toolchain (restore-keys), so only the changed packages recompile. On a PR this is
+  #      actions/cache/restore (nothing is saved); on main it is actions/cache, whose post
+  #      step saves the directory when the exact key missed.
+  #   2. buildkit-cache-dance injects that directory into the cache mount before the build.
+  #      Its post step extracts the mount afterwards, before the cache post step saves it;
+  #      extraction is skipped everywhere except a push to main with an exact-key miss.
+  #   3. Just before that extraction, on main with a miss, a throwaway build prunes the mount.
+  # Bump the `conan2` key prefix when the Containerfile base image, GCC or Conan version changes.
   # The build context is the service directory, or its parent cpp/ directory
   # for the multi-service examples; scripts/ci_changed_projects.py cpp-context
   # decides, mirroring each example's compose.yaml.
@@ -161,6 +211,9 @@ jobs:
     if: needs.changes.outputs.cpp != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    env:
+      # Toolchain part of the Conan cache key; the runner OS is added per step.
+      CONAN_KEY: conan2-ubi10.2-gcc15-conan2.33.0
     strategy:
       fail-fast: false
       matrix:
@@ -178,14 +231,24 @@ jobs:
           echo "scope=cpp-${DIR//\//-}" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v4
         id: buildx
-      - name: Restore the Conan cache
-        id: conan-cache
+      - name: Restore the Conan cache (pull request)
+        id: conan-restore
+        if: github.ref != 'refs/heads/main'
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: conan-cache
+          key: ${{ runner.os }}-${{ env.CONAN_KEY }}-${{ hashFiles(format('{0}/conan.lock', matrix.dir)) }}
+          restore-keys: |
+            ${{ runner.os }}-${{ env.CONAN_KEY }}-
+      - name: Restore the Conan cache (main; saved after the build on a miss)
+        id: conan-main
+        if: github.ref == 'refs/heads/main'
         uses: actions/cache@v6.1.0
         with:
           path: conan-cache
-          key: conan-${{ runner.os }}-ubi10.2-gcc15-conan2.33.0-${{ hashFiles(format('{0}/conan.lock', matrix.dir)) }}
+          key: ${{ runner.os }}-${{ env.CONAN_KEY }}-${{ hashFiles(format('{0}/conan.lock', matrix.dir)) }}
           restore-keys: |
-            conan-${{ runner.os }}-ubi10.2-gcc15-conan2.33.0-
+            ${{ runner.os }}-${{ env.CONAN_KEY }}-
       - name: Inject the Conan cache into the BuildKit cache mount
         uses: reproducible-containers/buildkit-cache-dance@v3.4.0
         with:
@@ -194,14 +257,35 @@ jobs:
             {
               "conan-cache": { "target": "/root/.conan2", "id": "cndp-conan2" }
             }
-          skip-extraction: ${{ steps.conan-cache.outputs.cache-hit }}
+          skip-extraction: ${{ github.ref != 'refs/heads/main' || steps.conan-main.outputs.cache-hit == 'true' }}
       - uses: docker/build-push-action@v7
         with:
           context: ${{ steps.ctx.outputs.context }}
           file: ${{ matrix.dir }}/Containerfile
           push: false
           cache-from: type=gha,scope=${{ steps.ctx.outputs.scope }}
-          cache-to: type=gha,mode=min,scope=${{ steps.ctx.outputs.scope }}
+          cache-to: ${{ github.ref == 'refs/heads/main' && format('type=gha,mode=min,scope={0}', steps.ctx.outputs.scope) || '' }}
+      - name: Prune the Conan cache mount before it is extracted and saved
+        if: github.ref == 'refs/heads/main' && steps.conan-main.outputs.cache-hit != 'true'
+        env:
+          BUILDER: ${{ steps.buildx.outputs.name }}
+        run: |
+          # Conan keeps build trees (p/b/<id>/b), recipe sources (p/<id>/s) and download
+          # archives (p/*/d) next to the built packages (p/b/<id>/p): about 90% of the bytes.
+          # A rebuild fetches them again, so only the packages are worth saving. Measured on
+          # 25-caching/cpp: 1.6 GB -> 163 MB, and the next conan install is all cache hits.
+          # The STAMP build arg keeps BuildKit from reusing a cached RUN; --no-cache would
+          # not do, because it gives the RUN an empty cache mount instead of the real one.
+          empty="$(mktemp -d)"
+          docker buildx build --builder "$BUILDER" --progress=plain \
+            --build-arg "STAMP=$(date +%s%N)" -f - "$empty" <<'EOF'
+          FROM registry.access.redhat.com/ubi10/ubi-minimal:10.2-1791444377
+          ARG STAMP
+          RUN --mount=type=cache,id=cndp-conan2,target=/c,sharing=locked \
+              echo "$STAMP" >/dev/null && du -sh /c \
+              && find /c/p -mindepth 2 -maxdepth 3 -type d \( -name b -o -name s -o -name d \) -prune -exec rm -rf {} + \
+              && du -sh /c
+          EOF
 
   # Compose files and verify.sh scripts are cheap to check, so each kind is one
   # job that loops over its selection and reports every failure at the end.
