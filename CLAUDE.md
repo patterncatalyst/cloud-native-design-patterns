@@ -71,6 +71,27 @@ Five services exchanging the `order.placed` fact: **order, payment, inventory,
 notification, shipping**. Local = Docker; prod = plain Kubernetes (no managed cloud) with
 CloudNativePG, Strimzi/Kafka, Apicurio, Istio, KEDA, Debezium, and OTel → the LGTM stack.
 
+## Infrastructure images (pinned, fully qualified)
+
+All shared infra lives in `examples/_infra/` and uses fully qualified names, never `:latest`:
+`docker.io/apache/kafka:4.3.1` (KRaft), `docker.io/library/postgres:18.6-alpine` (the volume mounts at
+`/var/lib/postgresql`, not `/data`: PGDATA moved to `/var/lib/postgresql/18/docker`),
+`docker.io/library/redis:8.10.2-alpine`, `quay.io/debezium/connect:3.7.0.Final`,
+`docker.io/apicurio/apicurio-registry:3.3.3`, `ghcr.io/open-feature/flagd:v0.17.0`,
+`docker.io/grafana/otel-lgtm:0.36.0`, `docker.io/envoyproxy/envoy:v1.39.3`. kafka-ui is gone: inspect topics
+with `kcat` or `kafka-console-consumer.sh` inside the `kafka` container. Test tools: newman 6.2.3 +
+newman-reporter-htmlextra 1.23.1, hey v0.1.5, ghz v0.121.0, conftest 0.71.1.
+Redis 8 is tri-licensed (RSALv2 / SSPLv1 / AGPLv3); we take the free AGPLv3 open-source option, no license key needed.
+
+## CI cache budget
+
+The repo gets 10 GB of Actions cache. Policy in `examples.yml`: every run restores caches, only a push to
+`main` writes them (Maven, Go, Conan, BuildKit layers), and the Conan cache is pruned of sources, build trees
+and downloads before it is saved. `cache-cleanup.yml` drops a PR ref's caches when the PR closes. Check usage with
+`gh api repos/patterncatalyst/cloud-native-design-patterns/actions/cache/usage`; clear everything with
+`gh cache delete --all`, or one PR with
+`gh cache list --ref refs/pull/<N>/merge --json id --jq '.[].id' | xargs -r -n1 gh cache delete`.
+
 ## Locked language stacks (do not substitute)
 
 - **Go** 1.27: `net/http` stdlib (1.22 ServeMux, no chi/gin/echo); `franz-go` (Kafka); pgx v5;

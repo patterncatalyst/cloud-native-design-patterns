@@ -30,7 +30,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | S5 | chore/python-3.14 | 5 | done (19/19 Python + 28 PASS after the Opus review) |
 | S6 | chore/go-toolchain | 2+4 | done (18/18 Go + 06 in all six languages PASS after the Opus review; closes #34) |
 | S7 | chore/cpp-toolchain-ubi10 | 2+4 | done (111/111 PASS after two Opus repair rounds; closes #35) |
-| S8 | chore/infra-images | 2 | pending |
+| S8 | chore/infra-images | 2 | executed (awaiting validation) |
 | S9 | docs/minikube-docker-driver (+ 05 on minikube) | 7 | pending |
 | S10 | feature/openshift-local-appendix | 8 | pending |
 | S11 | docs/professional-voice | 9 | pending |
@@ -51,7 +51,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | Postgres | postgres:18.6-alpine (mount /var/lib/postgresql) |
 | Redis | redis:8.10.2-alpine |
 | Debezium | quay.io/debezium/connect:3.7.0.Final |
-| Apicurio | apicurio-registry:3.3.3 |
+| Apicurio | docker.io/apicurio/apicurio-registry:3.3.3 |
 | flagd | ghcr.io/open-feature/flagd:v0.17.0 |
 | LGTM | grafana/otel-lgtm:0.36.0 |
 | Envoy | envoyproxy/envoy:v1.39.3 |
@@ -208,3 +208,25 @@ Carried forward:
 - Images `ubi9/dotnet-100:9.8-1791421718` and `ubi9/dotnet-100-aspnet:9.8-1791363520`, non-root UID 1001, group-0 ownership, BuildKit NuGet cache mount. HOLD: Red Hat publishes no ubi10 .NET image.
 - Locked stack: 06 stream processor rewritten on Streamiz (same contract as Quarkus/Spring). Kafka producers/consumers stay on Confluent.Kafka; MassTransit dropped by user decision.
 - 30: second dashboard instance on port 8081 behind the same Redis backplane; verify.sh now has 10 checks (backplane both directions, restart). Circuit reconnection is framework default and not scripted.
+
+### S8 infra images (2026-10-10)
+
+Docker 29.8.2, compose 5.5.1, Fedora 44. Pins re-verified with skopeo list-tags: all targets were the newest stable (Kafka 4.3.1, Postgres 18.6-alpine, Redis 8.10.2-alpine, Debezium 3.7.0.Final on quay.io, Apicurio 3.3.3, flagd v0.17.0, otel-lgtm 0.36.0, Envoy v1.39.3); test tools newman 6.2.3, htmlextra 1.23.1, hey v0.1.5, ghz v0.121.0, conftest 0.71.1 were also still the newest.
+
+**111/111 targets PASS** (`OUT=.../matrix-s8 scripts/verify-matrix.sh`). `grep ':latest|-latest|kafka-ui'` over examples, _docs and _example_pages has no hits except the deliberate `sketchy:latest` policy fixture.
+
+Breaking changes handled:
+
+| Change | Fix |
+|---|---|
+| Debezium 3.7 was OOM-killed (exit 137) at 1 GB: it scans every bundled connector | `compose-debezium.yaml`: `mem_limit: 2g`, `HEAP_OPTS=-Xms256M -Xmx1G` |
+| Apicurio 3.3 serves `/health/ready` on the management port 9000, not 8080 | `compose-apicurio.yaml` healthcheck on 9000, host port 19000 published; 09 verify.sh and README updated |
+| Apicurio 3.3 answers 400 (was 409) to an incompatible schema | 09 verify.sh, README, `_docs/09-api-registry.md`, appendix B, registry-gate and architecture diagrams |
+| Tempo 3 `/api/search` returns no traces without a time window and indexes later | 11 verify.sh passes start/end and retries up to 60 s; quarkus README example |
+| otel-lgtm 0.36 ships `grafana-datasources.yaml`; our file beside it was ignored | `compose-lgtm.yaml` mounts ours over that name (Prometheus default, localhost URLs kept) |
+| Postgres 18 PGDATA moved | volume mounted at `/var/lib/postgresql` |
+| kafka-ui removed | compose overrides, port tables and the 04 README now use kcat or `kafka-console-consumer.sh` |
+
+No change needed: Kafka 4 KRaft env vars and the `nc` healthcheck, the Debezium connector JSON (`topic.prefix`, `table.include.list`, `pgoutput`), Envoy 1.39 `envoy.yaml`, flagd flag file and start args, the `/apis/registry/v3` paths, Prometheus on 19090, Redis commands. Redis 8 is RSALv2/SSPLv1/AGPLv3; the AGPLv3 option is free and needs no key.
+
+CI cache (12.4 GB, 170 entries before): Conan 8.6 GB in 20 entries (350-700 MB each, one per conan.lock, written by PRs too), Go 2.3 GB in 20 entries, BuildKit layers 0.2 GB. Now every run restores and only main writes (Maven, Go, Conan, layers); on main the Conan cache mount is pruned of build trees, sources and downloads before extraction (measured on 25-caching/cpp: 1.6 GB to 163 MB, and the following `conan install` is all cache hits). Estimated steady state 4-6 GB. `cache-cleanup.yml` deletes a closed PR's caches. The key prefix changed to `conan2-` so the old oversized entries are never restored; clear them once with `gh cache delete --all`.
