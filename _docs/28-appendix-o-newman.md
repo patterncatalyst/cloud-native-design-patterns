@@ -129,7 +129,7 @@ audience. `cli` is for a human watching; `junit` emits the XML that CI systems t
 reports; `htmlextra` (a community reporter) produces a shareable page.
 
 ```bash
-# install once (Node.js): npm i -g newman newman-reporter-htmlextra
+# install once (Node.js): npm i -g newman@6.2.3 newman-reporter-htmlextra@1.23.1
 newman run orders.postman_collection.json \
   --environment local.postman_environment.json \
   --reporters cli,junit,htmlextra \
@@ -209,7 +209,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker compose up -d --build --wait   # order, payment, inventory, …
       - run: ./scripts/wait-for-ready.sh     # poll /readyz before testing
-      - run: npm i -g newman
+      - run: npm i -g newman@6.2.3 newman-reporter-htmlextra@1.23.1
       - run: |
           newman run orders.postman_collection.json \
             -e ci.postman_environment.json \

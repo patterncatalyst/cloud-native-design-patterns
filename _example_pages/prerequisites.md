@@ -159,7 +159,7 @@ conftest --version
 
 `~/.local/bin` is on the default `PATH` for Fedora and RHEL login shells.
 
-### hey (HTTP load testing)
+### hey v0.1.5 (HTTP load testing)
 
 Used by examples that demonstrate scaling or performance patterns. Download a binary from
 the [hey releases](https://github.com/rakyll/hey/releases) page, or build it with Go:
@@ -168,10 +168,16 @@ the [hey releases](https://github.com/rakyll/hey/releases) page, or build it wit
 go install github.com/rakyll/hey@v0.1.5
 ```
 
-### ghz (gRPC load testing)
+### ghz v0.121.0 (gRPC load testing)
 
-Used by examples with gRPC endpoints. Download a binary from the
-[ghz releases](https://github.com/bojand/ghz/releases) page.
+Used by examples with gRPC endpoints. Download the pinned binary from the
+[ghz releases](https://github.com/bojand/ghz/releases) page:
+
+```bash
+GHZ_VERSION=0.121.0
+curl -fsSL "https://github.com/bojand/ghz/releases/download/v${GHZ_VERSION}/ghz-linux-x86_64.tar.gz" \
+  | tar -xzf - -C ~/.local/bin ghz
+```
 
 ### newman 6.2.3 (Postman CLI, required for example 28)
 
@@ -180,7 +186,7 @@ Used by example 28 (Newman API testing). Requires Node.js. Install into the user
 
 ```bash
 sudo dnf install -y nodejs npm
-npm install -g --prefix ~/.local newman@6.2.3
+npm install -g --prefix ~/.local newman@6.2.3 newman-reporter-htmlextra@1.23.1
 ```
 
 Verify:
