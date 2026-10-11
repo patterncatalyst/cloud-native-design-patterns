@@ -171,8 +171,11 @@ def select_for_changes(changed: list[str]) -> dict[str, set[str]]:
             if is_k8s_script(f):
                 if exists:
                     sel["scripts"].add(f)
-            elif not name.endswith(".md") and exists:
-                sel["k8s"].add("/".join(parts[:3]))
+            elif not name.endswith(".md"):
+                # A deleted manifest still selects the directory, if it still exists.
+                k8s = "/".join(parts[:3])
+                if k8s in k8s_dirs(files):
+                    sel["k8s"].add(k8s)
             continue
         if any(fnmatch.fnmatch(name, pat) for pat in INERT) or any(p in INERT_DIRS for p in parts[2:-1]):
             continue
