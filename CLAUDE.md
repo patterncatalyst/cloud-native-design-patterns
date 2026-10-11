@@ -71,6 +71,48 @@ Five services exchanging the `order.placed` fact: **order, payment, inventory,
 notification, shipping**. Local = Docker; prod = plain Kubernetes (no managed cloud) with
 CloudNativePG, Strimzi/Kafka, Apicurio, Istio, KEDA, Debezium, and OTel → the LGTM stack.
 
+## Infrastructure images (pinned, fully qualified)
+
+All shared infra lives in `examples/_infra/` and uses fully qualified names, never `:latest`:
+`docker.io/apache/kafka:4.3.1` (KRaft), `docker.io/library/postgres:18.6-alpine` (the volume mounts at
+`/var/lib/postgresql`, not `/data`: PGDATA moved to `/var/lib/postgresql/18/docker`),
+`docker.io/library/redis:8.10.2-alpine`, `quay.io/debezium/connect:3.7.0.Final`,
+`docker.io/apicurio/apicurio-registry:3.3.3`, `ghcr.io/open-feature/flagd:v0.17.0`,
+`docker.io/grafana/otel-lgtm:0.36.0`, `docker.io/envoyproxy/envoy:v1.39.3`. kafka-ui is gone: inspect topics
+with `kcat` or `kafka-console-consumer.sh` inside the `kafka` container. Test tools: newman 6.2.3 +
+newman-reporter-htmlextra 1.23.1, hey v0.1.5, ghz v0.121.0, conftest 0.71.1.
+Redis 8 is tri-licensed (RSALv2 / SSPLv1 / AGPLv3); we take the free AGPLv3 open-source option, no license key needed.
+
+## CI cache budget
+
+The repo gets 10 GB of Actions cache. Policy in `examples.yml`: every run restores caches, only a push to
+`main` writes them, and each ecosystem keeps a fixed number of entries. Maven and Go are one shared entry each
+(`maven-Linux-<hash of all pom.xml>`, `go-Linux-<hash of all go.sum>`), written by the main-only `warm-maven` /
+`warm-go` jobs, which resolve every project and delete the superseded entry. Conan is one entry per
+distinct `conan.lock` (22), pruned of sources, build trees and downloads before it is saved; on a main miss the
+builder stage is forced to run so the cache mount is never empty. BuildKit layers are `type=gha,mode=min`.
+Steady state on main: typical about 3.7 GB (22 x 82 MB Conan + Maven 1.0 + Go 0.6 + layers 0.25 + Pages 0.05),
+bound 4.9 GB, peak about 8 GB when a Conan key bump or bulk lock change leaves superseded per-lock entries and
+layer blobs age out after 7 days unused. Measured: unpruned Conan entries, BuildKit layers (27 blobs = 200 MB).
+Partly measured: prune ratio (one project). Estimated: Maven <=1.0 GB, Go <=0.6 GB, Pages. After the first merge,
+check the real saved Maven and Go entry sizes and correct the numbers (arithmetic in the `examples.yml` comment).
+`cache-cleanup.yml` drops a PR ref's caches when the PR closes (same-repo PRs only).
+
+Check usage with `gh api repos/patterncatalyst/cloud-native-design-patterns/actions/cache/usage`. Drop one PR's
+caches with
+`gh cache list --ref refs/pull/<N>/merge --limit 100 --json id --jq '.[].id' | xargs -r -n1 gh cache delete`.
+The pre-S8 entries use other key prefixes than the current ones, so deleting them is safe at any time, even
+after the first main run with the new keys: `conan-Linux-` (old Conan), `setup-java-Linux-x64-maven-` and
+`setup-go-Linux-x64-ubuntu24-go-` (old Maven and Go). Current keys start `Linux-conan2-`, `maven-Linux-`, `go-Linux-`.
+
+```bash
+for k in conan-Linux- setup-java-Linux-x64-maven- setup-go-Linux-x64-ubuntu24-go-; do
+  gh cache list --key "$k" --limit 100 --json id --jq '.[].id' | xargs -r -n1 gh cache delete
+done
+```
+
+Do not use `gh cache delete --all`: it also removes the entries the current policy just wrote.
+
 ## Locked language stacks (do not substitute)
 
 - **Go** 1.27: `net/http` stdlib (1.22 ServeMux, no chi/gin/echo); `franz-go` (Kafka); pgx v5;

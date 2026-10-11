@@ -9,9 +9,6 @@ services:
     volumes:
       - ../db/init:/docker-entrypoint-initdb.d:Z
 
-  kafka-ui:
-    ports: !override []
-
   order-service:
     build:
       context: .

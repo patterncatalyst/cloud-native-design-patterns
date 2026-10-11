@@ -30,7 +30,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | S5 | chore/python-3.14 | 5 | done (19/19 Python + 28 PASS after the Opus review) |
 | S6 | chore/go-toolchain | 2+4 | done (18/18 Go + 06 in all six languages PASS after the Opus review; closes #34) |
 | S7 | chore/cpp-toolchain-ubi10 | 2+4 | done (111/111 PASS after two Opus repair rounds; closes #35) |
-| S8 | chore/infra-images | 2 | pending |
+| S8 | chore/infra-images | 2 | validated (awaiting PR/CI) |
 | S9 | docs/minikube-docker-driver (+ 05 on minikube) | 7 | pending |
 | S10 | feature/openshift-local-appendix | 8 | pending |
 | S11 | docs/professional-voice | 9 | pending |
@@ -51,12 +51,12 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | Postgres | postgres:18.6-alpine (mount /var/lib/postgresql) |
 | Redis | redis:8.10.2-alpine |
 | Debezium | quay.io/debezium/connect:3.7.0.Final |
-| Apicurio | apicurio-registry:3.3.3 |
+| Apicurio | docker.io/apicurio/apicurio-registry:3.3.3 |
 | flagd | ghcr.io/open-feature/flagd:v0.17.0 |
 | LGTM | grafana/otel-lgtm:0.36.0 |
 | Envoy | envoyproxy/envoy:v1.39.3 |
 | kafka-ui | removed (use kcat) |
-| Test tools | newman 6.2.3, htmlextra 1.23.1, hey v0.1.5, ghz v0.121.0 |
+| Test tools | newman 6.2.3, htmlextra 1.23.1, hey v0.1.5, ghz v0.121.0, conftest 0.71.1 |
 | minikube | v1.39.0, Kubernetes v1.36.5 |
 | Operators | Strimzi 1.2.0, CNPG v1.30.1, KEDA v2.21.0, Istio 1.31.1 |
 | CRC | crc 2.64.0 / OCP 4.22.14; AMQ Streams per lgtm-crc (check packagemanifest) |
@@ -208,3 +208,45 @@ Carried forward:
 - Images `ubi9/dotnet-100:9.8-1791421718` and `ubi9/dotnet-100-aspnet:9.8-1791363520`, non-root UID 1001, group-0 ownership, BuildKit NuGet cache mount. HOLD: Red Hat publishes no ubi10 .NET image.
 - Locked stack: 06 stream processor rewritten on Streamiz (same contract as Quarkus/Spring). Kafka producers/consumers stay on Confluent.Kafka; MassTransit dropped by user decision.
 - 30: second dashboard instance on port 8081 behind the same Redis backplane; verify.sh now has 10 checks (backplane both directions, restart). Circuit reconnection is framework default and not scripted.
+
+### S8 infra images (2026-10-10)
+
+Docker 29.8.2, compose 5.5.1, Fedora 44. Pins re-verified with skopeo list-tags: all targets were the newest stable (Kafka 4.3.1, Postgres 18.6-alpine, Redis 8.10.2-alpine, Debezium 3.7.0.Final on quay.io, Apicurio 3.3.3, flagd v0.17.0, otel-lgtm 0.36.0, Envoy v1.39.3); test tools newman 6.2.3, htmlextra 1.23.1, hey v0.1.5, ghz v0.121.0, conftest 0.71.1 were also still the newest.
+
+**111/111 targets PASS** (`OUT=.../matrix-s8 scripts/verify-matrix.sh`). `grep ':latest|-latest|kafka-ui'` over examples, _docs and _example_pages has no hits except the deliberate `sketchy:latest` policy fixture.
+
+Breaking changes handled:
+
+| Change | Fix |
+|---|---|
+| Debezium 3.7 was OOM-killed (exit 137) at 1 GB: it scans every bundled connector | `compose-debezium.yaml`: `mem_limit: 2g`, `HEAP_OPTS=-Xms256M -Xmx1G` |
+| Apicurio 3.3 serves `/health/ready` on the management port 9000, not 8080 | `compose-apicurio.yaml` healthcheck on 9000, host port 19000 published; 09 verify.sh and README updated |
+| Apicurio 3.3 answers 400 (was 409) to an incompatible schema | 09 verify.sh, README, `_docs/09-api-registry.md`, appendix B, registry-gate and architecture diagrams |
+| Tempo 3 `/api/search` returns no traces without a time window and indexes later | 11 verify.sh passes start/end and retries up to 60 s; quarkus README example |
+| otel-lgtm 0.36 ships `grafana-datasources.yaml`; our file beside it was ignored | `compose-lgtm.yaml` mounts ours over that name (Prometheus default, localhost URLs kept) |
+| Postgres 18 PGDATA moved | volume mounted at `/var/lib/postgresql` |
+| kafka-ui removed | compose overrides, port tables and the 04 README now use kcat or `kafka-console-consumer.sh` |
+
+No change needed: Kafka 4 KRaft env vars and the `nc` healthcheck, the Debezium connector JSON (`topic.prefix`, `table.include.list`, `pgoutput`), Envoy 1.39 `envoy.yaml`, flagd flag file and start args, the `/apis/registry/v3` paths, Prometheus on 19090, Redis commands. Redis 8 is RSALv2/SSPLv1/AGPLv3; the AGPLv3 option is free and needs no key.
+
+CI cache (12.4 GB, 170 entries before): Conan 8.6 GB in 20 entries (350-700 MB each, one per conan.lock, written by PRs too), Go 2.3 GB in 20 entries, BuildKit layers 0.2 GB. Now every run restores and only main writes. Maven and Go are one shared entry each, written by main-only `warm-maven` / `warm-go` jobs that resolve all projects (62 poms, 31 go.mod) and delete the superseded entry; Conan stays one entry per distinct conan.lock (22), pruned on main (measured on 25-caching/cpp: 1.6 GB to 163 MB, the following `conan install` all cache hits) and with the builder stage forced to run on a miss. Steady state on main: typical 22 x 82 MB + Maven 1.0 + Go 0.6 + layers 0.25 + Pages 0.05 = about 3.7 GB, bound 4.9 GB, peak about 8 GB when a Conan key bump or bulk lock change leaves superseded per-lock entries and layer blobs age out after 7 days unused. Measured: unpruned Conan entries (API), BuildKit layers (27 blobs = 200 MB); partly measured: prune ratio (one project); estimated: Maven <=1.0 GB, Go <=0.6 GB, Pages. Check the first real Maven/Go saved entry sizes after merge. `cache-cleanup.yml` deletes a closed same-repo PR's caches. New key prefixes (`Linux-conan2-`, `maven-Linux-`, `go-Linux-`) differ from the old ones (`conan-Linux-`, `setup-java-Linux-x64-maven-`, `setup-go-Linux-x64-ubuntu24-go-`), so delete the old entries by prefix (command in CLAUDE.md, "CI cache budget"), safe at any time; never `gh cache delete --all`.
+
+#### Repair round 1 (validator findings)
+
+- Conan miss on main (HIGH): reproduced with a fresh buildx builder and a local layer cache standing in for `type=gha`: with `cache-from` alone the `conan install` RUN is CACHED and the `cndp-conan2` mount stays empty. With `--no-cache-filter builder` the RUN executes and the mount is populated (1.6 GB, 13 built packages after pruning to 163 MB). `examples.yml` now passes `no-cache-filters: builder,schemagen` on a main miss (all 31 Containerfiles have a `builder` stage; an unknown stage name is accepted), and the prune RUN fails when no `p/b/<id>/p` package is left (negative test on an empty mount fails, populated mount passes). The key-shape comment now reads `<OS>-conan2-ubi10.2-gcc15-conan2.33.0-<lock hash>`.
+- Cache size (HIGH): the estimate had ignored per-pom Maven keys (62 projects) and per-go.sum Go keys (31). Maven and Go are now one shared key each, restored by every leg and written only by the main-only `warm-maven` / `warm-go` jobs, which resolve every project and delete the superseded entry (a build leg cannot be the writer: it only downloads its own dependencies). Go caches the module cache only. Conan stays per-lock (22 x <=135 MB). Arithmetic: bound 22 x 135 = 3.0 GB + 1.0 + 0.6 + 0.25 + 0.05 = 4.9 GB; typical about 3.7 GB; peak about 8 GB (see above). Maven retry args (`aether.transport.http.retryHandler.*`) are set on the warm job and the build leg.
+- Cleanup advice (MEDIUM): `gh cache delete --all` replaced by deleting the old prefixes (`conan-Linux-`, `setup-java-Linux-x64-maven-`, `setup-go-Linux-x64-ubuntu24-go-`), safe at any time because the new keys use other prefixes (CLAUDE.md).
+- 09 verify.sh: the breaking-schema check needs HTTP 400 and `RuleViolationException` in the body; the version count uses `jq -e '.count == 2'`. Check count unchanged (8). 11 verify.sh (shared by all six variants, service name `order-service` in each): the Tempo search filters `service.name=order-service`.
+- `cache-cleanup.yml` skips fork pull requests and tolerates a failed delete. `_infra/README.md` lists compose-apicurio.yaml, ports 8081 and 19000 and `cndp-apicurio`. kcat (`sudo dnf install -y kcat`, Fedora package `kcat` 1.7.1) is in both prerequisites files. The ghz install creates `~/.local/bin` and verifies the published `.sha256`; the Newman appendix installs with `--prefix ~/.local`; conftest 0.71.1 is in the test-tools table.
+- buildkit-cache-dance `utility-image` pinned to `ghcr.io/containerd/busybox:1.36@sha256:7b3c...2627c` (1.36 is the newest tag on ghcr, multi-arch; the action default is `:latest`).
+- Verification: actionlint 1.7.12 clean on all workflows; `validate_site.py` 0 errors; live `verify-matrix.sh`: 09 (8 checks), 11 spring-boot, quarkus, dotnet, python, cpp, go (10 checks each) and 25-caching/cpp (26) all PASS.
+
+#### Repair round 2
+
+- Eviction guard: the "Delete the superseded" steps first confirm the new key exists (`gh cache list --key` is a prefix match, `--limit 1000`) and keep the old entries with a warning otherwise, since `actions/cache/save` only warns on failure.
+- `warm-maven` and `warm-go` have job-level `concurrency` (`warm-maven-<ref>` / `warm-go-<ref>`, no cancel).
+- Both start with an exact-key `lookup-only` probe; on a hit every later step is skipped. On a miss: restore with restore-keys, warm, save, evict.
+- `warm-go` uses `go-version-file` (examples/01-cloud-native-principles/go/go.mod, go 1.27.2) instead of `stable`.
+- Stale `warm-caches` references renamed to `warm-maven` / `warm-go` in examples.yml and CLAUDE.md.
+- Estimate relabelled measured / partly measured / estimated; typical 3.7 GB, bound 4.9 GB, peak about 8 GB; check real Maven/Go entry sizes after merge.
+- Verification: actionlint clean on all workflows; `validate_site.py` 0 errors.

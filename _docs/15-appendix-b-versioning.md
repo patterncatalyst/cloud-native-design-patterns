@@ -330,7 +330,7 @@ The protocol-specific rules are all faces of four ideas:
 
 Prove the additive/breaking line with the registry from **API Registry**. Add an
 optional field to a schema and confirm the `BACKWARD` check passes; change a field's
-type or reuse a protobuf tag and confirm it fails with `409`. The mechanical check
+type or reuse a protobuf tag and confirm it fails with `400`. The mechanical check
 catching the breaking change — instead of a reviewer's memory — is the principle
 made real.
 

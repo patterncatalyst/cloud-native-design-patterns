@@ -49,7 +49,7 @@ curl -sf -X POST \
 curl -s -o /dev/null -w "%{http_code}" -X POST \
   http://apicurio.registry.svc/apis/registry/v3/groups/orders/artifacts/order-placed/versions \
   -H "Content-Type: application/json" \
-  --data-binary @order-placed.avsc        # → 200 if compatible, 409 if not
+  --data-binary @order-placed.avsc        # → 200 if compatible, 400 if not
 ```
 
 The same call works from application or pipeline code in any language, returning
@@ -72,7 +72,7 @@ public class RegistryClient {
             .body(schema)
             .retrieve()
             .toBodilessEntity();
-        return resp.getStatusCode().value();   // 200 if compatible, 409 if rejected
+        return resp.getStatusCode().value();   // 200 if compatible, 400 if rejected
     }
 }
 ```
@@ -87,7 +87,7 @@ public interface RegistryClient {
     Response publish(@PathParam("group") String group,
                      @PathParam("artifactId") String artifactId,
                      byte[] schema);
-    // caller checks response.getStatus(): 200 = compatible, 409 = rejected
+    // caller checks response.getStatus(): 200 = compatible, 400 = rejected
 }
 ```
 
@@ -104,7 +104,7 @@ public class RegistryClient(HttpClient http)
         content.Headers.ContentType = new("application/json");
         var resp = await http.PostAsync(
             $"{Registry}/groups/{group}/artifacts/{artifactId}/versions", content);
-        return (int)resp.StatusCode;       // 200 if compatible, 409 if rejected
+        return (int)resp.StatusCode;       // 200 if compatible, 400 if rejected
     }
 }
 ```
@@ -121,7 +121,7 @@ def publish(group: str, artifact_id: str, schema: bytes) -> int:
         headers={"Content-Type": "application/json"},
         data=schema,
     )
-    return r.status_code        # 200 if compatible, 409 if the rule rejects it
+    return r.status_code        # 200 if compatible, 400 if the rule rejects it
 ```
 
 {% raw %}
@@ -137,7 +137,7 @@ inline int publish(std::string_view group, std::string_view artifact_id,
   auto r = cpr::Post(cpr::Url{url},
                       cpr::Header{{"Content-Type", "application/json"}},
                       cpr::Body{std::string(schema)});
-  return r.status_code;          // 200 if compatible, 409 if rejected
+  return r.status_code;          // 200 if compatible, 400 if rejected
 }
 ```
 {% endraw %}
@@ -153,7 +153,7 @@ func publish(group, artifactID string, schema []byte) (int, error) {
 		return 0, err
 	}
 	defer resp.Body.Close()
-	return resp.StatusCode, nil // 200 if compatible, 409 if rejected
+	return resp.StatusCode, nil // 200 if compatible, 400 if rejected
 }
 ```
 
@@ -161,13 +161,13 @@ func publish(group, artifactID string, schema []byte) (int, error) {
 
 This is the guardrail that makes the whole contract story real. The CI pipeline
 posts the new schema version to the registry; if it violates the artifact's
-compatibility rule, Apicurio returns **`409 Conflict`** and the step fails the
+compatibility rule, Apicurio returns **`400 Bad Request`** and the step fails the
 build, blocking the merge. The contract is enforced *before* code ships — not
 discovered broken in production by a downstream team three days later.
 
 {% include excalidraw.html
    file="09-registry-gate"
-   alt="A pull request with a schema change posts the new version to the Apicurio registry; the registry checks it against the compatibility rule and either allows merge and publish, or returns 409 and blocks the merge; consumers then fetch the published schema and generate stubs"
+   alt="A pull request with a schema change posts the new version to the Apicurio registry; the registry checks it against the compatibility rule and either allows merge and publish, or returns 400 and blocks the merge; consumers then fetch the published schema and generate stubs"
    caption="Figure 9.2 — The registry checks compatibility at publish time and blocks the merge on a breaking change" %}
 
 ```yaml
@@ -177,7 +177,7 @@ discovered broken in production by a downstream team three days later.
     code=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
       "$REGISTRY/groups/orders/artifacts/order-placed/versions" \
       -H "Content-Type: application/json" --data-binary @order-placed.avsc)
-    if [ "$code" = "409" ]; then
+    if [ "$code" = "400" ]; then
       echo "::error::Incompatible schema change — blocking the merge"
       exit 1
     fi
@@ -187,7 +187,7 @@ The rule is the contract about the contract. `BACKWARD` (new consumers can read
 old data) is the common default for events, because consumers upgrade on their own
 schedule and must tolerate data already on the topic. `FORWARD` flips it for cases
 where old consumers must read new data, and `FULL` demands both. Picking the rule
-is a design decision; once picked, the registry enforces it for you and the `409`
+is a design decision; once picked, the registry enforces it for you and the `400`
 is non-negotiable.
 
 ## Schema evolution strategies
@@ -219,7 +219,7 @@ order of increasing cost:
 
 The registry enforces the *boundary* (compatible or not), but the strategy determines
 how often you approach that boundary. Teams that evolve additively rarely trigger a
-`409`; teams that rename or restructure hit it constantly.
+`400`; teams that rename or restructure hit it constantly.
 
 ## Validate before you publish
 
@@ -255,7 +255,7 @@ public interface DryRunValidator {
     Response validate(@PathParam("group") String group,
                       @PathParam("artifactId") String artifactId,
                       byte[] schema);
-    // 200 = compatible (no version created); 409 = incompatible
+    // 200 = compatible (no version created); 400 = incompatible
 }
 ```
 
@@ -326,11 +326,11 @@ func isCompatible(group, artifactID string, schema []byte) (bool, error) {
 
 Prove the gate bites. Register `order-placed.avsc`, then make a genuinely breaking
 change — rename a required field — and `curl` the new version: you should get a
-`409`, and the CI step should exit non-zero. Then make an additive change — a new
+`400`, and the CI step should exit non-zero. Then make an additive change — a new
 *optional* field — and confirm it returns `200` and publishes a new version. The
 breaking change failing the build and the additive change passing it is the entire
 point of the registry.
 
 ---
 *Verification status: verified — [`examples/09-api-registry/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/09-api-registry/) passes 8/8 checks on Docker Engine (2026-10-10)
-(schema registration, BACKWARD compatibility rule, rejection of a breaking change with 409, acceptance of an additive change, versioned retrieval).*
+(schema registration, BACKWARD compatibility rule, rejection of a breaking change with 400, acceptance of an additive change, versioned retrieval).*

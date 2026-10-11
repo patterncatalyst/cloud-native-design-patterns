@@ -155,7 +155,17 @@ conftest --version
 
 `~/.local/bin` is on the default `PATH` for Fedora and RHEL login shells.
 
-### hey (HTTP load testing)
+### kcat (Kafka inspection)
+
+Lists topics and reads or produces Kafka messages from the host (example 04 uses it); it
+replaces the removed kafka-ui. Optional, since `kafka-console-consumer.sh` inside the
+`kafka` container does the same:
+
+```bash
+sudo dnf install -y kcat
+```
+
+### hey v0.1.5 (HTTP load testing)
 
 Used by examples that demonstrate scaling or performance patterns. Download a binary from
 the [hey releases](https://github.com/rakyll/hey/releases) page, or build it with Go:
@@ -164,10 +174,22 @@ the [hey releases](https://github.com/rakyll/hey/releases) page, or build it wit
 go install github.com/rakyll/hey@v0.1.5
 ```
 
-### ghz (gRPC load testing)
+### ghz v0.121.0 (gRPC load testing)
 
-Used by examples with gRPC endpoints. Download a binary from the
-[ghz releases](https://github.com/bojand/ghz/releases) page.
+Used by examples with gRPC endpoints. Download the pinned binary from the
+[ghz releases](https://github.com/bojand/ghz/releases) page:
+
+```bash
+GHZ_VERSION=0.121.0
+BASE="https://github.com/bojand/ghz/releases/download/v${GHZ_VERSION}"
+cd "$(mktemp -d)"
+curl -fsSLO "${BASE}/ghz-linux-x86_64.tar.gz"
+curl -fsSLO "${BASE}/ghz-linux-x86_64.tar.gz.sha256"
+echo "$(cat ghz-linux-x86_64.tar.gz.sha256)  ghz-linux-x86_64.tar.gz" | sha256sum -c -
+mkdir -p ~/.local/bin
+tar -xzf ghz-linux-x86_64.tar.gz -C ~/.local/bin ghz
+ghz --version
+```
 
 ### newman 6.2.3 (Postman CLI, required for example 28)
 
@@ -176,7 +198,7 @@ Used by example 28 (Newman API testing). Requires Node.js. Install into the user
 
 ```bash
 sudo dnf install -y nodejs npm
-npm install -g --prefix ~/.local newman@6.2.3
+npm install -g --prefix ~/.local newman@6.2.3 newman-reporter-htmlextra@1.23.1
 ```
 
 Verify:
@@ -184,6 +206,7 @@ Verify:
 ```bash
 curl --version
 jq --version
+kcat -V 2>&1 | head -1          # optional
 hey -h 2>&1 | head -1          # optional
 ghz --version                   # optional
 newman --version                # required for example 28

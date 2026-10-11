@@ -8,7 +8,7 @@
 <rect x="540" y="54" width="180" height="48" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
 <text x="630.0" y="83.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">merge &amp; publish</text>
 <rect x="540" y="140" width="196" height="48" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5" stroke-dasharray="6 4"/>
-<text x="638.0" y="169.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">409 → block the merge</text>
+<text x="638.0" y="169.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">400 → block the merge</text>
 <rect x="236" y="236" width="190" height="48" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
 <text x="331.0" y="265.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">consumers fetch + gen stubs</text>
 <path d="M184,143 L236,143" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>

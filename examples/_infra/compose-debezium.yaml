@@ -1,6 +1,6 @@
 services:
   kafka-connect:
-    image: docker.io/debezium/connect:2.7.3.Final
+    image: quay.io/debezium/connect:3.7.0.Final
     container_name: cndp-kafka-connect
     ports:
       - "8083:8083"
@@ -13,12 +13,13 @@ services:
       - CONFIG_STORAGE_REPLICATION_FACTOR=1
       - OFFSET_STORAGE_REPLICATION_FACTOR=1
       - STATUS_STORAGE_REPLICATION_FACTOR=1
+      - HEAP_OPTS=-Xms256M -Xmx1G
     depends_on:
       kafka:
         condition: service_healthy
       postgres:
         condition: service_healthy
-    mem_limit: 1g
+    mem_limit: 2g
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8083/"]
       interval: 10s

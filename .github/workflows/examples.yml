@@ -66,10 +66,19 @@ jobs:
         with:
           distribution: temurin
           java-version: "25"
-          cache: maven
+      # Cache policy (see the cache note above the cpp job): legs only restore. The one shared
+      # key is written by the `warm-maven` job on main.
+      - name: Restore the Maven repository
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ runner.os }}-${{ hashFiles('examples/**/pom.xml') }}
+          restore-keys: |
+            maven-${{ runner.os }}-
       - name: Build
         env:
           DIR: ${{ matrix.dir }}
+          MAVEN_ARGS: -Daether.transport.http.retryHandler.count=8 -Daether.transport.http.retryHandler.interval=5000 -Daether.transport.http.retryHandler.serviceUnavailable=429,503
         run: |
           test -f "$DIR/pom.xml" || { echo "::error::no pom.xml in $DIR"; exit 1; }
           mvn -B -ntp -q -f "$DIR/pom.xml" package -DskipTests
@@ -110,7 +119,16 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: ${{ matrix.dir }}/go.mod
-          cache-dependency-path: ${{ matrix.dir }}/go.sum
+          cache: false
+      # Cache policy (see the cache note above the cpp job): legs only restore. The one shared
+      # key is written by the `warm-go` job on main.
+      - name: Restore the Go module cache
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: ~/go/pkg/mod
+          key: go-${{ runner.os }}-${{ hashFiles('examples/**/go.sum') }}
+          restore-keys: |
+            go-${{ runner.os }}-
       - name: Vet and build
         working-directory: ${{ matrix.dir }}
         run: go vet ./... && go build -o /dev/null ./... && go test ./...
@@ -138,20 +156,66 @@ jobs:
           pip install -r requirements.txt
           python -m compileall -q .
 
+  # Cache policy. The repository gets 10 GB of Actions cache, shared by every branch. The rule:
+  # every run RESTORES, only a push to main WRITES, and every ecosystem keeps a small, fixed
+  # number of entries, whatever the number of projects.
+  #   - Maven and Go: ONE shared entry each, keyed on the hash of every pom.xml / go.sum under
+  #     examples/. The build legs only restore it (actions/cache/restore). The `warm-maven` /
+  #     `warm-go` jobs on main resolves the dependencies of ALL projects once and saves it, then deletes
+  #     the superseded entries. A leg cannot be the writer: it downloads only its own
+  #     dependencies, so whichever leg won the save would freeze a cache holding one project.
+  #     Tradeoff: any pom/go.sum change on main re-warms everything (Maven: 62 builds,
+  #     Go: `go mod download` x31), which costs minutes of main-only CI time and never delays
+  #     a pull request. Go keeps only the module cache; the build cache is not worth its bytes.
+  #   - Conan: one entry per distinct conan.lock (22 of 31), pruned of sources, build trees and
+  #     downloads (about 90% of the bytes; only the built packages are kept) before main saves
+  #     it. The per-lock entries stay small enough to fit; one shared entry would need a warm
+  #     job that compiles all 22 dependency trees (hours), or a single leg's packages would
+  #     stand in for everyone's.
+  #   - BuildKit image layers (type=gha, mode=min): cache-from always, cache-to on main only.
+  #   - Sizing, measured with `gh api repos/.../actions/caches` before this change: unpruned
+  #     Conan entries 210-668 MB (avg 408 MB, 20 entries); pruned is ~10% (25-caching/cpp:
+  #     1.6 GB -> 163 MB), budgeted here at 20% = 135 MB for the largest. Per-pom Maven entries
+  #     were 56-350 MB and per-go.sum Go entries 22-248 MB (avg 111 MB), so those two are
+  #     what outgrew the quota, not Conan. Steady state on main:
+  #       Conan   22 x <=135 MB (typical 82)     <= 3.0 GB
+  #       Maven   1 shared union                 <= 1.0 GB   (estimate)
+  #       Go      1 shared module cache          <= 0.6 GB   (estimate)
+  #       layers  27 blobs = 200 MB measured     0.25 GB
+  #       Pages   bundler cache                  <= 0.05 GB  (estimate)
+  #       typical 22 x 82 MB + 1.0 + 0.6 + 0.25 + 0.05 = ~3.7 GB; bound ~4.9 GB.
+  #       Peak ~8 GB: a Conan key bump or bulk lock change leaves the superseded per-lock
+  #       entries in place until they age out, and layer blobs stay 7 days unused.
+  #     Measured: unpruned Conan entries (API), BuildKit layers. Partly measured: the prune
+  #     ratio (one project, 25-caching/cpp). Estimated: Maven and Go unions, Pages. After the
+  #     first merge, check the real saved Maven and Go entry sizes (`gh cache list --key`)
+  #     and correct these numbers. PR refs hold nothing.
+  #   - Hygiene: .github/workflows/cache-cleanup.yml deletes the caches of a PR ref when the
+  #     PR closes; CLAUDE.md ("CI cache budget") has the commands for inspecting and clearing.
+  #
   # Each C++ service builds in its own Containerfile (Conan 2.33.0 + GCC 15 / C++23 on
   # UBI 10). The expensive part is compiling the Conan dependency tree (gRPC, Drogon,
   # OpenTelemetry C++, libpq...): 30+ minutes cold for the largest projects on 4 CPUs. Its
   # home is a BuildKit cache mount (id cndp-conan2), which neither the runner nor
   # type=gha carries to the next job, so the cache is round-tripped by hand:
-  #   1. actions/cache restores the directory `conan-cache`, keyed on the runner OS, the
-  #      toolchain versions (UBI 10.2, GCC 15, Conan 2.33.0) and this project's conan.lock.
-  #      A lock change misses the exact key and falls back to the newest cache of the same
-  #      toolchain (restore-keys), so only the changed packages recompile.
-  #   2. buildkit-cache-dance injects that directory into the cache mount before the build
-  #      and extracts it afterwards (skipped on an exact key hit, so nothing is re-saved).
-  # The image layers use type=gha,mode=min: mode=max across 31 scopes would exceed the 10 GB
-  # Actions cache quota, and the layers that matter are the Conan cache above.
-  # Bump the toolchain key when the Containerfile base image, GCC or Conan version changes.
+  #   1. actions/cache restores the directory `conan-cache`, keyed
+  #      `<OS>-conan2-ubi10.2-gcc15-conan2.33.0-<hash of the project's conan.lock>`
+  #      (for example Linux-conan2-ubi10.2-gcc15-conan2.33.0-b4900...). A lock change misses
+  #      the exact key and falls back to the newest cache of the same toolchain
+  #      (restore-keys), so only the changed packages recompile. On a PR this is
+  #      actions/cache/restore (nothing is saved); on main it is actions/cache, whose post
+  #      step saves the directory when the exact key missed.
+  #   2. buildkit-cache-dance injects that directory into the cache mount before the build.
+  #      Its post step extracts the mount afterwards, before the cache post step saves it;
+  #      extraction is skipped everywhere except a push to main with an exact-key miss.
+  #   3. Just before that extraction, on main with a miss, a throwaway build prunes the mount
+  #      and fails the job if no built package is left, so an empty cache is never saved.
+  # On a main miss the builder stage is forced to run (no-cache-filters): the type=gha layer
+  # cache can otherwise satisfy the stage from cache, BuildKit then skips the
+  # `conan install` RUN, the cache mount stays empty and an empty Conan cache would be saved
+  # under the exact key until the next conan.lock change.
+  # Bump the `conan2-ubi10.2-gcc15-conan2.33.0` part of CONAN_KEY below when the
+  # Containerfile base image, GCC or Conan version changes.
   # The build context is the service directory, or its parent cpp/ directory
   # for the multi-service examples; scripts/ci_changed_projects.py cpp-context
   # decides, mirroring each example's compose.yaml.
@@ -161,6 +225,9 @@ jobs:
     if: needs.changes.outputs.cpp != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    env:
+      # Toolchain part of the Conan cache key; the runner OS is added per step.
+      CONAN_KEY: conan2-ubi10.2-gcc15-conan2.33.0
     strategy:
       fail-fast: false
       matrix:
@@ -178,14 +245,24 @@ jobs:
           echo "scope=cpp-${DIR//\//-}" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v4
         id: buildx
-      - name: Restore the Conan cache
-        id: conan-cache
+      - name: Restore the Conan cache (pull request)
+        id: conan-restore
+        if: github.ref != 'refs/heads/main'
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: conan-cache
+          key: ${{ runner.os }}-${{ env.CONAN_KEY }}-${{ hashFiles(format('{0}/conan.lock', matrix.dir)) }}
+          restore-keys: |
+            ${{ runner.os }}-${{ env.CONAN_KEY }}-
+      - name: Restore the Conan cache (main; saved after the build on a miss)
+        id: conan-main
+        if: github.ref == 'refs/heads/main'
         uses: actions/cache@v6.1.0
         with:
           path: conan-cache
-          key: conan-${{ runner.os }}-ubi10.2-gcc15-conan2.33.0-${{ hashFiles(format('{0}/conan.lock', matrix.dir)) }}
+          key: ${{ runner.os }}-${{ env.CONAN_KEY }}-${{ hashFiles(format('{0}/conan.lock', matrix.dir)) }}
           restore-keys: |
-            conan-${{ runner.os }}-ubi10.2-gcc15-conan2.33.0-
+            ${{ runner.os }}-${{ env.CONAN_KEY }}-
       - name: Inject the Conan cache into the BuildKit cache mount
         uses: reproducible-containers/buildkit-cache-dance@v3.4.0
         with:
@@ -194,14 +271,176 @@ jobs:
             {
               "conan-cache": { "target": "/root/.conan2", "id": "cndp-conan2" }
             }
-          skip-extraction: ${{ steps.conan-cache.outputs.cache-hit }}
+          skip-extraction: ${{ github.ref != 'refs/heads/main' || steps.conan-main.outputs.cache-hit == 'true' }}
+          # Exact tag (newest published on ghcr; the action's default is :latest).
+          utility-image: ghcr.io/containerd/busybox:1.36@sha256:7b3ccabffc97de872a30dfd234fd972a66d247c8cfc69b0550f276481852627c
       - uses: docker/build-push-action@v7
         with:
           context: ${{ steps.ctx.outputs.context }}
           file: ${{ matrix.dir }}/Containerfile
           push: false
           cache-from: type=gha,scope=${{ steps.ctx.outputs.scope }}
-          cache-to: type=gha,mode=min,scope=${{ steps.ctx.outputs.scope }}
+          cache-to: ${{ github.ref == 'refs/heads/main' && format('type=gha,mode=min,scope={0}', steps.ctx.outputs.scope) || '' }}
+          # Every Containerfile has a `builder` stage (two also run conan in `schemagen`).
+          no-cache-filters: ${{ github.ref == 'refs/heads/main' && steps.conan-main.outputs.cache-hit != 'true' && 'builder,schemagen' || '' }}
+      - name: Prune the Conan cache mount before it is extracted and saved
+        if: github.ref == 'refs/heads/main' && steps.conan-main.outputs.cache-hit != 'true'
+        env:
+          BUILDER: ${{ steps.buildx.outputs.name }}
+        run: |
+          # Conan keeps build trees (p/b/<id>/b), recipe sources (p/<id>/s) and download
+          # archives (p/*/d) next to the built packages (p/b/<id>/p): about 90% of the bytes.
+          # A rebuild fetches them again, so only the packages are worth saving. Measured on
+          # 25-caching/cpp: 1.6 GB -> 163 MB, and the next conan install is all cache hits.
+          # The RUN fails (and so does the job) when no built package (p/b/<id>/p) is left, so
+          # an empty cache is never extracted and saved. On 25-caching/cpp 13 are left.
+          # The STAMP build arg keeps BuildKit from reusing a cached RUN; --no-cache would
+          # not do, because it gives the RUN an empty cache mount instead of the real one.
+          empty="$(mktemp -d)"
+          docker buildx build --builder "$BUILDER" --progress=plain \
+            --build-arg "STAMP=$(date +%s%N)" -f - "$empty" <<'EOF'
+          FROM registry.access.redhat.com/ubi10/ubi-minimal:10.2-1791444377
+          ARG STAMP
+          RUN --mount=type=cache,id=cndp-conan2,target=/c,sharing=locked \
+              echo "$STAMP" >/dev/null && du -sh /c \
+              && find /c/p -mindepth 2 -maxdepth 3 -type d \( -name b -o -name s -o -name d \) -prune -exec rm -rf {} + \
+              && du -sh /c \
+              && n="$(find /c/p/b -mindepth 2 -maxdepth 2 -type d -name p 2>/dev/null | wc -l)" \
+              && echo "built packages left: $n" \
+              && [ "$n" -gt 0 ]
+          EOF
+
+  # Writes the shared Maven and Go caches (see the cache note above the cpp job). Main only,
+  # one job per ecosystem, so a slow or flaky warm-up never touches a pull request. A failed
+  # warm-up fails the run and saves nothing (the save is the last step); the restore of the
+  # previous entry plus the exact-key check make a successful run a no-op until a pom.xml or
+  # go.sum changes. Not part of `examples-ok`: PRs never run it.
+  warm-maven:
+    name: Warm the Maven cache
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    concurrency:
+      group: warm-maven-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      actions: write
+      contents: read
+    env:
+      MAVEN_ARGS: -Daether.transport.http.retryHandler.count=8 -Daether.transport.http.retryHandler.interval=5000 -Daether.transport.http.retryHandler.serviceUnavailable=429,503
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v7
+      # Exact-key probe: on a hit nothing below runs.
+      - id: exact
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ runner.os }}-${{ hashFiles('examples/**/pom.xml') }}
+          lookup-only: true
+      # Miss: start from the newest older entry so the warm-up only adds what changed.
+      - id: m2
+        if: steps.exact.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ runner.os }}-${{ hashFiles('examples/**/pom.xml') }}
+          restore-keys: |
+            maven-${{ runner.os }}-
+      - if: steps.exact.outputs.cache-hit != 'true'
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+      - name: Resolve the dependencies of every Maven project
+        if: steps.exact.outputs.cache-hit != 'true'
+        run: |
+          failed=0
+          while IFS= read -r dir; do
+            echo "::group::$dir"
+            mvn -B -ntp -q -f "$dir/pom.xml" package -DskipTests || { echo "::error::mvn failed in $dir"; failed=1; }
+            echo "::endgroup::"
+          done < <(python3 scripts/ci_changed_projects.py --all | jq -r '.jvm[]')
+          exit "$failed"
+      - name: Save the Maven repository
+        if: steps.exact.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6.1.0
+        with:
+          path: ~/.m2/repository
+          key: ${{ steps.m2.outputs.cache-primary-key }}
+      # actions/cache/save only warns when the save fails, so confirm the new entry exists
+      # before removing the old ones. `gh cache list --key` matches by key prefix.
+      - name: Delete the superseded Maven entries
+        if: steps.exact.outputs.cache-hit != 'true'
+        env:
+          KEEP: ${{ steps.m2.outputs.cache-primary-key }}
+        run: |
+          gh cache list --key "$KEEP" --limit 1000 --json key --jq '.[].key' | grep -qx "$KEEP" \
+            || { echo "::warning::$KEEP not saved; keeping old entries"; exit 0; }
+          gh cache list --key "maven-$RUNNER_OS-" --limit 1000 --json id,key \
+            --jq ".[] | select(.key != \"$KEEP\") | .id" | xargs -r -n1 gh cache delete || true
+
+  warm-go:
+    name: Warm the Go cache
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: warm-go-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      actions: write
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v7
+      # Exact-key probe: on a hit nothing below runs.
+      - id: exact
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: ~/go/pkg/mod
+          key: go-${{ runner.os }}-${{ hashFiles('examples/**/go.sum') }}
+          lookup-only: true
+      - id: gomod
+        if: steps.exact.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: ~/go/pkg/mod
+          key: go-${{ runner.os }}-${{ hashFiles('examples/**/go.sum') }}
+          restore-keys: |
+            go-${{ runner.os }}-
+      # Same toolchain as the build legs (every go.mod says go 1.27.2).
+      - if: steps.exact.outputs.cache-hit != 'true'
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: examples/01-cloud-native-principles/go/go.mod
+          cache: false
+      - name: Download the modules of every Go project
+        if: steps.exact.outputs.cache-hit != 'true'
+        run: |
+          failed=0
+          while IFS= read -r dir; do
+            (cd "$dir" && go mod download) || { echo "::error::go mod download failed in $dir"; failed=1; }
+          done < <(python3 scripts/ci_changed_projects.py --all | jq -r '.go[]')
+          exit "$failed"
+      - name: Save the Go module cache
+        if: steps.exact.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6.1.0
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ steps.gomod.outputs.cache-primary-key }}
+      - name: Delete the superseded Go entries
+        if: steps.exact.outputs.cache-hit != 'true'
+        env:
+          KEEP: ${{ steps.gomod.outputs.cache-primary-key }}
+        run: |
+          gh cache list --key "$KEEP" --limit 1000 --json key --jq '.[].key' | grep -qx "$KEEP" \
+            || { echo "::warning::$KEEP not saved; keeping old entries"; exit 0; }
+          gh cache list --key "go-$RUNNER_OS-" --limit 1000 --json id,key \
+            --jq ".[] | select(.key != \"$KEEP\") | .id" | xargs -r -n1 gh cache delete || true
 
   # Compose files and verify.sh scripts are cheap to check, so each kind is one
   # job that loops over its selection and reports every failure at the end.

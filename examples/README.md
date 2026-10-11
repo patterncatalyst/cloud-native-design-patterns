@@ -60,10 +60,10 @@ The [`_infra/`](_infra/) directory contains composable infrastructure fragments:
 | Fragment | Provides |
 |----------|----------|
 | `compose-lgtm.yaml` | Grafana, Loki, Tempo, Mimir (observability) |
-| `compose-postgres.yaml` | PostgreSQL 16 |
+| `compose-postgres.yaml` | PostgreSQL 18 |
 | `compose-postgres-logical.yaml` | PostgreSQL with logical replication |
 | `compose-kafka.yaml` | Kafka (KRaft mode, no ZooKeeper) |
-| `compose-redis.yaml` | Redis 7 |
+| `compose-redis.yaml` | Redis 8 |
 | `compose-debezium.yaml` | Debezium CDC connector |
 | `compose-flagd.yaml` | flagd feature flag sidecar |
 

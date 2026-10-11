@@ -3,7 +3,7 @@
 Demonstrates **Apicurio Registry** as the single authoritative home for API
 contracts. The verify script registers an Avro schema, sets a `BACKWARD`
 compatibility rule, then proves the gate: a **breaking change** (renamed
-fields) is rejected with `409 Conflict`, while an **additive change** (new
+fields) is rejected with `400 Bad Request`, while an **additive change** (new
 optional field) is accepted.
 
 ## Prerequisites
@@ -22,7 +22,7 @@ credentials, and the container naming convention.
 |---------|-------|------|
 | Schema registration | `POST /groups/orders/artifacts` | Register an Avro schema as a versioned artifact |
 | Compatibility rules | `POST .../rules` | Set `BACKWARD` — new consumers must read old data |
-| Breaking change gate | `POST .../versions` | Renamed fields → `409 Conflict` (blocked) |
+| Breaking change gate | `POST .../versions` | Renamed fields → `400 Bad Request` (blocked) |
 | Additive change | `POST .../versions` | New optional field → `200 OK` (accepted) |
 
 ## Architecture
@@ -38,7 +38,7 @@ docker compose up -d
 Wait for Apicurio to be ready:
 
 ```bash
-curl -sf http://localhost:8081/health/ready | jq .
+curl -sf http://localhost:19000/health/ready | jq .
 ```
 
 ## Drive it
@@ -70,7 +70,7 @@ curl -s -w "\n%{http_code}" -X POST \
   http://localhost:8081/apis/registry/v3/groups/orders/artifacts/order-placed/versions \
   -H "Content-Type: application/json" \
   -d '{ "version": "2.0.0", "content": { "content": "...", "contentType": "application/json" } }'
-# → 409 Conflict
+# → 400 Bad Request
 
 # Try an additive change
 # → 200 OK
@@ -92,6 +92,6 @@ Open Grafana at http://localhost:3000:
 
 | Service | Port |
 |---------|------|
-| Apicurio Registry | 8081 |
+| Apicurio Registry | 8081 (health on 19000) |
 | Grafana | 3000 |
 | OTLP HTTP | 4318 |

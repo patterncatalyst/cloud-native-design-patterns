@@ -157,7 +157,7 @@ def gen_09():
             {"x1": 360, "y1": 140, "x2": 410, "y2": 160},
         ],
         notes=[
-            {"x": 420, "y": 195, "text": "breaking → 409", "size": 10, "color": "#b8650a", "bold": True},
+            {"x": 420, "y": 195, "text": "breaking → 400", "size": 10, "color": "#b8650a", "bold": True},
             {"x": 420, "y": 210, "text": "additive → 200", "size": 10, "color": "#555555"},
         ],
     )
