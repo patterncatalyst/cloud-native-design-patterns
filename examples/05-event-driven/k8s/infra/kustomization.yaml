@@ -1,0 +1,28 @@
+# Shared infrastructure for Example 05: Kafka (Strimzi), Postgres and the LGTM stack.
+# Render with the schema from ../../db/init, which sits outside this directory:
+#   kubectl kustomize --load-restrictor LoadRestrictionsNone infra | kubectl apply -f -
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: cndp-05
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: cndp-05
+    includeSelectors: false
+resources:
+  - kafka.yaml
+  - postgres.yaml
+  - lgtm.yaml
+secretGenerator:
+  - name: cndp-postgres-app
+    literals:
+      - username=appuser
+      - password=apppass
+    options:
+      disableNameSuffixHash: true
+configMapGenerator:
+  - name: postgres-init
+    files:
+      - ../../db/init/00-extensions.sql
+      - ../../db/init/01-schema.sql
+    options:
+      disableNameSuffixHash: true

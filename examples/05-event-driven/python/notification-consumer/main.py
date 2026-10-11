@@ -7,7 +7,7 @@ from typing import Optional
 
 import asyncpg
 from aiokafka import AIOKafkaConsumer
-from opentelemetry import trace
+from opentelemetry import propagate, trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
@@ -20,7 +20,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgres://appuser:apppass@postgres:54
 KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "kafka:9094")
 OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://lgtm:4318")
 
-resource = Resource.create({"service.name": "notification"})
+resource = Resource.create({"service.name": os.getenv("OTEL_SERVICE_NAME", "notification-consumer")})
 provider = TracerProvider(resource=resource)
 provider.add_span_processor(
     BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{OTEL_ENDPOINT}/v1/traces"))
@@ -58,7 +58,11 @@ async def main():
                 for msg in messages:
                     order = msg.value
                     order_id = order["id"]
-                    with tracer.start_as_current_span("send_notification") as span:
+                    # Continue the producer's trace from the Kafka headers.
+                    parent = propagate.extract({k: v.decode() for k, v in (msg.headers or ())})
+                    with tracer.start_as_current_span(
+                        "send_notification", context=parent, kind=trace.SpanKind.CONSUMER
+                    ) as span:
                         span.set_attribute("order.id", order_id)
                         async with pool.acquire() as conn:
                             try:

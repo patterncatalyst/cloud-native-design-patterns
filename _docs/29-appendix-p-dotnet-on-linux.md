@@ -169,11 +169,9 @@ Every example in this book uses a two-stage Containerfile:
 FROM registry.access.redhat.com/ubi9/dotnet-100:9.8-1791421718 AS build
 ENV NUGET_PACKAGES=/nuget-cache
 WORKDIR /opt/app-root/src
-COPY --chown=1001:0 OrderService/OrderService.csproj OrderService/
-RUN --mount=type=cache,target=/nuget-cache,uid=1001 dotnet restore OrderService/OrderService.csproj
 COPY --chown=1001:0 OrderService/ OrderService/
-RUN --mount=type=cache,target=/nuget-cache,uid=1001 \
-    dotnet publish OrderService/OrderService.csproj -c Release --no-restore -o /opt/app-root/app
+RUN --mount=type=cache,target=/nuget-cache,uid=1001,sharing=locked \
+    dotnet publish OrderService/OrderService.csproj -c Release -o /opt/app-root/app
 
 FROM registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520
 COPY --from=build --chown=1001:0 --chmod=g=u /opt/app-root/app /opt/app-root/app
@@ -184,10 +182,13 @@ ENTRYPOINT ["dotnet", "OrderService.dll"]
 ```
 
 **Stage 1 (build)** uses the SDK image (`ubi9/dotnet-100`, .NET 10.0.12, ~780 MB). It
-restores NuGet packages first (this layer is cached if the `.csproj` has not changed),
-then copies source and publishes. Both steps run as the image's non-root user (UID 1001,
-group 0); a BuildKit cache mount keeps the NuGet package cache across builds, and
-`--no-restore` makes the publish reuse what the restore step fetched. Every package in the
+copies the source and publishes. The publish restores the NuGet packages in the same
+`RUN` that mounts the package cache, as the image's non-root user (UID 1001, group 0); the
+BuildKit cache mount keeps the package cache across builds, so a rebuild restores from disk
+without the network (`sharing=locked` serializes images built in parallel, which would otherwise
+extract into the same package directory at once). Restore and publish stay in one step because a separate restore layer
+can be reused after BuildKit has dropped the cache mount, and a later publish with
+`--no-restore` then fails with NETSDK1064 (packages not found). Every package in the
 `.csproj` files is pinned to an exact version. Red Hat does not publish a `ubi10` .NET
 image, so the examples stay on `ubi9` and pin the exact tags.
 

@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: cndp-05
+resources:
+  - ../../base
+images:
+  - name: order-service
+    newName: localhost/cndp-05/go-order-service
+    newTag: v1
+  - name: shipping-consumer
+    newName: localhost/cndp-05/go-shipping-consumer
+    newTag: v1
+  - name: notification-consumer
+    newName: localhost/cndp-05/go-notification-consumer
+    newTag: v1
+patches:
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: DATABASE_URL
+          value: "postgres://$(PG_USER):$(PG_PASSWORD)@cndp-postgres-rw:5432/appdb"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: KAFKA_BOOTSTRAP
+          value: "cndp-kafka-bootstrap:9092"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 128Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 256Mi

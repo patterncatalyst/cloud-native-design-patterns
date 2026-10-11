@@ -1,10 +1,10 @@
 FROM registry.access.redhat.com/ubi9/dotnet-100:9.8-1791421718 AS build
+# Restore and publish share one RUN so the NuGet cache mount is always present when packages are used;
+# sharing=locked keeps two images built in parallel from extracting into the same package directory.
 ENV NUGET_PACKAGES=/nuget-cache
 WORKDIR /opt/app-root/src
-COPY --chown=1001:0 CacheService/CacheService.csproj CacheService/
-RUN --mount=type=cache,target=/nuget-cache,uid=1001 dotnet restore CacheService/CacheService.csproj
 COPY --chown=1001:0 CacheService/ CacheService/
-RUN --mount=type=cache,target=/nuget-cache,uid=1001 dotnet publish CacheService/CacheService.csproj -c Release --no-restore -o /opt/app-root/app
+RUN --mount=type=cache,target=/nuget-cache,uid=1001,sharing=locked dotnet publish CacheService/CacheService.csproj -c Release -o /opt/app-root/app
 
 FROM registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520
 COPY --from=build --chown=1001:0 --chmod=g=u /opt/app-root/app /opt/app-root/app
