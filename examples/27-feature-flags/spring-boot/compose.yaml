@@ -1,7 +1,7 @@
 name: cndp-27-spring-boot
 services:
   flagd:
-    image: ghcr.io/open-feature/flagd:latest
+    image: ghcr.io/open-feature/flagd:v0.17.0
     container_name: cndp-flagd
     command:
       - start

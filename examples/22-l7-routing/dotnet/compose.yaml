@@ -1,7 +1,7 @@
 name: cndp-22-dotnet
 services:
   envoy:
-    image: docker.io/envoyproxy/envoy:v1.31-latest
+    image: docker.io/envoyproxy/envoy:v1.39.3
     container_name: cndp-envoy
     user: "101"
     command: ["envoy", "-c", "/etc/envoy/envoy.yaml"]

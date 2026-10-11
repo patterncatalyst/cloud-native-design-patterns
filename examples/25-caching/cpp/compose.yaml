@@ -10,7 +10,7 @@ services:
       - ../db/init:/docker-entrypoint-initdb.d:Z
 
   redis:
-    image: redis:7-alpine
+    image: docker.io/library/redis:8.10.2-alpine
     container_name: cndp-redis
     ports:
       - "6379:6379"
