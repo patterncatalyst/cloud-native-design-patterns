@@ -87,12 +87,15 @@ Redis 8 is tri-licensed (RSALv2 / SSPLv1 / AGPLv3); we take the free AGPLv3 open
 
 The repo gets 10 GB of Actions cache. Policy in `examples.yml`: every run restores caches, only a push to
 `main` writes them, and each ecosystem keeps a fixed number of entries. Maven and Go are one shared entry each
-(`maven-Linux-<hash of all pom.xml>`, `go-Linux-<hash of all go.sum>`), written by the main-only `warm-caches`
-jobs (`warm-maven`, `warm-go`), which resolve every project and delete the superseded entry. Conan is one entry per
+(`maven-Linux-<hash of all pom.xml>`, `go-Linux-<hash of all go.sum>`), written by the main-only `warm-maven` /
+`warm-go` jobs, which resolve every project and delete the superseded entry. Conan is one entry per
 distinct `conan.lock` (22), pruned of sources, build trees and downloads before it is saved; on a main miss the
 builder stage is forced to run so the cache mount is never empty. BuildKit layers are `type=gha,mode=min`.
-Steady state on main is at most 4.9 GB (typical 3.3 GB; peak 6.5 GB during a re-warm): Conan 22 x <=135 MB,
-Maven <=1.0 GB, Go <=0.6 GB, layers 0.25 GB, Pages 0.05 GB (arithmetic in the `examples.yml` comment).
+Steady state on main: typical about 3.7 GB (22 x 82 MB Conan + Maven 1.0 + Go 0.6 + layers 0.25 + Pages 0.05),
+bound 4.9 GB, peak about 8 GB when a Conan key bump or bulk lock change leaves superseded per-lock entries and
+layer blobs age out after 7 days unused. Measured: unpruned Conan entries, BuildKit layers (27 blobs = 200 MB).
+Partly measured: prune ratio (one project). Estimated: Maven <=1.0 GB, Go <=0.6 GB, Pages. After the first merge,
+check the real saved Maven and Go entry sizes and correct the numbers (arithmetic in the `examples.yml` comment).
 `cache-cleanup.yml` drops a PR ref's caches when the PR closes (same-repo PRs only).
 
 Check usage with `gh api repos/patterncatalyst/cloud-native-design-patterns/actions/cache/usage`. Drop one PR's

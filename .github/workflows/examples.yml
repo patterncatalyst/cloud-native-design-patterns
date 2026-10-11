@@ -67,7 +67,7 @@ jobs:
           distribution: temurin
           java-version: "25"
       # Cache policy (see the cache note above the cpp job): legs only restore. The one shared
-      # key is written by the `warm-caches` job on main.
+      # key is written by the `warm-maven` job on main.
       - name: Restore the Maven repository
         uses: actions/cache/restore@v6.1.0
         with:
@@ -121,7 +121,7 @@ jobs:
           go-version-file: ${{ matrix.dir }}/go.mod
           cache: false
       # Cache policy (see the cache note above the cpp job): legs only restore. The one shared
-      # key is written by the `warm-caches` job on main.
+      # key is written by the `warm-go` job on main.
       - name: Restore the Go module cache
         uses: actions/cache/restore@v6.1.0
         with:
@@ -160,8 +160,8 @@ jobs:
   # every run RESTORES, only a push to main WRITES, and every ecosystem keeps a small, fixed
   # number of entries, whatever the number of projects.
   #   - Maven and Go: ONE shared entry each, keyed on the hash of every pom.xml / go.sum under
-  #     examples/. The build legs only restore it (actions/cache/restore). The `warm-caches`
-  #     job on main resolves the dependencies of ALL projects once and saves it, then deletes
+  #     examples/. The build legs only restore it (actions/cache/restore). The `warm-maven` /
+  #     `warm-go` jobs on main resolves the dependencies of ALL projects once and saves it, then deletes
   #     the superseded entries. A leg cannot be the writer: it downloads only its own
   #     dependencies, so whichever leg won the save would freeze a cache holding one project.
   #     Tradeoff: any pom/go.sum change on main re-warms everything (Maven: 62 builds,
@@ -179,12 +179,17 @@ jobs:
   #     were 56-350 MB and per-go.sum Go entries 22-248 MB (avg 111 MB), so those two are
   #     what outgrew the quota, not Conan. Steady state on main:
   #       Conan   22 x <=135 MB (typical 82)     <= 3.0 GB
-  #       Maven   1 shared union                 <= 1.0 GB
-  #       Go      1 shared module cache          <= 0.6 GB
-  #       layers  31 scopes x ~7 MB (27 = 200 MB measured)  0.25 GB
-  #       Pages   bundler cache                  <= 0.05 GB
-  #       total   <= 4.9 GB (typical ~3.3 GB); while a Maven/Go re-warm is saving, the old
-  #       entry still exists for a moment: peak <= 6.5 GB. PR refs hold nothing.
+  #       Maven   1 shared union                 <= 1.0 GB   (estimate)
+  #       Go      1 shared module cache          <= 0.6 GB   (estimate)
+  #       layers  27 blobs = 200 MB measured     0.25 GB
+  #       Pages   bundler cache                  <= 0.05 GB  (estimate)
+  #       typical 22 x 82 MB + 1.0 + 0.6 + 0.25 + 0.05 = ~3.7 GB; bound ~4.9 GB.
+  #       Peak ~8 GB: a Conan key bump or bulk lock change leaves the superseded per-lock
+  #       entries in place until they age out, and layer blobs stay 7 days unused.
+  #     Measured: unpruned Conan entries (API), BuildKit layers. Partly measured: the prune
+  #     ratio (one project, 25-caching/cpp). Estimated: Maven and Go unions, Pages. After the
+  #     first merge, check the real saved Maven and Go entry sizes (`gh cache list --key`)
+  #     and correct these numbers. PR refs hold nothing.
   #   - Hygiene: .github/workflows/cache-cleanup.yml deletes the caches of a PR ref when the
   #     PR closes; CLAUDE.md ("CI cache budget") has the commands for inspecting and clearing.
   #
@@ -315,6 +320,9 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    concurrency:
+      group: warm-maven-${{ github.ref }}
+      cancel-in-progress: false
     permissions:
       actions: write
       contents: read
@@ -324,20 +332,29 @@ jobs:
       GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v7
+      # Exact-key probe: on a hit nothing below runs.
+      - id: exact
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ runner.os }}-${{ hashFiles('examples/**/pom.xml') }}
+          lookup-only: true
+      # Miss: start from the newest older entry so the warm-up only adds what changed.
       - id: m2
+        if: steps.exact.outputs.cache-hit != 'true'
         uses: actions/cache/restore@v6.1.0
         with:
           path: ~/.m2/repository
           key: maven-${{ runner.os }}-${{ hashFiles('examples/**/pom.xml') }}
           restore-keys: |
             maven-${{ runner.os }}-
-      - if: steps.m2.outputs.cache-hit != 'true'
+      - if: steps.exact.outputs.cache-hit != 'true'
         uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "25"
       - name: Resolve the dependencies of every Maven project
-        if: steps.m2.outputs.cache-hit != 'true'
+        if: steps.exact.outputs.cache-hit != 'true'
         run: |
           failed=0
           while IFS= read -r dir; do
@@ -347,17 +364,21 @@ jobs:
           done < <(python3 scripts/ci_changed_projects.py --all | jq -r '.jvm[]')
           exit "$failed"
       - name: Save the Maven repository
-        if: steps.m2.outputs.cache-hit != 'true'
+        if: steps.exact.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6.1.0
         with:
           path: ~/.m2/repository
           key: ${{ steps.m2.outputs.cache-primary-key }}
+      # actions/cache/save only warns when the save fails, so confirm the new entry exists
+      # before removing the old ones. `gh cache list --key` matches by key prefix.
       - name: Delete the superseded Maven entries
-        if: steps.m2.outputs.cache-hit != 'true'
+        if: steps.exact.outputs.cache-hit != 'true'
         env:
           KEEP: ${{ steps.m2.outputs.cache-primary-key }}
         run: |
-          gh cache list --key "maven-$RUNNER_OS-" --limit 100 --json id,key \
+          gh cache list --key "$KEEP" --limit 1000 --json key --jq '.[].key' | grep -qx "$KEEP" \
+            || { echo "::warning::$KEEP not saved; keeping old entries"; exit 0; }
+          gh cache list --key "maven-$RUNNER_OS-" --limit 1000 --json id,key \
             --jq ".[] | select(.key != \"$KEEP\") | .id" | xargs -r -n1 gh cache delete || true
 
   warm-go:
@@ -365,6 +386,9 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    concurrency:
+      group: warm-go-${{ github.ref }}
+      cancel-in-progress: false
     permissions:
       actions: write
       contents: read
@@ -373,20 +397,29 @@ jobs:
       GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/checkout@v7
+      # Exact-key probe: on a hit nothing below runs.
+      - id: exact
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: ~/go/pkg/mod
+          key: go-${{ runner.os }}-${{ hashFiles('examples/**/go.sum') }}
+          lookup-only: true
       - id: gomod
+        if: steps.exact.outputs.cache-hit != 'true'
         uses: actions/cache/restore@v6.1.0
         with:
           path: ~/go/pkg/mod
           key: go-${{ runner.os }}-${{ hashFiles('examples/**/go.sum') }}
           restore-keys: |
             go-${{ runner.os }}-
-      - if: steps.gomod.outputs.cache-hit != 'true'
+      # Same toolchain as the build legs (every go.mod says go 1.27.2).
+      - if: steps.exact.outputs.cache-hit != 'true'
         uses: actions/setup-go@v7
         with:
-          go-version: stable
+          go-version-file: examples/01-cloud-native-principles/go/go.mod
           cache: false
       - name: Download the modules of every Go project
-        if: steps.gomod.outputs.cache-hit != 'true'
+        if: steps.exact.outputs.cache-hit != 'true'
         run: |
           failed=0
           while IFS= read -r dir; do
@@ -394,17 +427,19 @@ jobs:
           done < <(python3 scripts/ci_changed_projects.py --all | jq -r '.go[]')
           exit "$failed"
       - name: Save the Go module cache
-        if: steps.gomod.outputs.cache-hit != 'true'
+        if: steps.exact.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6.1.0
         with:
           path: ~/go/pkg/mod
           key: ${{ steps.gomod.outputs.cache-primary-key }}
       - name: Delete the superseded Go entries
-        if: steps.gomod.outputs.cache-hit != 'true'
+        if: steps.exact.outputs.cache-hit != 'true'
         env:
           KEEP: ${{ steps.gomod.outputs.cache-primary-key }}
         run: |
-          gh cache list --key "go-$RUNNER_OS-" --limit 100 --json id,key \
+          gh cache list --key "$KEEP" --limit 1000 --json key --jq '.[].key' | grep -qx "$KEEP" \
+            || { echo "::warning::$KEEP not saved; keeping old entries"; exit 0; }
+          gh cache list --key "go-$RUNNER_OS-" --limit 1000 --json id,key \
             --jq ".[] | select(.key != \"$KEEP\") | .id" | xargs -r -n1 gh cache delete || true
 
   # Compose files and verify.sh scripts are cheap to check, so each kind is one
