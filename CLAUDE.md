@@ -86,11 +86,29 @@ Redis 8 is tri-licensed (RSALv2 / SSPLv1 / AGPLv3); we take the free AGPLv3 open
 ## CI cache budget
 
 The repo gets 10 GB of Actions cache. Policy in `examples.yml`: every run restores caches, only a push to
-`main` writes them (Maven, Go, Conan, BuildKit layers), and the Conan cache is pruned of sources, build trees
-and downloads before it is saved. `cache-cleanup.yml` drops a PR ref's caches when the PR closes. Check usage with
-`gh api repos/patterncatalyst/cloud-native-design-patterns/actions/cache/usage`; clear everything with
-`gh cache delete --all`, or one PR with
-`gh cache list --ref refs/pull/<N>/merge --json id --jq '.[].id' | xargs -r -n1 gh cache delete`.
+`main` writes them, and each ecosystem keeps a fixed number of entries. Maven and Go are one shared entry each
+(`maven-Linux-<hash of all pom.xml>`, `go-Linux-<hash of all go.sum>`), written by the main-only `warm-caches`
+jobs (`warm-maven`, `warm-go`), which resolve every project and delete the superseded entry. Conan is one entry per
+distinct `conan.lock` (22), pruned of sources, build trees and downloads before it is saved; on a main miss the
+builder stage is forced to run so the cache mount is never empty. BuildKit layers are `type=gha,mode=min`.
+Steady state on main is at most 4.9 GB (typical 3.3 GB; peak 6.5 GB during a re-warm): Conan 22 x <=135 MB,
+Maven <=1.0 GB, Go <=0.6 GB, layers 0.25 GB, Pages 0.05 GB (arithmetic in the `examples.yml` comment).
+`cache-cleanup.yml` drops a PR ref's caches when the PR closes (same-repo PRs only).
+
+Check usage with `gh api repos/patterncatalyst/cloud-native-design-patterns/actions/cache/usage`. Drop one PR's
+caches with
+`gh cache list --ref refs/pull/<N>/merge --limit 100 --json id --jq '.[].id' | xargs -r -n1 gh cache delete`.
+The pre-S8 entries use other key prefixes than the current ones, so deleting them is safe at any time, even
+after the first main run with the new keys: `conan-Linux-` (old Conan), `setup-java-Linux-x64-maven-` and
+`setup-go-Linux-x64-ubuntu24-go-` (old Maven and Go). Current keys start `Linux-conan2-`, `maven-Linux-`, `go-Linux-`.
+
+```bash
+for k in conan-Linux- setup-java-Linux-x64-maven- setup-go-Linux-x64-ubuntu24-go-; do
+  gh cache list --key "$k" --limit 100 --json id --jq '.[].id' | xargs -r -n1 gh cache delete
+done
+```
+
+Do not use `gh cache delete --all`: it also removes the entries the current policy just wrote.
 
 ## Locked language stacks (do not substitute)
 
