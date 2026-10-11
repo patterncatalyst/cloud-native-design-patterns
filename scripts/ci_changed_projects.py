@@ -16,7 +16,9 @@ Output is one JSON object with a compact array per kind:
     python   directories containing requirements.txt
     cpp      directories containing conanfile.py (each also has a Containerfile)
     compose  compose*.yaml files
-    scripts  verify.sh files and examples/<NN>/{k8s,openshift}/*.sh
+    scripts  verify.sh files and examples/<NN>/{k8s,openshift}/**/*.sh (shellcheck). A script directly
+             in k8s/ or openshift/ selects only scripts; a deeper one is rendered into a manifest
+             (a ConfigMap), so it selects scripts and the k8s directory too.
     k8s      examples/<NN>/k8s and examples/<NN>/openshift directories (kustomize manifests,
              rendered and validated). openshift reuses k8s, so a k8s change selects both.
 
@@ -173,10 +175,10 @@ def select_for_changes(changed: list[str]) -> dict[str, set[str]]:
                 if kdir in k8s_dirs(files):
                     sel["k8s"].add(kdir)
         if len(parts) >= 4 and parts[2] in K8S_KIND_DIRS:
-            if is_k8s_script(f):
-                if exists:
-                    sel["scripts"].add(f)
-            elif not name.endswith(".md"):
+            top_level_script = is_k8s_script(f) and len(parts) == 4
+            if is_k8s_script(f) and exists:
+                sel["scripts"].add(f)
+            if not top_level_script and not name.endswith(".md"):
                 # A deleted manifest still selects the directory, if it still exists.
                 # openshift renders the k8s manifests, so a k8s change selects it as well.
                 chosen = [parts[2]] + ([OPENSHIFT_DIR] if parts[2] == K8S_DIR else [])
