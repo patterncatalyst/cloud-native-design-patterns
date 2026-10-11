@@ -52,7 +52,7 @@ No password, token or pull secret is written to a file or passed as an argument.
 
 - `crc start` output is discarded or filtered, so the kubeadmin password never reaches a terminal or log.
   To log in to the web console yourself, run `crc console --credentials`.
-- The registry token comes from `oc create token builder --duration=10m` into a shell variable.
+- The registry token comes from `oc --context crc-admin create token builder --duration=10m` into a shell variable.
   `skopeo copy` reads it through a process-substitution authfile, so it is neither on disk nor in
   any argument list. `skopeo login` is not used because it writes a file.
 
@@ -75,7 +75,12 @@ openshift/teardown.sh --keep-running     # leave CRC running
 openshift/teardown.sh --namespace-only   # only the cndp-05 project
 ```
 
-Items that are not Example 05's are reported and never removed. CRC is stopped, never deleted.
+Only the CRDs the AMQ Streams CSV owns are removed, and only when our Subscription or CSV existed and
+no other project's Kafka operator or Kafka resource uses them; otherwise they are kept and the script says
+why. Other `*.strimzi.io` CRDs and everything else that is not Example 05's are reported as untouched.
+A failed step is reported and the script continues; the exit code is non-zero if a step failed or
+something of ours is left. Full mode always ends with `crc stop` (an EXIT trap); `--keep-running` and
+`--namespace-only` leave CRC running. CRC is stopped, never deleted.
 
 ## Render without a cluster
 

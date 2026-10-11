@@ -82,13 +82,13 @@ proposes afterwards, stays unapproved, so the version moves only when someone ed
 
 The operator has its own namespace, `cndp-amq-streams`, and its own OperatorGroup with an empty
 `spec`, which means AllNamespaces. The operator therefore watches `cndp-05` without a second
-OperatorGroup there, and teardown removes everything the install created by deleting one
-namespace after the Subscription and CSV. A cluster-wide operator also manages any Kafka cluster
+OperatorGroup there. Teardown removes the Subscription, the CSV, its InstallPlans and the OperatorGroup,
+then the two namespaces and the CRDs the CSV owns, and reverts the registry route if setup enabled it. A cluster-wide operator also manages any Kafka cluster
 it can see, so `deploy.sh` first takes an inventory and refuses to continue if another AMQ
 Streams or Strimzi installation is present.
 
 The catalog is the authority on what is newest, and it can only be read from a running cluster.
-On the recorded run, `oc get packagemanifest amq-streams -n openshift-marketplace` reported:
+On the recorded run, `oc --context crc-admin get packagemanifest amq-streams -n openshift-marketplace` reported:
 
 | Field | Value |
 |-------|-------|
@@ -96,7 +96,7 @@ On the recorded run, `oc get packagemanifest amq-streams -n openshift-marketplac
 | Channel used | `amq-streams-3.2.x`, the newest minor channel |
 | `currentCSV` of that channel | `amqstreams.v3.2.1-14`, the pinned `startingCSV` |
 | CSV phase after install | `Succeeded` |
-| Kafka version in the bundle | 4.2.0 (the broker pod reports `4.2.0`) |
+| Kafka version in the bundle | 4.2.0 (the Kafka resource's `.status.kafkaVersion` reports `4.2.0`) |
 
 The default channel `stable` follows the newest release the catalog offers. The pin names the
 minor channel instead, so a new minor release in `stable` does not change what this appendix installs.
@@ -426,9 +426,14 @@ openshift/teardown.sh --namespace-only   # only the cndp-05 project
 Order matters because OLM-managed resources have finalizers that need their operator. The script
 deletes KafkaTopics and KafkaUsers, then the Kafka and KafkaNodePool resources while the operator
 still runs, then the project. It then removes the Subscription, the CSV, its InstallPlans, the
-OperatorGroup, the CRDs the CSV owns and every `*.strimzi.io` CRD, and the operator namespace.
-It reverts the registry route only if `setup-crc.sh` enabled it. A leftover check reports anything
-that remains. Items that are not Example 05's are reported and never removed. The last step is
+OperatorGroup, the CRDs the CSV owns (read from the CSV's `.spec.customresourcedefinitions.owned`)
+and the operator namespace. The CRDs go only when our Subscription or CSV existed, and only after a
+foreign check: another project's Subscription, CSV or Kafka custom resource keeps them in place, the
+script prints what it kept and why, and carries on. No other `*.strimzi.io` CRD is ever removed. It
+reverts the registry route only if `setup-crc.sh` enabled it. A step that fails or times out is
+reported and the script continues, so the route is reverted and CRC is stopped anyway; the exit code
+is non-zero if a step failed or something of Example 05's is left. A leftover check lists those
+items, and lists items that are not Example 05's as left untouched. The last step is
 `crc stop`: CRC is stopped, never deleted, so the next start is quick. A second run finds nothing to do
 and exits 0.
 
@@ -439,14 +444,14 @@ and exits 0.
 | `setup-crc.sh` refuses to start | A minikube profile or a container is running | Stop it yourself; the script never stops anything |
 | CRC is sized too small | The VM is below 12 vCPU or 32768 MiB | While CRC is stopped: `crc config set cpus 12`, `crc config set memory 32768` |
 | `deploy.sh` stops at "another Kafka operator" | A different AMQ Streams or Strimzi installation is present | Run that project's teardown; this one would otherwise manage its clusters |
-| InstallPlan never appears | `redhat-operators` reports ready before it serves packages | `deploy.sh` waits for the package; check `oc get packagemanifest amq-streams -n openshift-marketplace` |
-| `oc` calls fail with connection refused or timeouts for a minute after `setup-crc.sh` enables the registry route | The API server rolls out and `crc status` reports Starting meanwhile | The scripts wait for the cluster operators to settle; if you interrupt them, wait for `oc get co` to show all Available and none Progressing |
+| InstallPlan never appears | `redhat-operators` reports ready before it serves packages | `deploy.sh` waits for the package; check `oc --context crc-admin get packagemanifest amq-streams -n openshift-marketplace` |
+| `oc` calls fail with connection refused, timeouts or `ServiceUnavailable` for a few minutes after `crc start` or after `setup-crc.sh` enables the registry route | The API servers roll out again after the first settled check, and `crc status` reports Starting meanwhile | `setup-crc.sh` waits until the cluster operators stay settled for 300 s; `deploy.sh` waits for them and retries each `oc apply`; if you interrupt them, wait for `oc --context crc-admin get co` to show all Available and none Progressing |
 | `deploy.sh` reports a foreign operator that is its own | The AllNamespaces install copies the CSV into every namespace | The check ignores copies with `-l '!olm.copiedFrom'`; use the same selector when you list CSVs yourself |
 | `x509: certificate signed by unknown authority` | The ingress CA is missing or stale | Run `setup-crc.sh` again; it rewrites the CA file. Do not use `-k` |
 | `skopeo` cannot push | The registry default route is off, or the token expired | `setup-crc.sh` enables the route; the token is created per image and lasts ten minutes |
 | `ImagePullBackOff` on an app pod | The image was not pushed for this language | `openshift/build-push-images.sh <lang>` |
 | Pod rejected by an SCC | A manifest added `runAsUser`, `fsGroup` or a privileged field outside the project's range | Remove it; the overlays set none and the assigned UID works |
-| Kafka never becomes Ready | The operator is not running, or the Kafka version is not in the bundle | `oc -n cndp-amq-streams get pods`; `oc -n cndp-05 describe kafka cndp` |
+| Kafka never becomes Ready | The operator is not running, or the Kafka version is not in the bundle | `oc --context crc-admin -n cndp-amq-streams get pods`; `oc --context crc-admin -n cndp-05 describe kafka cndp` |
 | Namespace stuck terminating | A KafkaTopic finalizer outlived the operator | `teardown.sh` deletes the topics while the operator runs; do not remove the operator first |
 
 ### Cross-check it yourself
