@@ -32,7 +32,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | S7 | chore/cpp-toolchain-ubi10 | 2+4 | done (111/111 PASS after two Opus repair rounds; closes #35) |
 | S8 | chore/infra-images | 2 | done (111/111 PASS; two Opus repair rounds; PR #66; lgtm-skills #45 + r5.x; main run green, Actions cache 2.4 GB) |
 | S9 | docs/minikube-docker-driver (+ 05 on minikube) | 7 | done (PR #67) |
-| S10 | feature/openshift-local-appendix | 8 | in progress |
+| S10 | feature/openshift-local-appendix | 8 | executed (awaiting validation) |
 | S11 | docs/professional-voice | 9 | pending |
 | S12 | docs/deck-refresh | 10 (expanded 2026-10-11) | pending |
 
@@ -84,6 +84,11 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 - S8: 0 :latest, -latest or kafka-ui; full matrix green.
 - S9: minikube appendix with evidence; profile stopped.
 - S10: Appendix S with evidence for 5 languages; scrub clean; CRC stopped and clean.
+  - Executed 2026-10-11 (awaiting validation). Evidence: `/tmp/claude-1000/-home-rsedor-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s10/live/`. crc 2.64.0, OpenShift 4.22.14, Kubernetes v1.35.6, AMQ Streams `amqstreams.v3.2.1-14` (channel `amq-streams-3.2.x`, default `stable`), Kafka 4.2.0.
+  - verify.sh 10 passed, 0 failed in spring-boot, quarkus, dotnet, python and go (139, 123, 125, 121, 120 s); every pod on `restricted-v2` (no anyuid needed); linked traces with all three services per language; Route HTTP 302 to https; Grafana 13.2.3 health ok.
+  - Three script fixes from the live run: inventory under `pipefail` on a clean cluster, waiting for cluster operators after the registry route change, ignoring OLM-copied CSVs (`-l '!olm.copiedFrom'`).
+  - Teardown removed the operator, 10 CRDs, namespaces and the registry route change; `crc stop` (not deleted); second teardown exit 0; current-context unset and `~/.kube/config` sha256 unchanged.
+  - Details: `_plans/s10-openshift-local-plan.md`, "Live results".
 - S11: voice scan reports zero ban-tier hits and is enforced in CI.
 - S12 (scope expanded by the user 2026-10-11): review every presentation in `lgtm-presentation/` (the six Designing-Cloud-Native-APIs decks, K8s-Environment-Access-Policies, Network-Policy-Process-Advisory, and their .md/.docx companions) for:
   - version changes (every version on a slide matches the S2–S8 pins);

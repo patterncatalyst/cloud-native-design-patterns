@@ -94,9 +94,10 @@ packagemanifest `amq-streams` channels/currentCSV; CSV `STRIMZI_KAFKA_IMAGES`; `
 | 6 verify.sh | done (de36779): comments only |
 | 7 CI | done (f62dc44): selector and `k8s` job; actionlint 1.7.12 clean |
 | 8 diagrams | done (d059628): S.1 and S.2 |
-| 9 docs | done offline: Appendix S with S10-LIVE placeholders, index, README, chapter 05, READMEs, prerequisites, CLAUDE.md |
-| 10 live | pending |
-| 11-12 | pending |
+| 9 docs | done: Appendix S, index, README, chapter 05, READMEs, prerequisites, CLAUDE.md |
+| 10 live | done 2026-10-11: see "Live results" |
+| 11 fill recorded output | done: every live-result placeholder replaced in Appendix S and the chapter 05 footer |
+| 12 validator, PR, merge | pending |
 
 ## Offline results (steps 4 to 9)
 
@@ -106,3 +107,24 @@ packagemanifest `amq-streams` channels/currentCSV; CSV `STRIMZI_KAFKA_IMAGES`; `
 - All 15 app images report a numeric non-zero `User` (185 for Spring Boot and Quarkus, 1001 for .NET, Python and Go).
 - skopeo 1.22.3 reads a process-substitution `--dest-authfile` (pushed to a local htpasswd registry; an unauthenticated read failed with 401).
 - Not verifiable offline: the Red Hat `rhel10/postgresql-18:10.2-1791491063` tag (registry.redhat.io needs a login), the AMQ Streams CSV, and Kafka CR `kafka.strimzi.io/v1` acceptance by AMQ Streams 3.2.
+
+## Live results (step 10, 2026-10-11)
+
+Evidence (outside the repo): `/tmp/claude-1000/-home-rsedor-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s10/live/` (`matrix/results.tsv`, `matrix/logs/`, `matrix/evidence/<lang>/`, `setup3.log`, `teardown.log`).
+
+- crc 2.64.0, OpenShift 4.22.14, Kubernetes v1.35.6.
+- AMQ Streams packagemanifest: default channel `stable`; `amq-streams-3.2.x` currentCSV `amqstreams.v3.2.1-14` (newest); CSV Succeeded; Kafka 4.2.0.
+- All five languages: 10 passed, 0 failed (spring-boot 139 s, quarkus 123 s, dotnet 125 s, python 121 s, go 120 s).
+- Every pod (Kafka, Postgres, lgtm, three app pods) on `restricted-v2`; the otel-lgtm anyuid fallback was not needed.
+- Linked traces in Tempo with order-service, shipping-consumer and notification-consumer for every language.
+- Plain HTTP on the Route answers 302 to https; Grafana `/api/health` ok (13.2.3).
+- Teardown removed the operator, 10 CRDs, both namespaces and reverted the registry route; crc stopped, not deleted; a second teardown exited 0. current-context unset before and after; `~/.kube/config` sha256 identical.
+- Not exercised live: the `runAsUser: 0` rejection; the appendix states only what `restricted-v2` documents (UID range).
+
+Script bugs found and fixed during the live run (a379989, 1f77342, 82fdd88):
+
+1. The inventory failed under `pipefail` on a clean cluster.
+2. The scripts did not wait for cluster operators to settle after enabling the registry default route; `crc status` reports Starting during the API-server rollout.
+3. The foreign-operator check counted OLM-copied CSVs (AllNamespaces copies the CSV into every namespace); now filtered with `-l '!olm.copiedFrom'`.
+
+`matrix-run1/` exposed these bugs and is not the recorded output. Items 2 and 3 are rows in the Appendix S troubleshooting table.

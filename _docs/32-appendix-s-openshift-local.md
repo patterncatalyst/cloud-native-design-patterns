@@ -31,7 +31,7 @@ the `crc` command. The host needs KVM, and `crc setup` makes `api.crc.testing` a
 
 | Setting | Value | Reason |
 |---------|-------|--------|
-| OpenShift Local | crc 2.64.0, OpenShift 4.22 | Newest release at the time of writing; the checksum is verified on install <!-- S10-LIVE: oc version, confirmed OpenShift and Kubernetes versions --> |
+| OpenShift Local | crc 2.64.0, OpenShift 4.22.14, Kubernetes v1.35.6 | Newest release at the time of writing; the checksum is verified on install. `oc version` on the running cluster reported the OpenShift and Kubernetes versions |
 | Resources | 12 vCPU, 32768 MiB, 80 GB disk | The cluster platform, Kafka, Postgres, LGTM and three services share one VM |
 | Pull secret | a file path in `crc config`, never opened by the scripts | The secret stays in the file Red Hat issued |
 | kubeconfig context | `crc-admin`, named on every call | No script runs `oc config use-context`, and no kubeadmin password is typed, stored or printed |
@@ -87,10 +87,19 @@ namespace after the Subscription and CSV. A cluster-wide operator also manages a
 it can see, so `deploy.sh` first takes an inventory and refuses to continue if another AMQ
 Streams or Strimzi installation is present.
 
-<!-- S10-LIVE: confirmed CSV, channel and default channel from `oc get packagemanifest amq-streams`, Kafka versions from the CSV STRIMZI_KAFKA_IMAGES -->
 The catalog is the authority on what is newest, and it can only be read from a running cluster.
-The pin was taken from the catalog on the cluster at the time of the recorded run (see the verification
-status at the end of this appendix).
+On the recorded run, `oc get packagemanifest amq-streams -n openshift-marketplace` reported:
+
+| Field | Value |
+|-------|-------|
+| Default channel | `stable` |
+| Channel used | `amq-streams-3.2.x`, the newest minor channel |
+| `currentCSV` of that channel | `amqstreams.v3.2.1-14`, the pinned `startingCSV` |
+| CSV phase after install | `Succeeded` |
+| Kafka version in the bundle | 4.2.0 (the broker pod reports `4.2.0`) |
+
+The default channel `stable` follows the newest release the catalog offers. The pin names the
+minor channel instead, so a new minor release in `stable` does not change what this appendix installs.
 
 ## restricted-v2 and the images
 
@@ -110,9 +119,18 @@ fifteen local images (five languages, three services) reported a numeric, non-ze
 | Spring Boot, Quarkus | 185 |
 | .NET, Python, Go | 1001 |
 
-<!-- S10-LIVE: per-pod SCC table from the matrix evidence (scc.tsv) -->
 On the cluster, the check is the `openshift.io/scc` annotation on each pod: the matrix fails a language
-unless every application pod reports `restricted-v2`.
+unless every application pod reports `restricted-v2`. On the recorded run every pod in `cndp-05`
+reported it, for all five languages. The Go run, as one example:
+
+| Pod | SCC |
+|-----|-----|
+| `cndp-dual-role-0` (Kafka) | `restricted-v2` |
+| `cndp-postgres-0` | `restricted-v2` |
+| `lgtm-6dcf64f6ff-62xv5` | `restricted-v2` |
+| `order-service-8545b6f5b5-6jf2j` | `restricted-v2` |
+| `shipping-consumer-78bc8fb84-dglkn` | `restricted-v2` |
+| `notification-consumer-854cb78476-zmqdf` | `restricted-v2` |
 
 ### Postgres
 
@@ -156,11 +174,13 @@ which needs a writable `/otel-lgtm` tree. On a read-only root it removes the bun
 fails, which leaves the Loki, Tempo and Prometheus data sources unregistered. Setting
 `GF_PLUGINS_PREINSTALL_DISABLED=true` skips that update, and the bundled plugins stay. With those
 four changes Grafana's `/api/health` answers, all four data sources report healthy, and an OTLP trace
-posted to port 4318 is readable from Tempo.
+posted to port 4318 is readable from Tempo. On the cluster the `lgtm` pod ran under `restricted-v2`
+with no exception, and Grafana 13.2.3 answered `/api/health` through its Route.
 
-If a future image version needs more, the documented fallback is a scoped exception, never a
-cluster-wide one: a ServiceAccount `lgtm` in the project, a namespaced RoleBinding to the ClusterRole
-`system:openshift:scc:anyuid`, and `runAsUser: 0` on that one container. It is not used here.
+An SCC exception was not needed. If a future image version needs root, the fallback is a scoped
+exception, never a cluster-wide one: a ServiceAccount `lgtm` in the project, a namespaced RoleBinding
+to the ClusterRole `system:openshift:scc:anyuid`, and `runAsUser: 0` on that one container. It was
+not exercised in this run.
 
 ## The manifests
 
@@ -314,7 +334,21 @@ through the `lgtm` pod, for traces whose `service.name` is `order-service`, read
 keeps the first that also contains a consumer service in `linked-trace.json`. Tempo indexes with a
 delay, so the query retries for up to three minutes.
 
-<!-- S10-LIVE: trace excerpt (linked-trace.json) for each language -->
+On the recorded run, every language produced a trace that Tempo returned with all three services.
+`linked-trace.json` for the Go run:
+
+```json
+{
+  "traceId": "880f0a8a4840bccad3e06572ffd601a5",
+  "services": [
+    "notification-consumer",
+    "order-service",
+    "shipping-consumer"
+  ]
+}
+```
+
+The other four languages recorded the same three services, each under its own trace ID.
 
 ## Run it
 
@@ -334,7 +368,30 @@ Route's certificate is verified against the cluster's ingress CA, which `setup-c
 the `default-ingress-cert` ConfigMap. Nothing in the OpenShift directory uses `curl -k`. Plain HTTP
 on the Route answers with a redirect to HTTPS.
 
-<!-- S10-LIVE: recorded verify output (10 passed, 0 failed) for each language -->
+Recorded output for Go on OpenShift Local (the other four languages print the same ten checks and
+the same result line):
+
+```
+==> Polling https://order-service-cndp-05.apps-crc.testing/healthz
+    ok: order-service is healthy through the Route
+==> Verifying Example 05: Event-Driven Architecture
+
+  ✓ order-service healthz
+  ✓ POST /orders returns 201
+  ✓ order visible in GET /orders
+  → waiting for consumers to process events...
+  ✓ order.placed topic exists in Kafka
+  ✓ shipment created for order
+  ✓ notification created for order
+  ✓ shipping-group consumer group exists
+  ✓ notification-group consumer group exists
+  → testing idempotent consumers (re-sending duplicate event)...
+  ✓ shipping remains idempotent (still 1 row after duplicate)
+  ✓ notification remains idempotent (still 1 row after duplicate)
+
+==> Results: 10 passed, 0 failed
+==> PASS
+```
 
 To run all five languages in sequence, with a fresh project for each:
 
@@ -346,7 +403,18 @@ Each language must pass `verify.sh`, show a linked trace, and have every applica
 `restricted-v2`. Between languages only the `cndp-05` project is removed; the operator stays, so
 the second language skips the install.
 
-<!-- S10-LIVE: per-language results table (result, trace, scc, time) and Grafana health through the Route -->
+Recorded results, 2026-10-11:
+
+| Language | Result | Trace | SCC | Time |
+|----------|--------|-------|-----|------|
+| Spring Boot | 10 passed, 0 failed | linked | restricted-v2 | 139 s |
+| Quarkus | 10 passed, 0 failed | linked | restricted-v2 | 123 s |
+| .NET | 10 passed, 0 failed | linked | restricted-v2 | 125 s |
+| Python | 10 passed, 0 failed | linked | restricted-v2 | 121 s |
+| Go | 10 passed, 0 failed | linked | restricted-v2 | 120 s |
+
+Plain HTTP on the order-service Route answered `302` with a `Location` of the HTTPS URL, and
+Grafana's `/api/health` through its Route returned `"database": "ok"` with version 13.2.3.
 
 ## Clean up
 
@@ -372,10 +440,12 @@ and exits 0.
 | CRC is sized too small | The VM is below 12 vCPU or 32768 MiB | While CRC is stopped: `crc config set cpus 12`, `crc config set memory 32768` |
 | `deploy.sh` stops at "another Kafka operator" | A different AMQ Streams or Strimzi installation is present | Run that project's teardown; this one would otherwise manage its clusters |
 | InstallPlan never appears | `redhat-operators` reports ready before it serves packages | `deploy.sh` waits for the package; check `oc get packagemanifest amq-streams -n openshift-marketplace` |
+| `oc` calls fail with connection refused or timeouts for a minute after `setup-crc.sh` enables the registry route | The API server rolls out and `crc status` reports Starting meanwhile | The scripts wait for the cluster operators to settle; if you interrupt them, wait for `oc get co` to show all Available and none Progressing |
+| `deploy.sh` reports a foreign operator that is its own | The AllNamespaces install copies the CSV into every namespace | The check ignores copies with `-l '!olm.copiedFrom'`; use the same selector when you list CSVs yourself |
 | `x509: certificate signed by unknown authority` | The ingress CA is missing or stale | Run `setup-crc.sh` again; it rewrites the CA file. Do not use `-k` |
 | `skopeo` cannot push | The registry default route is off, or the token expired | `setup-crc.sh` enables the route; the token is created per image and lasts ten minutes |
 | `ImagePullBackOff` on an app pod | The image was not pushed for this language | `openshift/build-push-images.sh <lang>` |
-| Pod rejected by an SCC | A manifest added `runAsUser`, `fsGroup` or a privileged field | Remove it; the overlays set none and the assigned UID works |
+| Pod rejected by an SCC | A manifest added `runAsUser`, `fsGroup` or a privileged field outside the project's range | Remove it; the overlays set none and the assigned UID works |
 | Kafka never becomes Ready | The operator is not running, or the Kafka version is not in the bundle | `oc -n cndp-amq-streams get pods`; `oc -n cndp-05 describe kafka cndp` |
 | Namespace stuck terminating | A KafkaTopic finalizer outlived the operator | `teardown.sh` deletes the topics while the operator runs; do not remove the operator first |
 
@@ -385,12 +455,12 @@ Place an order through the Route, then run
 `oc --context crc-admin -n cndp-05 exec pod/cndp-postgres-0 -- psql -U appuser -d appdb -c "SELECT * FROM shipments"`
 and confirm one row for the order. Then read the pod's SCC with
 `oc --context crc-admin -n cndp-05 get pod -l app.kubernetes.io/name=order-service -o jsonpath='{.items[0].metadata.annotations.openshift\.io/scc}'`
-and confirm `restricted-v2`. Add `runAsUser: 0` to the Deployment, apply it, and read the
-ReplicaSet's events: the SCC rejects the pod, which is what the SCC is for.
-<!-- S10-LIVE: confirm the SCC rejection text of the runAsUser: 0 cross-check -->
+and confirm `restricted-v2`. The `restricted-v2` SCC admits only a user ID inside the project's
+assigned range (the `openshift.io/sa.scc.uid-range` annotation on the namespace), so a fixed
+`runAsUser` outside that range is refused when the pod is admitted. That rejection was not exercised
+on the recorded run; read the ReplicaSet's events if you try it.
 
 The manifests and scripts are in [`examples/05-event-driven/openshift/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/openshift/).
 
 ---
-<!-- S10-LIVE: verification footer, to be replaced with the recorded run (versions, date, results) -->
-*Verification status: not yet run on OpenShift Local. The manifests render identically with kubectl and `oc kustomize` and pass kubeconform in strict mode, the Postgres and observability images were rehearsed offline under an arbitrary user ID, and the .NET trace propagation passes 10/10 on compose with a trace that spans all three services. The OpenShift run is pending.*
+*Verification status: verified — [`examples/05-event-driven/openshift/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/openshift/) passes 10/10 checks in each of the five languages on OpenShift Local 4.22.14 (crc 2.64.0, Kubernetes v1.35.6, AMQ Streams `amqstreams.v3.2.1-14`, Kafka 4.2.0, 2026-10-11), using the same `verify.sh` as compose with `RUNTIME=kubernetes` over HTTPS. Every pod ran under `restricted-v2`, Tempo held a trace with all three services for each language, and teardown left the cluster empty and stopped. The SCC rejection of a fixed root user ID was not exercised.*
