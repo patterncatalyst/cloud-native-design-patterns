@@ -139,7 +139,7 @@ Do not use `gh cache delete --all`: it also removes the entries the current poli
     the examples that use it.
   - Locks are regenerated with `conan lock create --update` (no lockfile in) so transitive packages take
     the newest ConanCenter version; stale transitive pins are lifted with `override=True` in the
-    conanfile (fmt, lz4, util-linux-libuuid, jsoncpp). Held on purpose: abseil 20260107.1 (protobuf 6.33.5),
+    conanfile (fmt, lz4, util-linux-libuuid, jsoncpp). Held deliberately: abseil 20260107.1 (protobuf 6.33.5),
     protobuf 6.33.5 (grpc is below 7), opentelemetry-proto 1.7.0 (opentelemetry-cpp), taocpp-pegtl 3.2.8
     (cppgraphqlgen needs 3.x), lua 5.4.8 (sol2), librdkafka 2.14.2 and opentelemetry-cpp 1.26.0 (ConanCenter
     behind upstream). flex and bison get `MAKEINFO=true` through a scoped Conan conf, not a fake binary.

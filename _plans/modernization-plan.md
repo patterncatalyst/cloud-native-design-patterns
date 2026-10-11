@@ -87,7 +87,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 - S11: voice scan reports zero ban-tier hits and is enforced in CI.
 - S12 (scope expanded by the user 2026-10-11): review every presentation in `lgtm-presentation/` (the six Designing-Cloud-Native-APIs decks, K8s-Environment-Access-Policies, Network-Policy-Process-Advisory, and their .md/.docx companions) for:
   - version changes (every version on a slide matches the S2–S8 pins);
-  - stack changes (Docker Engine, not podman; locked libraries such as Streamiz, faust-streaming, goka, librdkafka C++, C++23; kafka-ui removed);
+  - stack changes (Docker Engine, not the old container engine; locked libraries such as Streamiz, faust-streaming, goka, librdkafka C++, C++23; kafka-ui removed);
   - code changes (every code snippet on a slide matches the current example code and APIs, e.g. Spring Boot 4 / Jackson 3, Quarkus 3.40, .NET 10, Python 3.14, Go 1.27, C++23);
   - wording and professionalism (lgtm-professional-voice: zero ban-tier hits);
   - 0 references to the old container engine; minikube and OpenShift Local slides; every deck rendered and inspected.
