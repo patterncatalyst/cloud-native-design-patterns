@@ -18,6 +18,9 @@ valid_lang "$lang" || fail "unknown language '$lang' (${LANGS[*]})"
 require_crc
 [[ -s "$INGRESS_CA" ]] || fail "ingress CA missing in $STATE. Run openshift/setup-crc.sh first"
 
+step "Waiting for the cluster to be stable"
+wait_for 1800 "cluster operators settled" cluster_settled
+
 step "Inventory before"
 inventory
 refuse_foreign_kafka_operator
@@ -27,8 +30,8 @@ install_operator
 wait_for 120 "Kafka CRD established" ocx wait --for=condition=Established crd/kafkas.kafka.strimzi.io --timeout=5s
 
 step "Namespace $NAMESPACE and infrastructure"
-ocx apply -f "$K8S_DIR/namespace.yaml" >/dev/null
-render "$OPENSHIFT_DIR/infra" | ocx apply -f - >/dev/null
+apply_retry -f "$K8S_DIR/namespace.yaml"
+render "$OPENSHIFT_DIR/infra" | apply_retry -f -
 echo "    waiting for Kafka (up to 900 s)"
 ocn wait kafka/cndp --for=condition=Ready --timeout=900s \
     || fail "Kafka cndp is not Ready (oc --context $OCP_CONTEXT -n $NAMESPACE describe kafka cndp)"
@@ -36,7 +39,7 @@ ocn rollout status statefulset/cndp-postgres --timeout=300s
 ocn rollout status deployment/lgtm --timeout=300s
 
 step "Overlay $lang"
-render "$OPENSHIFT_DIR/overlays/$lang" | ocx apply -f - >/dev/null
+render "$OPENSHIFT_DIR/overlays/$lang" | apply_retry -f -
 for d in shipping-consumer notification-consumer order-service; do
     ocn rollout status "deployment/$d" --timeout=420s
 done

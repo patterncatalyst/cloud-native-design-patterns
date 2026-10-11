@@ -45,19 +45,31 @@ restore_context() {
         return 1
     fi
 }
-trap restore_context EXIT
+# Bash keeps the script's exit status when the trap returns; exit non-zero explicitly on a mismatch.
+on_exit() {
+    local rc=$?
+    restore_context || rc=1
+    exit "$rc"
+}
+trap on_exit EXIT
 if (( had_context )); then ok "recorded: $prior_context"; else ok "recorded: none set"; fi
 
 step "OpenShift Local"
+freshly_started=0
 if crc_vm_running; then
     ok "already running"
 else
     status_text="$(crc status 2>&1 || true)"
     grep -q -i -E 'does not exist|crc setup' <<<"$status_text" && fail "CRC is not set up. Run crc setup, then re-run this script"
+    pull_secret="$(crc config get pull-secret-file 2>/dev/null | awk '{print $NF}')"
+    # Only the path is checked; the file is never opened or printed.
+    [[ -n "$pull_secret" && "$pull_secret" != "<nil>" && -f "$pull_secret" ]] \
+        || fail "no pull secret configured. Download it from console.redhat.com/openshift/create/local, then: crc config set pull-secret-file <path>"
     echo "    crc start (this takes several minutes; credentials are not printed)"
     # stdout carries the credentials banner; stderr carries progress. Drop any line that names a secret.
     crc start 2> >(grep -v -i -E 'password|kubeadmin|developer|token|secret' >&2) >/dev/null \
-        || fail "crc start failed. Run crc status; re-run crc start yourself to see its output"
+        || fail "crc start failed. Check crc status and crc logs. Running crc start yourself prints the kubeadmin and developer passwords to your terminal"
+    freshly_started=1
     ok "started"
 fi
 wait_for 300 "API reachable through $OCP_CONTEXT" ocx get nodes
@@ -85,7 +97,14 @@ else
 fi
 wait_for 300 "registry route exists" bash -c "[[ -n \"\$(oc --context '$OCP_CONTEXT' get route default-route -n openshift-image-registry -o jsonpath='{.spec.host}' 2>/dev/null)\" ]]"
 ok "registry: $(registry_route)"
-wait_for 1200 "cluster operators settled" cluster_settled
+# After a start from a stopped cluster the API servers roll again a few minutes after the first
+# settled check, and the same happens after the route change: require a continuous window.
+if (( freshly_started )) || [[ "$default_route" != true ]]; then
+    echo "    waiting for the cluster to stay settled for 300 s (up to 1800 s)"
+    wait_cluster_stable 1800 300
+else
+    wait_for 1200 "cluster operators settled" cluster_settled
+fi
 
 step "Inventory"
 inventory

@@ -22,8 +22,10 @@ require_crc
 REGISTRY_ROUTE="$(registry_route)"
 [[ -n "$REGISTRY_ROUTE" ]] || fail "the internal registry has no default route. Run openshift/setup-crc.sh first"
 
+wait_for 1800 "cluster operators settled" cluster_settled
+
 step "Namespace $NAMESPACE and the builder service account"
-ocx apply -f "$K8S_DIR/namespace.yaml" >/dev/null
+apply_retry -f "$K8S_DIR/namespace.yaml"
 wait_for 120 "service account builder exists" ocn get serviceaccount builder
 
 # push_image <lang> <svc> pushes one local image. The registry token is used once and never stored.
