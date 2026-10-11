@@ -31,7 +31,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | S6 | chore/go-toolchain | 2+4 | done (18/18 Go + 06 in all six languages PASS after the Opus review; closes #34) |
 | S7 | chore/cpp-toolchain-ubi10 | 2+4 | done (111/111 PASS after two Opus repair rounds; closes #35) |
 | S8 | chore/infra-images | 2 | done (111/111 PASS; two Opus repair rounds; PR #66; lgtm-skills #45 + r5.x; main run green, Actions cache 2.4 GB) |
-| S9 | docs/minikube-docker-driver (+ 05 on minikube) | 7 | in progress |
+| S9 | docs/minikube-docker-driver (+ 05 on minikube) | 7 | executed (awaiting validation) |
 | S10 | feature/openshift-local-appendix | 8 | pending |
 | S11 | docs/professional-voice | 9 | pending |
 | S12 | docs/deck-refresh | 10 (expanded 2026-10-11) | pending |
@@ -168,6 +168,31 @@ Defects the baseline found and fixed in S1:
 - Example 30: second dashboard instance on the Redis backplane; verify.sh grows from 5 to 10 checks (cross-instance delivery both ways, restart asserted).
 - Chapter .NET codetabs (05, 06, 18, 22) compile against the pinned packages.
 - Live: **19/19 .NET targets PASS** on the final tree after the Opus review.
+
+### S9 minikube (2026-10-11)
+
+Fedora 44, Docker Engine 29.8.2, minikube v1.39.0, kubectl v1.36.5 (kustomize v5.8.1), **Helm v4.3.0**, profile `cndp-k8s` (docker driver, containerd 2.3.4, Kubernetes v1.36.5, 8 GB, 4 CPUs, 40 GB), NodePorts 30080 and 30300 published on 127.0.0.1 only (`docker port cndp-k8s`). Evidence: `/tmp/claude-1000/-home-rsedor-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s9/` (`00-prechecks.txt`, `01-setup-profile.log`, `matrix/` with `results.tsv`, per-language logs and evidence, `docker-path/`, `10-static-checks.txt`, `11-final-state.txt`).
+
+Pins re-verified at the start: Strimzi chart and operator 1.2.0 (Kafka image `quay.io/strimzi/kafka:1.2.0-kafka-4.3.1`, Kafka 4.3.1, Kafka CR `kafka.strimzi.io/v1`), postgres 18.6-alpine, otel-lgtm 0.36.0, kubeconform v0.8.0, actionlint 1.7.12, shellcheck 0.11.0, CRDs-catalog commit 63669a5. Kubernetes 1.37.1 exists upstream and minikube v1.39.0 lists 1.37.0 as its newest; v1.36.5 stays because the host kubectl and the other profiles are 1.36.5 and the plan was approved with it.
+
+**Live run: 6/6 languages `==> Results: 10 passed, 0 failed`** with `RUNTIME=kubernetes` (`k8s/verify-matrix.sh`, fresh namespace per language, images built with docker and loaded with `minikube image load`, all pods 0 restarts, Grafana `/api/health` `database: ok` on 127.0.0.1:30300):
+
+| Language | Result | Time |
+|---|---|---|
+| spring-boot | 10 passed, 0 failed | 361 s |
+| quarkus | 10 passed, 0 failed | 135 s |
+| dotnet | 10 passed, 0 failed | 134 s |
+| python | 10 passed, 0 failed | 116 s |
+| cpp | 10 passed, 0 failed | 103 s |
+| go | 10 passed, 0 failed | 104 s |
+
+An earlier single-language Spring Boot run (205 s) also passed first time. Docker-path regression: `scripts/verify-matrix.sh 05-event-driven/go` PASS 10/10 (57 s). A hand cross-check (scale shipping-consumer to 0, place an order, 0 shipments; scale to 1, 1 shipment) passed.
+
+End state: `teardown.sh --operator` removed the `cndp-05` namespace, the Strimzi release, all Strimzi CRDs and the `strimzi` namespace; `minikube stop -p cndp-k8s` left the profile Stopped (not deleted); every other profile unchanged (helm4dev still broken, left alone); kubectl current-context unset before and after; no containers running.
+
+Static checks: `validate_site.py` 0 errors, Jekyll build OK (ruby:3.3 container, because the host has no ruby-devel for native gems), actionlint 1.7.12 clean, shellcheck clean on the k8s scripts and `verify.sh`, kubeconform v0.8.0 `-strict` against 1.36.5: infra 9/9 valid, six overlays 4/4 valid each, 0 invalid; selector cases: `k8s/base/*.yaml` selects only `k8s`, `k8s/*.sh` selects only `scripts`, `db/init/*.sql` selects `k8s`, `k8s/README.md` selects nothing, `_infra` selects everything.
+
+Deviations from the plan: added `k8s/lib.sh` (shared settings for the five scripts); the plan files' "podman" mentions were reworded because `validate_site.py` scans `_plans/`; `kraftMetadata` and `metadataVersion` are left to the Strimzi defaults (4.3-IV0).
 
 ### S7 C++23 (2026-10-10)
 

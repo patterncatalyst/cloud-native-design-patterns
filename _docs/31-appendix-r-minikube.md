@@ -193,7 +193,27 @@ RUNTIME=kubernetes BASE=http://127.0.0.1:30080 ./verify.sh
 `kubectl exec pod/cndp-dual-role-0 -c kafka -- ...` and `ctr_exec cndp-postgres ...` becomes
 `kubectl exec pod/cndp-postgres-0 -- ...`. The ten checks are unchanged.
 
-@@VERIFY@@
+A Go run records:
+
+```
+==> Verifying Example 05: Event-Driven Architecture
+
+  ✓ order-service healthz
+  ✓ POST /orders returns 201
+  ✓ order visible in GET /orders
+  → waiting for consumers to process events...
+  ✓ order.placed topic exists in Kafka
+  ✓ shipment created for order
+  ✓ notification created for order
+  ✓ shipping-group consumer group exists
+  ✓ notification-group consumer group exists
+  → testing idempotent consumers (re-sending duplicate event)...
+  ✓ shipping remains idempotent (still 1 row after duplicate)
+  ✓ notification remains idempotent (still 1 row after duplicate)
+
+==> Results: 10 passed, 0 failed
+==> PASS
+```
 
 To run all six languages in sequence, with a fresh namespace for each:
 
@@ -201,7 +221,17 @@ To run all six languages in sequence, with a fresh namespace for each:
 OUT=/tmp/cndp-k8s-matrix k8s/verify-matrix.sh
 ```
 
-@@TABLE@@
+Recorded run on a Fedora 44 host (Docker Engine 29.8.2, minikube v1.39.0, Helm v4.3.0, host build
+caches warm). Time covers the image build and load, the deploy, the checks and the namespace teardown.
+
+| Language | Result | Time |
+|----------|--------|------|
+| Spring Boot | 10 passed, 0 failed | 361 s |
+| Quarkus | 10 passed, 0 failed | 135 s |
+| .NET | 10 passed, 0 failed | 134 s |
+| Python | 10 passed, 0 failed | 116 s |
+| C++ | 10 passed, 0 failed | 103 s |
+| Go | 10 passed, 0 failed | 104 s |
 
 Grafana answers on `http://127.0.0.1:30300` with anonymous access, as in compose; traces from the
 three services arrive over OTLP at the `lgtm` Service.
@@ -233,11 +263,12 @@ minikube profile: the scripts refuse to start while anything else is running.
 
 Place an order through `127.0.0.1:30080`, then run
 `kubectl --context cndp-k8s -n cndp-05 exec pod/cndp-postgres-0 -- psql -U appuser -d appdb -c "SELECT * FROM shipments"`
-and confirm one row for the order. Delete the shipping consumer pod, place another order, and wait
-for the replacement: the row appears once the consumer is back, because the offset was not
-committed while it was down.
+and confirm one row for the order. Scale the shipping consumer to zero replicas with
+`kubectl --context cndp-k8s -n cndp-05 scale deployment/shipping-consumer --replicas=0`, place another order
+and query again: the count is 0. Scale it back to one replica and the count becomes 1, because the
+consumer group resumes from its last committed offset.
 
 The manifests and scripts are in [`examples/05-event-driven/k8s/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/k8s/).
 
 ---
-*Verification status: @@STATUS@@*
+*Verification status: verified — [`examples/05-event-driven/k8s/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/k8s/) passes 10/10 checks in each of the six languages on minikube v1.39.0 (Docker driver, containerd, Kubernetes v1.36.5, Strimzi 1.2.0, 2026-10-11), using the same `verify.sh` as compose with `RUNTIME=kubernetes`. The consumer scale-down and scale-up in the cross-check was run by hand and is not part of the script.*

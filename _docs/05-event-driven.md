@@ -1290,8 +1290,9 @@ redelivery is the at-least-once guarantee, and the reason your handler dedupes.
 `kcat` or the Kafka console tools make the offsets and redelivery visible.
 
 The code is in [`examples/05-event-driven/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/). The run script there builds and runs
-it; its `README.md` covers what it does and how to drive it.
+it; its `README.md` covers what it does and how to drive it. The same example, with Kafka managed by
+the Strimzi operator, also runs on a Kubernetes cluster; Appendix R covers that deployment.
 
 ---
-*Verification status: verified — [`examples/05-event-driven/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-10)
+*Verification status: verified — [`examples/05-event-driven/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-10) and on minikube (2026-10-11, Appendix R)
 (event publication to order.placed, fan-out to two independent consumer groups (shipping and notification), and idempotent consumers under a redelivered duplicate event).*
