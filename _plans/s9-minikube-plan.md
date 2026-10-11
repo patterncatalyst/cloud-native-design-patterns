@@ -58,7 +58,7 @@ Approved by the user 2026-10-11. Opus plan; Sonnet executes on `docs/minikube-do
 
 ## Pins (re-verify at execution start)
 
-minikube v1.39.0; Kubernetes v1.36.5; kubectl v1.36.5 (kustomize v5.8.1); Strimzi operator/chart 1.2.0 (Kafka image expected `quay.io/strimzi/kafka:1.2.0-kafka-4.3.1`); Kafka 4.3.1; postgres 18.6-alpine; otel-lgtm 0.36.0; kubeconform v0.8.0; CRDs-catalog `63669a570e231d4f1f8396d229a1de512bcf0a34`. Host Helm is v3.18.3 while docs pin 4.3.0: scripts use only `upgrade --install` with OCI (works on both); do not change host tools.
+minikube v1.39.0; Kubernetes v1.36.5; kubectl v1.36.5 (kustomize v5.8.1); Strimzi operator/chart 1.2.0 (Kafka image expected `quay.io/strimzi/kafka:1.2.0-kafka-4.3.1`); Kafka 4.3.1; postgres 18.6-alpine; otel-lgtm 0.36.0; kubeconform v0.8.0; CRDs-catalog `63669a570e231d4f1f8396d229a1de512bcf0a34`. Helm v4.3.0 on the host (upgraded 2026-10-11 at the user's request to match the prerequisites pin; checksum-verified install in `~/.local/bin/helm`). Scripts may assume Helm 4.
 
 ## Risks
 
