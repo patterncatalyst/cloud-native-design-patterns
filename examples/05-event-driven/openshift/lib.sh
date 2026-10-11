@@ -11,6 +11,8 @@ OCP_CONTEXT="${OCP_CONTEXT:-crc-admin}"
 NAMESPACE="${NAMESPACE:-cndp-05}"
 OPERATOR_NAMESPACE="${OPERATOR_NAMESPACE:-cndp-amq-streams}"
 IMAGE_TAG="v1"
+# The label OLM puts on the CRDs our Subscription (package amq-streams in $OPERATOR_NAMESPACE) installs.
+OLM_CRD_LABEL="operators.coreos.com/amq-streams.${OPERATOR_NAMESPACE}"
 LANGS=(spring-boot quarkus dotnet python go)
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}/cndp-05-crc"
 INGRESS_CA="$STATE/ingress-ca.crt"
@@ -166,6 +168,8 @@ inventory() {
     ocx get csv -A -l '!olm.copiedFrom' --no-headers 2>/dev/null | awk '$2 !~ /^packageserver/ {print "    " $1 "/" $2}'
     echo "  namespaces (excluding platform):"
     ocx get ns -o name 2>/dev/null | grep -v -E '^namespace/(openshift|kube-|default$|hostpath-provisioner$)' | sed 's/^namespace\//    /' || true
+    echo "  strimzi.io CRDs:"
+    ocx get crd -o name 2>/dev/null | grep -E '\.strimzi\.io$' | sed 's/^customresourcedefinition.apiextensions.k8s.io\//    /' || true
     return 0
 }
 

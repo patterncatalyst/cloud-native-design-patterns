@@ -39,6 +39,12 @@ ocn rollout status statefulset/cndp-postgres --timeout=300s
 ocn rollout status deployment/lgtm --timeout=300s
 
 step "Overlay $lang"
+# The images live in the project's ImageStreams, which go away with the project. Fail early
+# rather than wait for a rollout that can only end in ImagePullBackOff.
+for svc in "${SERVICES[@]}"; do
+    ocn get istag "${lang}-${svc}:${IMAGE_TAG}" >/dev/null 2>&1 \
+        || fail "image ${lang}-${svc}:${IMAGE_TAG} is not in project $NAMESPACE. Run openshift/build-push-images.sh $lang first"
+done
 render "$OPENSHIFT_DIR/overlays/$lang" | apply_retry -f -
 for d in shipping-consumer notification-consumer order-service; do
     ocn rollout status "deployment/$d" --timeout=420s

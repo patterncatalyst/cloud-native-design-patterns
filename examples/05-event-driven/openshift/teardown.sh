@@ -88,14 +88,23 @@ fi
 step "2/5 AMQ Streams operator"
 csv="$(ocx get subscriptions.operators.coreos.com amq-streams -n "$OPERATOR_NAMESPACE" -o jsonpath='{.status.installedCSV}' 2>/dev/null || true)"
 [[ -n "$csv" ]] || csv="$CSV"
-# What of ours exists: the Subscription or the CSV in our namespace. Without either, no CRD is ours to remove.
+# OLM labels every CRD our Subscription installed with operators.coreos.com/<package>.<namespace>.
+# The label names our operator namespace, so another project's install carries a different one, and
+# it outlives the CSV: a CRD kept by an earlier run (because foreign items used it) is still found.
+olm_crds() { ocx get crd -l "$OLM_CRD_LABEL" -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null | grep -v '^$' || true; }
+# What of ours exists: the Subscription or the CSV in our namespace, or CRDs carrying our label.
+# Without any of them, no CRD is ours to remove.
 ours_existed=0
 if ocx get subscriptions.operators.coreos.com amq-streams -n "$OPERATOR_NAMESPACE" >/dev/null 2>&1 \
-    || ocx get csv "$csv" -n "$OPERATOR_NAMESPACE" >/dev/null 2>&1; then
+    || ocx get csv "$csv" -n "$OPERATOR_NAMESPACE" >/dev/null 2>&1 \
+    || [[ -n "$(olm_crds)" ]]; then
     ours_existed=1
 fi
-# Read the CRDs the CSV owns before the CSV is gone.
-owned="$(ocx get csv "$csv" -n "$OPERATOR_NAMESPACE" -o jsonpath='{range .spec.customresourcedefinitions.owned[*]}{.name}{"\n"}{end}' 2>/dev/null | grep -v '^$' || true)"
+# The CRDs the CSV owns (read before the CSV is gone) plus those carrying our label.
+owned="$(
+    { ocx get csv "$csv" -n "$OPERATOR_NAMESPACE" -o jsonpath='{range .spec.customresourcedefinitions.owned[*]}{.name}{"\n"}{end}' 2>/dev/null; olm_crds; } \
+        | grep -v '^$' | sort -u || true
+)"
 
 # Foreign check, before any CRD goes: another project's Kafka operator or Kafka resources, or custom
 # resources of the owned kinds outside our project (cndp-05 is already deleted at this point).
@@ -119,7 +128,7 @@ kept_crds=""
 if (( ! ours_existed )); then
     ok "no Subscription or CSV of ours in $OPERATOR_NAMESPACE: no CRD removed"
 elif [[ -z "$owned" ]]; then
-    warn "the CSV's owned CRD list could not be read: no CRD removed"
+    warn "neither the CSV's owned CRD list nor CRDs labelled $OLM_CRD_LABEL were found: no CRD removed"
     failed=1
 elif [[ -n "$foreign" ]]; then
     kept_crds="$owned"
