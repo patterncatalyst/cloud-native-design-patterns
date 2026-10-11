@@ -31,8 +31,8 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | S6 | chore/go-toolchain | 2+4 | done (18/18 Go + 06 in all six languages PASS after the Opus review; closes #34) |
 | S7 | chore/cpp-toolchain-ubi10 | 2+4 | done (111/111 PASS after two Opus repair rounds; closes #35) |
 | S8 | chore/infra-images | 2 | done (111/111 PASS; two Opus repair rounds; PR #66; lgtm-skills #45 + r5.x; main run green, Actions cache 2.4 GB) |
-| S9 | docs/minikube-docker-driver (+ 05 on minikube) | 7 | executed (awaiting validation) |
-| S10 | feature/openshift-local-appendix | 8 | pending |
+| S9 | docs/minikube-docker-driver (+ 05 on minikube) | 7 | done (PR #67) |
+| S10 | feature/openshift-local-appendix | 8 | in progress |
 | S11 | docs/professional-voice | 9 | pending |
 | S12 | docs/deck-refresh | 10 (expanded 2026-10-11) | pending |
 
