@@ -4,9 +4,6 @@ include:
   - path: ../../_infra/compose-redis.yaml
 
 services:
-  kafka-ui:
-    ports: !override []
-
   monolith:
     build:
       context: stub-service

@@ -1,0 +1,28 @@
+name: Cache cleanup
+
+# Pull request runs only restore caches, but the BuildKit and tool caches of a closed PR
+# ref are dead weight against the 10 GB repository quota, so drop them when the PR closes.
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  delete-pr-caches:
+    # The token of a pull request from a fork is read-only, so the delete would fail; such a
+    # run only restores caches and has nothing of its own to remove.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete the caches of this pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REF: refs/pull/${{ github.event.pull_request.number }}/merge
+        run: |
+          ids="$(gh cache list --ref "$REF" --limit 100 --json id --jq '.[].id')"
+          if [ -z "$ids" ]; then echo "no caches for $REF"; exit 0; fi
+          for id in $ids; do gh cache delete "$id" || true; done

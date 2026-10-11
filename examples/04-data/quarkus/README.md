@@ -74,14 +74,15 @@ curl http://localhost:8080/orders
 # List outbox events
 curl http://localhost:8080/outbox
 
-# Check Kafka topic (via Kafka UI)
-open http://localhost:8090
-# Navigate to Topics → order.placed → Messages
+# Read the topic from inside the broker container
+docker compose exec kafka /opt/kafka/bin/kafka-console-consumer.sh \
+  --bootstrap-server kafka:9094 --topic order.placed --from-beginning --timeout-ms 5000
+# or, from the host with kcat: kcat -b localhost:9092 -t order.placed -C -e
 ```
 
 ## Observe
 
-- **Kafka UI**: http://localhost:8090 → see `order.placed` topic
+- **Kafka topic**: `kafka-console-consumer.sh` inside the `kafka` container (or `kcat -b localhost:9092 -t order.placed -C -e`) → see `order.placed` events
 - **Grafana**: http://localhost:3000 → traces, logs, metrics
 - **Kafka Connect**: http://localhost:8083/connectors → see `outbox-connector` status
 

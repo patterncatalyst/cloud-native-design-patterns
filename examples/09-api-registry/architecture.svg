@@ -15,6 +15,6 @@
 <path d="M360,60 L410,60" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M360,100 L410,110" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M360,140 L410,160" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
-<text x="420" y="195" font-size="10" fill="#b8650a" text-anchor="start" font-weight="700">breaking → 409</text>
+<text x="420" y="195" font-size="10" fill="#b8650a" text-anchor="start" font-weight="700">breaking → 400</text>
 <text x="420" y="210" font-size="10" fill="#555555" text-anchor="start">additive → 200</text>
 </svg>
