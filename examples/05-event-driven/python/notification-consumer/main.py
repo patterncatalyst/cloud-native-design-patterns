@@ -7,7 +7,7 @@ from typing import Optional
 
 import asyncpg
 from aiokafka import AIOKafkaConsumer
-from opentelemetry import trace
+from opentelemetry import propagate, trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
@@ -58,7 +58,11 @@ async def main():
                 for msg in messages:
                     order = msg.value
                     order_id = order["id"]
-                    with tracer.start_as_current_span("send_notification") as span:
+                    # Continue the producer's trace from the Kafka headers.
+                    parent = propagate.extract({k: v.decode() for k, v in (msg.headers or ())})
+                    with tracer.start_as_current_span(
+                        "send_notification", context=parent, kind=trace.SpanKind.CONSUMER
+                    ) as span:
                         span.set_attribute("order.id", order_id)
                         async with pool.acquire() as conn:
                             try:
