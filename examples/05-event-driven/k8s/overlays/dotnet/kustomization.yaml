@@ -27,6 +27,11 @@ patches:
         value:
           name: KAFKA_BOOTSTRAP
           value: "cndp-kafka-bootstrap:9092"
+  # compose sets SERVICE_VERSION on the order-service only
+  - target:
+      kind: Deployment
+      name: order-service
+    patch: |-
       - op: add
         path: /spec/template/spec/containers/0/env/-
         value:
