@@ -31,7 +31,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | S6 | chore/go-toolchain | 2+4 | done (18/18 Go + 06 in all six languages PASS after the Opus review; closes #34) |
 | S7 | chore/cpp-toolchain-ubi10 | 2+4 | done (111/111 PASS after two Opus repair rounds; closes #35) |
 | S8 | chore/infra-images | 2 | done (111/111 PASS; two Opus repair rounds; PR #66; lgtm-skills #45 + r5.x; main run green, Actions cache 2.4 GB) |
-| S9 | docs/minikube-docker-driver (+ 05 on minikube) | 7 | pending |
+| S9 | docs/minikube-docker-driver (+ 05 on minikube) | 7 | in progress |
 | S10 | feature/openshift-local-appendix | 8 | pending |
 | S11 | docs/professional-voice | 9 | pending |
 | S12 | docs/deck-refresh | 10 (expanded 2026-10-11) | pending |
@@ -57,8 +57,11 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | Envoy | envoyproxy/envoy:v1.39.3 |
 | kafka-ui | removed (use kcat) |
 | Test tools | newman 6.2.3, htmlextra 1.23.1, hey v0.1.5, ghz v0.121.0, conftest 0.71.1 |
-| minikube | v1.39.0, Kubernetes v1.36.5 |
-| Operators | Strimzi 1.2.0, CNPG v1.30.1, KEDA v2.21.0, Istio 1.31.1 |
+| minikube | v1.39.0, Kubernetes v1.36.5, profile `cndp-k8s` (NodePorts 30080 and 30300 on 127.0.0.1) |
+| kubectl | v1.36.5 (kustomize v5.8.1) |
+| Helm | v4.3.0 |
+| kubeconform | v0.8.0, CRDs-catalog commit 63669a570e231d4f1f8396d229a1de512bcf0a34 |
+| Operators | Strimzi 1.2.0 (chart `oci://quay.io/strimzi-helm/strimzi-kafka-operator` 1.2.0; Kafka image `quay.io/strimzi/kafka:1.2.0-kafka-4.3.1`), CNPG v1.30.1, KEDA v2.21.0, Istio 1.31.1 |
 | CRC | crc 2.64.0 / OCP 4.22.14; AMQ Streams per lgtm-crc (check packagemanifest) |
 
 ## Key facts from the inventory
@@ -80,7 +83,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 - S2–S7: every project builds; verify.sh green for that language's variants; images pinned, with no :latest.
 - S8: 0 :latest, -latest or kafka-ui; full matrix green.
 - S9: minikube appendix with evidence; profile stopped.
-- S10: Appendix R with evidence for 5 languages; scrub clean; CRC stopped and clean.
+- S10: Appendix S with evidence for 5 languages; scrub clean; CRC stopped and clean.
 - S11: voice scan reports zero ban-tier hits and is enforced in CI.
 - S12 (scope expanded by the user 2026-10-11): review every presentation in `lgtm-presentation/` (the six Designing-Cloud-Native-APIs decks, K8s-Environment-Access-Policies, Network-Policy-Process-Advisory, and their .md/.docx companions) for:
   - version changes (every version on a slide matches the S2–S8 pins);
