@@ -236,8 +236,8 @@ caches warm). Time covers the image build and load, the deploy, the checks and t
 Grafana answers on `http://127.0.0.1:30300` with anonymous access, as in compose. After each
 language's `verify.sh`, `verify-matrix.sh` asks Tempo, through the `lgtm` pod, which services it
 has received traces from (`/api/search/tag/service.name/values`) and keeps the reply as evidence.
-Spring Boot, Quarkus, .NET and Python each reported all three services. The Go and C++ versions of
-Example 05 carry no tracing code, so their traces are empty in compose as well as here.
+All six languages reported all three services (`order-service`, `shipping-consumer` and
+`notification-consumer`).
 
 ## Clean up
 
