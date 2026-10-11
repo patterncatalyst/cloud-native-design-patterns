@@ -67,6 +67,18 @@ fi
 
 # Record kubectl's current-context (possibly empty) before any `minikube start`.
 prev_context="$(kubectl config current-context 2>/dev/null || true)"
+# set-context (not use-context) also restores a prior context whose entry no longer exists.
+# With several KUBECONFIG files kubectl writes current-context into the first one; the
+# merged value is what matters.
+restore_context() {
+    if [[ -n "$prev_context" ]]; then
+        kubectl config set current-context "$prev_context" >/dev/null
+    else
+        kubectl config unset current-context >/dev/null
+    fi
+}
+# Restore on every exit, including a failed start or Ctrl-C.
+trap restore_context EXIT
 
 profile_json="$(minikube profile list -o json 2>/dev/null || echo '{}')"
 exists="$(python3 -c '
@@ -129,11 +141,7 @@ fi
 # API-server host port changed, minikube v1.39.0 calls kubeconfig.UpdateEndpoint with
 # KeepContext false and sets current-context to the profile anyway. Put back whatever
 # was recorded before the start, then assert it.
-if [[ -n "$prev_context" ]]; then
-    kubectl config use-context "$prev_context" >/dev/null
-else
-    kubectl config unset current-context >/dev/null
-fi
+restore_context
 now_context="$(kubectl config current-context 2>/dev/null || true)"
 [[ "$now_context" == "$prev_context" ]] \
     || fail "kubectl current-context is '${now_context:-unset}', expected '${prev_context:-unset}'"
