@@ -215,6 +215,10 @@ Static checks: `validate_site.py` 0 errors, Jekyll build OK (ruby:3.3 container,
 
 Deviations from the plan: added `k8s/lib.sh` (shared settings for the five scripts); two plan lines naming the old container engine were reworded because `validate_site.py` scans `_plans/`; `kraftMetadata` and `metadataVersion` are left to the Strimzi defaults (4.3-IV0).
 
+Final Opus recheck (2026-10-11): go. Go and C++ traces verified end to end in Tempo (one trace: `POST /orders` server span, `order.placed publish` producer span, both consumer spans). Follow-ups applied before the PR:
+- `setup-profile.sh` restores the kubectl context from an EXIT trap (covers a failed `minikube start` and Ctrl-C) and uses `kubectl config set current-context`, so a prior context whose entry is missing is restored too. Stub test: a start that switches the context and exits 1 leaves it unset (or `ghost ctx`) as before.
+- Python 05 now injects and extracts trace context in the Kafka headers. Compose: 05/python 10/10, and Tempo shows one `POST /orders` trace with the producer span and both consumer spans.
+
 ### S7 C++23 (2026-10-10)
 
 - 31 C++ projects on C++23 (`CMAKE_CXX_STANDARD 23`, required, no extensions), CMake policy 3.31, `-Wall -Wextra` clean on GCC 15.2. Builder `ubi10/ubi:10.2-1791444044` with `gcc-toolset-15`; CMake 4.4.4 and Ninja 1.13.2 from the upstream release binaries (sha256-verified; UBI ships cmake 3.31 and ninja 1.11); Conan 2.33.0 in a pinned venv. The Conan home is a BuildKit cache mount, packages are deployed next to the sources (`--deployer=full_deploy`) so later layers and the GHA layer cache do not need the mount. Runtime `ubi10/ubi-minimal:10.2-1791444377`, UID 1001 group 0, libstdc++/libgcc linked statically (gcc-toolset-15's libstdc++ is newer than the one in ubi-minimal; proven by running the binaries on ubi-minimal).
