@@ -61,7 +61,11 @@ examples/
 Default infra: **Docker Engine with `docker compose`** on Fedora/RHEL (`lgtm-docker-stack`
 patterns). Run an example with `docker compose up -d --build --wait` and tear it down with
 `docker compose down -v`. All examples, including 09, 12, 22 and 24, run on compose.
-minikube (`lgtm-minikube-stack` patterns) and OpenShift Local are optional paths added later in
+Example 05 also runs on minikube (`examples/05-event-driven/k8s/`, Appendix R): profile `cndp-k8s`
+(docker driver, containerd, Kubernetes v1.36.5), NodePorts 30080 and 30300 published on 127.0.0.1 at
+creation, Strimzi 1.2.0 for Kafka, kustomize manifests, `RUNTIME=kubernetes ./verify.sh`. Always pass
+`--keep-context` to `minikube start` and `--context cndp-k8s` to kubectl; never use port-forward,
+`minikube tunnel` or `minikube service`. OpenShift Local (Appendix S) is added later in
 the modernization plan. Prometheus/Mimir is published on host port 19090 (Cockpit holds 9090
 on Fedora/RHEL). Each example must run standalone.
 

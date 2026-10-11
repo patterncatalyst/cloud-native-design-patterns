@@ -10,7 +10,7 @@ the *Designing Cloud-Native APIs* deck series; the decks themselves live in
 
 ## What's inside
 
-- **A setup guide, 13 chapters, 17 deep-dive appendices (A–Q), and a glossary** —
+- **A setup guide, 13 chapters, 18 deep-dive appendices (A–R), and a glossary** —
   covering REST, gRPC, GraphQL, WebSockets, event-driven architecture, schemas and
   versioning, observability, resilience, and the patterns that tie them together.
 - **Six languages, one set of tabs** — every code sample appears in Spring Boot,
@@ -55,7 +55,7 @@ cd python && docker compose down -v
 | Path | What it holds |
 |---|---|
 | `_parts/` | the five Parts that form the homepage cards |
-| `_docs/` | the setup guide, chapters, appendices A–Q, and the glossary |
+| `_docs/` | the setup guide, chapters, appendices A–R, and the glossary |
 | `_includes/codetabs.html` + `assets/js/codetabs.js` | the multi-language code tabs (no plugin) |
 | `assets/diagrams/` | paired `name.svg` + `name.excalidraw` figures |
 | `lgtm-presentation/` | the six source decks + `BUILD.md` manifest |

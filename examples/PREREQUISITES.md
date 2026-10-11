@@ -73,21 +73,33 @@ docker run --rm hello-world
 
 ## Kubernetes tools (optional)
 
-The examples run on `docker compose` and need no cluster. A later part of the tutorial adds
-optional minikube and OpenShift Local paths; install these tools only when you reach them.
+The examples run on `docker compose` and need no cluster. Appendix R runs Example 05 on
+minikube; install these tools when you reach it. minikube uses the Docker driver on the same
+Docker Engine as compose, with the `default` Docker context.
 
 ### minikube
 
+Pinned to v1.39.0, with the binary checked against its published SHA-256 file:
+
 ```bash
-curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-sudo install minikube-linux-amd64 /usr/local/bin/minikube
+MINIKUBE_VERSION=v1.39.0
+mkdir -p ~/.local/bin && cd "$(mktemp -d)"
+curl -fsSLO "https://github.com/kubernetes/minikube/releases/download/${MINIKUBE_VERSION}/minikube-linux-amd64"
+echo "$(curl -fsSL "https://github.com/kubernetes/minikube/releases/download/${MINIKUBE_VERSION}/minikube-linux-amd64.sha256")  minikube-linux-amd64" | sha256sum -c -
+install minikube-linux-amd64 ~/.local/bin/minikube
 ```
 
 ### kubectl
 
+Pinned to v1.36.5 (the Kubernetes version the minikube profile runs), checked against its
+published SHA-256:
+
 ```bash
-curl -LO "https://dl.k8s.io/release/$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-sudo install kubectl /usr/local/bin/kubectl
+KUBECTL_VERSION=v1.36.5
+mkdir -p ~/.local/bin && cd "$(mktemp -d)"
+curl -fsSLO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+echo "$(curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256")  kubectl" | sha256sum -c -
+install kubectl ~/.local/bin/kubectl
 ```
 
 ### Helm
@@ -235,7 +247,7 @@ container.
 | Stack | Memory | Disk | CPU |
 |-------|--------|------|-----|
 | Docker compose examples | ~2-4 GB | ~3 GB for images | 2+ cores |
-| Minikube (optional) | ~6-8 GB | ~10 GB | 4+ cores |
+| Minikube, Example 05 (optional) | 8 GB for the node | 40 GB (profile disk) | 4+ cores |
 
 The LGTM observability stack (Grafana, Loki, Tempo, Mimir) is the heaviest
 shared component at ~1.5 GB.

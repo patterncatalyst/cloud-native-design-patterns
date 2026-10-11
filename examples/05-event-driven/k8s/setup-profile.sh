@@ -106,5 +106,6 @@ done
 log "NodePorts ${NODE_PORTS[*]} are published on 127.0.0.1 only"
 
 log "cluster health (context $PROFILE)"
+kc wait --for=condition=Ready node --all --timeout=180s
 kc get nodes
 log "profile $PROFILE is ready; kubectl current-context was not changed"
