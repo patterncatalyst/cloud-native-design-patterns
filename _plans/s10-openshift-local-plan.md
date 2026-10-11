@@ -86,6 +86,8 @@ packagemanifest `amq-streams` channels/currentCSV; CSV `STRIMZI_KAFKA_IMAGES`; `
 | Step | Status |
 |------|--------|
 | 0 plan | done |
-| 1–9 offline | pending |
+| 1 pins re-check | done (offline): crc 2.64.0 and kubeconform v0.8.0 still newest, otel-lgtm 0.36.0 newest tag, CRDs-catalog route/imagestream schemas present at the pinned commit; the AMQ Streams CSV and the registry.redhat.io postgresql-18 tag need a login or the cluster, so they stay in the live confirmations |
+| 2 .NET trace propagation | done (a0f03c4): compose verify 10/10, one trace holds order-service, shipping-consumer and notification-consumer |
+| 3-9 offline | pending |
 | 10 live | pending |
-| 11–12 | pending |
+| 11-12 | pending |
