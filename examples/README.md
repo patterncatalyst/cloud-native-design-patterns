@@ -80,6 +80,9 @@ infrastructure it needs. All containers use the `cndp-` prefix.
   implementation notes, and local development instructions.
 - **Six language stacks**: Spring Boot 4.1.1, Quarkus 3.40.1 LTS, .NET 10.0.12, Python 3.14 (FastAPI 0.143, faust-streaming 0.15.3), C++23
   (GCC 15, CMake 4.4.4, Conan 2.33.0; Drogon, grpc++, librdkafka, libpq, cppgraphqlgen, jwt-cpp, sml, sol2) and Go 1.27.2 (`net/http`, goka, gqlgen, golang-jwt, gopher-lua, franz-go, pgx) — all sharing the same API contract and `verify.sh`.
+  C++ dependency pins live in each `conan.lock`; versions held below the newest upstream
+  (protobuf 6.33.5 under grpc, abseil 20260107.1, taocpp-pegtl 3.2.8, lua 5.4.8, librdkafka 2.14.2 and
+  opentelemetry-cpp 1.26.0 on ConanCenter) are listed in `_plans/modernization-plan.md` (S7).
 - **Build files**: each service builds from a `Containerfile` (`Containerfile.<svc>` for
   .NET); compose references it with `build.dockerfile: Containerfile`.
 - **Host ports**: Prometheus-compatible metrics (Mimir) are on host port 19090, because
