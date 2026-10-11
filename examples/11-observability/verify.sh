@@ -97,11 +97,11 @@ printf '  \xe2\x86\x92 checking traces in Tempo...\n'
 TEMPO_SEARCH=""
 for _ in $(seq 1 12); do
     NOW=$(date +%s)
-    TEMPO_SEARCH=$(curl $CURL_OPTS -sf "$TEMPO/api/search?limit=20&start=$((NOW - 900))&end=$((NOW + 60))" 2>/dev/null || echo "")
+    TEMPO_SEARCH=$(curl $CURL_OPTS -sf "$TEMPO/api/search?tags=service.name%3Dorder-service&limit=20&start=$((NOW - 900))&end=$((NOW + 60))" 2>/dev/null || echo "")
     case "$TEMPO_SEARCH" in *traceID*) break ;; esac
     sleep 5
 done
-check "Tempo has traces" \
+check "Tempo search finds traces of service order-service" \
     "echo '$TEMPO_SEARCH'" \
     "traceID"
 

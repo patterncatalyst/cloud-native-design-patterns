@@ -111,7 +111,7 @@ check "compatibility rule is BACKWARD" \
 
 # --- Try a BREAKING change (rename required fields) → expect 400 ---
 printf '  \xe2\x86\x92 attempting breaking schema change (renamed fields)...\n'
-BREAKING_CODE=$(curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST \
+BREAKING_RESPONSE=$(curl $CURL_OPTS -s -w '\n%{http_code}' -X POST \
     "$REGISTRY/groups/orders/artifacts/order-placed/versions" \
     -H "Content-Type: application/json" \
     -d "{
@@ -121,12 +121,16 @@ BREAKING_CODE=$(curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST \
             \"contentType\": \"application/json\"
         }
     }")
+BREAKING_CODE=$(echo "$BREAKING_RESPONSE" | tail -1)
+BREAKING_BODY=$(echo "$BREAKING_RESPONSE" | sed '$d')
 
-if [ "$BREAKING_CODE" = "400" ]; then
-    printf '  \xe2\x9c\x93 breaking change rejected with 400 Bad Request\n'
+# A 400 alone could be a malformed request; the registry names the rule it enforced.
+if [ "$BREAKING_CODE" = "400" ] && echo "$BREAKING_BODY" | grep -q 'RuleViolationException'; then
+    printf '  \xe2\x9c\x93 breaking change rejected with 400 (RuleViolationException)\n'
     PASS=$((PASS + 1))
 else
-    printf '  \xe2\x9c\x97 breaking change should return 400 (got %s)\n' "$BREAKING_CODE"
+    printf '  \xe2\x9c\x97 breaking change should return 400 RuleViolationException (got %s)\n' "$BREAKING_CODE"
+    printf '    response: %s\n' "$(echo "$BREAKING_BODY" | head -c 300)"
     FAIL=$((FAIL + 1))
 fi
 
@@ -153,8 +157,8 @@ fi
 
 # --- Verify we now have 2 versions ---
 check "artifact has 2 versions" \
-    "curl $CURL_OPTS -sf '$REGISTRY/groups/orders/artifacts/order-placed/versions' | jq '.count'" \
-    "2"
+    "curl $CURL_OPTS -sf '$REGISTRY/groups/orders/artifacts/order-placed/versions' | jq -e '.count == 2' >/dev/null && echo count-is-2" \
+    "count-is-2"
 
 # --- Fetch the latest version and verify it has the new field ---
 check "latest version contains merchant_id field" \
