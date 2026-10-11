@@ -35,6 +35,7 @@ jobs:
       cpp: ${{ steps.select.outputs.cpp }}
       compose: ${{ steps.select.outputs.compose }}
       scripts: ${{ steps.select.outputs.scripts }}
+      k8s: ${{ steps.select.outputs.k8s }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -497,12 +498,71 @@ jobs:
           done < <(jq -r '.[]' <<<"$FILES")
           exit "$failed"
 
+  # Kubernetes manifests: render the infrastructure and every language overlay, validate
+  # against the 1.36.5 schemas (and the Strimzi CRDs), and assert the conventions the
+  # minikube run relies on. No cluster is needed.
+  k8s:
+    name: Kubernetes manifests
+    needs: changes
+    if: needs.changes.outputs.k8s != '[]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # The runner's kubectl is not pinned; install the version the cluster runs.
+      - name: Install kubectl v1.36.5 and kubeconform v0.8.0
+        env:
+          KUBECTL_SHA256: 33bc88a24c3b09cf55bfd59e6ca977881b61fc3f25ab65bc80c65b430248648e
+        run: |
+          mkdir -p "$HOME/.local/bin" && cd "$RUNNER_TEMP"
+          curl -fsSLO https://dl.k8s.io/release/v1.36.5/bin/linux/amd64/kubectl
+          echo "$KUBECTL_SHA256  kubectl" | sha256sum -c -
+          install -m 0755 kubectl "$HOME/.local/bin/kubectl"
+          base=https://github.com/yannh/kubeconform/releases/download/v0.8.0
+          curl -fsSLO "$base/kubeconform-linux-amd64.tar.gz"
+          curl -fsSL "$base/CHECKSUMS" | grep ' kubeconform-linux-amd64.tar.gz$' | sha256sum -c -
+          tar -xzf kubeconform-linux-amd64.tar.gz kubeconform
+          install -m 0755 kubeconform "$HOME/.local/bin/kubeconform"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Render, validate and assert
+        env:
+          DIRS: ${{ needs.changes.outputs.k8s }}
+          # datreeio/CRDs-catalog pinned to a commit; it carries the Strimzi schemas.
+          CRDS: https://raw.githubusercontent.com/datreeio/CRDs-catalog/63669a570e231d4f1f8396d229a1de512bcf0a34/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json
+        run: |
+          failed=0
+          while IFS= read -r dir; do
+            [ -d "$dir" ] || { echo "::error::$dir not found"; failed=1; continue; }
+            kubeconform -v
+            kubeconform -strict -summary -kubernetes-version 1.36.5 -schema-location default -schema-location "$CRDS" "$dir/namespace.yaml" || failed=1
+            targets=("$dir/infra")
+            for o in "$dir"/overlays/*/; do targets+=("${o%/}"); done
+            for t in "${targets[@]}"; do
+              echo "::group::$t"
+              # infra reads the shared schema from ../../db/init, outside its directory.
+              kubectl kustomize --load-restrictor LoadRestrictionsNone "$t" > "$RUNNER_TEMP/render.yaml" || { echo "::error::render failed: $t"; failed=1; echo "::endgroup::"; continue; }
+              kubeconform -strict -summary -kubernetes-version 1.36.5 -schema-location default -schema-location "$CRDS" "$RUNNER_TEMP/render.yaml" || { echo "::error::kubeconform failed: $t"; failed=1; }
+              if grep -nE 'image: .*:latest|:latest$' "$RUNNER_TEMP/render.yaml"; then echo "::error::$t uses :latest"; failed=1; fi
+              case "$t" in
+                */overlays/*)
+                  lang="$(basename "$t")"
+                  [ "$(grep -cE "image: localhost/cndp-05/${lang}-[a-z-]+:v1$" "$RUNNER_TEMP/render.yaml")" -eq 3 ] || { echo "::error::$t must use 3 images localhost/cndp-05/${lang}-<svc>:v1"; failed=1; }
+                  [ "$(grep -c 'imagePullPolicy: Never' "$RUNNER_TEMP/render.yaml")" -eq 3 ] || { echo "::error::$t must set imagePullPolicy: Never on 3 containers"; failed=1; }
+                  grep -q 'nodePort: 30080' "$RUNNER_TEMP/render.yaml" || { echo "::error::$t lacks nodePort 30080"; failed=1; } ;;
+                */infra)
+                  grep -q 'nodePort: 30300' "$RUNNER_TEMP/render.yaml" || { echo "::error::$t lacks nodePort 30300"; failed=1; }
+                  grep -vE 'image: (docker.io|quay.io)/' <(grep -E '^\s+image: ' "$RUNNER_TEMP/render.yaml") && { echo "::error::$t has an image that is not fully qualified"; failed=1; } ;;
+              esac
+              echo "::endgroup::"
+            done
+          done < <(jq -r '.[]' <<<"$DIRS")
+          exit "$failed"
+
   # The one check branch protection requires: passes when every job above
   # succeeded or was skipped by `changes`, fails otherwise.
   examples-ok:
     name: examples-ok
     if: always()
-    needs: [changes, jvm, dotnet, go, python, cpp, compose, scripts]
+    needs: [changes, jvm, dotnet, go, python, cpp, compose, scripts, k8s]
     runs-on: ubuntu-latest
     steps:
       - env:
