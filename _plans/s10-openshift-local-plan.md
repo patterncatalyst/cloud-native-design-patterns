@@ -97,7 +97,7 @@ packagemanifest `amq-streams` channels/currentCSV; CSV `STRIMZI_KAFKA_IMAGES`; `
 | 9 docs | done: Appendix S, index, README, chapter 05, READMEs, prerequisites, CLAUDE.md |
 | 10 live | done 2026-10-11: see "Live results" |
 | 11 fill recorded output | done: every live-result placeholder replaced in Appendix S and the chapter 05 footer |
-| 12 validator, PR, merge | pending |
+| 12 validator, PR, merge | pending; repair round 1 applied (see below) |
 
 ## Offline results (steps 4 to 9)
 
@@ -128,3 +128,16 @@ Script bugs found and fixed during the live run (a379989, 1f77342, 82fdd88):
 3. The foreign-operator check counted OLM-copied CSVs (AllNamespaces copies the CSV into every namespace); now filtered with `-l '!olm.copiedFrom'`.
 
 `matrix-run1/` exposed these bugs and is not the recorded output. Items 2 and 3 are rows in the Appendix S troubleshooting table.
+
+## Repair round 1 (validator defects D1 to D11)
+
+- D1: `wait_cluster_stable <timeout> <window>` in lib.sh (settled for a continuous 300 s, checked every 10 s, 1800 s overall); setup-crc.sh uses it after the registry route step, also after a fresh `crc start`. deploy.sh and build-push-images.sh wait for `cluster_settled` first; every apply goes through `apply_retry` (5 attempts, waits for settle between).
+- D2/D8: teardown removes only CRDs owned by our CSV, only if our Subscription or CSV existed and the foreign check (`foreign_kafka_items`, OLM copies excluded, plus custom resources of the owned kinds outside cndp-05) is empty; otherwise it keeps them and says why. No `*.strimzi.io` sweep. Removed counts are re-listed; the leftover check separates "of ours" (fails the run) from "not ours, left untouched".
+- D3: full mode has an EXIT trap that runs `crc stop`; waits warn and continue; exit is non-zero on any failed step or leftover of ours. `--keep-running` and `--namespace-only` never stop CRC.
+- D4/D7: `--context crc-admin` on every oc command in Appendix S and the openshift README; Appendix S wording fixed (`.status.kafkaVersion`, teardown scope).
+- D5: top-level `k8s/`/`openshift/` scripts select `scripts` only; deeper `.sh` select `scripts` and the manifest directory.
+- D6: setup-crc.sh checks the pull-secret path (never reads it); failure hint no longer suggests a bare `crc start` without a warning.
+- D9: python3 dropped from `require_tools` (no openshift script or verify.sh uses it).
+- D10: setup-crc.sh exit trap exits non-zero when the current-context cannot be restored.
+- D11: .NET 05 consumers skip null header values and set `ActivityStatusCode.Error` on failed processing; OrderService sets it on a failed publish. Compose verify 10/10; linked trace (order-service, shipping-consumer, notification-consumer) found in Tempo; compose down -v, `docker ps` empty.
+- Live re-run (cold start, teardown) is left to the orchestrator.
