@@ -8,7 +8,7 @@ from typing import Optional
 import asyncpg
 from aiokafka import AIOKafkaProducer
 from fastapi import FastAPI
-from opentelemetry import trace
+from opentelemetry import propagate, trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.sdk.resources import Resource
@@ -23,12 +23,13 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgres://appuser:apppass@postgres:54
 KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "kafka:9094")
 OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://lgtm:4318")
 
-resource = Resource.create({"service.name": "order"})
+resource = Resource.create({"service.name": os.getenv("OTEL_SERVICE_NAME", "order-service")})
 provider = TracerProvider(resource=resource)
 provider.add_span_processor(
     BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{OTEL_ENDPOINT}/v1/traces"))
 )
 trace.set_tracer_provider(provider)
+tracer = trace.get_tracer("order-service")
 
 db_pool: Optional[asyncpg.Pool] = None
 producer: Optional[AIOKafkaProducer] = None
@@ -80,7 +81,13 @@ async def place_order(body: OrderIn):
         )
 
     event = {"id": order_id, "sku": body.sku, "quantity": body.quantity, "status": "confirmed"}
-    await producer.send("order.placed", value=event)
+    # Carry the trace context in the Kafka headers so the consumer spans join this trace.
+    with tracer.start_as_current_span("order.placed publish", kind=trace.SpanKind.PRODUCER) as span:
+        span.set_attribute("order.id", order_id)
+        carrier: dict[str, str] = {}
+        propagate.inject(carrier)
+        headers = [(k, v.encode()) for k, v in carrier.items()]
+        await producer.send("order.placed", value=event, headers=headers)
     log.info("published order.placed id=%s", order_id)
 
     return Order(id=order_id, sku=body.sku, quantity=body.quantity, status="confirmed")

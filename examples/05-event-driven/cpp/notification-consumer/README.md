@@ -12,6 +12,8 @@ Consumes `order.placed` in consumer group `notification-group` and writes `notif
 - **Consumer**: `RdKafka::KafkaConsumer`, `enable.auto.commit=false`; the offset is committed (`commitSync`) only after
   the Postgres row is written (libpq, `ON CONFLICT DO NOTHING`), so a crash redelivers instead of losing the event.
 - **libpq 17.11** (direct, no libpqxx), **jsoncpp 1.9.8**.
+- **Tracing**: OpenTelemetry C++ 1.26.0 (OTLP/HTTP to `OTEL_EXPORTER_OTLP_ENDPOINT`, service name `notification-consumer`). One consumer span per
+  record, parented on the `traceparent` header the order service sets.
 
 ## Build
 

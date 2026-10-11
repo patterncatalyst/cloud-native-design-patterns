@@ -16,7 +16,8 @@ Output is one JSON object with a compact array per kind:
     python   directories containing requirements.txt
     cpp      directories containing conanfile.py (each also has a Containerfile)
     compose  compose*.yaml files
-    scripts  verify.sh files
+    scripts  verify.sh files and examples/<NN>/k8s/*.sh
+    k8s      examples/<NN>/k8s directories (kustomize manifests, rendered and validated)
 
 Everything is selected when the base is unknown (workflow_dispatch, all-zero
 `before` SHA of a first push, a base that cannot be diffed) and when a shared
@@ -59,11 +60,13 @@ LANG_DIRS = {
     "python": ("python",),
     "cpp": ("cpp",),
 }
-KINDS = list(MARKERS) + ["compose", "scripts"]
+KINDS = list(MARKERS) + ["compose", "scripts", "k8s"]
 ZERO_SHA = re.compile(r"^0+$")
 # Changes that cannot affect a build or a config check.
 INERT = ("*.md", "*.svg", "*.excalidraw", "*.png")
 INERT_DIRS = ("db", "collections", "grafana", "otelcol")
+# examples/<NN>/k8s holds kustomize manifests and the scripts that drive minikube.
+K8S_DIR = "k8s"
 
 
 # Files under examples/_infra/ are fragments pulled in by the examples' compose
@@ -76,6 +79,21 @@ COMPOSE_FRAGMENT_DIR = "examples/_infra/"
 def is_compose(path: str) -> bool:
     return (bool(re.fullmatch(r"compose[^/]*\.ya?ml", os.path.basename(path)))
             and not path.startswith(COMPOSE_FRAGMENT_DIR))
+
+
+def is_k8s_script(path: str) -> bool:
+    parts = path.split("/")
+    return len(parts) >= 4 and parts[2] == K8S_DIR and path.endswith(".sh")
+
+
+def k8s_dirs(files: list[str]) -> set[str]:
+    """examples/<NN>/k8s directories among tracked files."""
+    out = set()
+    for f in files:
+        parts = f.split("/")
+        if len(parts) >= 4 and parts[0] == EXAMPLES and parts[2] == K8S_DIR:
+            out.add("/".join(parts[:3]))
+    return out
 
 
 def git(*args: str) -> str:
@@ -113,7 +131,8 @@ def select_everything() -> dict[str, set[str]]:
     files = tracked()
     sel = {k: all_projects(k, files) for k in MARKERS}
     sel["compose"] = {f for f in files if is_compose(f)}
-    sel["scripts"] = {f for f in files if os.path.basename(f) == "verify.sh"}
+    sel["scripts"] = {f for f in files if os.path.basename(f) == "verify.sh" or is_k8s_script(f)}
+    sel["k8s"] = k8s_dirs(files)
     return sel
 
 
@@ -142,6 +161,21 @@ def select_for_changes(changed: list[str]) -> dict[str, set[str]]:
         if name == "verify.sh":
             if exists:
                 sel["scripts"].add(f)
+            continue
+        # The schema is rendered into the k8s manifests, so a change to it selects them too.
+        if len(parts) >= 4 and parts[2] == "db":
+            k8s = f"{parts[0]}/{parts[1]}/{K8S_DIR}"
+            if k8s in k8s_dirs(files):
+                sel["k8s"].add(k8s)
+        if len(parts) >= 4 and parts[2] == K8S_DIR:
+            if is_k8s_script(f):
+                if exists:
+                    sel["scripts"].add(f)
+            elif not name.endswith(".md"):
+                # A deleted manifest still selects the directory, if it still exists.
+                k8s = "/".join(parts[:3])
+                if k8s in k8s_dirs(files):
+                    sel["k8s"].add(k8s)
             continue
         if any(fnmatch.fnmatch(name, pat) for pat in INERT) or any(p in INERT_DIRS for p in parts[2:-1]):
             continue

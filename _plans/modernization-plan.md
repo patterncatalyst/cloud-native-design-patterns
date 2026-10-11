@@ -30,11 +30,11 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | S5 | chore/python-3.14 | 5 | done (19/19 Python + 28 PASS after the Opus review) |
 | S6 | chore/go-toolchain | 2+4 | done (18/18 Go + 06 in all six languages PASS after the Opus review; closes #34) |
 | S7 | chore/cpp-toolchain-ubi10 | 2+4 | done (111/111 PASS after two Opus repair rounds; closes #35) |
-| S8 | chore/infra-images | 2 | validated (awaiting PR/CI) |
-| S9 | docs/minikube-docker-driver (+ 05 on minikube) | 7 | pending |
+| S8 | chore/infra-images | 2 | done (111/111 PASS; two Opus repair rounds; PR #66; lgtm-skills #45 + r5.x; main run green, Actions cache 2.4 GB) |
+| S9 | docs/minikube-docker-driver (+ 05 on minikube) | 7 | executed (awaiting validation) |
 | S10 | feature/openshift-local-appendix | 8 | pending |
 | S11 | docs/professional-voice | 9 | pending |
-| S12 | docs/deck-refresh | 10 | pending |
+| S12 | docs/deck-refresh | 10 (expanded 2026-10-11) | pending |
 
 ## Target pins (verified 2026-10-09; re-check at the start of each branch)
 
@@ -57,8 +57,11 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | Envoy | envoyproxy/envoy:v1.39.3 |
 | kafka-ui | removed (use kcat) |
 | Test tools | newman 6.2.3, htmlextra 1.23.1, hey v0.1.5, ghz v0.121.0, conftest 0.71.1 |
-| minikube | v1.39.0, Kubernetes v1.36.5 |
-| Operators | Strimzi 1.2.0, CNPG v1.30.1, KEDA v2.21.0, Istio 1.31.1 |
+| minikube | v1.39.0, Kubernetes v1.36.5, profile `cndp-k8s` (NodePorts 30080 and 30300 on 127.0.0.1) |
+| kubectl | v1.36.5 (kustomize v5.8.1) |
+| Helm | v4.3.0 |
+| kubeconform | v0.8.0, CRDs-catalog commit 63669a570e231d4f1f8396d229a1de512bcf0a34 |
+| Operators | Strimzi 1.2.0 (chart `oci://quay.io/strimzi-helm/strimzi-kafka-operator` 1.2.0; Kafka image `quay.io/strimzi/kafka:1.2.0-kafka-4.3.1`), CNPG v1.30.1, KEDA v2.21.0, Istio 1.31.1 |
 | CRC | crc 2.64.0 / OCP 4.22.14; AMQ Streams per lgtm-crc (check packagemanifest) |
 
 ## Key facts from the inventory
@@ -80,9 +83,14 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 - S2–S7: every project builds; verify.sh green for that language's variants; images pinned, with no :latest.
 - S8: 0 :latest, -latest or kafka-ui; full matrix green.
 - S9: minikube appendix with evidence; profile stopped.
-- S10: Appendix R with evidence for 5 languages; scrub clean; CRC stopped and clean.
+- S10: Appendix S with evidence for 5 languages; scrub clean; CRC stopped and clean.
 - S11: voice scan reports zero ban-tier hits and is enforced in CI.
-- S12: 0 references to the old container engine in the decks; current versions; OpenShift Local slides; rendered and inspected.
+- S12 (scope expanded by the user 2026-10-11): review every presentation in `lgtm-presentation/` (the six Designing-Cloud-Native-APIs decks, K8s-Environment-Access-Policies, Network-Policy-Process-Advisory, and their .md/.docx companions) for:
+  - version changes (every version on a slide matches the S2–S8 pins);
+  - stack changes (Docker Engine, not the old container engine; locked libraries such as Streamiz, faust-streaming, goka, librdkafka C++, C++23; kafka-ui removed);
+  - code changes (every code snippet on a slide matches the current example code and APIs, e.g. Spring Boot 4 / Jackson 3, Quarkus 3.40, .NET 10, Python 3.14, Go 1.27, C++23);
+  - wording and professionalism (lgtm-professional-voice: zero ban-tier hits);
+  - 0 references to the old container engine; minikube and OpenShift Local slides; every deck rendered and inspected.
 
 ## Evidence
 
@@ -160,6 +168,56 @@ Defects the baseline found and fixed in S1:
 - Example 30: second dashboard instance on the Redis backplane; verify.sh grows from 5 to 10 checks (cross-instance delivery both ways, restart asserted).
 - Chapter .NET codetabs (05, 06, 18, 22) compile against the pinned packages.
 - Live: **19/19 .NET targets PASS** on the final tree after the Opus review.
+
+### S9 minikube (2026-10-11)
+
+Fedora 44, Docker Engine 29.8.2, minikube v1.39.0, kubectl v1.36.5 (kustomize v5.8.1), **Helm v4.3.0**, profile `cndp-k8s` (docker driver, containerd 2.3.4, Kubernetes v1.36.5, 8 GB, 4 CPUs, 40 GB), NodePorts 30080 and 30300 published on 127.0.0.1 only (`docker port cndp-k8s`). Evidence: `/tmp/claude-1000/-home-rsedor-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s9/` (`00-prechecks.txt`, `01-setup-profile.log`, `matrix/` with `results.tsv`, per-language logs and evidence, `docker-path/`, `10-static-checks.txt`, `11-final-state.txt`).
+
+Pins re-verified at the start: Strimzi chart and operator 1.2.0 (Kafka image `quay.io/strimzi/kafka:1.2.0-kafka-4.3.1`, Kafka 4.3.1, Kafka CR `kafka.strimzi.io/v1`), postgres 18.6-alpine, otel-lgtm 0.36.0, kubeconform v0.8.0, actionlint 1.7.12, shellcheck 0.11.0, CRDs-catalog commit 63669a5. Kubernetes 1.37.1 exists upstream and minikube v1.39.0 lists 1.37.0 as its newest; v1.36.5 stays because the host kubectl and the other profiles are 1.36.5 and the plan was approved with it.
+
+**Live run: 6/6 languages `==> Results: 10 passed, 0 failed`** with `RUNTIME=kubernetes` (`k8s/verify-matrix.sh`, fresh namespace per language, images built with docker and loaded with `minikube image load`, all pods 0 restarts, Grafana `/api/health` `database: ok` on 127.0.0.1:30300):
+
+| Language | Result | Time |
+|---|---|---|
+| spring-boot | 10 passed, 0 failed | 361 s |
+| quarkus | 10 passed, 0 failed | 135 s |
+| dotnet | 10 passed, 0 failed | 134 s |
+| python | 10 passed, 0 failed | 116 s |
+| cpp | 10 passed, 0 failed | 103 s |
+| go | 10 passed, 0 failed | 104 s |
+
+An earlier single-language Spring Boot run (205 s) also passed first time. Docker-path regression: `scripts/verify-matrix.sh 05-event-driven/go` PASS 10/10 (57 s). A hand cross-check (scale shipping-consumer to 0, place an order, 0 shipments; scale to 1, 1 shipment) passed.
+
+End state: `teardown.sh --operator` removed the `cndp-05` namespace, the Strimzi release, all Strimzi CRDs and the `strimzi` namespace; `minikube stop -p cndp-k8s` left the profile Stopped (not deleted); every other profile unchanged (helm4dev still broken, left alone); kubectl current-context unset before and after; no containers running.
+
+Repair round 1 (validator findings):
+
+- Current-context: the earlier "never changed" claim was wrong for restarts. When a stopped docker-driver profile restarts and its API-server host port changes, minikube v1.39.0 sets current-context to the profile even with `--keep-context` (reproduced: a raw `minikube start -p cndp-k8s --keep-context` after a stop left `cndp-k8s` as current-context). `setup-profile.sh` now records the context before any start, restores it (unset or `use-context`) and fails if it differs. Tested on a copy of the kubeconfig: restart from unset, restart from a throwaway context, already-running no-op; then on the real kubeconfig, which stayed unset. The create path was not re-run (it needs a new profile name or a delete, both out of bounds).
+- `setup-profile.sh` also runs the host-port check whenever the profile is not running and compares Driver, ContainerRuntime and KubernetesVersion with docker, containerd and v1.36.5 (tested: `KUBERNETES_VERSION=v1.35.0` fails with a clear message).
+- `teardown.sh --operator` is idempotent (`grep` guarded under `pipefail`, `--ignore-not-found` on the CRD delete); two runs in a row both exit 0.
+- Quarkus OTLP: Quarkus defaults to gRPC but 4318 is OTLP/HTTP, so exports failed with "First received frame was not SETTINGS" and Tempo listed no services. `quarkus.otel.exporter.otlp.protocol=http/protobuf` added to the ten `application.properties` of Examples 02, 03, 05 and 06 that export to 4318 without it (01, 04 and 18 already had it; 11 and 17 use 4317). Compose regression, one at a time: 02/quarkus 10/10, 03/quarkus 8/8, 05/quarkus 10/10, 06/quarkus 11/11, all PASS.
+- Traces per language on k8s, from Tempo through the lgtm pod after each `verify.sh` (a non-counted step in `k8s/verify-matrix.sh`; `verify.sh` is still 10 checks): Spring Boot, Quarkus and .NET report order-service, shipping-consumer and notification-consumer; Python reported order, shipping and notification (renamed in round 2). The .NET exporter defaulted to gRPC against 4318 and the consumers never registered their `ActivitySource`; both fixed (HTTP protobuf with `/v1/traces`, `AddSource`), compose 05/dotnet 10/10. Go and C++ reported no services in round 1 because Example 05 carried no tracing code in those languages; round 2 below adds it.
+- All six languages 10/10 on k8s in the repair run (spring-boot 185 s, quarkus 382 s, python 145 s, cpp 131 s, go 133 s; dotnet re-run after the fix 173 s). A stale BuildKit cache mount made one .NET build fail with NETSDK1064; the `--no-cache` workaround was replaced by a Containerfile fix in round 2.
+- `ci_changed_projects.py`: a deleted or missing file under `k8s/` still selects the directory while it exists (tested with `--files`: existing manifest, deleted `base/x.yaml`, `.sh`, README, `db/init`).
+- shellcheck `source-path=SCRIPTDIR` added; clean on the k8s scripts. `verify-matrix.sh` no longer prints the language twice. `verify.sh`: a failed duplicate-event send no longer aborts and cannot pass the two idempotency checks vacuously. The .NET overlay sets `SERVICE_VERSION` on the order-service only, as compose does.
+- End state: `teardown.sh --operator` twice (0, 0), `minikube stop -p cndp-k8s`, current-context unset, no containers running.
+
+Repair round 2:
+
+- Go and C++ tracing in Example 05, all six services. Go: OTel Go SDK 1.47.0 (the newest stable, same as Example 11), `otlptracehttp` to `OTEL_EXPORTER_OTLP_ENDPOINT`, `TraceContext` global propagator, `otelhttp` server span for the HTTP requests, a producer span around the produce with the context injected as a Kafka header, and one consumer span per record extracted from that header; `log/slog` stays. Indirect modules (grpc 1.84.0, x/net 0.61.0, genproto and others) match Example 11. C++: opentelemetry-cpp 1.26.0 (the ConanCenter newest and the Example 11 version) with the Example 11 `telemetry.hpp` (OTLP/HTTP, traces only) plus `traceparent` parsing; order-service has a server span for `POST /orders`, a child producer span and the `traceparent` header on the Kafka message, spdlog 1.17.0 for a trace-correlated log line, and each consumer has one span per record parented on the header. `nlohmann_json` 3.12.0 and `fmt` 12.2.0 are `override=True` as in 11. The three `conan.lock` files were regenerated with `conan lock create --update` inside the builder image (Conan 2.33.0, GCC 15, C++23, Release) against the `cndp-conan2` cache.
+- Service names are `order-service`, `shipping-consumer` and `notification-consumer` in all six languages. Python took them from hard-coded `order`, `shipping` and `notification`; it now reads `OTEL_SERVICE_NAME` (set in compose and k8s) with those names as the default. Nothing else depended on the old names (`k8s/verify-matrix.sh` counts services, not names). `OTEL_SERVICE_NAME` was added to the Go and Python compose files.
+- NETSDK1064 root cause: the separate `dotnet restore` RUN stayed cached as a layer while the BuildKit cache mount that held the packages was gone, so a later `publish --no-restore` found no packages. All 32 .NET Containerfiles (every `examples/*/dotnet` plus 30) now restore and publish in one `RUN` that mounts the cache; the csproj-only COPY and `--no-restore` are gone. The mount is `sharing=locked` because compose builds two images at once and two restores extracting into one package directory raced (`Could not find file '/nuget-cache/grpc.tools/...'` on 02, found by the first matrix run). Proof on a throwaway `docker buildx create` builder (removed afterwards): the old Containerfile.order built once, cache mounts cleared, source touched, second build failed with NETSDK1064 (Confluent.Kafka 2.16.0 not found); the new one passed the same sequence, and a warm rebuild restored in 0.8 s (14 s total). `DOCKER_BUILD_OPTS` is removed from `build-images.sh` and Appendix P describes the new pattern; the `29-container-layers` diagram text was regenerated.
+- Compose, one at a time: `05-event-driven` go, cpp and python 10/10; `scripts/verify-matrix.sh dotnet` 19/19 PASS (01 to 06, 11, 12, 16 to 19, 21, 22, 24 to 27, 30).
+- k8s: `k8s/verify-matrix.sh` 10/10 in all six languages (spring-boot 184 s, quarkus 385 s, dotnet 142 s, python 120 s, cpp 111 s, go 107 s). Tempo reported `order-service`, `shipping-consumer` and `notification-consumer` for every language. Appendix R now says so.
+- End state: `teardown.sh --operator` exit 0, `minikube stop -p cndp-k8s`, no containers running, real current-context unset (all kubectl and minikube calls used a copy of the kubeconfig).
+
+Static checks: `validate_site.py` 0 errors, Jekyll build OK (ruby:3.3 container, because the host has no ruby-devel for native gems), actionlint 1.7.12 clean, shellcheck clean on the k8s scripts and `verify.sh`, kubeconform v0.8.0 `-strict` against 1.36.5: infra 9/9 valid, six overlays 4/4 valid each, 0 invalid; selector cases: `k8s/base/*.yaml` selects only `k8s`, `k8s/*.sh` selects only `scripts`, `db/init/*.sql` selects `k8s`, `k8s/README.md` selects nothing, `_infra` selects everything.
+
+Deviations from the plan: added `k8s/lib.sh` (shared settings for the five scripts); two plan lines naming the old container engine were reworded because `validate_site.py` scans `_plans/`; `kraftMetadata` and `metadataVersion` are left to the Strimzi defaults (4.3-IV0).
+
+Final Opus recheck (2026-10-11): go. Go and C++ traces verified end to end in Tempo (one trace: `POST /orders` server span, `order.placed publish` producer span, both consumer spans). Follow-ups applied before the PR:
+- `setup-profile.sh` restores the kubectl context from an EXIT trap (covers a failed `minikube start` and Ctrl-C) and uses `kubectl config set current-context`, so a prior context whose entry is missing is restored too. Stub test: a start that switches the context and exits 1 leaves it unset (or `ghost ctx`) as before.
+- Python 05 now injects and extracts trace context in the Kafka headers. Compose: 05/python 10/10, and Tempo shows one `POST /orders` trace with the producer span and both consumer spans.
 
 ### S7 C++23 (2026-10-10)
 

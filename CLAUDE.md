@@ -61,7 +61,11 @@ examples/
 Default infra: **Docker Engine with `docker compose`** on Fedora/RHEL (`lgtm-docker-stack`
 patterns). Run an example with `docker compose up -d --build --wait` and tear it down with
 `docker compose down -v`. All examples, including 09, 12, 22 and 24, run on compose.
-minikube (`lgtm-minikube-stack` patterns) and OpenShift Local are optional paths added later in
+Example 05 also runs on minikube (`examples/05-event-driven/k8s/`, Appendix R): profile `cndp-k8s`
+(docker driver, containerd, Kubernetes v1.36.5), NodePorts 30080 and 30300 published on 127.0.0.1 at
+creation, Strimzi 1.2.0 for Kafka, kustomize manifests, `RUNTIME=kubernetes ./verify.sh`. Always pass
+`--keep-context` to `minikube start` (setup-profile.sh also restores the prior current-context, because minikube's restart path overrides the flag) and `--context cndp-k8s` to kubectl; never use port-forward,
+`minikube tunnel` or `minikube service`. OpenShift Local (Appendix S) is added later in
 the modernization plan. Prometheus/Mimir is published on host port 19090 (Cockpit holds 9090
 on Fedora/RHEL). Each example must run standalone.
 
@@ -135,7 +139,7 @@ Do not use `gh cache delete --all`: it also removes the entries the current poli
     the examples that use it.
   - Locks are regenerated with `conan lock create --update` (no lockfile in) so transitive packages take
     the newest ConanCenter version; stale transitive pins are lifted with `override=True` in the
-    conanfile (fmt, lz4, util-linux-libuuid, jsoncpp). Held on purpose: abseil 20260107.1 (protobuf 6.33.5),
+    conanfile (fmt, lz4, util-linux-libuuid, jsoncpp). Held back: abseil 20260107.1 (protobuf 6.33.5),
     protobuf 6.33.5 (grpc is below 7), opentelemetry-proto 1.7.0 (opentelemetry-cpp), taocpp-pegtl 3.2.8
     (cppgraphqlgen needs 3.x), lua 5.4.8 (sol2), librdkafka 2.14.2 and opentelemetry-cpp 1.26.0 (ConanCenter
     behind upstream). flex and bison get `MAKEINFO=true` through a scoped Conan conf, not a fake binary.

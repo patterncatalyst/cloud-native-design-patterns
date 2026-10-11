@@ -12,6 +12,9 @@ POST/GET `/orders`: inserts the order with libpq and publishes `order.placed`.
 - **Drogon 1.9.13** (REST), **libpq 17.11** (direct, no libpqxx).
 - **Producer**: `RdKafka::Producer` with `acks=all` and a `DeliveryReportCb`; a poller thread serves
   delivery reports, and shutdown calls `flush()` so queued events are delivered before exit.
+- **Tracing**: OpenTelemetry C++ 1.26.0 (OTLP/HTTP to `OTEL_EXPORTER_OTLP_ENDPOINT`, service name `order-service`) with spdlog 1.17.0 for
+  trace-correlated logs. A server span covers `POST /orders`, a child producer span covers the publish, and the producer span goes out as a
+  W3C `traceparent` Kafka header.
 
 ## Build
 

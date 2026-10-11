@@ -3,6 +3,7 @@ using System.Text.Json;
 using Confluent.Kafka;
 using Npgsql;
 using OpenTelemetry;
+using OpenTelemetry.Exporter;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -13,7 +14,13 @@ var otelEndpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOI
 
 using var tracerProvider = Sdk.CreateTracerProviderBuilder()
     .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("shipping-consumer"))
-    .AddOtlpExporter(o => o.Endpoint = new Uri(otelEndpoint))
+    .AddSource("shipping-consumer")
+    // 4318 is the OTLP/HTTP port: the exporter defaults to gRPC, and a code-set endpoint is used as given.
+    .AddOtlpExporter(o =>
+    {
+        o.Endpoint = new Uri(otelEndpoint.TrimEnd('/') + "/v1/traces");
+        o.Protocol = OtlpExportProtocol.HttpProtobuf;
+    })
     .Build();
 var tracer = tracerProvider!.GetTracer("shipping-consumer");
 

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Confluent.Kafka;
 using Npgsql;
+using OpenTelemetry.Exporter;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -11,8 +12,13 @@ builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("order-service"))
     .WithTracing(t => t
         .AddAspNetCoreInstrumentation()
-        .AddOtlpExporter(o => o.Endpoint = new Uri(
-            Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") ?? "http://lgtm:4318")));
+        // 4318 is the OTLP/HTTP port: the exporter defaults to gRPC, and a code-set endpoint is used as given.
+        .AddOtlpExporter(o =>
+        {
+            var endpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") ?? "http://lgtm:4318";
+            o.Endpoint = new Uri(endpoint.TrimEnd('/') + "/v1/traces");
+            o.Protocol = OtlpExportProtocol.HttpProtobuf;
+        }));
 
 var app = builder.Build();
 

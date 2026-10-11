@@ -17,6 +17,8 @@
 #include <string>
 #include <thread>
 
+#include "telemetry.hpp"
+
 namespace {
 
 std::atomic<bool> g_shutdown{false};
@@ -91,6 +93,9 @@ int main() {
         return 1;
     }
 
+    const char* svc = std::getenv("OTEL_SERVICE_NAME");
+    cndp::telemetry::init(svc ? svc : "notification-consumer");
+
     const char* bootstrap = std::getenv("KAFKA_BOOTSTRAP");
     if (!bootstrap) bootstrap = "kafka:9094";
 
@@ -128,10 +133,29 @@ int main() {
                 std::string event(static_cast<const char*>(msg->payload()), msg->len());
                 std::cout << "Received event: " << event << "\n";
 
+                std::string traceparent;
+                if (auto* hdrs = msg->headers()) {
+                    auto h = hdrs->get_last("traceparent");
+                    if (h.err() == RdKafka::ERR_NO_ERROR && h.value_string() != nullptr)
+                        traceparent.assign(static_cast<const char*>(h.value()), h.value_size());
+                }
+                std::string order_id;
+                {
+                    Json::Value root;
+                    Json::CharReaderBuilder b;
+                    std::string errs;
+                    std::istringstream is(event);
+                    if (Json::parseFromStream(b, is, &root, &errs) && root.isObject())
+                        order_id = root.get("id", "").asString();
+                }
+                auto span = cndp::telemetry::start_consumer_span(
+                    "notification-consumer", "order.placed process", traceparent, order_id);
+
                 Outcome outcome;
                 while ((outcome = process_event(event)) == Outcome::Retry && !g_shutdown) {
                     std::this_thread::sleep_for(std::chrono::seconds(1));
                 }
+                span->End();
                 if (outcome == Outcome::Retry) break;  // shutting down: leave the offset uncommitted
                 // Commit only after the side effect, so a crash redelivers rather than loses.
                 if (RdKafka::ErrorCode err = consumer->commitSync(msg.get()); err != RdKafka::ERR_NO_ERROR) {
@@ -154,6 +178,7 @@ int main() {
     RdKafka::wait_destroyed(5000);
     if (g_pg_conn) PQfinish(g_pg_conn);
 
+    cndp::telemetry::shutdown();
     std::cout << "Notification consumer shutdown complete\n";
     return 0;
 }

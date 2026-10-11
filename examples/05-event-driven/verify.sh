@@ -7,22 +7,57 @@ BASE="${BASE:-http://localhost:8080}"
 CURL_OPTS="${CURL_OPTS:-}"
 
 # Container operations go through these helpers so the checks do not hard-code
-# an engine. RUNTIME=openshift is added later: a ctr_target function will map
-# a container name (cndp-kafka, cndp-postgres, ...) to its pod and each helper
-# will call `oc exec` / `oc logs` instead.
+# an engine. RUNTIME=docker (default) calls the docker CLI on compose containers.
+# RUNTIME=kubernetes calls `$KUBECTL exec` against the pods that stand in for
+# those containers: ctr_target maps a container name (cndp-kafka, cndp-postgres)
+# to its pod. Set KUBECTL=oc for OpenShift.
+KUBECTL="${KUBECTL:-kubectl}"
+KUBE_CONTEXT="${KUBE_CONTEXT:-cndp-k8s}"
+KUBE_NAMESPACE="${KUBE_NAMESPACE:-cndp-05}"
+KAFKA_TARGET="${KAFKA_TARGET:-pod/cndp-dual-role-0 -c kafka}"
+POSTGRES_TARGET="${POSTGRES_TARGET:-pod/cndp-postgres-0}"
+
+unsupported() { echo "$1 is not supported on RUNTIME=$RUNTIME" >&2; return 1; }
+
 case "$RUNTIME" in
-    docker) ;;
-    *) echo "RUNTIME=$RUNTIME not supported yet" >&2; exit 1 ;;
+    docker)
+        ctr_exec()    { docker exec "$@"; }
+        ctr_logs()    { docker logs "$@"; }
+        ctr_stop()    { docker stop "$@"; }
+        ctr_start()   { docker start "$@"; }
+        ctr_rm()      { docker rm "$@"; }
+        ctr_kill()    { docker kill --signal "${2:-KILL}" "$1"; }  # ctr_kill <container> [signal]
+        ctr_pause()   { docker pause "$@"; }
+        ctr_unpause() { docker unpause "$@"; }
+        ctr_compose() { docker compose "$@"; }
+        ;;
+    kubernetes)
+        ctr_target() {
+            case "$1" in
+                cndp-kafka)    echo "$KAFKA_TARGET" ;;
+                cndp-postgres) echo "$POSTGRES_TARGET" ;;
+                *) echo "no pod mapped to container $1 on RUNTIME=kubernetes" >&2; return 1 ;;
+            esac
+        }
+        ctr_exec() {  # ctr_exec <container> <command...>
+            local target
+            local -a args
+            target="$(ctr_target "$1")" || return 1
+            shift
+            read -r -a args <<<"$target"
+            "$KUBECTL" --context "$KUBE_CONTEXT" -n "$KUBE_NAMESPACE" exec "${args[@]}" -- "$@"
+        }
+        ctr_logs()    { unsupported ctr_logs; }
+        ctr_stop()    { unsupported ctr_stop; }
+        ctr_start()   { unsupported ctr_start; }
+        ctr_rm()      { unsupported ctr_rm; }
+        ctr_kill()    { unsupported ctr_kill; }
+        ctr_pause()   { unsupported ctr_pause; }
+        ctr_unpause() { unsupported ctr_unpause; }
+        ctr_compose() { unsupported ctr_compose; }
+        ;;
+    *) echo "RUNTIME=$RUNTIME not supported (docker, kubernetes)" >&2; exit 1 ;;
 esac
-ctr_exec()    { docker exec "$@"; }
-ctr_logs()    { docker logs "$@"; }
-ctr_stop()    { docker stop "$@"; }
-ctr_start()   { docker start "$@"; }
-ctr_rm()      { docker rm "$@"; }
-ctr_kill()    { docker kill --signal "${2:-KILL}" "$1"; }  # ctr_kill <container> [signal]
-ctr_pause()   { docker pause "$@"; }
-ctr_unpause() { docker unpause "$@"; }
-ctr_compose() { docker compose "$@"; }
 
 PASS=0
 FAIL=0
@@ -100,17 +135,26 @@ check "notification-group consumer group exists" \
 
 # --- Idempotent consumers: re-deliver same event and verify no duplicates ---
 printf '  \xe2\x86\x92 testing idempotent consumers (re-sending duplicate event)...\n'
+# A failed send must not abort the script (set -e) and must not let the two checks
+# below pass vacuously: with dup_sent=0 their commands fail, so they report a failure.
+dup_sent=1
+dup_was_sent() { [[ $dup_sent == 1 ]]; }
 DUPLICATE_EVENT="{\"id\":\"$ORDER_ID\",\"sku\":\"widget-a\",\"quantity\":5,\"status\":\"pending\"}"
-ctr_exec cndp-kafka bash -c "echo '$DUPLICATE_EVENT' | /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic order.placed" >/dev/null 2>&1
+ctr_exec cndp-kafka bash -c "echo '$DUPLICATE_EVENT' | /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic order.placed" >/dev/null 2>&1 || dup_sent=0
 sleep 8
 
 check "shipping remains idempotent (still 1 row after duplicate)" \
-    "ctr_exec cndp-postgres psql -U appuser -d appdb -tAc \"SELECT count(*) FROM shipments WHERE order_id='$ORDER_ID'\"" \
+    "dup_was_sent && ctr_exec cndp-postgres psql -U appuser -d appdb -tAc \"SELECT count(*) FROM shipments WHERE order_id='$ORDER_ID'\"" \
     "1"
 
 check "notification remains idempotent (still 1 row after duplicate)" \
-    "ctr_exec cndp-postgres psql -U appuser -d appdb -tAc \"SELECT count(*) FROM notifications WHERE order_id='$ORDER_ID'\"" \
+    "dup_was_sent && ctr_exec cndp-postgres psql -U appuser -d appdb -tAc \"SELECT count(*) FROM notifications WHERE order_id='$ORDER_ID'\"" \
     "1"
 
 printf '\n==> Results: %d passed, %d failed\n' "$PASS" "$FAIL"
-[[ $FAIL -eq 0 ]] && printf '==> PASS\n' || { printf '==> FAIL\n'; exit 1; }
+if [[ $FAIL -eq 0 ]]; then
+    printf '==> PASS\n'
+else
+    printf '==> FAIL\n'
+    exit 1
+fi

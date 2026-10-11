@@ -15,11 +15,37 @@ import (
 	"github.com/cenkalti/backoff/v7"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	res := resource.NewWithAttributes(semconv.SchemaURL, semconv.ServiceName(serviceName()))
+	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	if endpoint == "" {
+		endpoint = "http://lgtm:4318"
+	}
+	traceExp, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpoint(stripScheme(endpoint)), otlptracehttp.WithInsecure())
+	if err != nil {
+		slog.Error("otlp exporter init failed", "err", err)
+		os.Exit(1)
+	}
+	tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(traceExp), sdktrace.WithResource(res))
+	defer tp.Shutdown(context.Background())
+	otel.SetTracerProvider(tp)
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+	tracer := tp.Tracer("order-service")
 
 	pool, err := pgxpool.New(ctx, os.Getenv("DATABASE_URL"))
 	if err != nil {
@@ -73,18 +99,25 @@ func main() {
 		event, _ := json.Marshal(map[string]any{
 			"id": id, "sku": in.SKU, "quantity": in.Quantity, "status": "pending",
 		})
-		rec := &kgo.Record{Topic: "order.placed", Key: []byte(id), Value: event}
+		produceCtx, span := tracer.Start(r.Context(), "order.placed publish", trace.WithSpanKind(trace.SpanKindProducer))
+		span.SetAttributes(attribute.String("messaging.system", "kafka"), attribute.String("messaging.destination.name", "order.placed"))
+		headers := make([]kgo.RecordHeader, 0, 1)
+		otel.GetTextMapPropagator().Inject(produceCtx, &kafkaHeaderCarrier{headers: &headers})
+		rec := &kgo.Record{Topic: "order.placed", Key: []byte(id), Value: event, Headers: headers}
 		produceBackoff := backoff.NewExponentialBackOff()
 		produceBackoff.InitialInterval = 500 * time.Millisecond
 		produceBackoff.MaxInterval = 2 * time.Second
-		if _, err := backoff.Retry(r.Context(), func() (struct{}, error) {
-			return struct{}{}, producer.ProduceSync(r.Context(), rec).FirstErr()
+		if _, err := backoff.Retry(produceCtx, func() (struct{}, error) {
+			return struct{}{}, producer.ProduceSync(produceCtx, rec).FirstErr()
 		}, backoff.WithBackOff(produceBackoff), backoff.WithMaxTries(5),
 			backoff.WithNotify(func(err error, next time.Duration) {
 				slog.Warn("kafka produce retry", "err", err, "next_in", next)
 			})); err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "produce failed")
 			slog.Error("kafka produce failed", "err", err)
 		}
+		span.End()
 
 		slog.Info("order placed", "id", id, "sku", in.SKU)
 		w.Header().Set("Content-Type", "application/json")
@@ -119,7 +152,7 @@ func main() {
 		json.NewEncoder(w).Encode(orders)
 	})
 
-	srv := &http.Server{Addr: ":8080", Handler: mux}
+	srv := &http.Server{Addr: ":8080", Handler: otelhttp.NewHandler(mux, "order-service")}
 	go func() {
 		sigCtx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 		defer stopSignals()
@@ -140,4 +173,45 @@ func newUUID() string {
 	b[6] = (b[6] & 0x0f) | 0x40
 	b[8] = (b[8] & 0x3f) | 0x80
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+}
+
+type kafkaHeaderCarrier struct {
+	headers *[]kgo.RecordHeader
+}
+
+func (c *kafkaHeaderCarrier) Get(key string) string {
+	for _, h := range *c.headers {
+		if h.Key == key {
+			return string(h.Value)
+		}
+	}
+	return ""
+}
+
+func (c *kafkaHeaderCarrier) Set(key, val string) {
+	*c.headers = append(*c.headers, kgo.RecordHeader{Key: key, Value: []byte(val)})
+}
+
+func (c *kafkaHeaderCarrier) Keys() []string {
+	keys := make([]string, 0, len(*c.headers))
+	for _, h := range *c.headers {
+		keys = append(keys, h.Key)
+	}
+	return keys
+}
+
+func serviceName() string {
+	if n := os.Getenv("OTEL_SERVICE_NAME"); n != "" {
+		return n
+	}
+	return "order-service"
+}
+
+func stripScheme(url string) string {
+	for _, p := range []string{"http://", "https://"} {
+		if len(url) > len(p) && url[:len(p)] == p {
+			return url[len(p):]
+		}
+	}
+	return url
 }

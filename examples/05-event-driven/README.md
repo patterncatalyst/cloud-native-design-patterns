@@ -70,6 +70,17 @@ docker exec cndp-kafka /opt/kafka/bin/kafka-consumer-groups.sh \
   --bootstrap-server localhost:9092 --list
 ```
 
+## Run on minikube
+
+The same services and the same `verify.sh` run on a single-node minikube cluster (Docker
+driver, Kubernetes v1.36.5) with Kafka managed by the Strimzi operator. See
+[`k8s/README.md`](k8s/README.md) for the commands and Appendix R in the site for the design.
+
+```bash
+k8s/setup-profile.sh && k8s/build-images.sh go && k8s/deploy.sh go
+RUNTIME=kubernetes BASE=http://127.0.0.1:30080 ./verify.sh
+```
+
 ## Verify
 
 From the example root (not the language directory):
