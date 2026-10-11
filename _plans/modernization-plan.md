@@ -30,11 +30,11 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | S5 | chore/python-3.14 | 5 | done (19/19 Python + 28 PASS after the Opus review) |
 | S6 | chore/go-toolchain | 2+4 | done (18/18 Go + 06 in all six languages PASS after the Opus review; closes #34) |
 | S7 | chore/cpp-toolchain-ubi10 | 2+4 | done (111/111 PASS after two Opus repair rounds; closes #35) |
-| S8 | chore/infra-images | 2 | validated (awaiting PR/CI) |
+| S8 | chore/infra-images | 2 | done (111/111 PASS; two Opus repair rounds; PR #66; lgtm-skills #45 + r5.x; main run green, Actions cache 2.4 GB) |
 | S9 | docs/minikube-docker-driver (+ 05 on minikube) | 7 | pending |
 | S10 | feature/openshift-local-appendix | 8 | pending |
 | S11 | docs/professional-voice | 9 | pending |
-| S12 | docs/deck-refresh | 10 | pending |
+| S12 | docs/deck-refresh | 10 (expanded 2026-10-11) | pending |
 
 ## Target pins (verified 2026-10-09; re-check at the start of each branch)
 
@@ -82,7 +82,12 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 - S9: minikube appendix with evidence; profile stopped.
 - S10: Appendix R with evidence for 5 languages; scrub clean; CRC stopped and clean.
 - S11: voice scan reports zero ban-tier hits and is enforced in CI.
-- S12: 0 references to the old container engine in the decks; current versions; OpenShift Local slides; rendered and inspected.
+- S12 (scope expanded by the user 2026-10-11): review every presentation in `lgtm-presentation/` (the six Designing-Cloud-Native-APIs decks, K8s-Environment-Access-Policies, Network-Policy-Process-Advisory, and their .md/.docx companions) for:
+  - version changes (every version on a slide matches the S2–S8 pins);
+  - stack changes (Docker Engine, not podman; locked libraries such as Streamiz, faust-streaming, goka, librdkafka C++, C++23; kafka-ui removed);
+  - code changes (every code snippet on a slide matches the current example code and APIs, e.g. Spring Boot 4 / Jackson 3, Quarkus 3.40, .NET 10, Python 3.14, Go 1.27, C++23);
+  - wording and professionalism (lgtm-professional-voice: zero ban-tier hits);
+  - 0 references to the old container engine; minikube and OpenShift Local slides; every deck rendered and inspected.
 
 ## Evidence
 
