@@ -10,6 +10,10 @@
 #include <mutex>
 #include <thread>
 
+#include <spdlog/spdlog.h>
+
+#include "telemetry.hpp"
+
 using namespace drogon;
 
 std::atomic<bool> g_shutdown{false};
@@ -106,6 +110,11 @@ int main() {
     std::signal(SIGTERM, signal_handler);
     std::signal(SIGINT, signal_handler);
 
+    {
+        const char* svc = std::getenv("OTEL_SERVICE_NAME");
+        cndp::telemetry::init(svc ? svc : "order-service");
+    }
+
     try {
         init_pg();
         init_kafka();
@@ -132,6 +141,18 @@ int main() {
     app().registerHandler("/orders",
         [](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& callback) {
             try {
+                auto tracer = cndp::telemetry::tracer("order-service");
+                opentelemetry::trace::StartSpanOptions server_opts;
+                server_opts.kind = opentelemetry::trace::SpanKind::kServer;
+                cndp::telemetry::SpanPtr root = tracer->StartSpan(
+                    "POST /orders", {{"http.request.method", "POST"}, {"url.path", "/orders"}},
+                    server_opts);
+                // Every return below ends the request span.
+                struct SpanGuard {
+                    cndp::telemetry::SpanPtr& s;
+                    ~SpanGuard() { s->End(); }
+                } root_guard{root};
+
                 auto json = req->getJsonObject();
                 if (!json || !json->isMember("sku") || !json->isMember("quantity")) {
                     auto resp = HttpResponse::newHttpResponse();
@@ -166,7 +187,14 @@ int main() {
                 PQclear(res);
                 pg_lock.unlock();
 
-                // Publish to Kafka
+                // Publish to Kafka: producer span, its context travels as a traceparent header.
+                opentelemetry::trace::StartSpanOptions producer_opts;
+                producer_opts.kind = opentelemetry::trace::SpanKind::kProducer;
+                producer_opts.parent = root->GetContext();
+                cndp::telemetry::SpanPtr pub = tracer->StartSpan(
+                    "order.placed publish",
+                    {{"messaging.system", "kafka"}, {"messaging.destination.name", "order.placed"}},
+                    producer_opts);
                 std::ostringstream event;
                 event << "{\"id\":\"" << json_escape(order_id) << "\","
                       << "\"sku\":\"" << json_escape(sku) << "\","
@@ -175,11 +203,16 @@ int main() {
 
                 std::string event_str = event.str();
                 // Enqueue; the delivery report callback logs the outcome.
+                RdKafka::Headers* headers = RdKafka::Headers::create();
+                headers->add("traceparent", cndp::telemetry::traceparent_of(pub));
                 RdKafka::ErrorCode perr = g_producer->produce(
                     "order.placed", RdKafka::Topic::PARTITION_UA, RdKafka::Producer::RK_MSG_COPY,
-                    event_str.data(), event_str.size(), nullptr, 0, 0, nullptr);
+                    event_str.data(), event_str.size(), nullptr, 0, 0, headers, nullptr);
                 if (perr != RdKafka::ERR_NO_ERROR) {
-                    LOG_ERROR << "Kafka send failed: " << RdKafka::err2str(perr);
+                    delete headers;  // librdkafka owns the headers only when produce() succeeds
+                    pub->SetStatus(opentelemetry::trace::StatusCode::kError, "produce failed");
+                    pub->End();
+                    spdlog::error("Kafka send failed: {}", RdKafka::err2str(perr));
                     // The event was not even queued: do not report the order as placed.
                     Json::Value err;
                     err["error"] = "event not published";
@@ -188,6 +221,11 @@ int main() {
                     callback(resp);
                     return;
                 }
+
+                pub->End();
+                root->SetAttribute("order.id", order_id);
+                spdlog::info("order placed id={} sku={} trace_id={}", order_id, sku,
+                             cndp::telemetry::trace_id_of(root));
 
                 // Return response
                 Json::Value resp_json;
@@ -249,5 +287,6 @@ int main() {
     if (g_poller.joinable()) g_poller.join();
     g_producer.reset();
     if (g_pg_conn) PQfinish(g_pg_conn);
+    cndp::telemetry::shutdown();
     return 0;
 }

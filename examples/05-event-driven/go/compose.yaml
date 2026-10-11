@@ -28,6 +28,7 @@ services:
       - DATABASE_URL=postgres://appuser:apppass@postgres:5432/appdb
       - KAFKA_BOOTSTRAP=kafka:9094
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+      - OTEL_SERVICE_NAME=order-service
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]
       interval: 5s
@@ -51,6 +52,7 @@ services:
       - DATABASE_URL=postgres://appuser:apppass@postgres:5432/appdb
       - KAFKA_BOOTSTRAP=kafka:9094
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+      - OTEL_SERVICE_NAME=shipping-consumer
 
   notification-consumer:
     build:
@@ -68,3 +70,4 @@ services:
       - DATABASE_URL=postgres://appuser:apppass@postgres:5432/appdb
       - KAFKA_BOOTSTRAP=kafka:9094
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+      - OTEL_SERVICE_NAME=notification-consumer

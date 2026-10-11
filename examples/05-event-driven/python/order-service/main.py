@@ -23,7 +23,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgres://appuser:apppass@postgres:54
 KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "kafka:9094")
 OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://lgtm:4318")
 
-resource = Resource.create({"service.name": "order"})
+resource = Resource.create({"service.name": os.getenv("OTEL_SERVICE_NAME", "order-service")})
 provider = TracerProvider(resource=resource)
 provider.add_span_processor(
     BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{OTEL_ENDPOINT}/v1/traces"))
