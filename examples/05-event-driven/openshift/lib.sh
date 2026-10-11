@@ -114,7 +114,7 @@ inventory() {
     echo "  csvs (excluding packageserver):"
     ocx get csv -A --no-headers 2>/dev/null | awk '$2 !~ /^packageserver/ {print "    " $1 "/" $2}'
     echo "  namespaces (excluding platform):"
-    ocx get ns -o name 2>/dev/null | grep -v -E '^namespace/(openshift|kube-|default$|hostpath-provisioner$)' | sed 's/^namespace\//    /'
+    ocx get ns -o name 2>/dev/null | grep -v -E '^namespace/(openshift|kube-|default$|hostpath-provisioner$)' | sed 's/^namespace\//    /' || true
     return 0
 }
 
