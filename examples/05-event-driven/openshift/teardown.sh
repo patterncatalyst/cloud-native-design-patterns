@@ -29,7 +29,7 @@ case "${1:-}" in
 esac
 
 require_tools
-if ! crc_running; then
+if ! crc_vm_running; then
     echo "OpenShift Local is not running; nothing to tear down."
     exit 0
 fi

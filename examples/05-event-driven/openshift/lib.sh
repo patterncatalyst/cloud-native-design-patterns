@@ -77,6 +77,16 @@ require_alone() {
 }
 
 crc_running() { crc status 2>/dev/null | grep -q 'OpenShift:.*Running'; }
+crc_vm_running() { crc status 2>/dev/null | grep -q 'CRC VM:.*Running'; }
+
+# Every ClusterOperator Available, not Progressing, not Degraded. A configuration change such as
+# enabling the registry's default route rolls the API servers, and crc status reports "Starting"
+# until that finishes.
+cluster_settled() {
+    ocx get clusteroperators -o json 2>/dev/null | jq -e '[.items[].status.conditions
+        | map({(.type): .status}) | add
+        | select(.Available != "True" or .Progressing != "False" or .Degraded != "False")] | length == 0' >/dev/null
+}
 
 # require_tools: the host tools every script needs.
 require_tools() {
@@ -90,7 +100,8 @@ require_tools() {
 # Nothing is switched: the context is used by name on every call.
 require_crc() {
     require_tools
-    crc_running || fail "OpenShift Local is not running. Run openshift/setup-crc.sh first"
+    crc_vm_running || fail "OpenShift Local is not running. Run openshift/setup-crc.sh first"
+    crc_running || wait_for 1200 "OpenShift settled (crc status Running)" crc_running
     oc config get-contexts "$OCP_CONTEXT" -o name >/dev/null 2>&1 \
         || fail "kubeconfig context $OCP_CONTEXT not found (crc start writes it)"
     local api

@@ -49,7 +49,7 @@ trap restore_context EXIT
 if (( had_context )); then ok "recorded: $prior_context"; else ok "recorded: none set"; fi
 
 step "OpenShift Local"
-if crc_running; then
+if crc_vm_running; then
     ok "already running"
 else
     status_text="$(crc status 2>&1 || true)"
@@ -85,6 +85,7 @@ else
 fi
 wait_for 300 "registry route exists" bash -c "[[ -n \"\$(oc --context '$OCP_CONTEXT' get route default-route -n openshift-image-registry -o jsonpath='{.spec.host}' 2>/dev/null)\" ]]"
 ok "registry: $(registry_route)"
+wait_for 1200 "cluster operators settled" cluster_settled
 
 step "Inventory"
 inventory
