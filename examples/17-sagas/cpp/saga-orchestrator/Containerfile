@@ -1,46 +1,86 @@
-FROM registry.access.redhat.com/ubi9/ubi:9.5 AS builder
+# examples/17-sagas/cpp/saga-orchestrator: Drogon + boost::sml + libpq on UBI 10, GCC 15, C++23.
+#
+# Builder: UBI 10.2 + gcc-toolset-15 (GCC 15.2, C++23), CMake 4.4.4 and Ninja 1.13.2
+# from the upstream release binaries (sha256-verified; UBI ships cmake 3.31 / ninja 1.11),
+# Conan 2.33.0 in a venv. Dependencies come from ConanCenter through a BuildKit cache
+# mount on the Conan home, so a rebuild only compiles what changed.
+# Runtime: ubi10/ubi-minimal, non-root (UID 1001, group 0), libstdc++ and libgcc linked
+# statically because gcc-toolset-15's libstdc++ is newer than the one in ubi-minimal.
 
-RUN rm -f /etc/yum.repos.d/redhat.repo 2>/dev/null || true
+FROM registry.access.redhat.com/ubi10/ubi:10.2-1791444044 AS builder
 
-RUN dnf install -y --quiet --setopt=install_weak_deps=False \
-        gcc-toolset-14 cmake ninja-build git python3-pip \
-        libpq-devel \
+RUN dnf install -y --setopt=install_weak_deps=False \
+        gcc-toolset-15 git make python3 python3-pip tar gzip which \
         perl-FindBin perl-IPC-Cmd perl-Data-Dumper perl-Pod-Html \
         perl-Pod-Usage perl-File-Compare perl-File-Copy perl-File-Path \
         perl-Time-Piece perl-Getopt-Long perl-Digest-SHA \
         perl-threads perl-threads-shared perl-Thread-Queue \
-        perl-Term-ANSIColor which \
-    && dnf clean all && rm -rf /var/cache/dnf/*
+        perl-Term-ANSIColor perl-lib \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf/*
 
-ENV PATH="/opt/rh/gcc-toolset-14/root/usr/bin:${PATH}"
-ENV LD_LIBRARY_PATH="/opt/rh/gcc-toolset-14/root/usr/lib64"
-ENV CMAKE_POLICY_VERSION_MINIMUM=3.5
+# CMake and Ninja: upstream release binaries, checksum-verified.
+RUN set -eux; \
+    arch="$(uname -m)"; \
+    case "$arch" in \
+        x86_64)  cmake_sha=e5bb807f7728cb60cd8b27ebc97a2edb469b68655f21e844a600c3575b76f5bb; \
+                 ninja_zip=ninja-linux.zip; \
+                 ninja_sha=5749cbc4e668273514150a80e387a957f933c6ed3f5f11e03fb30955e2bbead6 ;; \
+        aarch64) cmake_sha=a1b6cc63636a0e55c63257cf3315a8a5f129e42fade25db1afea4ff8ab06f25e; \
+                 ninja_zip=ninja-linux-aarch64.zip; \
+                 ninja_sha=fd2cacc8050a7f12a16a2e48f9e06fca5c14fc4c2bee2babb67b58be17a607fc ;; \
+        *) echo "unsupported arch $arch" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL -o /tmp/cmake.tgz "https://github.com/Kitware/CMake/releases/download/v4.4.4/cmake-4.4.4-linux-${arch}.tar.gz"; \
+    echo "${cmake_sha}  /tmp/cmake.tgz" | sha256sum -c -; \
+    mkdir -p /opt/cmake && tar -xzf /tmp/cmake.tgz -C /opt/cmake --strip-components=1; \
+    curl -fsSL -o /tmp/ninja.zip "https://github.com/ninja-build/ninja/releases/download/v1.13.2/${ninja_zip}"; \
+    echo "${ninja_sha}  /tmp/ninja.zip" | sha256sum -c -; \
+    python3 -m zipfile -e /tmp/ninja.zip /opt/cmake/bin; chmod +x /opt/cmake/bin/ninja; \
+    rm -f /tmp/cmake.tgz /tmp/ninja.zip
 
-RUN pip3 install --no-cache-dir "conan~=2.0"
-RUN conan profile detect --force && \
-    sed -i 's|^compiler.cppstd=.*|compiler.cppstd=gnu17|' /root/.conan2/profiles/default
+# Conan 2.33.0, pinned, in its own venv.
+RUN python3 -m venv /opt/conan && /opt/conan/bin/pip install --no-cache-dir conan==2.33.0
+
+ENV PATH="/opt/rh/gcc-toolset-15/root/usr/bin:/opt/cmake/bin:/opt/conan/bin:${PATH}" \
+    LD_LIBRARY_PATH="/opt/rh/gcc-toolset-15/root/usr/lib64"
 
 WORKDIR /src
-COPY conanfile.py ./
-RUN conan install . --build=missing -of=build -s build_type=Release
+COPY conanfile.py conan.lock ./
+# The Conan home is a cache mount (profile and packages persist between builds); the
+# deployer copies the built packages next to the sources so the later layers do not need it.
+# flex and bison (libpq build tools) run makeinfo for their manuals, and texinfo is not in UBI;
+# the scoped confs below make their configure use `true` instead.
+RUN --mount=type=cache,id=cndp-conan2,target=/root/.conan2,sharing=locked \
+    conan profile detect --force \
+    && sed -i 's|^compiler.cppstd=.*|compiler.cppstd=23|' "$(conan profile path default)" \
+    && conan install . --output-folder=build/conan --deployer=full_deploy \
+           --lockfile=conan.lock --build=missing \
+           -s build_type=Release \
+           -c:a 'flex/*:tools.gnu:extra_configure_args=["MAKEINFO=true"]' \
+           -c:a 'bison/*:tools.gnu:extra_configure_args=["MAKEINFO=true"]' \
+           -c tools.build:jobs="$(nproc)" -c tools.cmake.cmaketoolchain:generator=Ninja
 
 COPY CMakeLists.txt ./
 COPY src/ src/
-
-RUN source /opt/rh/gcc-toolset-14/enable && \
-    cd build && \
-    cmake .. -G Ninja \
+COPY tests/ tests/
+RUN cmake -S . -B build -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake \
-        -DCMAKE_CXX_STANDARD=23 && \
-    ninja
+        -DCMAKE_TOOLCHAIN_FILE=build/conan/conan_toolchain.cmake \
+    && cmake --build build -j"$(nproc)" \
+    && ctest --test-dir build --output-on-failure \
+    && strip --strip-all build/saga-orchestrator
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.5 AS runtime
+# ---------------------------------------------------------------------------
+# Runtime: ubi-minimal, non-root, statically linked C++ runtime (curl is in the base
+# image for the compose healthchecks).
+# ---------------------------------------------------------------------------
+FROM registry.access.redhat.com/ubi10/ubi-minimal:10.2-1791444377 AS runtime
 
-RUN microdnf install -y --setopt=install_weak_deps=0 libstdc++ libpq && \
-    microdnf clean all && rm -rf /var/cache/yum
-
-COPY --from=builder /src/build/saga-orchestrator /usr/local/bin/saga-orchestrator
-
+COPY --from=builder --chown=1001:0 --chmod=g=u /src/build/saga-orchestrator /usr/local/bin/saga-orchestrator
+# Drogon creates its upload directories under the working directory.
+WORKDIR /tmp
+USER 1001
 EXPOSE 8080
+
 ENTRYPOINT ["/usr/local/bin/saga-orchestrator"]

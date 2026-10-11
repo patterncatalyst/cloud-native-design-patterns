@@ -1,18 +1,63 @@
 #include <drogon/drogon.h>
+#include <cmath>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <memory>
 #include <mutex>
+#include <sstream>
 #include <string>
+
+#include "routing_engine.hpp"
 
 using namespace drogon;
 
+// Live rule inputs (GET/PUT /rules). The policy itself is the Lua script.
 struct RoutingRules {
     std::mutex mu;
-    int vip_threshold = 1000;
-    std::string priority_topic = "orders.priority";
-    std::string default_topic = "orders.default";
+    cndp::routing::Rules values;
+
+    cndp::routing::Rules snapshot() {
+        std::lock_guard<std::mutex> lock(mu);
+        return values;
+    }
 };
+
+// JSON numbers that are whole print without a fraction (1000, not 1000.0).
+static Json::Value number(double v) {
+    if (std::floor(v) == v && std::fabs(v) < 9e15) return Json::Value(static_cast<Json::Int64>(v));
+    return Json::Value(v);
+}
+
+static Json::Value rules_json(const cndp::routing::Rules& r) {
+    Json::Value j;
+    j["vip_threshold"] = number(r.vip_threshold);
+    j["priority_topic"] = r.priority_topic;
+    j["default_topic"] = r.default_topic;
+    return j;
+}
+
+static std::string load_script() {
+    const char* path = std::getenv("ROUTING_RULES_FILE");
+    if (!path) path = "/usr/share/router-service/routing.lua";
+    std::ifstream in(path);
+    if (!in) throw std::runtime_error(std::string("cannot read rules file ") + path);
+    std::ostringstream ss;
+    ss << in.rdbuf();
+    return ss.str();
+}
 
 int main() {
     auto rules = std::make_shared<RoutingRules>();
+
+    std::shared_ptr<cndp::routing::RoutingEngine> engine;
+    try {
+        // Compiles the script once at startup: a bad rules file stops the service here.
+        engine = std::make_shared<cndp::routing::RoutingEngine>(load_script());
+    } catch (const std::exception& e) {
+        std::cerr << "invalid rules script: " << e.what() << std::endl;
+        return 1;
+    }
 
     app().setLogLevel(trantor::Logger::kInfo);
     app().setUploadPath("/tmp");
@@ -26,7 +71,7 @@ int main() {
         {Get});
 
     app().registerHandler("/orders",
-        [rules](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& callback) {
+        [rules, engine](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& callback) {
             auto body = req->getJsonObject();
             if (!body) {
                 auto resp = HttpResponse::newHttpJsonResponse(Json::Value("invalid json"));
@@ -35,24 +80,30 @@ int main() {
                 return;
             }
 
-            std::string sku = (*body)["sku"].asString();
-            double amount = (*body)["amount"].asDouble();
+            const std::string sku = (*body)["sku"].asString();
+            const int quantity = (*body)["quantity"].asInt();
+            const double amount = (*body)["amount"].asDouble();
 
-            std::string routedTo;
-            bool vip;
-            {
-                std::lock_guard<std::mutex> lock(rules->mu);
-                vip = amount >= rules->vip_threshold;
-                routedTo = vip ? rules->priority_topic : rules->default_topic;
+            cndp::routing::Decision d;
+            try {
+                d = engine->route(sku, quantity, amount, rules->snapshot());
+            } catch (const std::exception& e) {
+                LOG_ERROR << "rule evaluation failed: " << e.what();
+                Json::Value err;
+                err["detail"] = "rule evaluation failed";
+                auto resp = HttpResponse::newHttpJsonResponse(err);
+                resp->setStatusCode(k500InternalServerError);
+                callback(resp);
+                return;
             }
 
             LOG_INFO << "ROUTED sku=" << sku << " amount=" << amount
-                     << " -> " << routedTo << (vip ? " (VIP)" : "");
+                     << " -> " << d.topic << (d.vip ? " (VIP)" : "");
 
             Json::Value resp;
-            resp["routed_to"] = routedTo;
-            resp["vip"] = vip;
-            resp["amount"] = amount;
+            resp["routed_to"] = d.topic;
+            resp["vip"] = d.vip;
+            resp["amount"] = number(amount);
 
             auto httpResp = HttpResponse::newHttpJsonResponse(resp);
             httpResp->setStatusCode(k201Created);
@@ -62,14 +113,7 @@ int main() {
 
     app().registerHandler("/rules",
         [rules](const HttpRequestPtr&, std::function<void(const HttpResponsePtr&)>&& callback) {
-            Json::Value resp;
-            {
-                std::lock_guard<std::mutex> lock(rules->mu);
-                resp["vip_threshold"] = rules->vip_threshold;
-                resp["priority_topic"] = rules->priority_topic;
-                resp["default_topic"] = rules->default_topic;
-            }
-            callback(HttpResponse::newHttpJsonResponse(resp));
+            callback(HttpResponse::newHttpJsonResponse(rules_json(rules->snapshot())));
         },
         {Get});
 
@@ -83,28 +127,20 @@ int main() {
                 return;
             }
 
+            cndp::routing::Rules now;
             {
                 std::lock_guard<std::mutex> lock(rules->mu);
-                if (body->isMember("vip_threshold"))
-                    rules->vip_threshold = (*body)["vip_threshold"].asInt();
-                if (body->isMember("priority_topic"))
-                    rules->priority_topic = (*body)["priority_topic"].asString();
-                if (body->isMember("default_topic"))
-                    rules->default_topic = (*body)["default_topic"].asString();
+                auto& v = rules->values;
+                if ((*body)["vip_threshold"].isNumeric()) v.vip_threshold = (*body)["vip_threshold"].asDouble();
+                if ((*body)["priority_topic"].isString()) v.priority_topic = (*body)["priority_topic"].asString();
+                if ((*body)["default_topic"].isString()) v.default_topic = (*body)["default_topic"].asString();
+                now = v;
             }
-
-            Json::Value resp;
-            {
-                std::lock_guard<std::mutex> lock(rules->mu);
-                resp["vip_threshold"] = rules->vip_threshold;
-                resp["priority_topic"] = rules->priority_topic;
-                resp["default_topic"] = rules->default_topic;
-                LOG_INFO << "RULES_UPDATED " << resp.toStyledString();
-            }
-            callback(HttpResponse::newHttpJsonResponse(resp));
+            LOG_INFO << "RULES_UPDATED vip_threshold=" << now.vip_threshold;
+            callback(HttpResponse::newHttpJsonResponse(rules_json(now)));
         },
         {Put});
 
-    LOG_INFO << "Router service starting on 0.0.0.0:8080";
+    LOG_INFO << "Router service starting on 0.0.0.0:8080 (rules engine: " << LUA_RELEASE << ")";
     app().addListener("0.0.0.0", 8080).run();
 }

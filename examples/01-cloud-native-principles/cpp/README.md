@@ -1,6 +1,6 @@
 # Example 01: Cloud-Native Principles — C++
 
-C++ implementation of the cloud-native principles chapter using **Drogon** (REST framework) and **libpq** (PostgreSQL C client).
+C++23 implementation of the cloud-native principles chapter using **Drogon** (REST framework), **libpq** (PostgreSQL C client) and **OpenTelemetry C++** (OTLP traces).
 
 ## What it demonstrates
 
@@ -11,15 +11,16 @@ C++ implementation of the cloud-native principles chapter using **Drogon** (REST
 
 ## Stack
 
-- **Drogon 1.9.8**: High-performance C++ REST framework with built-in JSON support (jsoncpp)
-- **libpq**: PostgreSQL C client (system package from UBI AppStream, not from Conan)
-- **spdlog 1.15**: Structured logging
-- **Build**: Conan 2 + CMake 3.25 + Ninja + GCC 14 on UBI 9
+- **Drogon 1.9.13**: High-performance C++ REST framework with built-in JSON support (jsoncpp)
+- **libpq 17.11**: PostgreSQL C client (Conan, linked statically; direct, no libpqxx)
+- **spdlog 1.17.0**: Logging; handlers add `trace_id` so a log line joins its trace
+- **opentelemetry-cpp 1.26.0**: one server span per request, continuing an incoming `traceparent`, exported over OTLP/HTTP to `OTEL_EXPORTER_OTLP_ENDPOINT` (`http://lgtm:4318`); resource attributes from `OTEL_SERVICE_NAME` / `OTEL_RESOURCE_ATTRIBUTES`
+- **Build**: Conan 2.33.0 + CMake 4.4.4 + Ninja 1.13.2 + GCC 15.2 (`gcc-toolset-15`), C++23, on UBI 10; runtime `ubi10/ubi-minimal` with libstdc++ linked statically
 - **Connection pool**: Production-quality `pg_pool.hpp` with RAII checkout pattern (borrowed from cpp-container-optimization-tutorial)
 
 ## Differences from the tutorial's Quarkus implementation
 
-| Quarkus 3.40.1 LTS                   | Drogon 1.9.x + libpq                     |
+| Quarkus 3.40.1 LTS                   | Drogon 1.9.13 + libpq                     |
 |--------------------------------------|------------------------------------------|
 | Reactive REST (Mutiny)               | Callback-based handlers (Drogon)         |
 | Hibernate Reactive + Vert.x PgClient | libpq direct (C API) + hand-rolled pool  |
@@ -81,16 +82,16 @@ This is production-quality code adapted from the cpp-container-optimization-tuto
 
 ### Why libpq (not libpqxx)?
 
-- **Simpler build**: libpq is in UBI's AppStream; no source build needed.
-- **Stable C ABI**: No libstdc++ mixing concerns; the runtime image only needs `libpq.so`.
-- **Conan recipe issues**: The libpqxx Conan recipe's CMake build fails under this toolchain (see cpp-container-optimization-tutorial gotcha G-67).
+- **Locked stack**: the C++ stack uses libpq directly; the connection pool below is the only code the C API needs.
+- **Stable C ABI**: no libstdc++ mixing concerns; libpq is built by Conan and linked into the binary.
+- **Pinned**: libpq 17.11 comes from ConanCenter with the rest of the graph, so it is not tied to the UBI package version.
 
 The connection pool patterns are identical; only the connection type differs (`PGconn*` vs `pqxx::connection`).
 
 ### Build time
 
-- **First build**: ~10-15 minutes (Conan cold cache resolving Drogon + deps)
-- **Warm cache**: < 1 minute (binary-only build)
+- **First build**: about 7 minutes on 16 cores (Conan compiles Drogon, OpenTelemetry, protobuf and libpq from source)
+- **Warm cache**: under 1 minute (the Conan home is a BuildKit cache mount, `/root/.conan2`)
 - **Container startup**: < 5 seconds (the `start_period: 60s` in compose.yaml is for build time, not runtime)
 
 ## Environment variables

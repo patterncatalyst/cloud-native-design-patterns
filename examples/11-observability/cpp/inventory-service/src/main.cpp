@@ -1,170 +1,56 @@
+// inventory-service: gRPC ReserveStock with OpenTelemetry C++ traces and metrics over OTLP/HTTP.
+//
+// The caller's W3C traceparent arrives as gRPC metadata; the ReserveStock server span is
+// created as a child of it, so the order's trace continues here. Spans go out through the
+// batch span processor and the stock.reservations counter through the periodic reader
+// (telemetry.hpp); the exporters read OTEL_EXPORTER_OTLP_ENDPOINT.
 #include <grpcpp/grpcpp.h>
 #include <inventory.grpc.pb.h>
-#include <unordered_map>
-#include <mutex>
-#include <random>
-#include <sstream>
-#include <iomanip>
-#include <thread>
-#include <chrono>
-#include <cstdio>
-#include <atomic>
-#include <csignal>
-#include <iostream>
 
-static std::string g_otel_endpoint;
-static std::string g_service_name = "inventory-service";
+#include <atomic>
+#include <chrono>
+#include <csignal>
+#include <cstdint>
+#include <iostream>
+#include <map>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <unordered_map>
+
+#include "telemetry.hpp"
+
 static std::atomic<bool> g_shutdown{false};
+static opentelemetry::nostd::unique_ptr<opentelemetry::metrics::Counter<uint64_t>> g_reservations;
 
 void signal_handler(int) { g_shutdown = true; }
 
-static std::string random_hex(int bytes) {
-    static thread_local std::mt19937_64 rng(std::random_device{}());
-    std::uniform_int_distribution<uint64_t> dist;
-    std::ostringstream oss;
-    oss << std::hex << std::setfill('0');
-    uint64_t v1 = dist(rng);
-    for (int i = 0; i < std::min(bytes, 8); ++i)
-        oss << std::setw(2) << ((v1 >> (i * 8)) & 0xFF);
-    if (bytes > 8) {
-        uint64_t v2 = dist(rng);
-        for (int i = 0; i < bytes - 8; ++i)
-            oss << std::setw(2) << ((v2 >> (i * 8)) & 0xFF);
-    }
-    return oss.str();
+static int hex_nibble(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    return -1;
 }
 
-static int64_t now_nano() {
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count();
+template <size_t N>
+static bool parse_hex(const std::string& s, size_t off, uint8_t (&out)[N]) {
+    for (size_t i = 0; i < N; ++i) {
+        int hi = hex_nibble(s[off + 2 * i]), lo = hex_nibble(s[off + 2 * i + 1]);
+        if (hi < 0 || lo < 0) return false;
+        out[i] = static_cast<uint8_t>(hi << 4 | lo);
+    }
+    return true;
 }
 
-static std::string json_escape(const std::string& s) {
-    std::ostringstream oss;
-    for (char c : s) {
-        if (c == '"' || c == '\\') oss << '\\';
-        oss << c;
-    }
-    return oss.str();
-}
-
-struct SpanData {
-    std::string trace_id, span_id, parent_span_id, name;
-    int kind;
-    int64_t start_nano, end_nano;
-    std::vector<std::pair<std::string, std::string>> attrs;
-};
-
-struct MetricAccum {
-    std::string name;
-    std::map<std::string, int64_t> series;
-    int64_t start_nano = 0;
-};
-
-static std::mutex g_otel_mu;
-static std::vector<SpanData> g_spans;
-static MetricAccum g_reservations_metric{"stock.reservations", {}, 0};
-
-static void otlp_post(const std::string& path, const std::string& json) {
-    std::string cmd = "curl -sf -X POST -H 'Content-Type: application/json' -d @- "
-                      + g_otel_endpoint + path + " >/dev/null 2>&1";
-    FILE* pipe = popen(cmd.c_str(), "w");
-    if (pipe) {
-        fwrite(json.c_str(), 1, json.size(), pipe);
-        pclose(pipe);
-    }
-}
-
-static void flush_spans() {
-    std::vector<SpanData> spans;
-    {
-        std::lock_guard<std::mutex> lock(g_otel_mu);
-        spans.swap(g_spans);
-    }
-    if (spans.empty()) return;
-
-    std::ostringstream json;
-    json << R"({"resourceSpans":[{"resource":{"attributes":[)"
-         << R"({"key":"service.name","value":{"stringValue":")" << g_service_name << R"("}}]},)"
-         << R"("scopeSpans":[{"scope":{"name":")" << g_service_name << R"("},"spans":[)";
-
-    for (size_t i = 0; i < spans.size(); ++i) {
-        auto& s = spans[i];
-        if (i > 0) json << ",";
-        json << R"({"traceId":")" << s.trace_id
-             << R"(","spanId":")" << s.span_id << R"(")";
-        if (!s.parent_span_id.empty())
-            json << R"(,"parentSpanId":")" << s.parent_span_id << R"(")";
-        json << R"(,"name":")" << json_escape(s.name)
-             << R"(","kind":)" << s.kind
-             << R"(,"startTimeUnixNano":")" << s.start_nano
-             << R"(","endTimeUnixNano":")" << s.end_nano << R"(")";
-        if (!s.attrs.empty()) {
-            json << R"(,"attributes":[)";
-            for (size_t j = 0; j < s.attrs.size(); ++j) {
-                if (j > 0) json << ",";
-                json << R"({"key":")" << json_escape(s.attrs[j].first)
-                     << R"(","value":{"stringValue":")" << json_escape(s.attrs[j].second) << R"("}})";
-            }
-            json << "]";
-        }
-        json << R"(,"status":{"code":0}})";
-    }
-    json << "]}]}]}";
-    otlp_post("/v1/traces", json.str());
-}
-
-static void flush_metrics() {
-    std::map<std::string, int64_t> series;
-    int64_t start_nano;
-    {
-        std::lock_guard<std::mutex> lock(g_otel_mu);
-        if (g_reservations_metric.series.empty()) return;
-        series = g_reservations_metric.series;
-        start_nano = g_reservations_metric.start_nano;
-    }
-
-    int64_t now = now_nano();
-    std::ostringstream json;
-    json << R"({"resourceMetrics":[{"resource":{"attributes":[)"
-         << R"({"key":"service.name","value":{"stringValue":")" << g_service_name << R"("}}]},)"
-         << R"("scopeMetrics":[{"scope":{"name":")" << g_service_name << R"("},"metrics":[)"
-         << R"({"name":")" << g_reservations_metric.name << R"(","sum":{)"
-         << R"("dataPoints":[)";
-
-    bool first = true;
-    for (auto& [key, count] : series) {
-        if (!first) json << ",";
-        first = false;
-        auto sep = key.find('|');
-        std::string sku = key.substr(0, sep);
-        std::string confirmed = key.substr(sep + 1);
-        json << R"({"asInt":")" << count
-             << R"(","startTimeUnixNano":")" << start_nano
-             << R"(","timeUnixNano":")" << now
-             << R"(","attributes":[)"
-             << R"({"key":"sku","value":{"stringValue":")" << json_escape(sku) << R"("}},)"
-             << R"({"key":"confirmed","value":{"stringValue":")" << json_escape(confirmed) << R"("}}]})";
-    }
-    json << R"(],"aggregationTemporality":2,"isMonotonic":true}}]}]}]})" ;
-    otlp_post("/v1/metrics", json.str());
-}
-
-static void otel_flush_loop() {
-    while (!g_shutdown) {
-        std::this_thread::sleep_for(std::chrono::seconds(3));
-        flush_spans();
-        flush_metrics();
-    }
-    flush_spans();
-    flush_metrics();
-}
-
-static std::pair<std::string, std::string> parse_traceparent(const std::string& tp) {
-    if (tp.size() >= 55 && tp[2] == '-' && tp[35] == '-' && tp[52] == '-') {
-        return {tp.substr(3, 32), tp.substr(36, 16)};
-    }
-    return {"", ""};
+// Remote parent span context from a W3C traceparent value (00-<32 hex>-<16 hex>-<2 hex>).
+static bool parse_traceparent(const std::string& tp, opentelemetry::trace::SpanContext& out) {
+    if (tp.size() < 55 || tp[2] != '-' || tp[35] != '-' || tp[52] != '-') return false;
+    uint8_t tid[16], sid[8];
+    if (!parse_hex(tp, 3, tid) || !parse_hex(tp, 36, sid)) return false;
+    out = opentelemetry::trace::SpanContext(
+        opentelemetry::trace::TraceId(opentelemetry::nostd::span<const uint8_t, 16>(tid)),
+        opentelemetry::trace::SpanId(opentelemetry::nostd::span<const uint8_t, 8>(sid)),
+        opentelemetry::trace::TraceFlags(1), true);
+    return true;
 }
 
 class InventoryServiceImpl final : public inventory::InventoryService::Service {
@@ -178,19 +64,15 @@ public:
     grpc::Status ReserveStock(grpc::ServerContext* context,
                               const inventory::ReserveRequest* request,
                               inventory::ReserveResponse* response) override {
-        int64_t start = now_nano();
-        std::string span_id = random_hex(8);
-
-        std::string trace_id, parent_span_id;
+        opentelemetry::trace::StartSpanOptions so;
+        so.kind = opentelemetry::trace::SpanKind::kServer;
         auto md = context->client_metadata();
         auto it = md.find("traceparent");
         if (it != md.end()) {
-            auto tp = std::string(it->second.data(), it->second.size());
-            auto [tid, psid] = parse_traceparent(tp);
-            trace_id = tid;
-            parent_span_id = psid;
+            opentelemetry::trace::SpanContext parent = opentelemetry::trace::SpanContext::GetInvalid();
+            if (parse_traceparent(std::string(it->second.data(), it->second.size()), parent)) so.parent = parent;
         }
-        if (trace_id.empty()) trace_id = random_hex(16);
+        auto span = cndp::telemetry::tracer("inventory-service")->StartSpan("ReserveStock", {}, so);
 
         const std::string& sku = request->sku();
         int quantity = request->quantity();
@@ -213,23 +95,15 @@ public:
                   << " confirmed=" << (confirmed ? "true" : "false")
                   << " remaining=" << remaining << std::endl;
 
-        int64_t end = now_nano();
-        {
-            std::lock_guard<std::mutex> lock(g_otel_mu);
-            g_spans.push_back({trace_id, span_id, parent_span_id, "ReserveStock",
-                              2, start, end,
-                              {{"rpc.system", "grpc"},
-                               {"rpc.service", "inventory.InventoryService"},
-                               {"rpc.method", "ReserveStock"},
-                               {"sku", sku},
-                               {"quantity", std::to_string(quantity)},
-                               {"confirmed", confirmed ? "true" : "false"}}});
-
-            std::string metric_key = sku + "|" + (confirmed ? "true" : "false");
-            if (g_reservations_metric.start_nano == 0)
-                g_reservations_metric.start_nano = now_nano();
-            g_reservations_metric.series[metric_key]++;
-        }
+        span->SetAttribute("rpc.system", "grpc");
+        span->SetAttribute("rpc.service", "inventory.InventoryService");
+        span->SetAttribute("rpc.method", "ReserveStock");
+        span->SetAttribute("sku", sku);
+        span->SetAttribute("quantity", std::to_string(quantity));
+        span->SetAttribute("confirmed", confirmed ? "true" : "false");
+        span->End();
+        g_reservations->Add(1, std::map<std::string, std::string>{{"sku", sku},
+                                                                    {"confirmed", confirmed ? "true" : "false"}});
 
         return grpc::Status::OK;
     }
@@ -239,14 +113,14 @@ int main() {
     std::signal(SIGTERM, signal_handler);
     std::signal(SIGINT, signal_handler);
 
-    const char* env = std::getenv("OTEL_EXPORTER_OTLP_ENDPOINT");
-    g_otel_endpoint = env ? env : "http://lgtm:4318";
-
     int initial = 100;
     const char* stock_env = std::getenv("INITIAL_STOCK");
     if (stock_env) initial = std::atoi(stock_env);
 
-    std::thread flusher(otel_flush_loop);
+    cndp::telemetry::init("inventory-service");
+    g_reservations = opentelemetry::metrics::Provider::GetMeterProvider()
+                         ->GetMeter("inventory-service")
+                         ->CreateUInt64Counter("stock.reservations", "Stock reservations", "{reservation}");
 
     std::string addr("0.0.0.0:50051");
     InventoryServiceImpl service(initial);
@@ -263,6 +137,6 @@ int main() {
     }
 
     server->Shutdown();
-    flusher.join();
+    cndp::telemetry::shutdown();
     return 0;
 }

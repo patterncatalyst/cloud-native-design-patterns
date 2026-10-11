@@ -1,9 +1,13 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.31)
 project(inventory-service LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+add_compile_options(-Wall -Wextra)
+# gcc-toolset-15's libstdc++ is newer than the one in ubi-minimal: link it statically.
+add_link_options(-static-libstdc++ -static-libgcc)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_CXX_LINK_EXECUTABLE
@@ -12,6 +16,7 @@ set(CMAKE_CXX_LINK_EXECUTABLE
 
 find_package(gRPC CONFIG REQUIRED)
 find_package(protobuf CONFIG REQUIRED)
+find_package(opentelemetry-cpp CONFIG REQUIRED)
 find_package(Threads REQUIRED)
 
 set(PROTO_FILE ${CMAKE_CURRENT_SOURCE_DIR}/proto/inventory.proto)
@@ -34,6 +39,6 @@ add_executable(inventory-service
     src/main.cpp
     ${PROTO_OUT}/inventory.pb.cc
     ${PROTO_OUT}/inventory.grpc.pb.cc)
-target_include_directories(inventory-service PRIVATE ${PROTO_OUT})
+target_include_directories(inventory-service PRIVATE ${PROTO_OUT} src)
 target_link_libraries(inventory-service PRIVATE
-    gRPC::grpc++ protobuf::protobuf Threads::Threads)
+    gRPC::grpc++ protobuf::protobuf opentelemetry-cpp::opentelemetry-cpp Threads::Threads)

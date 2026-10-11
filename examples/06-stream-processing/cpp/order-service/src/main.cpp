@@ -1,9 +1,12 @@
 #include <drogon/drogon.h>
-#include <kafka/KafkaProducer.h>
+#include <librdkafka/rdkafkacpp.h>
 #include <libpq-fe.h>
 #include <atomic>
+#include <chrono>
+#include <thread>
 #include <csignal>
 #include <cstdlib>
+#include <functional>
 #include <memory>
 #include <random>
 #include <sstream>
@@ -13,7 +16,9 @@
 using namespace drogon;
 
 static std::atomic<bool> g_shutdown{false};
-static std::unique_ptr<kafka::clients::producer::KafkaProducer> g_producer;
+static std::unique_ptr<RdKafka::Producer> g_producer;
+static std::thread g_poller;
+static std::atomic<bool> g_polling{false};
 static PGconn* g_conn = nullptr;
 
 std::string generate_uuid() {
@@ -52,40 +57,77 @@ bool init_postgres() {
     return true;
 }
 
+// One per produced message, carried as the message opaque: the request's continuation, run
+// when the delivery report arrives (on the poller thread). The producer's
+// message.timeout.ms guarantees a report, success or error, so the request always answers.
+struct Pending {
+    std::function<void(const std::string& error)> done;  // empty error = delivered
+};
+
+// Delivery reports arrive on the thread that calls poll().
+class DeliveryLog : public RdKafka::DeliveryReportCb {
+public:
+    void dr_cb(RdKafka::Message& m) override {
+        std::unique_ptr<Pending> pending(static_cast<Pending*>(m.msg_opaque()));
+        if (m.err() != RdKafka::ERR_NO_ERROR) {
+            LOG_ERROR << "order.placed delivery failed: " << m.errstr();
+        }
+        if (pending) pending->done(m.err() == RdKafka::ERR_NO_ERROR ? std::string() : m.errstr());
+    }
+};
+static DeliveryLog g_dr;
+
 bool init_kafka() {
     const char* bootstrap = std::getenv("KAFKA_BOOTSTRAP");
     if (!bootstrap) bootstrap = "localhost:9094";
 
-    kafka::Properties props;
-    props.put("bootstrap.servers", bootstrap);
-    props.put("client.id", "order-service");
-    props.put("linger.ms", "100");
-    props.put("acks", "1");
-
-    try {
-        g_producer = std::make_unique<kafka::clients::producer::KafkaProducer>(props);
-        LOG_INFO << "Kafka producer initialized";
-        return true;
-    } catch (const std::exception& e) {
-        LOG_ERROR << "Kafka producer init failed: " << e.what();
+    std::string err;
+    std::unique_ptr<RdKafka::Conf> conf(RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL));
+    if (conf->set("bootstrap.servers", bootstrap, err) != RdKafka::Conf::CONF_OK ||
+        conf->set("client.id", "order-service", err) != RdKafka::Conf::CONF_OK ||
+        conf->set("linger.ms", "5", err) != RdKafka::Conf::CONF_OK ||
+        conf->set("acks", "all", err) != RdKafka::Conf::CONF_OK ||
+        conf->set("message.timeout.ms", "10000", err) != RdKafka::Conf::CONF_OK ||
+        conf->set("enable.idempotence", "true", err) != RdKafka::Conf::CONF_OK ||
+        conf->set("dr_cb", &g_dr, err) != RdKafka::Conf::CONF_OK) {
+        LOG_ERROR << "Kafka producer config failed: " << err;
         return false;
     }
+    g_producer.reset(RdKafka::Producer::create(conf.get(), err));
+    if (!g_producer) {
+        LOG_ERROR << "Kafka producer init failed: " << err;
+        return false;
+    }
+    // Serve delivery reports until shutdown.
+    g_polling.store(true);
+    g_poller = std::thread([] {
+        while (g_polling.load()) g_producer->poll(100);
+    });
+    LOG_INFO << "Kafka producer initialized";
+    return true;
 }
 
-void publish_order_event(const std::string& order_json) {
-    if (!g_producer) return;
-
-    try {
-        kafka::clients::producer::ProducerRecord record{
-            "order.placed",
-            kafka::NullKey,
-            kafka::Value(order_json.c_str(), order_json.size())
-        };
-        // Use syncSend to avoid use-after-free (send() is async and returns before buffer is sent)
-        g_producer->syncSend(record);
-    } catch (const std::exception& e) {
-        LOG_ERROR << "Failed to publish order event: " << e.what();
+// Enqueues the event. On true the delivery report will run done(); on false the message was
+// not queued and done is never called (the caller answers the request itself).
+bool publish_order_event(const std::string& order_json, std::function<void(const std::string&)> done) {
+    if (!g_producer) return false;
+    for (int attempt = 0; attempt < 50; ++attempt) {
+        auto* pending = new Pending{done};
+        auto rc = g_producer->produce("order.placed", RdKafka::Topic::PARTITION_UA,
+                                      RdKafka::Producer::RK_MSG_COPY,
+                                      const_cast<char*>(order_json.data()), order_json.size(),
+                                      nullptr, 0, 0, nullptr, pending);
+        if (rc == RdKafka::ERR_NO_ERROR) return true;
+        delete pending;
+        if (rc == RdKafka::ERR__QUEUE_FULL) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            continue;
+        }
+        LOG_ERROR << "Failed to publish order event: " << RdKafka::err2str(rc);
+        return false;
     }
+    LOG_ERROR << "Failed to publish order event: producer queue full";
+    return false;
 }
 
 int main() {
@@ -137,12 +179,11 @@ int main() {
             double total = (*json)["total"].asDouble();
 
             // Insert into Postgres
+            const std::string quantity_s = std::to_string(quantity);
+            const std::string total_s = std::to_string(total);
             const char* paramValues[5] = {
-                id.c_str(),
-                merchant_id.c_str(),
-                sku.c_str(),
-                std::to_string(quantity).c_str(),
-                std::to_string(total).c_str()
+                id.c_str(), merchant_id.c_str(), sku.c_str(),
+                quantity_s.c_str(), total_s.c_str()
             };
 
             PGresult* res = PQexecParams(g_conn,
@@ -172,13 +213,23 @@ int main() {
             builder["indentation"] = "";
             std::string event_json = Json::writeString(builder, event);
 
-            // Publish to Kafka
-            publish_order_event(event_json);
-
-            // Return response
-            auto resp = HttpResponse::newHttpJsonResponse(event);
-            resp->setStatusCode(k201Created);
-            callback(resp);
+            // Publish to Kafka; answer 201 only once the broker has acknowledged the event.
+            auto reply = [callback = std::move(callback), event](const std::string& error) {
+                if (!error.empty()) {
+                    Json::Value err;
+                    err["error"] = "event not published";
+                    auto resp = HttpResponse::newHttpJsonResponse(err);
+                    resp->setStatusCode(k503ServiceUnavailable);
+                    callback(resp);
+                    return;
+                }
+                auto resp = HttpResponse::newHttpJsonResponse(event);
+                resp->setStatusCode(k201Created);
+                callback(resp);
+            };
+            auto shared_reply = std::make_shared<decltype(reply)>(std::move(reply));
+            if (!publish_order_event(event_json, [shared_reply](const std::string& e) { (*shared_reply)(e); }))
+                (*shared_reply)("not queued");
         },
         {Post});
 
@@ -234,7 +285,9 @@ int main() {
 
     // Cleanup
     if (g_producer) {
-        g_producer->close();
+        g_polling.store(false);
+        if (g_poller.joinable()) g_poller.join();
+        g_producer->flush(10000);  // deliver what is queued before exiting
         g_producer.reset();
     }
     if (g_conn) {

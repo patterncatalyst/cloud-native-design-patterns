@@ -24,7 +24,7 @@ std::unique_ptr<inventory::InventoryService::Stub> inventoryStub;
 
 class OrderController {
 public:
-    static void healthz(const HttpRequestPtr& req,
+    static void healthz(const HttpRequestPtr&,
                        std::function<void(const HttpResponsePtr&)>&& callback) {
         Json::Value resp;
         resp["status"] = "ok";

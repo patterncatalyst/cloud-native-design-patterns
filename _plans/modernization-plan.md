@@ -29,7 +29,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | S4 | chore/dotnet-10-pins | 3 | done (19/19 .NET PASS after the Opus review; closes #33) |
 | S5 | chore/python-3.14 | 5 | done (19/19 Python + 28 PASS after the Opus review) |
 | S6 | chore/go-toolchain | 2+4 | done (18/18 Go + 06 in all six languages PASS after the Opus review; closes #34) |
-| S7 | chore/cpp-toolchain-ubi10 (C++23/26 + locked libraries) | 2+4 | pending |
+| S7 | chore/cpp-toolchain-ubi10 | 2+4 | done (111/111 PASS after two Opus repair rounds; closes #35) |
 | S8 | chore/infra-images | 2 | pending |
 | S9 | docs/minikube-docker-driver (+ 05 on minikube) | 7 | pending |
 | S10 | feature/openshift-local-appendix | 8 | pending |
@@ -161,6 +161,21 @@ Defects the baseline found and fixed in S1:
 - Chapter .NET codetabs (05, 06, 18, 22) compile against the pinned packages.
 - Live: **19/19 .NET targets PASS** on the final tree after the Opus review.
 
+### S7 C++23 (2026-10-10)
+
+- 31 C++ projects on C++23 (`CMAKE_CXX_STANDARD 23`, required, no extensions), CMake policy 3.31, `-Wall -Wextra` clean on GCC 15.2. Builder `ubi10/ubi:10.2-1791444044` with `gcc-toolset-15`; CMake 4.4.4 and Ninja 1.13.2 from the upstream release binaries (sha256-verified; UBI ships cmake 3.31 and ninja 1.11); Conan 2.33.0 in a pinned venv. The Conan home is a BuildKit cache mount, packages are deployed next to the sources (`--deployer=full_deploy`) so later layers and the GHA layer cache do not need the mount. Runtime `ubi10/ubi-minimal:10.2-1791444377`, UID 1001 group 0, libstdc++/libgcc linked statically (gcc-toolset-15's libstdc++ is newer than the one in ubi-minimal; proven by running the binaries on ubi-minimal).
+- Versions (ConanCenter newest): drogon 1.9.13, grpc 1.84.0, protobuf 6.33.5, librdkafka 2.14.2, libpq 17.11, redis-plus-plus 1.3.15, jwt-cpp 0.7.2, sml 1.2.0, sol2 3.5.0, lua 5.4.8, opentelemetry-cpp 1.26.0, spdlog 1.17.0, nlohmann_json 3.12.0, cppgraphqlgen 4.5.9 with taocpp-pegtl 3.2.8 and boost 1.91.0 (schemagen stage only). cppgraphqlgen is not on ConanCenter: each of 02 and 03 carries a local recipe (`conan-recipes/cppgraphqlgen`) and the committed schemagen output.
+- Transitive refresh: every `conan.lock` is regenerated with `conan lock create --update` (no lockfile in, GCC 15, C++23, Release, static), so transitive packages take the newest ConanCenter version in range: openssl 3.6.3 to 3.6.5, libcurl 8.21.0 to 8.22.0 (26 also pins it directly), cmake tool 4.4.0 to 4.4.4. Overrides in each `conanfile.py` (`override=True`, build and ctest proven on all 31 images): fmt 12.1.0 to 12.2.0 (spdlog), lz4 1.9.4 to 1.10.0 (librdkafka, libpq), util-linux-libuuid 2.39.2 to 2.41.2 and jsoncpp 1.9.5 to 1.9.8 (drogon). None had to be dropped. The schemagen stage of 02 and 03 has its own `schemagen.lock` (boost 1.90.0 to 1.91.0; boost 1.91 builds boost_regex whatever `without_regex` says and its recipe rejects an unused built library, so regex is no longer disabled there).
+- Corrections to earlier claims: openssl is not capped at 3.6.3 (3.6.5 is current in the 3.6 line; only the 4.x line is outside drogon's `<4` range), libcurl is 8.22.0 (not 8.21.0), and jsoncpp is 1.9.8 everywhere (the locks held 1.9.5 transitively until the override).
+- Held versions (legitimate, with the reason): abseil 20260107.1 (protobuf 6.33.5 caps it), protobuf 6.33.5 (grpc 1.84.0 requires protobuf below 7; 7.36.2 exists), opentelemetry-proto 1.7.0 (required as a tool by opentelemetry-cpp 1.26.0), taocpp-pegtl 3.2.8 (cppgraphqlgen 4.5.9 needs the 3.x API; 4.x is newer), lua 5.4.8 (sol2's recipe pins 5.4.x; 5.5.0 is newer), openssl 3.6.x (drogon and trantor accept `<4`; 4.0.3 is newer), librdkafka 2.14.2 (upstream 2.16.0) and opentelemetry-cpp 1.26.0 (upstream 1.29.0), both ConanCenter behind upstream.
+- Build tooling: flex and bison (libpq build tools) ran makeinfo; the fake `makeinfo` binary is gone, replaced by scoped `-c:a 'flex/*:tools.gnu:extra_configure_args=["MAKEINFO=true"]'` (and bison) in the 14 projects whose lock contains flex. The Conan cache mount has an explicit `id=cndp-conan2`.
+- CI (cpp job): the Conan cache mount does not persist across jobs, and a cold build of the largest projects takes about 33 minutes on 4 CPUs (55-75 minutes estimated on a hosted runner). The job restores a `conan-cache` directory with actions/cache (key: runner OS, UBI 10.2, GCC 15, Conan 2.33.0, `hashFiles` of the project's `conan.lock`; restore-key on the toolchain) and injects it into the `cndp-conan2` mount with buildkit-cache-dance v3.4.0 (`cache-map`, extraction skipped on an exact hit). Image layers use `type=gha,mode=min` (`mode=max` across 31 scopes would exceed the 10 GB quota); the timeout is 120 minutes. Open risk: 31 projects can still exceed 10 GB of Conan cache and evict each other, which the toolchain restore-key softens.
+- Repair rounds (after the first build): Lua sandbox swallowing limit errors (22); hand-escaped or concatenated SQL and an unprotected shared connection (25, 03, 04); Kafka delivery reports awaited before replying 201, with 503 on failure (05, 06, 11, 24); notification insert retry and SQLSTATE duplicate detection (11); OTLP exporters in the 11 inventory service and the W3C propagator in the Go inventory service so the inventory span lands in the order's trace (11); range-checked decimal sums and non-zero exit on delivery failure in the stream processor (06); every libpq result released and checked, unknown saga status rejected (17); the alg=none test token differing from a valid one only by algorithm (12). First live run: 18/18 C++ PASS.
+- Licenses: all open source. spdlog is MIT and librdkafka BSD-2-Clause (confirmed from their LICENSE files; GitHub shows NOASSERTION); libpq is the PostgreSQL license, sml BSL-1.0, grpc/opentelemetry-cpp/redis-plus-plus Apache-2.0, the rest MIT or BSD.
+- Locked stack (user decisions): Kafka on librdkafka's C++ API (modern-cpp-kafka is archived); C++23. Deviations fixed: 02/03 GraphQL on cppgraphqlgen (03 keeps the request-scoped stock batch), 12 valet keys as HS256 JWTs with jwt-cpp (algorithm pinned), 17 saga on boost::sml, 22 router on sol2 + sandboxed Lua, 06 stream processor as an explicit tumbling-window aggregation on rdkafka++ (exact fixed-point cents, offsets committed after the output is delivery-reported), 01 exports OpenTelemetry traces (OTLP/HTTP) with trace_id in spdlog lines, 11 on opentelemetry-cpp. 01 already used libpq; every Postgres user links the Conan libpq.
+- Fixed on the way: dangling `c_str()` parameters in 05/06 order services, SQL string concatenation in 02, an unprotected shared PGconn.
+- Chapter C++ tabs (05, 07, 11, 15, 17, 18, 22) match the libraries now used; the r76 outbox tab uses libpq.
+
 ### S6 Go 1.27.2 (2026-10-10)
 
 - 31 Go modules on `go 1.27.2` (no `toolchain` line), versions unified across modules: grpc 1.84.0, protobuf 1.36.12, OTel 1.47.0 (otelhttp/otelgrpc 0.72.0), pgx 5.11.0, franz-go 1.22.1, go-redis 9.23.0, coder/websocket 1.8.15, gobreaker v2.4.0, OpenFeature go-sdk 1.19.0 + flagd provider 0.7.1. All OSS (MIT, BSD, ISC, Apache-2.0).
@@ -170,6 +185,8 @@ Defects the baseline found and fixed in S1:
 - 01 Go now exports OTLP traces (otelhttp server spans, trace_id/span_id in slog JSON).
 - Go build outputs are now gitignored (22 module-root binaries).
 - Chapter Go tabs for 03, 06 and 26 match the libraries now used.
+
+- S7 live: the full matrix was rerun after both repair rounds: **111/111 PASS** (111/111 after the S7 repairs). The stricter 11 check (inventory span inside the order's own trace) found and fixed missing trace propagation in Go (no global propagator) and Python (grpc.aio channel not instrumented).
 
 Carried forward:
 - S7: example 01 C++ still sets OTEL_* in compose but exports nothing.
@@ -184,7 +201,6 @@ Carried forward:
 - Live: **19/19 PASS** (18 Python + 28) on the final tree after the Opus review.
 
 Carried forward:
-- S7: example 01 C++ sets OTEL_* in compose but exports nothing; make it export like the other languages (Go fixed in S6).
 
 ### S4 .NET 10.0.12 (2026-10-10)
 

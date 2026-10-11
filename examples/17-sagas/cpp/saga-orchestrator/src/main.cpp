@@ -7,6 +7,9 @@
 #include <vector>
 #include <functional>
 #include <thread>
+#include <string_view>
+
+#include "saga_machine.hpp"
 
 using namespace drogon;
 
@@ -50,6 +53,7 @@ struct PgResult {
     std::string get(int r, int c) const { return PQgetvalue(res, r, c); }
     PgResult(const PgResult&) = delete;
     PgResult& operator=(const PgResult&) = delete;
+    PgResult(PgResult&& o) noexcept : res(o.res) { o.res = nullptr; }
 };
 
 static Json::Value parseJson(const std::string& s) {
@@ -82,7 +86,7 @@ static std::vector<SagaStep> g_steps = {
             r["amount"] = ctx["total"].asDouble();
             return r;
         },
-        [](const Json::Value& ctx) {
+        [](const Json::Value&) {
             Json::Value r;
             r["refunded"] = true;
             return r;
@@ -96,7 +100,7 @@ static std::vector<SagaStep> g_steps = {
             r["sku"] = ctx["sku"].asString();
             return r;
         },
-        [](const Json::Value& ctx) {
+        [](const Json::Value&) {
             Json::Value r;
             r["released"] = true;
             return r;
@@ -112,7 +116,7 @@ static std::vector<SagaStep> g_steps = {
             r["shipment_id"] = generateId("shp-");
             return r;
         },
-        [](const Json::Value& ctx) {
+        [](const Json::Value&) {
             Json::Value r;
             r["cancelled"] = true;
             return r;
@@ -120,115 +124,126 @@ static std::vector<SagaStep> g_steps = {
     }
 };
 
-static std::string escapeStr(const std::string& s) {
-    std::string out;
-    for (char c : s) {
-        if (c == '\'') out += "''";
-        else out += c;
-    }
-    return out;
+// Parameterised statements only: ids and JSON go in as $n values, never as SQL text.
+static PgResult query(PGconn* conn, const char* sql, const std::vector<std::string>& args = {}) {
+    std::vector<const char*> values;
+    for (const auto& a : args) values.push_back(a.c_str());
+    return PgResult(PQexecParams(conn, sql, static_cast<int>(values.size()), nullptr,
+                                 values.data(), nullptr, nullptr, 0));
 }
 
-static void logStep(PGconn* conn, const std::string& sagaId,
+// A statement without parameters (BEGIN, COMMIT, ROLLBACK); the result is always released.
+static bool exec(PGconn* conn, const char* sql) {
+    PgResult r(PQexec(conn, sql));
+    if (!r.ok()) LOG_ERROR << sql << " failed: " << PQerrorMessage(conn);
+    return r.ok();
+}
+
+static bool logStep(PGconn* conn, const std::string& sagaId,
                     const std::string& step, const std::string& action,
                     const Json::Value& result) {
-    std::string sql = "INSERT INTO saga_log (saga_id, step, action, result) VALUES ('"
-        + escapeStr(sagaId) + "', '" + escapeStr(step) + "', '"
-        + escapeStr(action) + "', '" + escapeStr(toJsonString(result)) + "')";
-    PgResult r(PQexec(conn, sql.c_str()));
+    auto r = query(conn, "INSERT INTO saga_log (saga_id, step, action, result) VALUES ($1, $2, $3, $4::jsonb)",
+                   {sagaId, step, action, toJsonString(result)});
+    if (!r.ok()) LOG_ERROR << "saga_log insert failed: " << PQerrorMessage(conn);
+    return r.ok();
 }
 
-static void advance(const std::string& sagaId);
-static void compensate(const std::string& sagaId);
+static bool setState(PGconn* conn, const std::string& sagaId, std::string_view status,
+                     int stepIndex, const Json::Value* context) {
+    auto r = context
+        ? query(conn, "UPDATE sagas SET status = $1, step_index = $2, context = $3::jsonb, "
+                      "updated_at = now() WHERE id = $4",
+                {std::string(status), std::to_string(stepIndex), toJsonString(*context), sagaId})
+        : query(conn, "UPDATE sagas SET status = $1, step_index = $2, updated_at = now() WHERE id = $3",
+                {std::string(status), std::to_string(stepIndex), sagaId});
+    if (!r.ok()) LOG_ERROR << "saga update failed: " << PQerrorMessage(conn);
+    return r.ok();
+}
 
+// Runs one saga to a terminal status. Every step is its own transaction, so a crash leaves the
+// saga RUNNING at the last committed step_index and resumeRunningSagas() picks it up.
+// The state machine (saga_machine.hpp) decides the next status; this function does the I/O.
+// Any failed statement rolls the step's transaction back and stops: nothing half-written is
+// committed, and the saga stays at its last committed state.
 static void advance(const std::string& sagaId) {
     PgConn db;
     if (!db.ok()) return;
+    const int numSteps = static_cast<int>(g_steps.size());
 
-    PQexec(db.conn, "BEGIN");
+    for (;;) {
+        if (!exec(db.conn, "BEGIN")) return;
+        auto abandon = [&] { exec(db.conn, "ROLLBACK"); };
+        auto row = query(db.conn,
+            "SELECT status, step_index, context FROM sagas WHERE id = $1 FOR UPDATE", {sagaId});
+        if (!row.ok() || row.rows() == 0) { abandon(); return; }
 
-    std::string sql = "SELECT status, step_index, context FROM sagas WHERE id = '"
-        + escapeStr(sagaId) + "' FOR UPDATE";
-    PgResult row(PQexec(db.conn, sql.c_str()));
-    if (!row.ok() || row.rows() == 0) { PQexec(db.conn, "ROLLBACK"); return; }
+        cndp::saga::Progress progress{std::stoi(row.get(0, 1)), numSteps};
+        cndp::saga::Machine sm{progress};
+        if (!cndp::saga::restore(sm, row.get(0, 0))) {
+            LOG_ERROR << "saga " << sagaId << " has unknown status '" << row.get(0, 0) << "'; leaving it alone";
+            abandon();
+            return;
+        }
+        Json::Value context = parseJson(row.get(0, 2));
+        const std::string status(cndp::saga::status_of(sm));
 
-    std::string status = row.get(0, 0);
-    int stepIdx = std::stoi(row.get(0, 1));
-    Json::Value context = parseJson(row.get(0, 2));
+        if (status == "COMPENSATING") {
+            // Undo completed steps in reverse order, then record COMPENSATED.
+            for (int i : cndp::saga::compensation_order(progress.step_index)) {
+                auto& step = g_steps[i];
+                if (!logStep(db.conn, sagaId, step.compensationName, "compensate", step.compensate(context))) {
+                    abandon();
+                    return;
+                }
+            }
+            sm.process_event(cndp::saga::Compensated{});
+            if (!setState(db.conn, sagaId, cndp::saga::status_of(sm), progress.step_index, nullptr) ||
+                !exec(db.conn, "COMMIT")) {
+                abandon();
+            }
+            return;
+        }
+        if (status != "RUNNING") { abandon(); return; }
 
-    if (status != "RUNNING") { PQexec(db.conn, "ROLLBACK"); return; }
+        if (progress.step_index >= numSteps) {
+            sm.process_event(cndp::saga::AllStepsDone{});
+            if (!setState(db.conn, sagaId, cndp::saga::status_of(sm), progress.step_index, nullptr) ||
+                !exec(db.conn, "COMMIT")) {
+                abandon();
+            }
+            return;
+        }
 
-    int numSteps = static_cast<int>(g_steps.size());
-    if (stepIdx >= numSteps) {
-        std::string upd = "UPDATE sagas SET status = 'COMPLETED', updated_at = now() WHERE id = '"
-            + escapeStr(sagaId) + "'";
-        PQexec(db.conn, upd.c_str());
-        PQexec(db.conn, "COMMIT");
-        return;
+        auto& step = g_steps[progress.step_index];
+        try {
+            Json::Value result = step.execute(context);
+            context[step.name] = result;
+            if (!logStep(db.conn, sagaId, step.name, "execute", result)) { abandon(); return; }
+            sm.process_event(cndp::saga::StepSucceeded{});
+            if (!setState(db.conn, sagaId, cndp::saga::status_of(sm), progress.step_index, &context) ||
+                !exec(db.conn, "COMMIT")) {
+                abandon();
+                return;
+            }
+        } catch (const std::exception& e) {
+            Json::Value failResult;
+            failResult["error"] = e.what();
+            if (!logStep(db.conn, sagaId, step.name, "failed", failResult)) { abandon(); return; }
+            sm.process_event(cndp::saga::StepFailed{});
+            if (!setState(db.conn, sagaId, cndp::saga::status_of(sm), progress.step_index, nullptr) ||
+                !exec(db.conn, "COMMIT")) {
+                abandon();
+                return;
+            }
+        }
     }
-
-    auto& step = g_steps[stepIdx];
-    try {
-        Json::Value result = step.execute(context);
-        context[step.name] = result;
-        logStep(db.conn, sagaId, step.name, "execute", result);
-
-        std::string upd = "UPDATE sagas SET step_index = " + std::to_string(stepIdx + 1)
-            + ", context = '" + escapeStr(toJsonString(context))
-            + "', updated_at = now() WHERE id = '" + escapeStr(sagaId) + "'";
-        PQexec(db.conn, upd.c_str());
-        PQexec(db.conn, "COMMIT");
-
-        advance(sagaId);
-
-    } catch (const std::exception& e) {
-        Json::Value failResult;
-        failResult["error"] = e.what();
-        logStep(db.conn, sagaId, step.name, "failed", failResult);
-
-        std::string upd = "UPDATE sagas SET status = 'COMPENSATING', updated_at = now() WHERE id = '"
-            + escapeStr(sagaId) + "'";
-        PQexec(db.conn, upd.c_str());
-        PQexec(db.conn, "COMMIT");
-
-        compensate(sagaId);
-    }
-}
-
-static void compensate(const std::string& sagaId) {
-    PgConn db;
-    if (!db.ok()) return;
-
-    PQexec(db.conn, "BEGIN");
-
-    std::string sql = "SELECT status, step_index, context FROM sagas WHERE id = '"
-        + escapeStr(sagaId) + "' FOR UPDATE";
-    PgResult row(PQexec(db.conn, sql.c_str()));
-    if (!row.ok() || row.rows() == 0) { PQexec(db.conn, "ROLLBACK"); return; }
-
-    int stepIdx = std::stoi(row.get(0, 1));
-    Json::Value context = parseJson(row.get(0, 2));
-
-    // Compensate completed steps in reverse (step_index is next-to-run, so completed = 0..stepIdx-1)
-    for (int i = stepIdx - 1; i >= 0; --i) {
-        auto& step = g_steps[i];
-        Json::Value result = step.compensate(context);
-        logStep(db.conn, sagaId, step.compensationName, "compensate", result);
-    }
-
-    std::string upd = "UPDATE sagas SET status = 'COMPENSATED', updated_at = now() WHERE id = '"
-        + escapeStr(sagaId) + "'";
-    PQexec(db.conn, upd.c_str());
-    PQexec(db.conn, "COMMIT");
 }
 
 static Json::Value getSaga(const std::string& sagaId) {
     PgConn db;
     if (!db.ok()) return Json::Value::null;
 
-    std::string sql = "SELECT id, status, step_index, context FROM sagas WHERE id = '"
-        + escapeStr(sagaId) + "'";
-    PgResult row(PQexec(db.conn, sql.c_str()));
+    auto row = query(db.conn, "SELECT id, status, step_index, context FROM sagas WHERE id = $1", {sagaId});
     if (!row.ok() || row.rows() == 0) return Json::Value::null;
 
     Json::Value saga;
@@ -243,9 +258,7 @@ static Json::Value getSagaLog(const std::string& sagaId) {
     PgConn db;
     if (!db.ok()) return Json::Value(Json::arrayValue);
 
-    std::string sql = "SELECT step, action, result FROM saga_log WHERE saga_id = '"
-        + escapeStr(sagaId) + "' ORDER BY id";
-    PgResult rows(PQexec(db.conn, sql.c_str()));
+    auto rows = query(db.conn, "SELECT step, action, result FROM saga_log WHERE saga_id = $1 ORDER BY id", {sagaId});
     if (!rows.ok()) return Json::Value(Json::arrayValue);
 
     Json::Value log(Json::arrayValue);
@@ -266,7 +279,7 @@ static void resumeRunningSagas() {
         return;
     }
 
-    PgResult rows(PQexec(db.conn, "SELECT id FROM sagas WHERE status = 'RUNNING'"));
+    auto rows = query(db.conn, "SELECT id FROM sagas WHERE status IN ('RUNNING', 'COMPENSATING')");
     if (!rows.ok()) return;
 
     for (int i = 0; i < rows.rows(); ++i) {
@@ -312,9 +325,8 @@ int main() {
                 return;
             }
 
-            std::string sql = "INSERT INTO sagas (id, status, step_index, context) VALUES ('"
-                + escapeStr(sagaId) + "', 'RUNNING', 0, '" + escapeStr(toJsonString(context)) + "')";
-            PgResult r(PQexec(db.conn, sql.c_str()));
+            query(db.conn, "INSERT INTO sagas (id, status, step_index, context) VALUES ($1, 'RUNNING', 0, $2::jsonb)",
+                  {sagaId, toJsonString(context)});
 
             advance(sagaId);
 
@@ -326,7 +338,7 @@ int main() {
         {Post});
 
     app().registerHandler("/sagas/{saga_id}",
-        [](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& callback,
+        [](const HttpRequestPtr&, std::function<void(const HttpResponsePtr&)>&& callback,
            const std::string& sagaId) {
             Json::Value saga = getSaga(sagaId);
             if (saga.isNull()) {
@@ -340,7 +352,7 @@ int main() {
         {Get});
 
     app().registerHandler("/sagas/{saga_id}/log",
-        [](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& callback,
+        [](const HttpRequestPtr&, std::function<void(const HttpResponsePtr&)>&& callback,
            const std::string& sagaId) {
             callback(HttpResponse::newHttpJsonResponse(getSagaLog(sagaId)));
         },

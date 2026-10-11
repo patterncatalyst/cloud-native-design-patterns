@@ -87,8 +87,15 @@ def tracked(prefix: str = EXAMPLES) -> list[str]:
     return [p for p in git("ls-files", prefix).splitlines() if p]
 
 
+# Local Conan recipes (e.g. <service>/conan-recipes/cppgraphqlgen) carry a
+# conanfile.py but are not buildable projects; a change there rebuilds the
+# service that owns them.
+def is_recipe(path: str | Path) -> bool:
+    return "conan-recipes" in Path(path).parts
+
+
 def is_project(directory: Path, kind: str) -> bool:
-    return directory.is_dir() and any(directory.glob(MARKERS[kind]))
+    return directory.is_dir() and not is_recipe(directory) and any(directory.glob(MARKERS[kind]))
 
 
 def all_projects(kind: str, files: list[str], under: str = EXAMPLES) -> set[str]:
@@ -96,7 +103,8 @@ def all_projects(kind: str, files: list[str], under: str = EXAMPLES) -> set[str]
     glob = MARKERS[kind]
     out = set()
     for f in files:
-        if f.startswith(under.rstrip("/") + "/") and fnmatch.fnmatch(os.path.basename(f), glob):
+        if (f.startswith(under.rstrip("/") + "/") and fnmatch.fnmatch(os.path.basename(f), glob)
+                and not is_recipe(f)):
             out.add(os.path.dirname(f))
     return out
 

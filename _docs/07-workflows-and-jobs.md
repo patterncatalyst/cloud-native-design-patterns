@@ -182,16 +182,16 @@ async def run_worker():
 ```
 
 ```cpp
-// image_resize_worker.cc — modern-cpp-kafka consumer, KEDA-scaled on lag
-kafka::clients::consumer::KafkaConsumer consumer(props);
-consumer.subscribe({"image.uploaded"});
+// image_resize_worker.cc — librdkafka C++ consumer, KEDA-scaled on lag
+std::unique_ptr<RdKafka::KafkaConsumer> consumer(RdKafka::KafkaConsumer::create(conf.get(), err));
+consumer->subscribe({"image.uploaded"});
 
 while (!stop_token.stop_requested()) {
-  for (auto& record : consumer.poll(100ms)) {
-    auto payload = parse_payload(record.value().toString());
-    resize_and_store(payload);                   // heavy work — never on the HTTP path
-    consumer.commitSync(record);                 // manual commit after success
-  }
+  std::unique_ptr<RdKafka::Message> msg(consumer->consume(100));
+  if (msg->err() != RdKafka::ERR_NO_ERROR) continue;
+  auto payload = parse_payload(payload_of(*msg));
+  resize_and_store(payload);                     // heavy work — never on the HTTP path
+  consumer->commitSync(msg.get());               // manual commit after success
 }
 ```
 

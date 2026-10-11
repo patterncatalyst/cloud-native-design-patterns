@@ -28,13 +28,13 @@ curl -X POST http://localhost:8080/orders \
 
 ### 2. Valet Keys (Scoped Temporary Tokens)
 
-Valet keys are HMAC-signed tokens that grant time-limited access to specific resources and operations. This is useful for:
+Valet keys are HS256 JWTs (signed with jwt-cpp) that grant time-limited access to specific resources and operations. This is useful for:
 
 - Pre-signed URLs for S3-like object storage
 - Temporary download links sent via email
 - Delegation to untrusted clients
 
-The token encodes `resource|operation|expires` and is signed with a secret key.
+The token carries the claims `res`, `op`, `iss`, `iat` and `exp` and is signed with a secret key (`VALET_SECRET`). Verification pins the algorithm to HS256, so a token signed with another algorithm (including `none`) is rejected, and it checks the issuer, the expiry, and that the resource, operation and `expires` match the request.
 
 **Minting a valet key:**
 ```bash
@@ -68,8 +68,11 @@ curl http://localhost:8080/bulkhead-state \
 ### Drogon Middleware
 Drogon uses `registerPreHandlingAdvice` for request preprocessing. The sidecar trust check runs before all handlers except `/healthz`.
 
-### HMAC with OpenSSL
-Valet keys use OpenSSL's HMAC-SHA256 for signing. No external JWT library is needed for this simple use case.
+### JWT with jwt-cpp
+`src/valet.hpp` mints and verifies the valet keys with jwt-cpp 0.7.2 (HS256, nlohmann_json for the claims; OpenSSL comes through Conan and is linked statically). `tests/valet_test.cpp` runs under CTest in the image build: round trip, wrong key, wrong algorithm (HS512 and `none`), expired token, tampered token.
+
+### Toolchain
+C++23 with GCC 15 (`gcc-toolset-15` on `ubi10/ubi:10.2`), CMake 4.4.4, Ninja 1.13.2 and Conan 2.33.0; the runtime image is `ubi10/ubi-minimal` with libstdc++ linked statically. Dependencies are pinned in `conanfile.py` and `conan.lock`.
 
 ### Atomic Bulkhead
 The bulkhead uses `std::atomic<int>` with compare-exchange for lock-free concurrency. Each tenant has an independent counter.
@@ -111,8 +114,8 @@ cd ../..
 │ ┌────────────────────────────────────────────┐  │
 │ │ Handlers                                   │  │
 │ │ - POST /orders (requires identity)         │  │
-│ │ - POST /valet-key (mint HMAC token)        │  │
-│ │ - GET /verify-valet (verify HMAC)          │  │
+│ │ - POST /valet-key (mint HS256 JWT)        │  │
+│ │ - GET /verify-valet (verify JWT)          │  │
 │ │ - GET /bulkhead-state (tenant pools)       │  │
 │ └────────────────────────────────────────────┘  │
 │                                                  │

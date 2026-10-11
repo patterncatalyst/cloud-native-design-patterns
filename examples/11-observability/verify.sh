@@ -106,12 +106,13 @@ else
     FAIL=$((FAIL + 1))
 fi
 
-INVENTORY_TRACES=$(curl $CURL_OPTS -sf "$TEMPO/api/search?tags=service.name%3Dinventory-service&limit=5" 2>/dev/null || echo "")
-if echo "$INVENTORY_TRACES" | grep -q "traceID"; then
-    printf '  \xe2\x9c\x93 inventory-service gRPC traces found in Tempo\n'
+# The inventory span must be part of THIS order's trace (traceparent carried over gRPC),
+# not just any inventory trace that happens to exist in Tempo.
+if echo "$TRACE_DATA" | tr -d ' \n' | grep -Eq '"key":"service.name","value":\{"stringValue":"inventory-service"'; then
+    printf '  \xe2\x9c\x93 inventory-service span is inside the order trace %s\n' "$TRACE_ID"
     PASS=$((PASS + 1))
 else
-    printf '  \xe2\x9c\x97 inventory-service traces not found in Tempo\n'
+    printf '  \xe2\x9c\x97 inventory-service span not found in the order trace %s\n' "$TRACE_ID"
     FAIL=$((FAIL + 1))
 fi
 

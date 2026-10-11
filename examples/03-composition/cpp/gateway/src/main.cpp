@@ -1,138 +1,171 @@
+// gateway (03 composition): GraphQL in front of order-api (REST) and inventory (gRPC).
+//
+//   Drogon          the /graphql and /healthz endpoints, and the HTTP client for order-api
+//   grpc++ (sync)   GetStockBatch on the inventory service
+//   cppgraphqlgen   GraphQL schema and generated resolvers (src/graphql/)
+//
+// Resolvers block on order-api and inventory, so each GraphQL request runs on its own
+// worker thread instead of on a Drogon event-loop thread.
+
+#include <condition_variable>
+#include <cstdlib>
+#include <deque>
+#include <functional>
+#include <mutex>
+#include <iostream>
+#include <memory>
+#include <set>
+#include <string>
+#include <thread>
+#include <unordered_map>
+
 #include <drogon/drogon.h>
 #include <grpcpp/grpcpp.h>
+
+#include "graphql_api.hpp"
 #include "inventory.grpc.pb.h"
-#include <iostream>
-#include <regex>
-#include <set>
 
 using namespace drogon;
 
-static std::string g_order_api_url;
-static std::unique_ptr<inventory::Inventory::Stub> g_inv_stub;
+namespace {
 
-static std::unordered_map<std::string, int> batch_load_stock(const std::set<std::string>& skus) {
-    inventory::GetStockBatchRequest req;
-    for (auto& s : skus) req.add_skus(s);
+const char* env_or(const char* name, const char* fallback) {
+    const char* v = std::getenv(name);
+    return v ? v : fallback;
+}
 
-    inventory::GetStockBatchReply reply;
-    grpc::ClientContext ctx;
-    auto status = g_inv_stub->GetStockBatch(&ctx, req, &reply);
+cndp::Order parse_order(const Json::Value& o) {
+    return {o["id"].asString(), o["sku"].asString(), o["quantity"].asInt(), o["status"].asString()};
+}
 
-    std::unordered_map<std::string, int> result;
-    if (status.ok()) {
-        for (const auto& item : reply.items()) {
-            result[item.sku()] = item.available();
-        }
-        std::cerr << "DataLoader batched " << skus.size()
-                  << " skus in one gRPC call" << std::endl;
+Json::Value parse_json(const std::string& text) {
+    Json::CharReaderBuilder rb;
+    Json::Value out;
+    std::string errs;
+    std::istringstream ss(text);
+    if (!Json::parseFromStream(rb, ss, &out, &errs)) throw std::runtime_error("order-api returned invalid JSON");
+    return out;
+}
+
+// Reads orders from order-api over HTTP. Called from worker threads only: the synchronous
+// sendRequest must not run on an event-loop thread.
+class HttpOrderSource : public cndp::OrderSource {
+public:
+    explicit HttpOrderSource(std::string base_url) : base_url_(std::move(base_url)) {}
+
+    std::vector<cndp::Order> list(int limit) override {
+        auto resp = get("/orders?limit=" + std::to_string(limit));
+        std::vector<cndp::Order> out;
+        for (const auto& o : parse_json(std::string(resp->body()))) out.push_back(parse_order(o));
+        return out;
     }
-    return result;
-}
 
-static void handle_orders_query(const std::string& fields_str, int limit,
-                                std::function<void(const HttpResponsePtr&)> cb) {
-    bool want_stock = fields_str.find("stock") != std::string::npos;
+    std::optional<cndp::Order> find(const std::string& id) override {
+        auto resp = get("/orders/" + drogon::utils::urlEncodeComponent(id));
+        if (resp->statusCode() == k404NotFound) return std::nullopt;
+        return parse_order(parse_json(std::string(resp->body())));
+    }
 
-    auto client = HttpClient::newHttpClient(g_order_api_url);
-    auto req = HttpRequest::newHttpRequest();
-    req->setMethod(Get);
-    req->setPath("/orders?limit=" + std::to_string(limit));
+private:
+    HttpResponsePtr get(const std::string& path) {
+        auto client = HttpClient::newHttpClient(base_url_);
+        auto req = HttpRequest::newHttpRequest();
+        req->setMethod(Get);
+        req->setPath(path);
+        auto [result, resp] = client->sendRequest(req, 5.0);
+        if (result != ReqResult::Ok || !resp) throw std::runtime_error("order-api unreachable");
+        return resp;
+    }
 
-    client->sendRequest(req,
-        [fields_str, want_stock, cb = std::move(cb)](ReqResult result, const HttpResponsePtr& resp) {
-            if (result != ReqResult::Ok) {
-                Json::Value err;
-                err["errors"][0]["message"] = "order-api unreachable";
-                cb(HttpResponse::newHttpJsonResponse(err));
-                return;
+    std::string base_url_;
+};
+
+// Fixed pool of workers for the blocking resolvers, with a bounded queue: a burst of
+// requests waits briefly or is turned away with 503 instead of spawning a thread each.
+class WorkerPool {
+public:
+    WorkerPool(std::size_t threads, std::size_t max_queue) : max_queue_(max_queue) {
+        for (std::size_t i = 0; i < threads; ++i) workers_.emplace_back([this] { run(); });
+    }
+    ~WorkerPool() {
+        {
+            std::lock_guard lock(mu_);
+            stop_ = true;
+        }
+        cv_.notify_all();
+        for (auto& t : workers_) t.join();
+    }
+    bool submit(std::function<void()> job) {
+        {
+            std::lock_guard lock(mu_);
+            if (stop_ || queue_.size() >= max_queue_) return false;
+            queue_.push_back(std::move(job));
+        }
+        cv_.notify_one();
+        return true;
+    }
+
+private:
+    void run() {
+        for (;;) {
+            std::function<void()> job;
+            {
+                std::unique_lock lock(mu_);
+                cv_.wait(lock, [this] { return stop_ || !queue_.empty(); });
+                if (queue_.empty()) return;
+                job = std::move(queue_.front());
+                queue_.pop_front();
             }
+            job();
+        }
+    }
 
-            Json::CharReaderBuilder rb;
-            Json::Value orders_arr;
-            std::string body_str(resp->body());
-            std::istringstream ss(body_str);
-            Json::parseFromStream(rb, ss, &orders_arr, nullptr);
+    std::size_t max_queue_;
+    std::mutex mu_;
+    std::condition_variable cv_;
+    std::deque<std::function<void()>> queue_;
+    std::vector<std::thread> workers_;
+    bool stop_ = false;
+};
 
-            std::unordered_map<std::string, int> stock_map;
-            if (want_stock) {
-                std::set<std::string> skus;
-                for (const auto& o : orders_arr) skus.insert(o["sku"].asString());
-                stock_map = batch_load_stock(skus);
-            }
-
-            Json::Value items(Json::arrayValue);
-            for (const auto& o : orders_arr) {
-                Json::Value item;
-                if (fields_str.find("id") != std::string::npos) item["id"] = o["id"];
-                if (fields_str.find("sku") != std::string::npos) item["sku"] = o["sku"];
-                if (fields_str.find("quantity") != std::string::npos) item["quantity"] = o["quantity"];
-                if (fields_str.find("status") != std::string::npos) item["status"] = o["status"];
-                if (want_stock) {
-                    auto it = stock_map.find(o["sku"].asString());
-                    item["stock"] = (it != stock_map.end()) ? it->second : 0;
-                }
-                items.append(item);
-            }
-
-            Json::Value response;
-            response["data"]["orders"] = items;
-            cb(HttpResponse::newHttpJsonResponse(response));
-        });
-}
-
-static void handle_order_query(const std::string& id, const std::string& fields_str,
-                               std::function<void(const HttpResponsePtr&)> cb) {
-    auto client = HttpClient::newHttpClient(g_order_api_url);
-    auto req = HttpRequest::newHttpRequest();
-    req->setMethod(Get);
-    req->setPath("/orders/" + id);
-
-    client->sendRequest(req,
-        [fields_str, cb = std::move(cb)](ReqResult result, const HttpResponsePtr& resp) {
-            Json::Value response;
-            if (result != ReqResult::Ok || resp->statusCode() == k404NotFound) {
-                response["data"]["order"] = Json::nullValue;
-                cb(HttpResponse::newHttpJsonResponse(response));
-                return;
-            }
-
-            Json::CharReaderBuilder rb;
-            Json::Value o;
-            std::string body_str(resp->body());
-            std::istringstream ss(body_str);
-            Json::parseFromStream(rb, ss, &o, nullptr);
-
-            Json::Value item;
-            if (fields_str.find("id") != std::string::npos) item["id"] = o["id"];
-            if (fields_str.find("sku") != std::string::npos) item["sku"] = o["sku"];
-            if (fields_str.find("quantity") != std::string::npos) item["quantity"] = o["quantity"];
-            if (fields_str.find("status") != std::string::npos) item["status"] = o["status"];
-            if (fields_str.find("stock") != std::string::npos) {
-                std::set<std::string> skus = {o["sku"].asString()};
-                auto stock_map = batch_load_stock(skus);
-                auto it = stock_map.find(o["sku"].asString());
-                item["stock"] = (it != stock_map.end()) ? it->second : 0;
-            }
-            response["data"]["order"] = item;
-            cb(HttpResponse::newHttpJsonResponse(response));
-        });
-}
+}  // namespace
 
 int main() {
-    auto env_api = std::getenv("ORDER_API_URL");
-    g_order_api_url = env_api ? env_api : "http://order-api:8081";
+    auto channel = grpc::CreateChannel(env_or("INVENTORY_ADDR", "inventory:50051"),
+                                       grpc::InsecureChannelCredentials());
+    std::shared_ptr<inventory::Inventory::Stub> inventory_stub = inventory::Inventory::NewStub(channel);
 
-    auto env_inv = std::getenv("INVENTORY_ADDR");
-    std::string inv_addr = env_inv ? env_inv : "inventory:50051";
-    auto channel = grpc::CreateChannel(inv_addr, grpc::InsecureChannelCredentials());
-    g_inv_stub = inventory::Inventory::NewStub(channel);
+    // The DataLoader's batch function: one GetStockBatch call for the whole SKU set.
+    cndp::StockBatchFn fetch_stock =
+        [inventory_stub](const std::set<std::string>& skus) -> std::optional<std::unordered_map<std::string, int>> {
+        inventory::GetStockBatchRequest req;
+        for (const auto& s : skus) req.add_skus(s);
+        inventory::GetStockBatchReply reply;
+        grpc::ClientContext ctx;
+        auto status = inventory_stub->GetStockBatch(&ctx, req, &reply);
+        if (!status.ok()) {
+            std::cerr << "inventory GetStockBatch failed: " << status.error_message() << std::endl;
+            return std::nullopt;
+        }
+        std::unordered_map<std::string, int> result;
+        for (const auto& item : reply.items()) result[item.sku()] = item.available();
+        std::cerr << "DataLoader batched " << skus.size() << " skus in one gRPC call" << std::endl;
+        return result;
+    };
+
+    auto source = std::make_shared<HttpOrderSource>(env_or("ORDER_API_URL", "http://order-api:8081"));
+    auto graphql = std::make_shared<cndp::gql::GraphQLApi>(source, fetch_stock);
+
+    const auto workers = static_cast<std::size_t>(std::atoi(env_or("GATEWAY_WORKERS", "16")));
+    auto pool = std::make_shared<WorkerPool>(workers > 0 ? workers : 16, 256);
 
     std::cerr << "gateway started" << std::endl;
 
     app().setLogLevel(trantor::Logger::kInfo);
     app().addListener("0.0.0.0", 8080);
 
-    app().registerHandler("/healthz",
+    app().registerHandler(
+        "/healthz",
         [](const HttpRequestPtr&, std::function<void(const HttpResponsePtr&)>&& cb) {
             Json::Value r;
             r["status"] = "ok";
@@ -140,8 +173,9 @@ int main() {
         },
         {Get});
 
-    app().registerHandler("/graphql",
-        [](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& cb) {
+    app().registerHandler(
+        "/graphql",
+        [graphql, pool](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& cb) {
             auto body = req->getJsonObject();
             if (!body || !body->isMember("query")) {
                 Json::Value err;
@@ -149,25 +183,20 @@ int main() {
                 cb(HttpResponse::newHttpJsonResponse(err));
                 return;
             }
-
             std::string query = (*body)["query"].asString();
-
-            std::regex orders_re(R"re(orders\s*(?:\(\s*limit\s*:\s*(\d+)\s*\))?\s*\{([^}]*)\})re");
-            std::regex order_re(R"re(order\s*\(\s*id\s*:\s*\\?"([^"\\]+)\\?"\s*\)\s*\{([^}]*)\})re");
-            std::smatch match;
-
-            if (std::regex_search(query, match, orders_re)) {
-                int limit = match[1].matched ? std::stoi(match[1].str()) : 50;
-                std::string fields = match[2].str();
-                handle_orders_query(fields, limit, std::move(cb));
-            } else if (std::regex_search(query, match, order_re)) {
-                std::string id = match[1].str();
-                std::string fields = match[2].str();
-                handle_order_query(id, fields, std::move(cb));
-            } else {
+            std::string operation = (*body).get("operationName", "").asString();
+            Json::Value variables = (*body).get("variables", Json::Value(Json::objectValue));
+            auto shared_cb = std::make_shared<std::function<void(const HttpResponsePtr&)>>(std::move(cb));
+            const bool queued = pool->submit([graphql, shared_cb, query = std::move(query),
+                                              operation = std::move(operation), variables = std::move(variables)]() {
+                (*shared_cb)(HttpResponse::newHttpJsonResponse(graphql->execute(query, operation, variables)));
+            });
+            if (!queued) {
                 Json::Value err;
-                err["errors"][0]["message"] = "unsupported query";
-                cb(HttpResponse::newHttpJsonResponse(err));
+                err["errors"][0]["message"] = "gateway busy";
+                auto resp = HttpResponse::newHttpJsonResponse(err);
+                resp->setStatusCode(k503ServiceUnavailable);
+                (*shared_cb)(resp);
             }
         },
         {Post});
