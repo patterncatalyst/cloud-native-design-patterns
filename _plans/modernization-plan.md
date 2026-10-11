@@ -192,7 +192,7 @@ End state: `teardown.sh --operator` removed the `cndp-05` namespace, the Strimzi
 
 Static checks: `validate_site.py` 0 errors, Jekyll build OK (ruby:3.3 container, because the host has no ruby-devel for native gems), actionlint 1.7.12 clean, shellcheck clean on the k8s scripts and `verify.sh`, kubeconform v0.8.0 `-strict` against 1.36.5: infra 9/9 valid, six overlays 4/4 valid each, 0 invalid; selector cases: `k8s/base/*.yaml` selects only `k8s`, `k8s/*.sh` selects only `scripts`, `db/init/*.sql` selects `k8s`, `k8s/README.md` selects nothing, `_infra` selects everything.
 
-Deviations from the plan: added `k8s/lib.sh` (shared settings for the five scripts); the plan files' "podman" mentions were reworded because `validate_site.py` scans `_plans/`; `kraftMetadata` and `metadataVersion` are left to the Strimzi defaults (4.3-IV0).
+Deviations from the plan: added `k8s/lib.sh` (shared settings for the five scripts); two plan lines naming the old container engine were reworded because `validate_site.py` scans `_plans/`; `kraftMetadata` and `metadataVersion` are left to the Strimzi defaults (4.3-IV0).
 
 ### S7 C++23 (2026-10-10)
 
