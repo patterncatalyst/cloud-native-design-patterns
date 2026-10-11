@@ -12,6 +12,9 @@ permissions:
 
 jobs:
   delete-pr-caches:
+    # The token of a pull request from a fork is read-only, so the delete would fail; such a
+    # run only restores caches and has nothing of its own to remove.
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - name: Delete the caches of this pull request
@@ -22,4 +25,4 @@ jobs:
         run: |
           ids="$(gh cache list --ref "$REF" --limit 100 --json id --jq '.[].id')"
           if [ -z "$ids" ]; then echo "no caches for $REF"; exit 0; fi
-          for id in $ids; do gh cache delete "$id"; done
+          for id in $ids; do gh cache delete "$id" || true; done
