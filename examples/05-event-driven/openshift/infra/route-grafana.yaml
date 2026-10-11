@@ -1,0 +1,14 @@
+# Grafana through an edge Route: https://lgtm-grafana-cndp-05.apps-crc.testing
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: lgtm-grafana
+spec:
+  to:
+    kind: Service
+    name: lgtm-grafana
+  port:
+    targetPort: grafana
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

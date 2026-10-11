@@ -1,0 +1,19 @@
+# The spring-boot overlay from ../k8s, with the OpenShift component and images from the internal
+# registry. build-push-images.sh pushes localhost/cndp-05/spring-boot-<svc>:v1 to that registry.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: cndp-05
+resources:
+  - ../../../k8s/overlays/spring-boot
+components:
+  - ../../components/openshift
+images:
+  - name: localhost/cndp-05/spring-boot-order-service
+    newName: image-registry.openshift-image-registry.svc:5000/cndp-05/spring-boot-order-service
+    newTag: v1
+  - name: localhost/cndp-05/spring-boot-shipping-consumer
+    newName: image-registry.openshift-image-registry.svc:5000/cndp-05/spring-boot-shipping-consumer
+    newTag: v1
+  - name: localhost/cndp-05/spring-boot-notification-consumer
+    newName: image-registry.openshift-image-registry.svc:5000/cndp-05/spring-boot-notification-consumer
+    newTag: v1
