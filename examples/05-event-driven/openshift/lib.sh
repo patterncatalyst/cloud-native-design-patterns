@@ -123,7 +123,7 @@ inventory() {
     echo "  subscriptions:"
     ocx get subscriptions.operators.coreos.com -A --no-headers 2>/dev/null | awk '{print "    " $1 "/" $2}'
     echo "  csvs (excluding packageserver):"
-    ocx get csv -A --no-headers 2>/dev/null | awk '$2 !~ /^packageserver/ {print "    " $1 "/" $2}'
+    ocx get csv -A -l '!olm.copiedFrom' --no-headers 2>/dev/null | awk '$2 !~ /^packageserver/ {print "    " $1 "/" $2}'
     echo "  namespaces (excluding platform):"
     ocx get ns -o name 2>/dev/null | grep -v -E '^namespace/(openshift|kube-|default$|hostpath-provisioner$)' | sed 's/^namespace\//    /' || true
     return 0
@@ -136,7 +136,7 @@ refuse_foreign_kafka_operator() {
     foreign="$(
         ocx get subscriptions.operators.coreos.com -A -o json 2>/dev/null | jq -r --arg ns "$OPERATOR_NAMESPACE" \
             '.items[] | select((.spec.name == "amq-streams" or .spec.name == "strimzi-kafka-operator") and .metadata.namespace != $ns) | "subscription \(.metadata.namespace)/\(.metadata.name)"'
-        ocx get csv -A --no-headers 2>/dev/null | awk -v ns="$OPERATOR_NAMESPACE" '$2 ~ /^(amqstreams|strimzi-cluster-operator)/ && $1 != ns && $1 != "openshift-operators" {print "csv " $1 "/" $2}'
+        ocx get csv -A -l '!olm.copiedFrom' --no-headers 2>/dev/null | awk -v ns="$OPERATOR_NAMESPACE" '$2 ~ /^(amqstreams|strimzi-cluster-operator)/ && $1 != ns {print "csv " $1 "/" $2}'
     )"
     if has_crd kafkas.kafka.strimzi.io; then
         foreign+="$(ocx get kafka -A --no-headers 2>/dev/null | awk -v ns="$NAMESPACE" '$1 != ns {print "\nkafka " $1 "/" $2}')"
