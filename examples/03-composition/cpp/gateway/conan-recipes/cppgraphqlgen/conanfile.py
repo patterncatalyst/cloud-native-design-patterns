@@ -38,11 +38,12 @@ class CppGraphQLGenConan(ConanFile):
     def configure(self):
         if self.options.schemagen:
             # schemagen only needs Boost.program_options (Boost.process, pulled in by the recipe, wants
-            # context and filesystem, so those two stay on).
+            # context and filesystem, so those two stay on; boost 1.91 builds boost_regex regardless and its
+            # recipe rejects an unused built library, so regex stays on too).
             for comp in ("charconv", "cobalt", "contract",
                          "coroutine", "fiber", "graph",
                          "graph_parallel", "iostreams", "json", "locale", "log", "math", "mpi",
-                         "nowide", "python", "random", "regex", "serialization", "stacktrace",
+                         "nowide", "python", "random", "serialization", "stacktrace",
                          "test", "timer", "type_erasure", "url", "wave"):
                 setattr(self.options["boost"], f"without_{comp}", True)
 
