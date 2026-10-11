@@ -39,8 +39,10 @@ k8s/teardown.sh                      # remove the cndp-05 namespace
 For all six languages in sequence: `OUT=/tmp/cndp-k8s-matrix k8s/verify-matrix.sh`.
 
 The scripts always name the profile (`--context cndp-k8s`, `--kube-context cndp-k8s`) and start
-minikube with `--keep-context`, so kubectl's current-context is never changed. Use the same
-flags in your own commands.
+minikube with `--keep-context`. minikube's restart path overrides that flag when the API-server
+host port changes, so `setup-profile.sh` also records the current-context before starting and
+restores it afterwards. Use the same flags in your own commands, and check
+`kubectl config current-context` after any `minikube start` you run yourself.
 
 ## Reach it from the host
 

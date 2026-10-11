@@ -4,8 +4,13 @@
 #
 #   k8s/build-images.sh go            # one language
 #   k8s/build-images.sh go python     # several
+#   DOCKER_BUILD_OPTS=--no-cache k8s/build-images.sh dotnet   # extra docker build flags
+#
+# A cache-mounted NuGet restore layer can stay cached after BuildKit drops the mount's
+# contents; the publish step then fails with NETSDK1064. Re-run with --no-cache.
 set -euo pipefail
 # shellcheck source=lib.sh
+# shellcheck source-path=SCRIPTDIR
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 [[ $# -ge 1 ]] || fail "usage: build-images.sh <lang>... (${LANGS[*]})"
@@ -32,7 +37,8 @@ for lang in "$@"; do
         read -r ctx cf <<<"$(build_args "$lang" "$svc")"
         image="localhost/cndp-05/${lang}-${svc}:${IMAGE_TAG}"
         log "build $image"
-        docker build -t "$image" -f "$EXAMPLE_DIR/$ctx/$cf" "$EXAMPLE_DIR/$ctx"
+        # shellcheck disable=SC2086  # DOCKER_BUILD_OPTS is intentionally word-split
+        docker build ${DOCKER_BUILD_OPTS:-} -t "$image" -f "$EXAMPLE_DIR/$ctx/$cf" "$EXAMPLE_DIR/$ctx"
         log "load $image into $PROFILE"
         minikube -p "$PROFILE" image load --overwrite=true "$image"
     done

@@ -5,6 +5,7 @@
 #   k8s/teardown.sh --operator   # also remove the Strimzi release, its CRDs and namespace
 set -euo pipefail
 # shellcheck source=lib.sh
+# shellcheck source-path=SCRIPTDIR
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 operator=0
@@ -24,7 +25,8 @@ if (( operator )); then
         hm uninstall strimzi -n "$STRIMZI_NAMESPACE" --wait
     fi
     log "deleting Strimzi CRDs and namespace $STRIMZI_NAMESPACE"
-    kc get crd -o name | grep -E '\.strimzi\.io$' | xargs -r kubectl --context "$PROFILE" delete --wait=true
+    # No Strimzi CRDs left is fine: grep exits 1 then, which must not abort under pipefail.
+    kc get crd -o name | { grep -E '\.strimzi\.io$' || true; } | xargs -r kubectl --context "$PROFILE" delete --ignore-not-found --wait=true
     kc delete namespace "$STRIMZI_NAMESPACE" --ignore-not-found --wait=true --timeout=300s
 fi
 

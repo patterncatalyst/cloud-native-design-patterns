@@ -8,6 +8,7 @@
 #   k8s/deploy.sh go
 set -euo pipefail
 # shellcheck source=lib.sh
+# shellcheck source-path=SCRIPTDIR
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 [[ $# -eq 1 ]] || fail "usage: deploy.sh <lang> (${LANGS[*]})"

@@ -135,16 +135,20 @@ check "notification-group consumer group exists" \
 
 # --- Idempotent consumers: re-deliver same event and verify no duplicates ---
 printf '  \xe2\x86\x92 testing idempotent consumers (re-sending duplicate event)...\n'
+# A failed send must not abort the script (set -e) and must not let the two checks
+# below pass vacuously: with dup_sent=0 their commands fail, so they report a failure.
+dup_sent=1
+dup_was_sent() { [[ $dup_sent == 1 ]]; }
 DUPLICATE_EVENT="{\"id\":\"$ORDER_ID\",\"sku\":\"widget-a\",\"quantity\":5,\"status\":\"pending\"}"
-ctr_exec cndp-kafka bash -c "echo '$DUPLICATE_EVENT' | /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic order.placed" >/dev/null 2>&1
+ctr_exec cndp-kafka bash -c "echo '$DUPLICATE_EVENT' | /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic order.placed" >/dev/null 2>&1 || dup_sent=0
 sleep 8
 
 check "shipping remains idempotent (still 1 row after duplicate)" \
-    "ctr_exec cndp-postgres psql -U appuser -d appdb -tAc \"SELECT count(*) FROM shipments WHERE order_id='$ORDER_ID'\"" \
+    "dup_was_sent && ctr_exec cndp-postgres psql -U appuser -d appdb -tAc \"SELECT count(*) FROM shipments WHERE order_id='$ORDER_ID'\"" \
     "1"
 
 check "notification remains idempotent (still 1 row after duplicate)" \
-    "ctr_exec cndp-postgres psql -U appuser -d appdb -tAc \"SELECT count(*) FROM notifications WHERE order_id='$ORDER_ID'\"" \
+    "dup_was_sent && ctr_exec cndp-postgres psql -U appuser -d appdb -tAc \"SELECT count(*) FROM notifications WHERE order_id='$ORDER_ID'\"" \
     "1"
 
 printf '\n==> Results: %d passed, %d failed\n' "$PASS" "$FAIL"

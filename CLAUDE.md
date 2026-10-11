@@ -64,7 +64,7 @@ patterns). Run an example with `docker compose up -d --build --wait` and tear it
 Example 05 also runs on minikube (`examples/05-event-driven/k8s/`, Appendix R): profile `cndp-k8s`
 (docker driver, containerd, Kubernetes v1.36.5), NodePorts 30080 and 30300 published on 127.0.0.1 at
 creation, Strimzi 1.2.0 for Kafka, kustomize manifests, `RUNTIME=kubernetes ./verify.sh`. Always pass
-`--keep-context` to `minikube start` and `--context cndp-k8s` to kubectl; never use port-forward,
+`--keep-context` to `minikube start` (setup-profile.sh also restores the prior current-context, because minikube's restart path overrides the flag) and `--context cndp-k8s` to kubectl; never use port-forward,
 `minikube tunnel` or `minikube service`. OpenShift Local (Appendix S) is added later in
 the modernization plan. Prometheus/Mimir is published on host port 19090 (Cockpit holds 9090
 on Fedora/RHEL). Each example must run standalone.

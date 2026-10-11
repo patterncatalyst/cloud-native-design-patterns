@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Shared settings and helpers for the Example 05 minikube scripts. Source it; do not run it.
 #
-# Every kubectl and helm call names the profile explicitly. Nothing here reads or
-# changes kubectl's current-context, and nothing runs `minikube config set`.
+# Every kubectl and helm call names the profile explicitly. Only setup-profile.sh
+# touches kubectl's current-context, to restore the value it recorded before
+# `minikube start`; nothing runs `minikube config set`.
 
 # shellcheck disable=SC2034  # variables are used by the scripts that source this file
 PROFILE="${PROFILE:-cndp-k8s}"

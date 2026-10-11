@@ -34,7 +34,7 @@ profile, and the compose stack already owns a network called `cndp`.
 | Kubernetes | v1.36.5 | Matches the pinned kubectl, so client and server are the same version |
 | Resources | 8 GB, 4 CPUs, 40 GB disk | Kafka, Postgres, LGTM and three services |
 | Published ports | `127.0.0.1:30080`, `127.0.0.1:30300` | order-service and Grafana, loopback only |
-| kubectl context | never changed | Every command passes `--context cndp-k8s`; `minikube start` runs with `--keep-context` |
+| kubectl context | unchanged after setup | Every command passes `--context cndp-k8s`; `minikube start` runs with `--keep-context`, and `setup-profile.sh` also restores the prior context because minikube's restart path overrides the flag |
 
 Host access uses NodePorts published when the profile is created. `kubectl port-forward`,
 `minikube tunnel` and `minikube service` are not used: forwarded connections drop under load and on
@@ -64,7 +64,7 @@ Each compose element has a Kubernetes counterpart, and each counterpart changes 
 Only the order-service has a `/healthz` endpoint, so it alone has startup and readiness probes
 (a 150-second startup window for the JVM and .NET images). The consumers have no HTTP surface; the
 cluster restarts them if they exit, and a consumer that cannot reach Kafka retries until the broker
-is ready. All 18 consumers start from the earliest offset, so a restart after the topic exists
+is ready. All twelve consumers start from the earliest offset, so a restart after the topic exists
 loses nothing.
 
 ## The manifests
@@ -233,8 +233,11 @@ caches warm). Time covers the image build and load, the deploy, the checks and t
 | C++ | 10 passed, 0 failed | 103 s |
 | Go | 10 passed, 0 failed | 104 s |
 
-Grafana answers on `http://127.0.0.1:30300` with anonymous access, as in compose; traces from the
-three services arrive over OTLP at the `lgtm` Service.
+Grafana answers on `http://127.0.0.1:30300` with anonymous access, as in compose. After each
+language's `verify.sh`, `verify-matrix.sh` asks Tempo, through the `lgtm` pod, which services it
+has received traces from (`/api/search/tag/service.name/values`) and keeps the reply as evidence.
+Spring Boot, Quarkus, .NET and Python each reported all three services. The Go and C++ versions of
+Example 05 carry no tracing code, so their traces are empty in compose as well as here.
 
 ## Clean up
 

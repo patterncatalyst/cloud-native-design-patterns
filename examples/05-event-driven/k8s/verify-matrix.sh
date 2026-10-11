@@ -10,6 +10,7 @@
 # Requires k8s/setup-profile.sh to have run. Exit status is 1 if any language fails.
 set -uo pipefail
 # shellcheck source=lib.sh
+# shellcheck source-path=SCRIPTDIR
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 OUT="${OUT:-${TMPDIR:-/tmp}/cndp-k8s-matrix}"
@@ -25,6 +26,17 @@ minikube status -p "$PROFILE" >/dev/null 2>&1 || fail "profile $PROFILE is not r
 foreign="$(docker ps --format '{{.Names}}' | grep -vx "$PROFILE" || true)"
 [[ -z "$foreign" ]] || fail "containers are running (one workshop at a time): $(tr '\n' ' ' <<<"$foreign")"
 
+# How many distinct service names Tempo reports in a service.name values reply (0 on any error).
+trace_count() {
+    python3 -c '
+import json, sys
+try:
+    print(len(set(json.load(open(sys.argv[1])).get("tagValues") or [])))
+except Exception:
+    print(0)
+' "$1"
+}
+
 evidence() {  # evidence <lang>
     local dir="$OUT/evidence/$1"
     mkdir -p "$dir"
@@ -38,6 +50,12 @@ evidence() {  # evidence <lang>
     for d in order-service shipping-consumer notification-consumer; do
         kcn logs "deployment/$d" --tail=60 >"$dir/$d.log" 2>&1
     done
+    # Not a verify.sh check: which services Tempo has received traces from, queried through the lgtm pod.
+    for _ in 1 2 3 4 5 6; do
+        kcn exec deploy/lgtm -- curl -s 'http://localhost:3200/api/search/tag/service.name/values' >"$dir/trace-services.json" 2>&1
+        [[ "$(trace_count "$dir/trace-services.json")" -ge 3 ]] && break
+        sleep 5
+    done
     curl -s http://127.0.0.1:30300/api/health >"$dir/grafana-health.json" 2>&1
     docker port "$PROFILE" >"$dir/docker-port.txt" 2>&1
 }
@@ -46,7 +64,6 @@ failed=0
 for lang in "${selected[@]}"; do
     log=$OUT/logs/$lang.log
     start=$(date +%s)
-    printf '%-12s ' "$lang"
     status=PASS
     if ! "$K8S_DIR/build-images.sh" "$lang" >"$log" 2>&1; then
         status=BUILD-FAIL
@@ -61,7 +78,8 @@ for lang in "${selected[@]}"; do
     "$K8S_DIR/teardown.sh" >>"$log" 2>&1 || true
     secs=$(( $(date +%s) - start ))
     summary="$(grep -E '==> Results:' "$log" | tail -1 | sed 's/.*Results: //' || true)"
-    printf '%s\t%s\t%s\t%ss\n' "$lang" "$status" "${summary:--}" "$secs" | tee -a "$RESULTS"
+    traces="$(trace_count "$OUT/evidence/$lang/trace-services.json") services"
+    printf '%-12s\t%s\t%s\ttraces %s\t%ss\n' "$lang" "$status" "${summary:--}" "$traces" "$secs" | tee -a "$RESULTS"
 done
 
 echo

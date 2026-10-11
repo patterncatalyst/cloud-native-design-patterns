@@ -8,12 +8,14 @@
 #
 # The script refuses to run while another minikube profile is Running or while
 # containers other than this profile's node are running. It never stops anything
-# and never deletes a profile. Every minikube start passes --keep-context, so
-# kubectl's current-context is not touched.
+# and never deletes a profile. Every minikube start passes --keep-context, and the
+# script also restores kubectl's prior current-context afterwards, because
+# minikube's restart path overrides the flag (see the restore block below).
 #
 #   k8s/setup-profile.sh
 set -euo pipefail
 # shellcheck source=lib.sh
+# shellcheck source-path=SCRIPTDIR
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 MEMORY="${MINIKUBE_MEMORY:-8g}"
@@ -63,28 +65,54 @@ if [[ -n "$foreign" ]]; then
     fail "stop them yourself (for example docker compose down) and re-run"
 fi
 
-exists="$(minikube profile list -o json 2>/dev/null | python3 -c '
+# Record kubectl's current-context (possibly empty) before any `minikube start`.
+prev_context="$(kubectl config current-context 2>/dev/null || true)"
+
+profile_json="$(minikube profile list -o json 2>/dev/null || echo '{}')"
+exists="$(python3 -c '
 import json, sys
 try:
-    data = json.load(sys.stdin) or {}
+    data = json.loads(sys.argv[2]) or {}
 except Exception:
     data = {}
 print("yes" if any(p.get("Name") == sys.argv[1] for p in (data.get("valid") or []) + (data.get("invalid") or [])) else "no")
-' "$PROFILE")"
+' "$PROFILE" "$profile_json")"
+
+running=no
+if [[ "$exists" == "yes" ]] && minikube status -p "$PROFILE" >/dev/null 2>&1; then running=yes; fi
+
+if [[ "$running" == "no" ]]; then
+    for p in "${NODE_PORTS[@]}"; do
+        if [[ -n "$(ss -ltnH "sport = :$p" 2>/dev/null)" ]]; then
+            fail "host port $p is in use; free it and re-run"
+        fi
+    done
+fi
 
 if [[ "$exists" == "yes" ]]; then
-    if minikube status -p "$PROFILE" >/dev/null 2>&1; then
+    # An existing profile must match what this example needs; settings are fixed at creation.
+    mismatch="$(python3 -c '
+import json, sys
+data = json.loads(sys.argv[2]) or {}
+want = {"Driver": "docker", "ContainerRuntime": "containerd", "KubernetesVersion": sys.argv[3]}
+for p in (data.get("valid") or []) + (data.get("invalid") or []):
+    if p.get("Name") != sys.argv[1]:
+        continue
+    cfg = p.get("Config") or {}
+    kcfg = cfg.get("KubernetesConfig") or {}
+    have = {"Driver": cfg.get("Driver"), "ContainerRuntime": kcfg.get("ContainerRuntime"), "KubernetesVersion": kcfg.get("KubernetesVersion")}
+    for k, v in want.items():
+        if have[k] != v:
+            print("%s is %s, expected %s" % (k, have[k] or "unknown", v))
+' "$PROFILE" "$profile_json" "$K8S_VERSION")"
+    [[ -z "$mismatch" ]] || fail "profile $PROFILE does not match this example: ${mismatch//$'\n'/; }. Settings are fixed at creation; recreate the profile."
+    if [[ "$running" == "yes" ]]; then
         log "profile $PROFILE is already running"
     else
         log "starting profile $PROFILE (published ports persist)"
         minikube start -p "$PROFILE" --keep-context
     fi
 else
-    for p in "${NODE_PORTS[@]}"; do
-        if [[ -n "$(ss -ltnH "sport = :$p" 2>/dev/null)" ]]; then
-            fail "host port $p is in use; free it and re-run"
-        fi
-    done
     log "creating $PROFILE (Kubernetes $K8S_VERSION, $MEMORY RAM, $CPUS CPUs, $DISK disk, docker driver, containerd)"
     log "publishing NodePorts: $PORTS_ARG"
     minikube start -p "$PROFILE" \
@@ -95,6 +123,20 @@ else
         --ports="$PORTS_ARG" \
         --keep-context
 fi
+
+# The single sanctioned current-context restore. --keep-context is honoured when a
+# profile is created, but when a stopped docker-driver profile restarts and its
+# API-server host port changed, minikube v1.39.0 calls kubeconfig.UpdateEndpoint with
+# KeepContext false and sets current-context to the profile anyway. Put back whatever
+# was recorded before the start, then assert it.
+if [[ -n "$prev_context" ]]; then
+    kubectl config use-context "$prev_context" >/dev/null
+else
+    kubectl config unset current-context >/dev/null
+fi
+now_context="$(kubectl config current-context 2>/dev/null || true)"
+[[ "$now_context" == "$prev_context" ]] \
+    || fail "kubectl current-context is '${now_context:-unset}', expected '${prev_context:-unset}'"
 
 # --- published ports must be loopback only ---
 for p in "${NODE_PORTS[@]}"; do
@@ -108,4 +150,4 @@ log "NodePorts ${NODE_PORTS[*]} are published on 127.0.0.1 only"
 log "cluster health (context $PROFILE)"
 kc wait --for=condition=Ready node --all --timeout=180s
 kc get nodes
-log "profile $PROFILE is ready; kubectl current-context was not changed"
+log "profile $PROFILE is ready; kubectl current-context is ${prev_context:-unset}, as before"
