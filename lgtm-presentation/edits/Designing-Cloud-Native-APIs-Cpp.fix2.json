@@ -1,0 +1,472 @@
+{
+ "ops": [
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    535
+   ],
+   "find": "Fallback: the recorded results that follow.",
+   "repl": "Fallback: the recorded results.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): soft positional reference",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    383
+   ],
+   "find": "(STOCK_UNAVAILABLE) — never a string",
+   "repl": "(STOCK_UNAVAILABLE), never a string",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    383
+   ],
+   "find": "A safe human message — no SQL",
+   "repl": "A safe human message: no SQL",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    383
+   ],
+   "find": "A trace_id — so server-side",
+   "repl": "A trace_id, so server-side",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    383
+   ],
+   "find": "A retryable flag — does the client",
+   "repl": "A retryable flag: does the client",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    383
+   ],
+   "find": "Field details — for validation",
+   "repl": "Field details: for validation",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    383
+   ],
+   "find": "encode these differently — RFC 9457",
+   "repl": "encode these differently: RFC 9457",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "set_code",
+   "sldId": 269,
+   "shape_id": 155,
+   "cat": "code",
+   "_slide": 14,
+   "_why": "examples/01-cloud-native-principles/cpp/src/main.cpp: env() helper with defaults, PG_CONNINFO/PG_POOL_SIZE/SERVICE_VERSION, no Kafka; the old code built std::string from a possibly-null getenv, used Json::Value brace-init and generic lambdas Drogon cannot bind, and called undefined check_db/check_kafka",
+   "lines": [
+    "// main.cpp (excerpt), examples/01-cloud-native-principles/cpp; conan.lock pins every library",
+    "using Callback = std::function<void(const HttpResponsePtr&)>;",
+    "const char* env(const char* name, const char* fallback) {   // config from env, factor III",
+    "  const char* v = std::getenv(name);",
+    "  return v ? v : fallback;                     // unset: the default, never a null pointer",
+    "}",
+    "int main() {",
+    "  g_version = env(\"SERVICE_VERSION\", \"1.0.0\");",
+    "  g_pool = std::make_unique<cndp::PgPool>(",
+    "      env(\"PG_CONNINFO\", \"postgresql://appuser:apppass@postgres:5432/appdb\"),",
+    "      std::atoi(env(\"PG_POOL_SIZE\", \"4\")));",
+    "  app().registerHandler(\"/healthz\", [](const HttpRequestPtr&, Callback&& cb) {",
+    "    Json::Value j;  j[\"status\"] = \"ok\";        // liveness: the process is up",
+    "    cb(HttpResponse::newHttpJsonResponse(j));",
+    "  }, {Get});",
+    "  app().registerHandler(\"/readyz\", [](const HttpRequestPtr&, Callback&& cb) {",
+    "    Json::Value j;                             // readiness: SELECT 1 through the libpq pool",
+    "    j[\"status\"] = db_ready() ? \"ready\" : \"down\";    // (the example's retry loop, elided)",
+    "    cb(HttpResponse::newHttpJsonResponse(j));",
+    "  }, {Get});",
+    "  app().addListener(\"0.0.0.0\", 8080).run();    // factor VII: port binding",
+    "}"
+   ],
+   "_src": "content"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 269,
+   "cat": "notes",
+   "_slide": 14,
+   "_why": "describe the example's code (the old notes described the Settings struct and constinit version)",
+   "paragraphs": [
+    "A 12-factor Drogon service, from Example 01. Configuration comes from the environment (factor III): a small env() helper returns the variable or a default, so an unset variable never turns into a null pointer, and main() reads PG_CONNINFO, PG_POOL_SIZE and SERVICE_VERSION once at start-up.",
+    "/healthz answers while the process is up (liveness); /readyz runs SELECT 1 through the libpq pool and reports ready or down (readiness), so the probe that takes a Pod out of rotation is not the probe that restarts it. Handlers are lambdas with the request and callback types spelled out, which Drogon's handler binding needs.",
+    "Port binding (factor VII) is explicit in main(): the binary is self-contained, with no external web server in front of it. conan.lock pins every library, and the Containerfile builds with GCC 15 on UBI 10."
+   ],
+   "_src": "content"
+  },
+  {
+   "op": "set_code",
+   "sldId": 291,
+   "shape_id": 407,
+   "cat": "code",
+   "_slide": 36,
+   "_why": "the while loop was never closed (22 lines, no closing brace); examples/05-event-driven/cpp/order-service sets acks=all and dr_cb but not enable.idempotence, so that line goes and the brace fits",
+   "lines": [
+    "// Producer (excerpt): process-scoped, built once in main() (librdkafka C++ API, rdkafka++)",
+    "std::unique_ptr<RdKafka::Conf> conf(RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL));",
+    "conf->set(\"bootstrap.servers\", cfg.kafka_bootstrap, err);",
+    "conf->set(\"acks\", \"all\", err);                  // wait for ISR ack: durable",
+    "conf->set(\"dr_cb\", &delivery_report, err);      // DeliveryReportCb logs failures",
+    "std::unique_ptr<RdKafka::Producer> producer(RdKafka::Producer::create(conf.get(), err));",
+    "void publish_order_placed(const Order& o) {",
+    "  auto value = serialize(o);",
+    "  producer->produce(\"order.placed\", RdKafka::Topic::PARTITION_UA,",
+    "                    RdKafka::Producer::RK_MSG_COPY, value.data(), value.size(),",
+    "                    o.id.data(), o.id.size(), 0, nullptr);   // key = order id",
+    "  producer->poll(0);                            // serve delivery reports",
+    "}",
+    "std::unique_ptr<RdKafka::KafkaConsumer> consumer(",
+    "    RdKafka::KafkaConsumer::create(cconf.get(), err));",
+    "consumer->subscribe({\"order.placed\"});   // notification-group, enable.auto.commit=false",
+    "while (running) {",
+    "  std::unique_ptr<RdKafka::Message> msg(consumer->consume(1000));",
+    "  if (msg->err() != RdKafka::ERR_NO_ERROR) continue;   // timeout / partition EOF",
+    "  send_email(deserialize(payload_of(*msg)));            // idempotent handler",
+    "  consumer->commitSync(msg.get());                      // after the side-effect",
+    "}"
+   ],
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    291
+   ],
+   "expect": 1,
+   "cat": "notes",
+   "_slide": 36,
+   "find": "(2) enable.idempotence=true with acks=all deduplicates producer retries, so a retry does not write the record twice.",
+   "repl": "(2) acks=all waits for every in-sync replica before the delivery report; add enable.idempotence=true when a producer retry must never write the record twice.",
+   "_why": "the code no longer sets enable.idempotence (the example does not)",
+   "_src": "content"
+  },
+  {
+   "op": "set_text",
+   "sldId": 340,
+   "shape_id": 943,
+   "paragraphs": [
+    "Per-tenant bulkheads with an atomic counter"
+   ],
+   "cat": "code",
+   "_slide": 85,
+   "_why": "examples/12-security/cpp uses a lock-free std::atomic counter per tenant, not std::counting_semaphore",
+   "_src": "content"
+  },
+  {
+   "op": "set_text",
+   "sldId": 340,
+   "shape_id": 945,
+   "paragraphs": [
+    "c++ · std::atomic"
+   ],
+   "cat": "code",
+   "_slide": 85,
+   "_why": "chip follows the code",
+   "_src": "content"
+  },
+  {
+   "op": "set_code",
+   "sldId": 340,
+   "shape_id": 946,
+   "cat": "code",
+   "_slide": 85,
+   "_why": "examples/12-security/cpp/order-service/src/main.cpp and the _docs/12 C++ codetab: TenantBulkhead (CAPACITY 5, CAS loop), 429 'tenant capacity exceeded'; the old slide used absl::Cleanup and a non-existent drogon HttpException, a 500 ms wait and 503",
+   "lines": [
+    "// main.cpp (excerpt), examples/12-security/cpp: one lock-free counter per tenant",
+    "struct TenantBulkhead {",
+    "    static constexpr int CAPACITY = 5;                        // 5 concurrent per tenant",
+    "    std::atomic<int> active{0};",
+    "    bool try_acquire() {",
+    "        int current = active.load();",
+    "        while (current < CAPACITY) {",
+    "            if (active.compare_exchange_weak(current, current + 1)) return true;",
+    "        }",
+    "        return false;                                         // full: shed, don't queue",
+    "    }",
+    "    void release() { active.fetch_sub(1); }",
+    "};",
+    "auto& bulkhead = bulkhead_manager.get_or_create(tenant);     // POST /orders: per tenant",
+    "if (!bulkhead.try_acquire()) {",
+    "    Json::Value error;",
+    "    error[\"detail\"] = \"tenant capacity exceeded\";",
+    "    auto resp = HttpResponse::newHttpJsonResponse(error);",
+    "    resp->setStatusCode(k429TooManyRequests);",
+    "    callback(resp);",
+    "    return;",
+    "}"
+   ],
+   "_src": "content"
+  },
+  {
+   "op": "set_text",
+   "sldId": 340,
+   "shape_id": 947,
+   "cat": "code",
+   "_slide": 85,
+   "_why": "caption follows the code",
+   "paragraphs": [
+    "5 concurrent requests per tenant; the sixth gets 429 at once instead of waiting in a queue."
+   ],
+   "_src": "content"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 340,
+   "cat": "notes",
+   "_slide": 85,
+   "_why": "notes follow the example's bulkhead",
+   "paragraphs": [
+    "The bulkhead from Example 12: one TenantBulkhead per tenant, created on first use in a map guarded by a mutex. Each holds a lock-free std::atomic<int> with a capacity of five; try_acquire increments it with a compare-and-swap loop only while it is under capacity, so a full tenant is refused without blocking a Drogon worker.",
+    "A refused request gets 429 with \"tenant capacity exceeded\" at once: shed, don't queue, because a queue in front of a saturated tenant becomes the bottleneck. The example releases the slot after the order is stored; in production code an RAII guard makes the release exception-safe. One tenant's storm fills only its own five slots; other tenants keep their capacity.",
+    "Per-tenant connection pools at the libpq or gRPC layer are a separate bulkhead: the counter caps concurrency, the pool caps sockets."
+   ],
+   "_src": "content"
+  },
+  {
+   "op": "set_code",
+   "sldId": 419,
+   "shape_id": 1809,
+   "cat": "code",
+   "_slide": 164,
+   "_why": "Drogon binds handlers through their parameter types, so a generic lambda (auto&& cb) does not compile; extern \"C\" as in examples/21-graceful-shutdown/cpp",
+   "lines": [
+    "// order-service (excerpt): SIGTERM flips readiness; Drogon keeps serving",
+    "std::atomic<bool> g_shutting_down{false};",
+    "std::atomic<int>  g_in_flight{0};",
+    "struct InFlightGuard {                           // RAII: one per request",
+    "  InFlightGuard()  { ++g_in_flight; }",
+    "  ~InFlightGuard() { --g_in_flight; }",
+    "};",
+    "extern \"C\" void sigterm_handler(int) {",
+    "  g_shutting_down.store(true, std::memory_order_release);   // fail readiness first",
+    "}",
+    "using Callback = std::function<void(const HttpResponsePtr&)>;",
+    "int main() {",
+    "  app().registerBeginningAdvice([] { std::signal(SIGTERM, sigterm_handler); });  // after init",
+    "  app().registerHandler(\"/readyz\", [](const HttpRequestPtr&, Callback&& cb) {",
+    "    auto r = HttpResponse::newHttpResponse();",
+    "    r->setStatusCode(g_shutting_down.load() ? k503ServiceUnavailable : k200OK);",
+    "    cb(r);",
+    "  });",
+    "  app().addListener(\"0.0.0.0\", 8080).run();      // returns on quit / SIGINT",
+    "  while (g_in_flight.load() > 0)                 // drain in-flight requests",
+    "    std::this_thread::sleep_for(std::chrono::milliseconds(100));",
+    "}                                                 // RAII closes the libpq pool"
+   ],
+   "_src": "content"
+  },
+  {
+   "op": "set_text",
+   "sldId": 476,
+   "shape_id": 2447,
+   "paragraphs": [
+    "c++ · sw/redis++ + libpq"
+   ],
+   "cat": "code",
+   "_slide": 221,
+   "_why": "chip follows the example's code",
+   "_src": "content"
+  },
+  {
+   "op": "resize_shape",
+   "sldId": 476,
+   "shape_id": 2447,
+   "cx": 2286000,
+   "keep": "right",
+   "cat": "fit",
+   "_slide": 221,
+   "_fit": "the longer chip wrapped; widened to the left onto one line",
+   "_src": "content"
+  },
+  {
+   "op": "set_code",
+   "sldId": 476,
+   "shape_id": 2448,
+   "cat": "code",
+   "_slide": 221,
+   "_why": "examples/25-caching/cpp/cache-service/src/main.cpp: PUT /write-back/metrics/{id} sets metric:<id> and SADDs writeback:dirty; a std::thread flusher every 2 s upserts and SREMs only on success (the old slide's hset/SPOP batch/jthread design is not in the example)",
+   "lines": [
+    "// cache-service main.cpp (excerpt), examples/25-caching/cpp: write-back",
+    "using Callback = std::function<void(const HttpResponsePtr&)>;",
+    "app().registerHandler(\"/write-back/metrics/{id}\",",
+    "    [](const HttpRequestPtr& req, Callback&& callback, const std::string& id) {",
+    "      Json::Value cache_val;                          // (400 when the body is not JSON)",
+    "      cache_val[\"id\"] = id;",
+    "      cache_val[\"payload\"] = *req->getJsonObject();",
+    "      redis_set(\"metric:\" + id, Json::FastWriter{}.write(cache_val));  // 1. to the cache",
+    "      redis_sadd(\"writeback:dirty\", \"metric:\" + id);  // 2. mark dirty",
+    "      callback(HttpResponse::newHttpResponse());      // 3. 200 at cache speed",
+    "    }, {Put});",
+    "void writeback_flusher() {                          // std::thread, joined at shutdown",
+    "  while (!g_shutdown) {",
+    "    std::this_thread::sleep_for(std::chrono::seconds(2));",
+    "    for (const auto& key : redis_smembers(\"writeback:dirty\")) {  // key -> id, cached payload",
+    "      auto res = g_flush_db->exec(\"INSERT INTO metrics (id, payload) VALUES ($1, $2) \"",
+    "          \"ON CONFLICT (id) DO UPDATE SET payload = EXCLUDED.payload\", {id, payload});",
+    "      if (res && PQresultStatus(res.get()) == PGRES_COMMAND_OK)",
+    "        redis_srem(\"writeback:dirty\", key);         // clear only after the DB has it",
+    "    }",
+    "  }",
+    "}"
+   ],
+   "_src": "content"
+  },
+  {
+   "op": "set_text",
+   "sldId": 476,
+   "shape_id": 2449,
+   "cat": "code",
+   "_slide": 221,
+   "_why": "caption follows the code",
+   "paragraphs": [
+    "Write to Redis and mark dirty; a flusher upserts every 2 s and clears a mark only once the DB has the row."
+   ],
+   "_src": "content"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 476,
+   "cat": "notes",
+   "_slide": 221,
+   "_why": "notes follow the example's write-back",
+   "paragraphs": [
+    "Write-back from Example 25: PUT /write-back/metrics/{id} stores the payload in Redis under metric:<id>, adds the key to the writeback:dirty set and answers at cache speed. A background std::thread wakes every two seconds, reads the dirty set, upserts each metric into Postgres with INSERT ... ON CONFLICT DO UPDATE, and removes the key from the set only after the upsert succeeds, so a failed write is retried on the next cycle.",
+    "The upsert makes a repeated flush harmless. The flusher has its own libpq connection, separate from the request handlers', and main() joins it after the shutdown flag is set (Appendix H). The risk is the one every write-back carries: a write that was acknowledged but not yet flushed is lost if Redis loses it, so keep write-back for data that tolerates that window, such as metrics."
+   ],
+   "_src": "content"
+  },
+  {
+   "op": "set_code",
+   "sldId": 310,
+   "lines": [
+    "// publish_schema.cc — invoked from CI after the build, before the merge.",
+    "// Apicurio answers 400 when a version breaks the artifact's rule (e.g. BACKWARD).",
+    "#include <httplib.h>",
+    "#include <nlohmann/json.hpp>",
+    "#include <spdlog/spdlog.h>",
+    "int publish(const std::string& group, const std::string& artifact_id,",
+    "            const std::string& schema) {",
+    "  httplib::Client cli{\"http://apicurio.registry.svc\"};",
+    "  cli.set_read_timeout(10);",
+    "  auto path = \"/apis/registry/v3/groups/\" + group +",
+    "              \"/artifacts/\" + artifact_id + \"/versions\";",
+    "  nlohmann::json body = {{\"content\", {{\"content\", schema},     // v3 CreateVersion",
+    "                                      {\"contentType\", \"application/json\"}}}};",
+    "  auto res = cli.Post(path, body.dump(), \"application/json\");",
+    "  if (!res) return 2;                          // unreachable: retry or page on-call",
+    "  if (res->status == 400) {                    // RuleViolationException",
+    "    spdlog::error(\"incompatible schema change, blocking the merge: {}\", res->body);",
+    "    return 1;",
+    "  }",
+    "  if (res->status >= 300) { spdlog::error(\"{}\", res->body); return 2; }",
+    "  return 0;                                    // 200: compatible, version created",
+    "}"
+   ],
+   "cat": "code",
+   "_why": "Apicurio Registry 3.3.3 REST v3: POST .../versions takes a CreateVersion JSON body (common/src/main/resources/META-INF/openapi.json); a raw schema body is the v2 shape. examples/09-api-registry/verify.sh sends the same body and expects 400 RuleViolationException; spdlog is the house logger (fmt-style), LOG_ERROR is Drogon's stream macro",
+   "_src": "registry"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    310
+   ],
+   "find": "The actual schema body is your .proto, OpenAPI YAML, or AsyncAPI YAML serialised — Apicurio stores it verbatim.",
+   "repl": "The schema text travels as the content field of the v3 CreateVersion body with its content type (application/json for Avro and JSON Schema, application/x-yaml for OpenAPI or AsyncAPI, application/x-protobuf for a .proto); Apicurio stores it as given.",
+   "expect": 1,
+   "cat": "notes",
+   "_why": "v3 body shape",
+   "_src": "registry"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 487,
+   "shape": "Google Shape;2567;p234",
+   "png": "lgtm-presentation/edits/png/25-gray-failure.png",
+   "cat": "voice",
+   "_why": "ALL-CAPS emphasis baked into the old figure (PERCEIVED DIFFERENTLY, NOT fully down, OBSERVE FROM THE CLIENT, GREEN, OUTLIER DETECTION); replaced by the site figure assets/diagrams/25-gray-failure.svg",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 293,
+   "shape": "Google Shape;429;p40",
+   "png": "lgtm-presentation/edits/png/05-sourcing-vs-streaming.png",
+   "cat": "voice",
+   "_why": "ALL-CAPS emphasis baked into the old figure (SOURCING/STREAMING, ARE, IS, TRANSPORT, ABOUT, NOT, EVENT, PROPAGATED); replaced by the site figure assets/diagrams/05-sourcing-vs-streaming.svg (caps lowered there too)",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 294,
+   "shape": "Google Shape;440;p41",
+   "png": "lgtm-presentation/edits/png/05-tools-landscape.png",
+   "cat": "voice",
+   "_why": "ALL-CAPS emphasis baked into the old figure (COMPLEMENT); replaced by the site figure assets/diagrams/05-tools-landscape.svg (SUBSTRATE/COMPUTE/MOVEMENT are design labels)",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 410,
+   "shape": "Google Shape;1714;p157",
+   "png": "lgtm-presentation/edits/png/20-coupling-quadrant.png",
+   "cat": "voice",
+   "_why": "ALL-CAPS emphasis baked into the old figure ('strong OR distant'); replaced by the site figure assets/diagrams/20-coupling-quadrant.svg",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 445,
+   "shape_id": 2100,
+   "png": "lgtm-presentation/edits/png/22-hop-cost-cpp.png",
+   "cat": "voice",
+   "_why": "figure footer: 'where p99 goes to die' rewritten without the drama",
+   "_src": "hop"
+  }
+ ]
+}
