@@ -87,7 +87,6 @@ might expect.
 | LTS | Long-Term Support | A release supported for years, e.g. .NET 10 |
 | PID | Process ID | PID 1 in a container receives `SIGTERM` on shutdown |
 | I/O | Input/Output | Work the domain core delegates to adapters in hexagonal architecture |
-| S3 | Simple Storage Service | Object storage, e.g. the target of a valet-key upload |
 | DSL | Domain-Specific Language | A focused mini-language, e.g. a business-rule ruleset |
 | DMN | Decision Model and Notation | A decision-table standard for business-rule routing |
 | PR | Pull Request | The review unit a schema or contract change travels in |

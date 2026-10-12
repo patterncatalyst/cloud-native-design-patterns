@@ -23,9 +23,8 @@ separable — the cluster does not know or care that the Pods happen to run .NET
 ## The pinned .NET 10 toolkit
 
 Every library that appears anywhere in the .NET edition, grouped by concern. The license
-column is the one to read closely: every entry is MIT, Apache 2.0, or BSD — no
-commercial-only dependencies, and nothing that requires Azure or any other specific
-cloud.
+column is the one to read closely: every entry is MIT, Apache 2.0, BSD or (for Redis) the AGPLv3 option — no
+commercial-only dependencies, and nothing that requires a specific cloud.
 
 | Concern | Library | Purpose | License | NuGet |
 |---|---|---|---|---|
@@ -33,7 +32,7 @@ cloud.
 | Hosting | ASP.NET Core 10 | Web host, minimal APIs, controllers, DI, config | MIT | (built in) |
 | REST | Microsoft.AspNetCore.OpenApi | OpenAPI 3 spec generation from endpoints | MIT | Microsoft.AspNetCore.OpenApi |
 | REST | FluentValidation | Expressive request validation | Apache 2.0 | FluentValidation |
-| Versioning | Asp.Versioning | Media-type / header / URI versioning | Apache 2.0 | Asp.Versioning.Http |
+| Versioning | Asp.Versioning | Media-type / header / URI versioning | MIT | Asp.Versioning.Http |
 | gRPC | Grpc.AspNetCore | Server + Grpc.Tools build-time codegen | Apache 2.0 | Grpc.AspNetCore |
 | gRPC | Grpc.StatusProto | google.rpc.Status rich errors (ToRpcException) | Apache 2.0 | Grpc.StatusProto |
 | GraphQL | HotChocolate | Code-first server, DataLoader, federation | MIT | HotChocolate.AspNetCore |
@@ -42,16 +41,16 @@ cloud.
 | Event store | Marten | Document + event sourcing on Postgres | MIT | Marten |
 | Messaging | Confluent.Kafka 2.16.0 | Kafka client: producers, consumer groups, explicit offset commits | Apache 2.0 | Confluent.Kafka |
 | Streaming | Streamiz.Kafka.Net 1.8.2 | .NET port of Kafka Streams | MIT | Streamiz.Kafka.Net |
-| Workflow | Temporalio.Temporal | Temporal .NET SDK — durable execution | Apache 2.0 | Temporalio.Temporal |
+| Workflow | Temporalio | Temporal .NET SDK — durable execution | MIT | Temporalio |
 | Workflow | Stateless | In-process state machine library | Apache 2.0 | Stateless |
 | Rules | NRules | Rete-algorithm rules engine | MIT | NRules.Fluent |
 | Rules · DSL | NRules.Language | External DSL for non-developer rule editing | MIT | NRules.Language |
-| WebSockets | Microsoft.AspNetCore.SignalR | Hub abstraction; auto-reconnect; MessagePack | Apache 2.0 | (built in) |
-| WebSockets | SignalR.StackExchangeRedis | Open-source Redis backplane (not Azure SignalR Service) | Apache 2.0 | Microsoft.AspNetCore.SignalR.StackExchangeRedis |
+| WebSockets | Microsoft.AspNetCore.SignalR | Hub abstraction; auto-reconnect; MessagePack | MIT | (built in) |
+| WebSockets | SignalR.StackExchangeRedis | Open-source Redis backplane (no managed SignalR service) | MIT | Microsoft.AspNetCore.SignalR.StackExchangeRedis |
 | UI · server | Blazor Server | BFF + WebSocket UI; SignalR-based | MIT | (built in) |
 | UI · client | Blazor WebAssembly | .NET in the browser; static-file hosted | MIT | (built in) |
 | Resilience | Polly + M.E.Resilience | Retry, circuit breaker, hedging, timeout, bulkhead | BSD-3 / MIT | Microsoft.Extensions.Resilience |
-| Health | AspNetCore.HealthChecks | Postgres / Redis / Kafka / SQL Server probes (community) | MIT | AspNetCore.HealthChecks.* |
+| Health | AspNetCore.HealthChecks | Postgres / Redis / Kafka / SQL Server probes (community) | Apache 2.0 | AspNetCore.HealthChecks.* |
 | Observability | OpenTelemetry .NET | Tracing, metrics, logs; ActivitySource is in the BCL | Apache 2.0 | OpenTelemetry.Extensions.Hosting |
 | Reverse proxy | YARP | In-app reverse proxy / gateway library | MIT | Yarp.ReverseProxy |
 | Mediator | Wolverine | Command / handler dispatch (MediatR OSS heir) | MIT | WolverineFx |
@@ -61,7 +60,7 @@ cloud.
 `Microsoft.AspNetCore.OpenApi` and SignalR are built
 into ASP.NET Core 10 — no extra package. **Confluent.Kafka** is the Kafka client the examples use directly: a bus abstraction such as MassTransit would hide the consumer-group, offset-commit, and partition semantics the chapters teach, and MassTransit v9 moved to a commercial license.
 **Streamiz.Kafka.Net** is a .NET port of Kafka Streams, which means windowed aggregations
-without standing up a Flink cluster. **Temporalio.Temporal** pairs with the Temporal Server
+without standing up a Flink cluster. **Temporalio** (the Temporal .NET SDK) pairs with the Temporal Server
 in the platform stack for durable workflows; **Stateless** fills the lightweight in-process
 state-machine slot; **NRules** is the Rete rules engine (a .NET-only library — it has no JVM
 or C++ equivalent). And **Wolverine** is the modern OSS mediator to reach for now that
@@ -89,14 +88,17 @@ the application layer.
 | Dashboards / alerts | Grafana | Unified panel for traces, metrics, logs | AGPL-3.0 |
 | CDC | Debezium | Postgres / SQL Server WAL tailing → Kafka | Apache 2.0 |
 | Relational DB | PostgreSQL | Primary OLTP store; CDC source | PostgreSQL |
-| Key-value / cache | Redis (or Valkey) | SignalR backplane, distributed locks, caching | BSD-3 / BSD |
+| Key-value / cache | Redis 8 (or Valkey) | SignalR backplane, distributed locks, caching | Redis 8: RSALv2 / SSPLv1 / AGPLv3, the examples take AGPLv3; Valkey: BSD-3 |
 | Workflow server | Temporal Server | Durable-execution server (paired with .NET SDK) | MIT |
 | Secrets | Kubernetes Secrets + external-secrets-operator | Secrets sync from your vault of choice | Apache 2.0 |
 | Observability pipeline | OpenTelemetry Collector | OTLP ingest, processing, fan-out | Apache 2.0 |
 
 The one license nuance to flag for your own legal review: the Grafana **LGTM** stack
-(Tempo, Mimir, Loki, Grafana) is AGPL-3.0, which some organisations treat differently from
-Apache/MIT. Everything else here is permissive. The bottom line is a standard CNCF-friendly
+(Tempo, Mimir, Loki, Grafana) is AGPL-3.0, and so is Redis 8 under the option the examples
+use (`redis:8.10.2-alpine`; RSALv2 and SSPLv1 are the other two choices and neither is open
+source). Some organisations treat AGPL differently from Apache/MIT; where that rules Redis
+out, Valkey (BSD-3, a Linux Foundation project forked from Redis 7.2) speaks the same
+protocol and works with StackExchange.Redis unchanged. Everything else here is permissive. The bottom line is a standard CNCF-friendly
 stack on which .NET 10 is one workload type.
 
 ## From Windows / .NET 4.x to Kubernetes / .NET 10
@@ -134,7 +136,7 @@ open-source and cluster-native.
 | .NET Remoting | Remoting, MarshalByRefObject | gRPC over HTTP/2 / HTTP API | Wire boundary is explicit; serialization is contractual |
 | Distributed transactions UI | BizTalk orchestration | Temporal .NET workflows / Stateless (lightweight) | Orchestration is plain C#; the engine handles durability |
 | Routing logic | BizTalk pipelines + content-based routing | NRules + Confluent.Kafka producers | EIP patterns in code; rules in their own .csproj |
-| UI · LOB | ASP.NET Web Forms / MVC + jQuery | Blazor Server (SignalR) or Blazor WebAssembly (browser .NET) | Same C# both sides of the wire; no Azure required |
+| UI · LOB | ASP.NET Web Forms / MVC + jQuery | Blazor Server (SignalR) or Blazor WebAssembly (browser .NET) | Same C# both sides of the wire; no managed cloud service required |
 | Reverse proxy | ARR (IIS Application Request Routing) | YARP (in-app) / Istio Gateway (mesh edge) | Code-level routing or declarative platform routing |
 | Resilience | Hand-coded try/retry loops, Polly v6 standalone | M.E.Resilience pipelines (built on Polly) | Composable: retry + circuit breaker + timeout + hedging |
 | Health probes | ASP.NET app warmup, monitoring agents | M.E.Diagnostics.HealthChecks → /healthz/live + ready | Kubernetes is the monitoring agent |
@@ -149,17 +151,16 @@ platform owning more and your code owning less.
 ## What the .NET cloud-native story lacks
 
 Every ecosystem has gaps; pretending .NET does not would erode trust. These are real, and
-in each case there is a workable .NET path, a polyglot path, or a commercial path.
+in each case there is a workable .NET path or an open-source polyglot path.
 
 - **No native DMN runtime.** .NET ships no open-source DMN (Decision Model and Notation)
   engine. If you need spreadsheet-style decision tables authored by non-developers, run
-  Camunda or Kogito DMN as a separate service and call it over REST from the enrichment
-  step. NRules covers the rule-*engine* slot but not the DMN authoring experience.
+  the Apache KIE DMN engine (Kogito, Apache 2.0) as a separate service and call it over REST
+  from the enrichment step. NRules covers the rule-*engine* slot but not the DMN authoring experience.
 - **No Apache Camel-scale connector ecosystem.** Nothing in .NET matches Camel's 300-plus
   component connectors. Routing code over plain Kafka producers covers the EIP patterns well, but for
   long-tail integration — HL7 over MLLP, AS2, EDI, mainframe gateways — you may still run a
-  Camel sidecar in a JVM Pod, or accept a commercial option like Boomi or MuleSoft if open
-  source is not a hard constraint.
+  Camel sidecar in a JVM Pod (Apache Camel, Apache 2.0) next to the .NET services.
 - **Thinner stream processing.** Streamiz.Kafka.Net is excellent but is a smaller project
   than Kafka Streams. If stream processing is central, Flink remains the heavyweight option,
   typically as a separate JVM service.
@@ -200,7 +201,7 @@ settle data ownership, then pick a workflow tier, then let the cluster do the he
    rather than inventing your own scheme.
 
 Six libraries get you most of the way: **ASP.NET Core, EF Core, Confluent.Kafka,
-Temporalio.Temporal, OpenTelemetry, and Polly.** Add NRules, Streamiz, HotChocolate, or
+Temporalio, OpenTelemetry, and Polly.** Add NRules, Streamiz, HotChocolate, or
 SignalR per workload — only when the use case earns it.
 
 ### Cross-check it yourself

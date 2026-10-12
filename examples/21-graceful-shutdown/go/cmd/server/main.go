@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -120,6 +120,18 @@ func (s *server) listOrders(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(orders)
 }
 
+// shutdownTimeout bounds the connection drain; drain delay + shutdownTimeout stays under the
+// 30s stop grace period.
+const shutdownTimeout = 20 * time.Second
+
+// drainDelay is the pre-stop delay that lets endpoint removal propagate (DRAIN_DELAY_SECONDS).
+func drainDelay() time.Duration {
+	if v, err := strconv.Atoi(os.Getenv("DRAIN_DELAY_SECONDS")); err == nil && v >= 0 {
+		return time.Duration(v) * time.Second
+	}
+	return 5 * time.Second
+}
+
 func main() {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
@@ -148,7 +160,8 @@ func main() {
 		Handler: mux,
 	}
 
-	// First signal cancels ctx. The second one is caught by a fresh NotifyContext below.
+	// One SIGTERM starts the whole drain. Kubernetes sends it once and follows with SIGKILL
+	// when terminationGracePeriodSeconds runs out.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 
@@ -160,19 +173,26 @@ func main() {
 		}
 	}()
 
-	// First signal: flip readiness, keep serving during drain
+	// 1. Flip readiness so the endpoints controller removes this pod.
 	<-ctx.Done()
+	stop() // restore default handling: a later signal terminates immediately
 	s.shuttingDown.Store(true)
 	slog.Info("SIGTERM received — readiness flipped, draining in-flight requests")
 
-	// Second signal (from docker stop): shut down the HTTP server
-	second, stopSecond := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
-	defer stopSecond()
-	stop() // release the first registration; later signals reach only `second`
-	<-second.Done()
-	slog.Info(fmt.Sprintf("second signal received (in_flight=%d), shutting down HTTP server", s.inFlight.Load()))
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// 2. Keep serving while endpoints propagate (the pre-stop delay).
+	delay := drainDelay()
+	slog.Info("waiting for endpoints to update", "delay", delay.String())
+	time.Sleep(delay)
+
+	// 3. Stop accepting connections and finish in-flight requests, bounded so the whole
+	//    sequence fits inside terminationGracePeriodSeconds.
+	slog.Info("shutting down HTTP server", "in_flight", s.inFlight.Load())
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
-	httpServer.Shutdown(shutdownCtx)
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		slog.Error("shutdown incomplete", "err", err, "in_flight", s.inFlight.Load())
+	}
+
+	// 4. Cleanup (deferred pool.Close) and exit 0.
 	slog.Info("order-service shutdown complete")
 }

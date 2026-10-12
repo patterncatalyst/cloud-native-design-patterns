@@ -21,6 +21,7 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/appdb
       - SPRING_DATASOURCE_USERNAME=appuser
       - SPRING_DATASOURCE_PASSWORD=apppass
+      - DRAIN_DELAY_SECONDS=5
     stop_grace_period: 30s
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]

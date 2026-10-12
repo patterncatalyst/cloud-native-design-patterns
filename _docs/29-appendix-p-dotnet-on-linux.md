@@ -204,7 +204,7 @@ The examples use **Red Hat Universal Base Images** (UBI) instead of the
 
 - **Freely redistributable** — no subscription required to pull, run, or ship them.
 - **Based on RHEL 9** — same packages, same security patches, same lifecycle.
-- **Supported by Red Hat** — when running on OpenShift or RHEL, UBI images get full
+- **Supported by Red Hat** — when running on RHEL, UBI images get full
   commercial support.
 - **Minimal by default** — `ubi9-minimal` variants use microdnf instead of yum,
   producing smaller images.

@@ -28,13 +28,13 @@ cd .. && bash verify.sh
 
 ## Implementation notes
 
-Uses `signal.signal(SIGTERM, ...)` to set a shutdown flag. Readiness probe returns 503 during drain. Uvicorn's graceful shutdown timeout allows in-flight requests to complete.
+The SIGTERM handler keeps uvicorn's own handler and chains to it. One SIGTERM flips readiness to 503 at once; after `DRAIN_DELAY_SECONDS` (default 5) the handler calls uvicorn's, which stops accepting, finishes in-flight requests (`--timeout-graceful-shutdown 20`) and runs the lifespan exit that closes the pool. The process exits 0. A handler installed before uvicorn starts would replace uvicorn's for good, so it is installed in the lifespan.
 
 ## Environment variables
 
 Key variables (set by compose.yaml, override for local dev):
 
-`DATABASE_URL`
+`DATABASE_URL`, `DRAIN_DELAY_SECONDS`
 
 ## Local development (without containers)
 

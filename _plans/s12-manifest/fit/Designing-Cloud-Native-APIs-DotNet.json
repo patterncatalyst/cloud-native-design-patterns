@@ -1,0 +1,1254 @@
+{
+ "entries": [
+  {
+   "sldId": 257,
+   "shape_id": 30,
+   "resize": {
+    "y": 1589592,
+    "cy": 4688780
+   },
+   "_why": "slide 2: text overflows its frame by overflow-bottom 13.4 pt; free space around the frame"
+  },
+  {
+   "sldId": 270,
+   "shape_id": 166,
+   "resize": {
+    "cx": 4577049,
+    "keep": "right"
+   },
+   "_why": "slide 15: chip 'csharp · .NET 10 + ASP.NET Core + AspNetCore.HealthChecks' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 270,
+   "shape_id": 167,
+   "pt": 10.5,
+   "_why": "slide 15: 19 code lines, 91 columns; 11.0 pt overflows the box"
+  },
+  {
+   "sldId": 270,
+   "shape_id": 168,
+   "resize": {
+    "cy": 436820
+   },
+   "_why": "slide 15: text overflows its frame by overflow-bottom 2.6 pt; free space around the frame"
+  },
+  {
+   "sldId": 273,
+   "shape_id": 200,
+   "resize": {
+    "cx": 3586450,
+    "keep": "right"
+   },
+   "_why": "slide 18: chip 'csharp · .NET 10 + ASP.NET Core minimal APIs' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 273,
+   "shape_id": 201,
+   "pt": 10.0,
+   "_why": "slide 18: 22 code lines, 86 columns; 10.5 pt overflows the box"
+  },
+  {
+   "sldId": 274,
+   "shape_id": 213,
+   "resize": {
+    "cx": 3662650,
+    "keep": "right"
+   },
+   "_why": "slide 19: chip 'protobuf + csharp · .NET 10 + Grpc.AspNetCore' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 280,
+   "shape_id": 282,
+   "resize": {
+    "cx": 2595849,
+    "keep": "right"
+   },
+   "_why": "slide 25: chip 'csharp · .NET 10 + HotChocolate' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 286,
+   "shape_id": 348,
+   "resize": {
+    "cx": 4196050,
+    "keep": "right"
+   },
+   "_why": "slide 31: chip 'csharp · ASP.NET Core 10 + EF Core + Confluent.Kafka' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 286,
+   "shape_id": 349,
+   "pt": 9.0,
+   "_why": "slide 31: 26 code lines, 89 columns; 8.0 pt overflows the box",
+   "line_spacing": 1.0
+  },
+  {
+   "sldId": 289,
+   "shape_id": 382,
+   "resize": {
+    "cx": 2595849,
+    "keep": "right"
+   },
+   "_why": "slide 34: chip 'csharp · EF Core + Debezium CDC' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 293,
+   "shape_id": 427,
+   "resize": {
+    "cx": 3357849,
+    "keep": "right"
+   },
+   "_why": "slide 38: chip 'csharp · .NET 10 + Confluent.Kafka 2.16.0' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 293,
+   "shape_id": 428,
+   "pt": 9.0,
+   "_why": "slide 38: 24 code lines, 81 columns; 9.5 pt overflows the box"
+  },
+  {
+   "sldId": 300,
+   "shape_id": 505,
+   "resize": {
+    "cx": 2748250,
+    "keep": "right"
+   },
+   "_why": "slide 45: chip 'csharp · Streamiz.Kafka.Net 1.8.2' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 300,
+   "shape_id": 506,
+   "pt": 9.0,
+   "_why": "slide 45: 22 code lines, 93 columns; 9.5 pt overflows the box"
+  },
+  {
+   "sldId": 302,
+   "shape_id": 530,
+   "pt": 11.0,
+   "_why": "slide 47: 20 code lines, 85 columns; 12.0 pt overflows the box"
+  },
+  {
+   "sldId": 312,
+   "shape_id": 641,
+   "resize": {
+    "cx": 2367250,
+    "keep": "right"
+   },
+   "_why": "slide 57: chip 'yaml · CI + Apicurio v3 REST' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 321,
+   "shape_id": 737,
+   "resize": {
+    "cx": 2976849,
+    "keep": "right"
+   },
+   "_why": "slide 66: chip 'csharp · .NET 10 + OpenTelemetry.NET' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 321,
+   "shape_id": 738,
+   "pt": 9.0,
+   "_why": "slide 66: 25 code lines, 88 columns; 9.5 pt overflows the box",
+   "line_spacing": 1.0
+  },
+  {
+   "sldId": 321,
+   "shape_id": 739,
+   "resize": {
+    "cy": 436820
+   },
+   "_why": "slide 66: text overflows its frame by overflow-bottom 2.6 pt; free space around the frame"
+  },
+  {
+   "sldId": 323,
+   "shape_id": 761,
+   "resize": {
+    "cx": 3891250,
+    "keep": "right"
+   },
+   "_why": "slide 68: chip 'csharp · OpenTelemetry Baggage + Confluent.Kafka' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 323,
+   "shape_id": 762,
+   "pt": 10.0,
+   "_why": "slide 68: 20 code lines, 81 columns; 10.5 pt overflows the box"
+  },
+  {
+   "sldId": 326,
+   "shape_id": 795,
+   "resize": {
+    "cy": 4607500
+   },
+   "_why": "slide 71: text overflows its frame by overflow-bottom 7.0 pt; free space around the frame"
+  },
+  {
+   "sldId": 330,
+   "shape_id": 836,
+   "resize": {
+    "cy": 4607500
+   },
+   "_why": "slide 75: text overflows its frame by overflow-bottom 7.0 pt; free space around the frame"
+  },
+  {
+   "sldId": 331,
+   "shape_id": 846,
+   "resize": {
+    "cy": 4597340
+   },
+   "_why": "slide 76: text overflows its frame by overflow-bottom 6.2 pt; free space around the frame"
+  },
+  {
+   "sldId": 333,
+   "shape_id": 867,
+   "resize": {
+    "cy": 4607500
+   },
+   "_why": "slide 78: text overflows its frame by overflow-bottom 7.0 pt; free space around the frame"
+  },
+  {
+   "sldId": 335,
+   "shape_id": 889,
+   "resize": {
+    "cx": 3053050,
+    "keep": "right"
+   },
+   "_why": "slide 80: chip 'csharp · ASP.NET Core 10 + HMACSHA256' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 340,
+   "shape_id": 943,
+   "resize": {
+    "cx": 3357849,
+    "keep": "right"
+   },
+   "_why": "slide 85: chip 'yaml · OPA Gatekeeper  (language-neutral)' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 342,
+   "shape_id": 966,
+   "resize": {
+    "cx": 3281650,
+    "keep": "right"
+   },
+   "_why": "slide 87: chip 'csharp · ASP.NET Core 10 + SemaphoreSlim' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 342,
+   "shape_id": 967,
+   "pt": 9.0,
+   "_why": "slide 87: 15 code lines, 86 columns; 9.0 pt overflows the box",
+   "line_spacing": 1.0
+  },
+  {
+   "sldId": 344,
+   "shape_id": 989,
+   "resize": {
+    "cx": 3434050,
+    "keep": "right"
+   },
+   "_why": "slide 89: chip 'csharp · ASP.NET Core 10 + Confluent.Kafka' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 363,
+   "shape_id": 1185,
+   "resize": {
+    "cx": 2748250,
+    "keep": "right"
+   },
+   "_why": "slide 108: chip 'csharp · .NET 10 + Asp.Versioning' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 367,
+   "shape_id": 1233,
+   "resize": {
+    "cx": 3357849,
+    "keep": "right"
+   },
+   "_why": "slide 112: chip 'csharp + graphql · .NET 10 + HotChocolate' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 367,
+   "shape_id": 1234,
+   "pt": 10.5,
+   "_why": "slide 112: 18 code lines, 88 columns; 11.0 pt overflows the box"
+  },
+  {
+   "sldId": 370,
+   "shape_id": 1266,
+   "resize": {
+    "cx": 2900650,
+    "keep": "right"
+   },
+   "_why": "slide 115: chip 'csharp · ASP.NET Core 10 WebSockets' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 374,
+   "shape_id": 1311,
+   "resize": {
+    "cx": 3053050,
+    "keep": "right"
+   },
+   "_why": "slide 119: chip 'csharp · Google.Protobuf + WebSockets' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 374,
+   "shape_id": 1312,
+   "pt": 9.5,
+   "_why": "slide 119: 22 code lines, 82 columns; 10.0 pt overflows the box"
+  },
+  {
+   "sldId": 377,
+   "shape_id": 1345,
+   "resize": {
+    "y": 5817712,
+    "cy": 460660
+   },
+   "_why": "slide 122: text overflows its frame by overflow-top 2.4 pt, overflow-bottom 3.4 pt; free space around the frame"
+  },
+  {
+   "sldId": 381,
+   "shape_id": 1387,
+   "resize": {
+    "cx": 2214850,
+    "keep": "right"
+   },
+   "_why": "slide 126: chip 'csharp · .NET 10 + EF Core' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 383,
+   "shape_id": 1411,
+   "resize": {
+    "cx": 2214850,
+    "keep": "right"
+   },
+   "_why": "slide 128: chip 'csharp · .NET 10 + EF Core' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 383,
+   "shape_id": 1412,
+   "pt": 9.0,
+   "_why": "slide 128: 24 code lines, 85 columns; 11.0 pt overflows the box"
+  },
+  {
+   "sldId": 387,
+   "shape_id": 1456,
+   "resize": {
+    "cx": 2824450,
+    "keep": "right"
+   },
+   "_why": "slide 132: chip 'csharp · Temporalio + ASP.NET Core' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 389,
+   "shape_id": 1480,
+   "resize": {
+    "cx": 2976849,
+    "keep": "right"
+   },
+   "_why": "slide 134: chip 'csharp · Stateless package + EF Core' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 393,
+   "shape_id": 1525,
+   "resize": {
+    "cx": 2976849,
+    "keep": "right"
+   },
+   "_why": "slide 138: chip 'csharp · .NET 10 + IExceptionHandler' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 395,
+   "shape_id": 1549,
+   "resize": {
+    "cx": 2748250,
+    "keep": "right"
+   },
+   "_why": "slide 140: chip 'csharp · grpc-dotnet + Google.Rpc' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 395,
+   "shape_id": 1550,
+   "pt": 9.0,
+   "_why": "slide 140: 25 code lines, 83 columns; 10.5 pt overflows the box",
+   "line_spacing": 1.0
+  },
+  {
+   "sldId": 397,
+   "shape_id": 1573,
+   "resize": {
+    "cx": 2824450,
+    "keep": "right"
+   },
+   "_why": "slide 142: chip 'csharp · Confluent.Kafka + Polly 8' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 397,
+   "shape_id": 1574,
+   "pt": 9.0,
+   "_why": "slide 142: 25 code lines, 95 columns; 9.0 pt overflows the box",
+   "line_spacing": 1.0
+  },
+  {
+   "sldId": 399,
+   "shape_id": 1597,
+   "resize": {
+    "cx": 2595849,
+    "keep": "right"
+   },
+   "_why": "slide 144: chip 'csharp · .NET 10 + HotChocolate' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 409,
+   "shape_id": 1704,
+   "resize": {
+    "cx": 2748250,
+    "keep": "right"
+   },
+   "_why": "slide 154: chip 'csharp · ports & adapters in .NET' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 409,
+   "shape_id": 1706,
+   "resize": {
+    "cy": 436820
+   },
+   "_why": "slide 154: text overflows its frame by overflow-bottom 2.6 pt; free space around the frame"
+  },
+  {
+   "sldId": 427,
+   "shape_id": 1892,
+   "resize": {
+    "cx": 2595849,
+    "keep": "right"
+   },
+   "_why": "slide 172: chip 'csharp · .NET 10 + ASP.NET Core' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 427,
+   "shape_id": 1894,
+   "resize": {
+    "cy": 436820
+   },
+   "_why": "slide 172: text overflows its frame by overflow-bottom 2.6 pt; free space around the frame"
+  },
+  {
+   "sldId": 428,
+   "shape_id": 1907,
+   "resize": {
+    "cy": 436820
+   },
+   "_why": "slide 173: text overflows its frame by overflow-bottom 2.6 pt; free space around the frame"
+  },
+  {
+   "sldId": 439,
+   "shape_id": 2025,
+   "pt": 11.0,
+   "_why": "slide 184: 20 code lines, 70 columns; 13.0 pt overflows the box"
+  },
+  {
+   "sldId": 440,
+   "shape_id": 2037,
+   "resize": {
+    "cx": 2291050,
+    "keep": "right"
+   },
+   "_why": "slide 185: chip 'yaml · Istio VirtualService' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 445,
+   "shape_id": 2093,
+   "pt": 10.0,
+   "_why": "slide 190: 22 code lines, 73 columns; 11.0 pt overflows the box"
+  },
+  {
+   "sldId": 446,
+   "shape_id": 2105,
+   "resize": {
+    "cx": 2138650,
+    "keep": "right"
+   },
+   "_why": "slide 191: chip 'yaml · Istio header-based' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 451,
+   "shape_id": 2162,
+   "resize": {
+    "cx": 3510250,
+    "keep": "right"
+   },
+   "_why": "slide 196: chip 'csharp · .NET 10 + Confluent.Kafka + NRules' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 452,
+   "shape_id": 2175,
+   "resize": {
+    "cx": 4577049,
+    "keep": "right"
+   },
+   "_why": "slide 197: chip 'csharp · NRules.Fluent  (or external NRules.Language DSL)' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 452,
+   "shape_id": 2177,
+   "resize": {
+    "cy": 436820
+   },
+   "_why": "slide 197: text overflows its frame by overflow-bottom 2.6 pt; free space around the frame"
+  },
+  {
+   "sldId": 457,
+   "shape_id": 2230,
+   "resize": {
+    "cx": 1910050,
+    "keep": "right"
+   },
+   "_why": "slide 202: chip 'yaml · Istio east/west' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 475,
+   "shape_id": 2423,
+   "resize": {
+    "cx": 4577049,
+    "keep": "right"
+   },
+   "_why": "slide 220: chip 'csharp · ASP.NET Core 10 minimal API + IHttpClientFactory' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 477,
+   "shape_id": 2447,
+   "resize": {
+    "cx": 5110450,
+    "keep": "right"
+   },
+   "_why": "slide 222: chip 'csharp · ASP.NET Core 10 + StackExchange.Redis + Confluent.Kafka' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 482,
+   "shape_id": 2501,
+   "resize": {
+    "cx": 4348450,
+    "keep": "right"
+   },
+   "_why": "slide 227: chip 'csharp · ASP.NET Core 10 + EF Core + IDistributedCache' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 484,
+   "shape_id": 2525,
+   "resize": {
+    "cx": 4577049,
+    "keep": "right"
+   },
+   "_why": "slide 229: chip 'csharp · ASP.NET Core 10 + FusionCache (MIT, open-source)' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 484,
+   "shape_id": 2526,
+   "pt": 9.0,
+   "_why": "slide 229: 25 code lines, 86 columns; 9.5 pt overflows the box",
+   "line_spacing": 1.0
+  },
+  {
+   "sldId": 486,
+   "shape_id": 2549,
+   "resize": {
+    "cx": 5034250,
+    "keep": "right"
+   },
+   "_why": "slide 231: chip 'csharp · ASP.NET Core 10 + IDistributedCache  OR  + FusionCache' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 488,
+   "shape_id": 2573,
+   "resize": {
+    "cx": 4348450,
+    "keep": "right"
+   },
+   "_why": "slide 233: chip 'csharp · ASP.NET Core 10 + EF Core + IDistributedCache' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 490,
+   "shape_id": 2597,
+   "resize": {
+    "cx": 6024850,
+    "keep": "right"
+   },
+   "_why": "slide 235: chip 'csharp · ASP.NET Core 10 + BackgroundService + StackExchange.Redis + EF Core' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 494,
+   "shape_id": 2643,
+   "resize": {
+    "cy": 4568130
+   },
+   "_why": "slide 239: text overflows its frame by overflow-bottom 3.9 pt; free space around the frame"
+  },
+  {
+   "sldId": 506,
+   "shape_id": 2772,
+   "resize": {
+    "cx": 3053050,
+    "keep": "right"
+   },
+   "_why": "slide 251: chip 'csharp · ASP.NET Core 10 + HttpClient' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 508,
+   "shape_id": 2795,
+   "resize": {
+    "cx": 2900650,
+    "keep": "right"
+   },
+   "_why": "slide 253: chip 'csharp · ASP.NET Core 10 + Polly v8' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 510,
+   "shape_id": 2818,
+   "resize": {
+    "cx": 2900650,
+    "keep": "right"
+   },
+   "_why": "slide 255: chip 'csharp · ASP.NET Core 10 + Polly v8' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 514,
+   "shape_id": 2861,
+   "resize": {
+    "cx": 2062450,
+    "keep": "right"
+   },
+   "_why": "slide 259: chip 'csharp · ASP.NET Core 10' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 274,
+   "shape_id": 214,
+   "cuts": [
+    {
+     "from": 8,
+     "to": 8,
+     "first": ""
+    },
+    {
+     "from": 15,
+     "to": 15,
+     "first": ""
+    }
+   ],
+   "pt": 9.0,
+   "_why": "slide 19: 26 code lines do not fit the box at 9 pt; excerpt of 24 lines at 9.0 pt, was 11.0 pt"
+  },
+  {
+   "sldId": 280,
+   "shape_id": 283,
+   "cuts": [
+    {
+     "from": 3,
+     "to": 3,
+     "first": ""
+    },
+    {
+     "from": 10,
+     "to": 10,
+     "first": ""
+    },
+    {
+     "from": 20,
+     "to": 20,
+     "first": ""
+    },
+    {
+     "from": 27,
+     "to": 27,
+     "first": ""
+    }
+   ],
+   "pt": 9.0,
+   "_why": "slide 25: 28 code lines do not fit the box at 9 pt; excerpt of 24 lines at 9.0 pt, was 10.5 pt"
+  },
+  {
+   "sldId": 289,
+   "shape_id": 383,
+   "cuts": [
+    {
+     "from": 9,
+     "to": 9,
+     "first": ""
+    },
+    {
+     "from": 18,
+     "to": 18,
+     "first": ""
+    },
+    {
+     "from": 24,
+     "to": 24,
+     "first": ""
+    }
+   ],
+   "pt": 9.0,
+   "_why": "slide 34: 27 code lines do not fit the box at 9 pt; excerpt of 24 lines at 9.0 pt, was 10.5 pt"
+  },
+  {
+   "sldId": 340,
+   "shape_id": 944,
+   "cuts": [
+    {
+     "from": 7,
+     "to": 13,
+     "first": "  crd:",
+     "last": "            allowedRegistries: { type: array, items: { type: string } }",
+     "ellipsis": "    # ... crd: kind K8sRequireSignedImages, parameter allowedRegistries (string array)"
+    }
+   ],
+   "pt": 9.0,
+   "line_spacing": 1.0,
+   "_why": "slide 85: 33 code lines do not fit the box at 9 pt; excerpt of 27 lines at 9.0 pt (line spacing 1.0), was 9.5 pt"
+  },
+  {
+   "sldId": 381,
+   "shape_id": 1388,
+   "cuts": [
+    {
+     "from": 1,
+     "to": 2,
+     "first": "// EF Core 10 + pessimistic row lock — the in-process saga state store.",
+     "last": "// The PostgreSQL/SQL Server commit replaces what MSDTC used to make atomic."
+    },
+    {
+     "from": 5,
+     "to": 5,
+     "first": ""
+    },
+    {
+     "from": 12,
+     "to": 13,
+     "first": "",
+     "last": "        // pessimistic row lock so two workers can't advance the same saga"
+    },
+    {
+     "from": 17,
+     "to": 17,
+     "first": ""
+    }
+   ],
+   "pt": 9.0,
+   "line_spacing": 1.0,
+   "_why": "slide 126: 31 code lines do not fit the box at 9 pt; excerpt of 25 lines at 9.0 pt (line spacing 1.0), was 9.5 pt"
+  },
+  {
+   "sldId": 389,
+   "shape_id": 1481,
+   "cuts": [
+    {
+     "from": 3,
+     "to": 4,
+     "first": "",
+     "last": "// 1) Configure the machine — states, triggers, actions"
+    },
+    {
+     "from": 8,
+     "to": 10,
+     "first": "    public State CurrentState => _sm.State;",
+     "last": "",
+     "ellipsis": "    // ... CurrentState => _sm.State; OrderId { get; }"
+    },
+    {
+     "from": 18,
+     "to": 18,
+     "first": ""
+    },
+    {
+     "from": 26,
+     "to": 31,
+     "first": "        _sm.Configure(State.Reserved)",
+     "last": "            .OnEntryAsync(() => CompensateAsync(orderId));",
+     "ellipsis": "        // ... Reserved -> Shipped and Compensating -> Failed are configured the same way"
+    },
+    {
+     "from": 35,
+     "to": 47,
+     "first": "",
+     "last": "}",
+     "ellipsis": "// ... drive it: FulfillmentService.OnAsync loads the saga row, builds the machine, fires, saves"
+    }
+   ],
+   "pt": 9.0,
+   "line_spacing": 1.0,
+   "_why": "slide 134: 47 code lines do not fit the box at 9 pt; excerpt of 25 lines at 9.0 pt (line spacing 1.0), was 8.0 pt"
+  },
+  {
+   "sldId": 393,
+   "shape_id": 1526,
+   "cuts": [
+    {
+     "from": 5,
+     "to": 5,
+     "first": "// One place: domain → wire (the single global exception-to-response seam)"
+    }
+   ],
+   "edits": [
+    {
+     "line": 6,
+     "old": "public class DomainExceptionHandler : IExceptionHandler",
+     "new": "public class DomainExceptionHandler : IExceptionHandler      // one place: domain → wire"
+    }
+   ],
+   "pt": 9.0,
+   "line_spacing": 1.0,
+   "_why": "slide 138: 26 code lines do not fit the box at 9 pt; excerpt of 25 lines at 9.0 pt (line spacing 1.0), was 9.0 pt"
+  },
+  {
+   "sldId": 399,
+   "shape_id": 1598,
+   "cuts": [
+    {
+     "from": 1,
+     "to": 3,
+     "first": "// HotChocolate: implement IErrorFilter to map exceptions to GraphQL errors[]",
+     "last": ""
+    },
+    {
+     "from": 18,
+     "to": 23,
+     "first": "",
+     "last": "",
+     "ellipsis": "// ... Program.cs: AddGraphQLServer().AddErrorFilter<GraphQLErrorFilter>()"
+    },
+    {
+     "from": 24,
+     "to": 24,
+     "first": "// Field resolver — throws normally; the filter turns it into a GraphQL error"
+    },
+    {
+     "from": 31,
+     "to": 35,
+     "first": "        try { return await inventory.RemainingAsync(order.Sku); }",
+     "last": "        }",
+     "ellipsis": "        // ... RemainingAsync; on UpstreamException throws InventoryUnavailable (nulls the field)"
+    }
+   ],
+   "pt": 9.0,
+   "_why": "slide 144: 37 code lines do not fit the box at 9 pt; excerpt of 24 lines at 9.0 pt, was 9.5 pt"
+  },
+  {
+   "sldId": 409,
+   "shape_id": 1705,
+   "cuts": [
+    {
+     "from": 4,
+     "to": 4,
+     "first": ""
+    },
+    {
+     "from": 16,
+     "to": 16,
+     "first": ""
+    },
+    {
+     "from": 25,
+     "to": 25,
+     "first": ""
+    },
+    {
+     "from": 28,
+     "to": 28,
+     "first": "// Wire them up in Program.cs: builder.Services.AddScoped<IOrderRepository, …>();"
+    }
+   ],
+   "pt": 9.0,
+   "_why": "slide 154: 28 code lines do not fit the box at 9 pt; excerpt of 24 lines at 9.0 pt, was 10.0 pt"
+  },
+  {
+   "sldId": 427,
+   "shape_id": 1893,
+   "cuts": [
+    {
+     "from": 5,
+     "to": 6,
+     "first": "    o.BackgroundServiceExceptionBehavior =             // tolerate handler errors",
+     "last": "        BackgroundServiceExceptionBehavior.Ignore;",
+     "ellipsis": "    // ... BackgroundServiceExceptionBehavior = Ignore (tolerate handler errors)"
+    },
+    {
+     "from": 8,
+     "to": 8,
+     "first": ""
+    },
+    {
+     "from": 12,
+     "to": 16,
+     "first": "    private volatile bool _ready = true;",
+     "last": "        Task.FromResult(_ready ? HealthCheckResult.Healthy() : HealthCheckResult.Unhealthy());",
+     "ellipsis": "    // ... a volatile ready flag, MarkUnready(), CheckHealthAsync: Healthy or Unhealthy"
+    },
+    {
+     "from": 18,
+     "to": 18,
+     "first": ""
+    },
+    {
+     "from": 24,
+     "to": 32,
+     "first": "    protected override async Task ExecuteAsync(CancellationToken ct)",
+     "last": "    }",
+     "ellipsis": "    // ... ExecuteAsync: Consume, Handle, Commit until the token is cancelled"
+    }
+   ],
+   "pt": 9.0,
+   "_why": "slide 172: 39 code lines do not fit the box at 9 pt; excerpt of 24 lines at 9.0 pt, was 9.0 pt"
+  },
+  {
+   "sldId": 451,
+   "shape_id": 2163,
+   "cuts": [
+    {
+     "from": 2,
+     "to": 5,
+     "first": "public record OrderFact(string OrderId, long AmountCents, Customer Customer)",
+     "last": "}",
+     "ellipsis": "// ... record OrderFact(OrderId, AmountCents, Customer) with a settable WhereTo"
+    }
+   ],
+   "pt": 9.0,
+   "line_spacing": 1.0,
+   "_why": "slide 196: 28 code lines do not fit the box at 9 pt; excerpt of 25 lines at 9.0 pt (line spacing 1.0), was 8.5 pt"
+  },
+  {
+   "sldId": 452,
+   "shape_id": 2176,
+   "cuts": [
+    {
+     "from": 1,
+     "to": 3,
+     "first": "// Rules live in their own NuGet/csproj — owned by domain experts via NRules.Language,",
+     "last": ""
+    },
+    {
+     "from": 10,
+     "to": 10,
+     "first": ""
+    },
+    {
+     "from": 19,
+     "to": 19,
+     "first": ""
+    },
+    {
+     "from": 20,
+     "to": 30,
+     "first": "[Name(\"European orders go to the EU region\")]",
+     "last": "",
+     "ellipsis": "// ... EuropeanOrderRule: Customer.Region == \"EU\" sets WhereTo = \"kafka:orders.eu\""
+    }
+   ],
+   "pt": 9.0,
+   "line_spacing": 1.0,
+   "_why": "slide 197: 40 code lines do not fit the box at 9 pt; excerpt of 25 lines at 9.0 pt (line spacing 1.0), was 9.0 pt"
+  },
+  {
+   "sldId": 457,
+   "shape_id": 2231,
+   "cuts": [
+    {
+     "from": 7,
+     "to": 8,
+     "first": "    connectionPool:",
+     "last": "      http: { http2MaxRequests: 1000, maxRequestsPerConnection: 10 }",
+     "ellipsis": "    # ... connectionPool: http2MaxRequests 1000, maxRequestsPerConnection 10"
+    },
+    {
+     "from": 13,
+     "to": 14,
+     "first": "    loadBalancer:",
+     "last": "      localityLbSetting: { enabled: true }         # prefer same zone",
+     "ellipsis": "    # ... loadBalancer: localityLbSetting enabled (prefer same zone)"
+    }
+   ],
+   "pt": 9.0,
+   "line_spacing": 1.0,
+   "_why": "slide 202: 27 code lines do not fit the box at 9 pt; excerpt of 25 lines at 9.0 pt (line spacing 1.0), was 10.0 pt"
+  },
+  {
+   "sldId": 475,
+   "shape_id": 2424,
+   "cuts": [
+    {
+     "from": 3,
+     "to": 5,
+     "first": "// In production this usually lives in a separate sidecar / YARP, but the",
+     "last": ""
+    },
+    {
+     "from": 10,
+     "to": 10,
+     "first": ""
+    },
+    {
+     "from": 15,
+     "to": 15,
+     "first": ""
+    },
+    {
+     "from": 25,
+     "to": 25,
+     "first": ""
+    }
+   ],
+   "pt": 9.0,
+   "_why": "slide 220: 30 code lines do not fit the box at 9 pt; excerpt of 24 lines at 9.0 pt, was 10.0 pt"
+  },
+  {
+   "sldId": 477,
+   "shape_id": 2448,
+   "cuts": [
+    {
+     "from": 2,
+     "to": 2,
+     "first": "// cache (StackExchange.Redis) and Kafka events (Confluent.Kafka)."
+    },
+    {
+     "from": 8,
+     "to": 8,
+     "first": ""
+    },
+    {
+     "from": 15,
+     "to": 15,
+     "first": ""
+    }
+   ],
+   "edits": [
+    {
+     "line": 1,
+     "old": "// ASP.NET Core minimal API that wraps a legacy /orders API and adds a Redis",
+     "new": "// Wraps the legacy /orders API: Redis cache, Kafka events."
+    }
+   ],
+   "pt": 9.0,
+   "line_spacing": 1.0,
+   "_why": "slide 222: 28 code lines do not fit the box at 9 pt; excerpt of 25 lines at 9.0 pt (line spacing 1.0), was 8.5 pt"
+  },
+  {
+   "sldId": 482,
+   "shape_id": 2502,
+   "cuts": [
+    {
+     "from": 20,
+     "to": 22,
+     "first": "        if (await db.Products.FindAsync([id], ct) is not { } p) return NotFound();",
+     "last": "        await db.SaveChangesAsync(ct);",
+     "ellipsis": "        // ... FindAsync (404 when missing), p.Update(body), SaveChangesAsync"
+    }
+   ],
+   "pt": 9.0,
+   "_why": "slide 227: 26 code lines do not fit the box at 9 pt; excerpt of 24 lines at 9.0 pt, was 9.0 pt"
+  },
+  {
+   "sldId": 486,
+   "shape_id": 2550,
+   "cuts": [
+    {
+     "from": 2,
+     "to": 2,
+     "first": ""
+    },
+    {
+     "from": 10,
+     "to": 10,
+     "first": ""
+    },
+    {
+     "from": 23,
+     "to": 23,
+     "first": ""
+    },
+    {
+     "from": 26,
+     "to": 41,
+     "first": "[ApiController, Route(\"products\")]",
+     "last": "}",
+     "ellipsis": "// ... same controller on IFusionCache: await cache.SetAsync($\"product:{id}\", p, token: ct);"
+    }
+   ],
+   "pt": 9.0,
+   "_why": "slide 231: 41 code lines do not fit the box at 9 pt; excerpt of 23 lines at 9.0 pt, was 9.0 pt"
+  },
+  {
+   "sldId": 488,
+   "shape_id": 2574,
+   "cuts": [
+    {
+     "from": 12,
+     "to": 12,
+     "first": ""
+    }
+   ],
+   "pt": 9.0,
+   "line_spacing": 1.0,
+   "_why": "slide 233: 26 code lines do not fit the box at 9 pt; excerpt of 25 lines at 9.0 pt (line spacing 1.0), was 9.0 pt"
+  },
+  {
+   "sldId": 490,
+   "shape_id": 2598,
+   "cuts": [
+    {
+     "from": 1,
+     "to": 17,
+     "first": "// BackgroundService is the canonical ASP.NET Core long-running task host.",
+     "last": "",
+     "ellipsis": "// ... MetricsController.Write: HSET, SADD metric:dirty, 202"
+    },
+    {
+     "from": 24,
+     "to": 24,
+     "first": ""
+    },
+    {
+     "from": 33,
+     "to": 33,
+     "first": ""
+    },
+    {
+     "from": 34,
+     "to": 44,
+     "first": "            try",
+     "last": "            }",
+     "ellipsis": "            // ... try: add Metric.FromHash for every id in a new scope, SaveChangesAsync (batch)"
+    },
+    {
+     "from": 54,
+     "to": 54,
+     "first": "// Program.cs: builder.Services.AddHostedService<MetricsFlusher>();"
+    }
+   ],
+   "pt": 9.0,
+   "line_spacing": 1.0,
+   "_why": "slide 235: 54 code lines do not fit the box at 9 pt; excerpt of 25 lines at 9.0 pt (line spacing 1.0), was 7.5 pt"
+  },
+  {
+   "sldId": 492,
+   "shape_id": 2622,
+   "cuts": [
+    {
+     "from": 3,
+     "to": 4,
+     "first": "",
+     "last": "// Approach 1: explicit sorted-set tracking"
+    },
+    {
+     "from": 5,
+     "to": 23,
+     "first": "public class ProductService(",
+     "last": "}",
+     "ellipsis": "// ... ProductService.FindAsync: ZADD product:hot <now>, then cache-aside on product:{id}"
+    },
+    {
+     "from": 24,
+     "to": 24,
+     "first": ""
+    },
+    {
+     "from": 39,
+     "to": 51,
+     "first": "            using var scope = scopes.CreateScope();",
+     "last": "            }",
+     "ellipsis": "            // ... for each hot id with a TTL under 10 s: reload from ShopDb, SET with a fresh TTL"
+    },
+    {
+     "from": 55,
+     "to": 55,
+     "first": ""
+    }
+   ],
+   "pt": 9.0,
+   "line_spacing": 1.0,
+   "_why": "slide 237: 59 code lines do not fit the box at 9 pt; excerpt of 25 lines at 9.0 pt (line spacing 1.0), was 7.5 pt"
+  },
+  {
+   "op": "fit_font",
+   "sldId": 345,
+   "shape_id": 1000,
+   "pt": 15,
+   "_why": "'Choosing the right pattern': eight two-line bullets run 35 pt past the frame into the page number and logo; the frame cannot grow"
+  },
+  {
+   "op": "fit_font",
+   "sldId": 351,
+   "shape_id": 1061,
+   "pt": 14,
+   "_why": "references: the reference lines run past the frame into the page number; the frame cannot grow",
+   "space_before": 6
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "find": "Glossary of acronyms  (2 of 2)  —  platform, security, observability",
+   "repl": "Glossary of acronyms (2 of 2) — platform, security, telemetry",
+   "expect": 1,
+   "sldIds": [
+    354
+   ],
+   "_why": "title wraps to two lines and collides with the eyebrow; 'observability' -> 'telemetry' keeps it on one line"
+  },
+  {
+   "sldId": 492,
+   "shape_id": 2621,
+   "resize": {
+    "cx": 4191000,
+    "cy": 457200,
+    "keep": "right"
+   },
+   "_why": "chip on two lines: one line would reach the first code line"
+  },
+  {
+   "op": "fit_font",
+   "sldId": 493,
+   "shape_id": 2633,
+   "pt": 16,
+   "_why": "caching pitfalls: six long bullets run 15 pt past the frame; the frame cannot grow (page number below)"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "find": "Temporal .NET: your saga is plain C#, the Server makes it crash-proof",
+   "repl": "Temporal .NET: a plain-C# saga the Server makes durable",
+   "expect": 1,
+   "sldIds": [
+    386
+   ],
+   "_why": "title wraps to two lines"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "find": "Appendix J · .NET 10 Toolkit & Migration Reference",
+   "repl": "Appendix J · .NET 10 Toolkit & Migration",
+   "expect": 1,
+   "sldIds": [
+    461
+   ],
+   "_why": "divider title wraps to three lines and collides with the J letter"
+  },
+  {
+   "op": "fit_font",
+   "sldId": 465,
+   "shape_id": 2315,
+   "pt": 15,
+   "_why": "known gaps: six long bullets run 36 pt past the frame into the page number"
+  },
+  {
+   "op": "fit_font",
+   "sldId": 466,
+   "shape_id": 2325,
+   "scale": 0.85,
+   "_why": "recipe: five steps and a summary run 28 pt past the frame into the page number; scaled to keep the 17/14 pt hierarchy"
+  },
+  {
+   "op": "fit_font",
+   "sldId": 478,
+   "shape_id": 2459,
+   "pt": 15.5,
+   "_why": "migration take-aways: seven bullets run 25 pt past the frame into the page number"
+  }
+ ]
+}

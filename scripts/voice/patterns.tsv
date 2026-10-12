@@ -28,7 +28,7 @@ ban	i	deliberately / intentionally	\b(deliberately|intentionally)\b
 watch	i	deliberate (adjective)	\bdeliberate\b
 ban	i	not a toy / not a stub	\bnot (just |merely |simply )?(a |an )?(toy|mock|mockup|stub|sketch|slideware|hello[- ]world|snippet)\b
 ban	i	real, running / for real	\breal(,| and) (running|working|live)\b|\b(genuinely|actually|truly) real\b|\bfor real\b
-watch	c	ALL-CAPS emphasis	\b(NOT|IS|ARE|NEVER|ALWAYS|ONLY|SAME|AFTER|BEFORE|EVERY|DOES|BOTH)\b
+watch	c	ALL-CAPS emphasis	\b(NOT|IS|ARE|NEVER|ALWAYS|ONLY|SAME|AFTER|BEFORE|EVERY|DOES|BOTH|ALL|AND|ANY|ALSO|DO|EXACTLY|FIRST|FREE|IMMEDIATELY|INSIDE|MUST|NO|ONE|PER|SINGLE|THIS|THAT|WHEN|WHERE|WHO|WITH|WITHOUT|WRONG)\b
 watch	i	isn't X — it's Y	n['’]?t (just |merely |only |simply )?[^.;:]{1,40} [—–]+ ?(it|they|this|that)(['’]s|['’]re| is| are)\b
 
 # --- Meta-narration (the text describing itself instead of the subject)

@@ -28,6 +28,11 @@ jobs:
       - name: Validate site content
         run: python scripts/validate_site.py
 
+      # The Markdown text copies of the decks and documents under lgtm-presentation/text/
+      # must match the committed .pptx and .docx files (standard library only).
+      - name: Deck text copies are current
+        run: python scripts/deck_text.py --check
+
       # Professional voice: no ban-tier phrase on any reader-facing page, README or
       # diagram label. The scanner is vendored from lgtm-skills (scripts/voice/README.md);
       # the scope lives in scripts/voice-scan.sh.

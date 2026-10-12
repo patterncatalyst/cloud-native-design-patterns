@@ -1,0 +1,925 @@
+[
+ {
+  "op": "set",
+  "block": 0,
+  "style": "Heading 1",
+  "text": "Network Policy Process — Advisory"
+ },
+ {
+  "op": "set",
+  "block": 2,
+  "style": "Normal",
+  "text": "on Kubernetes, from perimeter-only to developer-owned NetworkPolicies."
+ },
+ {
+  "op": "set",
+  "block": 4,
+  "style": "Normal",
+  "text": "This is a recommended approach to building a network policy process"
+ },
+ {
+  "op": "set",
+  "block": 7,
+  "style": "Normal",
+  "text": "  traditional perimeter firewall appliance today."
+ },
+ {
+  "op": "set",
+  "block": 8,
+  "style": "List Bullet",
+  "text": "Wants to shift network segmentation left into the Kubernetes cluster using"
+ },
+ {
+  "op": "set",
+  "block": 9,
+  "style": "Normal",
+  "text": "  NetworkPolicy, ClusterNetworkPolicy, and egress rules."
+ },
+ {
+  "op": "set",
+  "block": 15,
+  "style": "Normal",
+  "text": "it with the teams and tools they already have. The tools named are upstream"
+ },
+ {
+  "op": "set",
+  "block": 16,
+  "style": "Normal",
+  "text": "open-source options: a CNI that enforces NetworkPolicy and ClusterNetworkPolicy"
+ },
+ {
+  "op": "insert_after",
+  "after_text": "Normal:open-source options: a CNI that enforces NetworkPolicy and ClusterNetwork",
+  "style": "Normal",
+  "text": "(Calico or Cilium), Kyverno or OPA Gatekeeper for admission policy, Trivy for"
+ },
+ {
+  "op": "insert_after",
+  "after_text": "Normal:(Calico or Cilium), Kyverno or OPA Gatekeeper for admission policy, Trivy",
+  "style": "Normal",
+  "text": "manifest scanning, Falco for runtime detection, and Argo CD for GitOps."
+ },
+ {
+  "op": "insert_after",
+  "after_text": "Normal:manifest scanning, Falco for runtime detection, and Argo CD for GitOps.",
+  "style": "Heading 2",
+  "text": "1. Where organizations typically start"
+ },
+ {
+  "op": "set",
+  "block": 21,
+  "style": "Normal",
+  "text": "capacity, and risk tolerance. The four phases are sequential, each building"
+ },
+ {
+  "op": "set",
+  "block": 22,
+  "style": "Normal",
+  "text": "on the previous, but the pace is agreed upon by the organization."
+ },
+ {
+  "op": "set",
+  "block": 24,
+  "style": "Normal",
+  "text": "Before writing any policy, understand what traffic flows today."
+ },
+ {
+  "op": "set",
+  "block": 25,
+  "style": "Normal",
+  "text": "The CNI records the network flows between pods, namespaces, and external"
+ },
+ {
+  "op": "set",
+  "block": 26,
+  "style": "Normal",
+  "text": "destinations: Hubble with Cilium (hubble observe), or Calico's flow logs"
+ },
+ {
+  "op": "set",
+  "block": 27,
+  "style": "Normal",
+  "text": "(Goldmane, viewed in the Whisker console). Inspektor Gadget's"
+ },
+ {
+  "op": "set",
+  "block": 28,
+  "style": "Normal",
+  "text": "advise_networkpolicy gadget records the TCP and UDP traffic of chosen"
+ },
+ {
+  "op": "set",
+  "block": 29,
+  "style": "Normal",
+  "text": "namespaces. Together they give a network baseline, a map of every"
+ },
+ {
+  "op": "insert_after",
+  "after_text": "Normal:namespaces. Together they give a network baseline, a map of every",
+  "style": "Normal",
+  "text": "connection the cluster has seen, which becomes the source of truth for what"
+ },
+ {
+  "op": "insert_after",
+  "after_text": "Normal:connection the cluster has seen, which becomes the source of truth for wh",
+  "style": "Normal",
+  "text": "traffic is expected."
+ },
+ {
+  "op": "set",
+  "block": 31,
+  "style": "Normal",
+  "text": "and platform team review the observed flows together and identify:"
+ },
+ {
+  "op": "set",
+  "block": 36,
+  "style": "Normal",
+  "text": "What field teams typically see: organizations are surprised by the volume of"
+ },
+ {
+  "op": "set",
+  "block": 45,
+  "style": "Normal",
+  "text": "Simultaneously, generate NetworkPolicy YAML from the observed baseline."
+ },
+ {
+  "op": "set",
+  "block": 46,
+  "style": "Normal",
+  "text": "Inspektor Gadget's advise_networkpolicy writes one policy per workload, with"
+ },
+ {
+  "op": "set",
+  "block": 47,
+  "style": "Normal",
+  "text": "ingress and egress rules based on the observed peers (Kubernetes NetworkPolicy,"
+ },
+ {
+  "op": "set",
+  "block": 48,
+  "style": "Normal",
+  "text": "or CiliumNetworkPolicy on Cilium). These generated policies are a starting"
+ },
+ {
+  "op": "insert_after",
+  "after_text": "Normal:point — they capture what traffic did flow, not what traffic should flow.",
+  "style": "Normal",
+  "text": "On Calico, a StagedNetworkPolicy shows in the flow logs what a policy would"
+ },
+ {
+  "op": "insert_after",
+  "after_text": "Normal:On Calico, a StagedNetworkPolicy shows in the flow logs what a policy wou",
+  "style": "Normal",
+  "text": "deny before it is enforced."
+ },
+ {
+  "op": "set",
+  "block": 53,
+  "style": "Normal",
+  "text": "What field teams typically see: the first default-deny rollout in a non-prod"
+ },
+ {
+  "op": "set",
+  "block": 60,
+  "style": "Normal",
+  "text": "guardrails using the upstream ClusterNetworkPolicy (CNP) API, in its"
+ },
+ {
+  "op": "set",
+  "block": 61,
+  "style": "Normal",
+  "text": "Admin and Baseline tiers."
+ },
+ {
+  "op": "set",
+  "block": 71,
+  "style": "Normal",
+  "text": "A CNI that implements ClusterNetworkPolicy evaluates traffic against three"
+ },
+ {
+  "op": "set",
+  "block": 74,
+  "style": "Heading 3",
+  "text": "Tier 1 — ClusterNetworkPolicy, Admin tier"
+ },
+ {
+  "op": "set",
+  "block": 77,
+  "style": "List Bullet",
+  "text": "Priority: 0 (highest) to 1000 (lowest)"
+ },
+ {
+  "op": "set",
+  "block": 78,
+  "style": "List Bullet",
+  "text": "Actions: Accept, Deny, or Pass (hand evaluation to the next tier)"
+ },
+ {
+  "op": "set",
+  "block": 79,
+  "style": "List Bullet",
+  "text": "Override: cannot be overridden by NetworkPolicy or the Baseline tier"
+ },
+ {
+  "op": "set",
+  "block": 80,
+  "style": "List Bullet",
+  "text": "Status: policy.networking.k8s.io/v1alpha2 (alpha, network-policy-api v0.2.0); enforced by Calico 3.32 and later, and by Cilium 1.20 when enabled"
+ },
+ {
+  "op": "set",
+  "block": 81,
+  "style": "Normal",
+  "text": "The Admin tier is where the platform team enforces non-negotiable rules: deny"
+ },
+ {
+  "op": "set",
+  "block": 82,
+  "style": "Normal",
+  "text": "traffic to the control plane from application namespaces, accept monitoring"
+ },
+ {
+  "op": "insert_after",
+  "after_text": "Normal:traffic to the control plane from application namespaces, accept monitori",
+  "style": "Normal",
+  "text": "agents scraping all pods, deny cross-environment traffic (dev → prod). A Pass"
+ },
+ {
+  "op": "set",
+  "block": 85,
+  "style": "Normal",
+  "text": "Critical caution: an Admin-tier policy with an empty namespace selector"
+ },
+ {
+  "op": "set",
+  "block": 86,
+  "style": "Normal",
+  "text": "({}) matches all namespaces, including kube-system and the CNI's own"
+ },
+ {
+  "op": "set",
+  "block": 87,
+  "style": "Normal",
+  "text": "namespaces. Use workload-specific label selectors. An overly broad Admin-tier"
+ },
+ {
+  "op": "insert_after",
+  "after_text": "Normal:namespaces. Use workload-specific label selectors. An overly broad Admin-",
+  "style": "Normal",
+  "text": "policy can lock the cluster."
+ },
+ {
+  "op": "set",
+  "block": 91,
+  "style": "List Bullet",
+  "text": "Override: can be overridden by the Admin tier (which takes precedence)"
+ },
+ {
+  "op": "set",
+  "block": 94,
+  "style": "Normal",
+  "text": "which ports. Traffic that matches an Admin-tier Accept or Deny rule never reaches"
+ },
+ {
+  "op": "set",
+  "block": 95,
+  "style": "Normal",
+  "text": "this tier — it is only evaluated if the Admin tier passed the traffic through."
+ },
+ {
+  "op": "set",
+  "block": 96,
+  "style": "Heading 3",
+  "text": "Tier 3 — ClusterNetworkPolicy, Baseline tier"
+ },
+ {
+  "op": "set",
+  "block": 97,
+  "style": "List Bullet",
+  "text": "Scope: cluster-wide (one default-deny policy is the recommended shape)"
+ },
+ {
+  "op": "set",
+  "block": 99,
+  "style": "List Bullet",
+  "text": "Actions: Deny for the safety net, Accept for cluster-wide defaults such as DNS"
+ },
+ {
+  "op": "set",
+  "block": 101,
+  "style": "Normal",
+  "text": "The Baseline tier is the safety net. It catches traffic that the Admin tier"
+ },
+ {
+  "op": "set",
+  "block": 102,
+  "style": "Normal",
+  "text": "passed and no NetworkPolicy matched. The recommended use is **default-deny at"
+ },
+ {
+  "op": "set",
+  "block": 103,
+  "style": "Normal",
+  "text": "the Baseline tier**: if no Admin-tier rule and no NetworkPolicy allows it, the"
+ },
+ {
+  "op": "set",
+  "block": 104,
+  "style": "Normal",
+  "text": "Baseline tier denies it. This means that a namespace with no NetworkPolicies at all still has a"
+ },
+ {
+  "op": "insert_after",
+  "after_text": "Normal:default-deny policy themselves.",
+  "style": "Normal",
+  "text": "The earlier releases of the API split these two tiers into"
+ },
+ {
+  "op": "insert_after",
+  "after_text": "Normal:The earlier releases of the API split these two tiers into",
+  "style": "Normal",
+  "text": "AdminNetworkPolicy and BaselineAdminNetworkPolicy (v1alpha1). Upstream now"
+ },
+ {
+  "op": "insert_after",
+  "after_text": "Normal:AdminNetworkPolicy and BaselineAdminNetworkPolicy (v1alpha1). Upstream no",
+  "style": "Normal",
+  "text": "lists them as previous APIs, and Calico 3.32 no longer enforces them, so new"
+ },
+ {
+  "op": "insert_after",
+  "after_text": "Normal:lists them as previous APIs, and Calico 3.32 no longer enforces them, so ",
+  "style": "Normal",
+  "text": "policies use ClusterNetworkPolicy."
+ },
+ {
+  "op": "set",
+  "block": 108,
+  "style": "Normal",
+  "text": "Diagram: advisory-tier-evaluation — ClusterNetworkPolicy three-tier evaluation"
+ },
+ {
+  "op": "set",
+  "block": 111,
+  "style": "Normal",
+  "text": "The value proposition for the organization: the platform team controls tiers"
+ },
+ {
+  "op": "set",
+  "block": 113,
+  "style": "Normal",
+  "text": "policies). Even if a developer writes no NetworkPolicies at all, the Baseline"
+ },
+ {
+  "op": "set",
+  "block": 120,
+  "style": "Normal",
+  "text": "unrealistic at the start. Four complementary approaches close the gap:"
+ },
+ {
+  "op": "set",
+  "block": 121,
+  "style": "Heading 3",
+  "text": "a) Generated baselines — developers review, not author"
+ },
+ {
+  "op": "set",
+  "block": 122,
+  "style": "Normal",
+  "text": "Inspektor Gadget's advise_networkpolicy observes traffic for a chosen window,"
+ },
+ {
+  "op": "insert_after",
+  "after_text": "Normal:Inspektor Gadget's advise_networkpolicy observes traffic for a chosen win",
+  "style": "Normal",
+  "text": "then generates"
+ },
+ {
+  "op": "set",
+  "block": 146,
+  "style": "Heading 3",
+  "text": "c) The Baseline tier as a safety net"
+ },
+ {
+  "op": "set",
+  "block": 147,
+  "style": "Normal",
+  "text": "With a Baseline-tier policy that denies traffic no other policy allows, a"
+ },
+ {
+  "op": "set",
+  "block": 156,
+  "style": "List Bullet",
+  "text": "A default-deny NetworkPolicy (a Kyverno generate rule can create it for every new namespace)"
+ },
+ {
+  "op": "set",
+  "block": 157,
+  "style": "List Bullet",
+  "text": "Egress rules allowing only approved external destinations"
+ },
+ {
+  "op": "set",
+  "block": 174,
+  "style": "List Bullet",
+  "text": "Schema check — kubeconform and kubectl apply --dry-run=client (valid YAML, correct API version)"
+ },
+ {
+  "op": "set",
+  "block": 175,
+  "style": "List Bullet",
+  "text": "Policy lint — conftest / kyverno test / gator verify (organizational rules: no allow-all,"
+ },
+ {
+  "op": "set",
+  "block": 176,
+  "style": "Normal",
+  "text": "     required labels, port range limits); trivy config scans the manifests"
+ },
+ {
+  "op": "set",
+  "block": 177,
+  "style": "List Bullet",
+  "text": "Baseline diff — compare the change with the policy generated from observed flows"
+ },
+ {
+  "op": "set",
+  "block": 178,
+  "style": "Normal",
+  "text": "     and flag rules that would allow traffic outside the baseline"
+ },
+ {
+  "op": "set",
+  "block": 179,
+  "style": "List Bullet",
+  "text": "Dry-run apply — kubectl apply --dry-run=server against a staging cluster"
+ },
+ {
+  "op": "set",
+  "block": 183,
+  "style": "Normal",
+  "text": "   ClusterNetworkPolicies and egress rules (firewall/security reviews)."
+ },
+ {
+  "op": "set",
+  "block": 184,
+  "style": "List Number",
+  "text": "Merge triggers GitOps sync — Argo CD syncs to the"
+ },
+ {
+  "op": "set",
+  "block": 187,
+  "style": "List Number",
+  "text": "Post-deploy validation — Hubble or Calico flow logs confirm no unexpected"
+ },
+ {
+  "op": "set",
+  "block": 188,
+  "style": "Normal",
+  "text": "   flows and the expected deny counts; Falco alerts on unexpected egress at runtime."
+ },
+ {
+  "op": "set",
+  "block": 189,
+  "style": "Heading 3",
+  "text": "What generated baselines add"
+ },
+ {
+  "op": "set",
+  "block": 190,
+  "style": "Normal",
+  "text": "Inspektor Gadget's advise_networkpolicy gadget records the traffic of the"
+ },
+ {
+  "op": "set",
+  "block": 191,
+  "style": "Normal",
+  "text": "selected namespaces and writes the NetworkPolicy that matches it. This closes the loop between"
+ },
+ {
+  "op": "set",
+  "block": 192,
+  "style": "Normal",
+  "text": "\"what traffic does my app need\" (observed by the CNI) and \"what policy should I"
+ },
+ {
+  "op": "set",
+  "block": 193,
+  "style": "Normal",
+  "text": "write\" (generated, then validated in CI). The developer never needs to author"
+ },
+ {
+  "op": "set",
+  "block": 197,
+  "style": "Normal",
+  "text": "A three-layer repository model separates platform-"
+ },
+ {
+  "op": "set",
+  "block": 200,
+  "style": "Normal",
+  "text": "cluster-policies/\n│\n├── platform-baselines/                    # Platform team owns\n│   ├── admin-tier/\n│   │   ├── deny-cross-env.yaml           # Block dev ↔ prod traffic\n│   │   ├── accept-monitoring.yaml        # Prometheus/OTel can scrape all pods\n│   │   ├── deny-control-plane.yaml       # Apps cannot reach API server directly\n│   │   └── pass-app-traffic.yaml         # Delegate app-to-app decisions to NP tier\n│   ├── baseline-tier/\n│   │   └── default-deny-baseline.yaml    # Safety net: deny anything not explicitly allowed\n│   ├── egress/\n│   │   ├── prod-egress.yaml              # Production: allow only approved external CIDRs/DNS\n│   │   ├── test-egress.yaml              # Test: same as prod (mirrors topology)\n│   │   └── dev-egress.yaml               # Dev: broader access, still no direct internet\n│   └── kustomization.yaml\n│\n├── onboarding/                            # Platform team maintains, app teams consume\n│   ├── web-service/\n│   │   ├── default-deny.yaml\n│   │   ├── allow-ingress-controller.yaml\n│   │   ├── allow-egress-db.yaml\n│   │   └── kustomization.yaml\n│   ├── internal-api/\n│   │   ├── default-deny.yaml\n│   │   ├── allow-from-consumers.yaml\n│   │   ├── allow-egress-kafka.yaml\n│   │   └── kustomization.yaml\n│   └── batch-job/\n│       ├── default-deny.yaml\n│       ├── allow-egress-db.yaml\n│       └── kustomization.yaml\n│\n├── app-policies/                          # App teams own, platform reviews\n│   ├── orders/\n│   │   ├── base/\n│   │   │   ├── order-service-np.yaml\n│   │   │   ├── inventory-service-np.yaml\n│   │   │   └── kustomization.yaml\n│   │   └── overlays/\n│   │       ├── dev/\n│   │       ├── test/\n│   │       └── prod/\n│   ├── payments/\n│   │   └── ...\n│   └── notifications/\n│       └── ...\n│\n├── CODEOWNERS                             # Enforces review rules\n│   # /platform-baselines/  @platform-team @firewall-team\n│   # /onboarding/          @platform-team\n│   # /app-policies/orders/ @orders-team   @platform-team\n│\n└── .tekton/ or .github/                   # CI pipeline definitions\n    └── policy-validation.yaml"
+ },
+ {
+  "op": "set_cell",
+  "block": 202,
+  "text": "`platform-baselines/` (Admin tier, Baseline tier, egress rules)"
+ },
+ {
+  "op": "set",
+  "block": 211,
+  "style": "List Number",
+  "text": "Compare with the baseline — check whether the connection is in the"
+ },
+ {
+  "op": "set",
+  "block": 212,
+  "style": "Normal",
+  "text": "   observed baseline (the generated policies in Git). If it is not, it was"
+ },
+ {
+  "op": "set",
+  "block": 213,
+  "style": "Normal",
+  "text": "   likely never policy-allowed. Decide whether to add"
+ },
+ {
+  "op": "set",
+  "block": 215,
+  "style": "List Number",
+  "text": "Flow logs — hubble observe --verdict DROPPED (Cilium) or the Calico"
+ },
+ {
+  "op": "set",
+  "block": 216,
+  "style": "Normal",
+  "text": "   flow logs show the dropped flow with source pod, destination and port."
+ },
+ {
+  "op": "set",
+  "block": 217,
+  "style": "Normal",
+  "text": "   Match it with the policies that select the pod to find which tier"
+ },
+ {
+  "op": "insert_after",
+  "after_text": "Normal:   Match it with the policies that select the pod to find which tier",
+  "style": "Normal",
+  "text": "   denied the traffic (Admin, NP, or Baseline), which"
+ },
+ {
+  "op": "set",
+  "block": 219,
+  "style": "List Number",
+  "text": "Diagnostics bundle — cilium sysdump or calicoctl cluster diags"
+ },
+ {
+  "op": "set",
+  "block": 220,
+  "style": "Normal",
+  "text": "   collects network policy state, CNI configuration, and logs for offline"
+ },
+ {
+  "op": "set",
+  "block": 221,
+  "style": "Normal",
+  "text": "   analysis. Use it for an upstream issue or for escalation to your support"
+ },
+ {
+  "op": "insert_after",
+  "after_text": "Normal:   analysis. Use it for an upstream issue or for escalation to your suppo",
+  "style": "Normal",
+  "text": "   provider."
+ },
+ {
+  "op": "set",
+  "block": 223,
+  "style": "Normal",
+  "text": "regularly takes longer, the observability tooling (flow logs, baselines) is not"
+ },
+ {
+  "op": "set",
+  "block": 228,
+  "style": "List Number",
+  "text": "A platform team member creates a temporary Admin-tier policy with a Pass rule at a"
+ },
+ {
+  "op": "set",
+  "block": 230,
+  "style": "Normal",
+  "text": "   NetworkPolicy tier. If no NetworkPolicy exists for the target, the Baseline tier"
+ },
+ {
+  "op": "set",
+  "block": 231,
+  "style": "Normal",
+  "text": "   (if configured as default-deny) will still deny, so the break-glass"
+ },
+ {
+  "op": "set",
+  "block": 240,
+  "style": "List Bullet",
+  "text": "Argo CD reports sync status for every policy"
+ },
+ {
+  "op": "set",
+  "block": 241,
+  "style": "Normal",
+  "text": "  manifest. If someone manually applies a policy via kubectl apply instead"
+ },
+ {
+  "op": "set",
+  "block": 242,
+  "style": "Normal",
+  "text": "  of the PR pipeline, Argo CD detects the drift and either alerts or"
+ },
+ {
+  "op": "set",
+  "block": 243,
+  "style": "Normal",
+  "text": "  auto-reverts (self-heal, depending on configuration)."
+ },
+ {
+  "op": "set",
+  "block": 244,
+  "style": "List Bullet",
+  "text": "Baseline drift — if new traffic flows appear that are not in"
+ },
+ {
+  "op": "set",
+  "block": 245,
+  "style": "Normal",
+  "text": "  the observed baseline, the flow logs and Falco flag them. This catches"
+ },
+ {
+  "op": "set",
+  "block": 251,
+  "style": "List Bullet",
+  "text": "Namespaces with reviewed baselines vs. those still in observation."
+ },
+ {
+  "op": "set",
+  "block": 252,
+  "style": "List Bullet",
+  "text": "Admin-tier and Baseline-tier rules in effect and their last-modified dates."
+ },
+ {
+  "op": "set",
+  "block": 257,
+  "style": "Normal",
+  "text": "It changes their scope and moves their role from gatekeeper to architect."
+ },
+ {
+  "op": "set",
+  "block": 259,
+  "style": "List Bullet",
+  "text": "North-south edge controls — the perimeter firewall"
+ },
+ {
+  "op": "set",
+  "block": 263,
+  "style": "List Bullet",
+  "text": "Egress rule authorship — the firewall team authors and reviews"
+ },
+ {
+  "op": "set",
+  "block": 264,
+  "style": "Normal",
+  "text": "  the egress rules that control which external destinations cluster"
+ },
+ {
+  "op": "set",
+  "block": 267,
+  "style": "List Bullet",
+  "text": "Admin and Baseline tier review — the firewall team reviews all cluster-scoped"
+ },
+ {
+  "op": "set",
+  "block": 268,
+  "style": "Normal",
+  "text": "  network policies (the Admin and Baseline tiers) because these have cluster-wide blast"
+ },
+ {
+  "op": "set",
+  "block": 291,
+  "style": "Normal",
+  "text": "      default-deny NetworkPolicy or Baseline-tier coverage."
+ },
+ {
+  "op": "set",
+  "block": 292,
+  "style": "List Bullet",
+  "text": "Baselines reviewed — every production namespace has a reviewed"
+ },
+ {
+  "op": "set",
+  "block": 293,
+  "style": "Normal",
+  "text": "      baseline in Git. New flows outside it raise alerts."
+ },
+ {
+  "op": "set",
+  "block": 294,
+  "style": "List Bullet",
+  "text": "Admin-tier guardrails enforced — cross-environment traffic blocked,"
+ },
+ {
+  "op": "set",
+  "block": 296,
+  "style": "List Bullet",
+  "text": "Baseline-tier default-deny — the cluster-wide safety net catches any"
+ },
+ {
+  "op": "set",
+  "block": 297,
+  "style": "Normal",
+  "text": "      traffic not explicitly allowed by the Admin tier or NetworkPolicy."
+ },
+ {
+  "op": "set",
+  "block": 299,
+  "style": "Normal",
+  "text": "      NetworkPolicy changes through the CI/CD pipeline, not kubectl apply."
+ },
+ {
+  "op": "set",
+  "block": 300,
+  "style": "List Bullet",
+  "text": "CI validates before merge — schema checks, policy linting, baseline"
+ },
+ {
+  "op": "set",
+  "block": 301,
+  "style": "Normal",
+  "text": "      diff, and dry-run apply run on every PR."
+ },
+ {
+  "op": "set",
+  "block": 302,
+  "style": "List Bullet",
+  "text": "Egress rules per namespace — outbound traffic is restricted to"
+ },
+ {
+  "op": "set",
+  "block": 304,
+  "style": "List Bullet",
+  "text": "Firewall team reviews, does not block — turnaround on Admin and Baseline tier"
+ },
+ {
+  "op": "set",
+  "block": 306,
+  "style": "List Bullet",
+  "text": "Denied-flow triage under 30 minutes — flow logs and Falco alerts"
+ },
+ {
+  "op": "set",
+  "block": 307,
+  "style": "Normal",
+  "text": "      provide immediate root-cause."
+ },
+ {
+  "op": "set",
+  "block": 309,
+  "style": "Normal",
+  "text": "      stale policies removed, baselines refreshed, RBAC bindings"
+ },
+ {
+  "op": "set",
+  "block": 311,
+  "style": "Heading 3",
+  "text": "What organizations wish they'd done differently"
+ },
+ {
+  "op": "set",
+  "block": 312,
+  "style": "Normal",
+  "text": "These are the five lessons heard most often from organizations that have"
+ },
+ {
+  "op": "set",
+  "block": 313,
+  "style": "Normal",
+  "text": "completed this transition:"
+ },
+ {
+  "op": "set",
+  "block": 314,
+  "style": "List Number",
+  "text": "\"We should have started with observation, not enforcement.\" Teams"
+ },
+ {
+  "op": "set",
+  "block": 315,
+  "style": "Normal",
+  "text": "   that jumped to default-deny without first observing the flows"
+ },
+ {
+  "op": "set",
+  "block": 321,
+  "style": "List Number",
+  "text": "\"We underestimated the egress work.\" Cataloging every"
+ },
+ {
+  "op": "set",
+  "block": 324,
+  "style": "Normal",
+  "text": "   alongside the flow observation."
+ },
+ {
+  "op": "set",
+  "block": 325,
+  "style": "List Number",
+  "text": "\"We should have involved the firewall team earlier.\" Teams that"
+ },
+ {
+  "op": "set",
+  "block": 327,
+  "style": "Normal",
+  "text": "   resistance. Teams that positioned it as \"the firewall team's"
+ },
+ {
+  "op": "set_cell",
+  "block": 338,
+  "text": "NetworkPolicy, ClusterNetworkPolicy (Admin and Baseline tiers), egress rules: the focus here"
+ },
+ {
+  "op": "set_cell",
+  "block": 338,
+  "text": "Argo CD sync and drift detection for policies"
+ },
+ {
+  "op": "set_cell",
+  "block": 338,
+  "text": "Flow logs, Falco alerts, break-glass tracking"
+ },
+ {
+  "op": "set",
+  "block": 344,
+  "style": "List Bullet",
+  "text": "Kubernetes Network Policy API: ClusterNetworkPolicy"
+ },
+ {
+  "op": "set",
+  "block": 345,
+  "style": "List Bullet",
+  "text": "network-policy-api v0.2.0 release notes"
+ },
+ {
+  "op": "set",
+  "block": 346,
+  "style": "List Bullet",
+  "text": "Network Policy API implementations"
+ },
+ {
+  "op": "set",
+  "block": 347,
+  "style": "List Bullet",
+  "text": "Calico v3.32 release notes: ClusterNetworkPolicy"
+ },
+ {
+  "op": "set",
+  "block": 348,
+  "style": "List Bullet",
+  "text": "Cilium: Kubernetes network policy"
+ },
+ {
+  "op": "insert_after",
+  "after_text": "List Bullet:Cilium: Kubernetes network policy",
+  "style": "List Bullet",
+  "text": "Inspektor Gadget: advise_networkpolicy"
+ },
+ {
+  "op": "insert_after",
+  "after_text": "List Bullet:Inspektor Gadget: advise_networkpolicy",
+  "style": "List Bullet",
+  "text": "Kyverno policy: add-network-policy"
+ },
+ {
+  "op": "replace_image",
+  "rId": "rId9",
+  "png": "lgtm-presentation/edits/png/net-advisory-tier-evaluation.png",
+  "size": [
+   1400,
+   747
+  ]
+ },
+ {
+  "op": "replace_image",
+  "rId": "rId10",
+  "png": "lgtm-presentation/edits/png/net-advisory-ci-pipeline.png",
+  "size": [
+   1400,
+   476
+  ]
+ },
+ {
+  "op": "replace_image",
+  "rId": "rId11",
+  "png": "lgtm-presentation/edits/png/net-advisory-team-ownership.png",
+  "size": [
+   1400,
+   653
+  ]
+ }
+]

@@ -85,7 +85,7 @@ write.
 
 {% include excalidraw.html
    file="01-factors-mapped"
-   alt="Five rows mapping groups of factors to the system: build and ship becomes built once, run anywhere (one repo, Poetry, one image per release); configure becomes config from the environment (pydantic-settings, per-profile, secrets injected); run on the platform becomes disposable, stateless, scaled (KEDA scale-out and to-zero, fast start/stop, behind Istio); attach resources becomes backing services as swappable URLs (Postgres, Kafka via Strimzi, Apicurio, never in-process); operate becomes signals and admin off the hot path (OpenTelemetry to LGTM, admin as Jobs and CronJobs). Each row carries a section reference."
+   alt="Five rows mapping groups of factors to the system: build and ship becomes built once, run anywhere (one repo, pinned requirements, one image per release); configure becomes config from the environment (pydantic-settings, per-profile, secrets injected); run on the platform becomes disposable, stateless, scaled (KEDA scale-out and to-zero, fast start/stop, behind Istio); attach resources becomes backing services as swappable URLs (Postgres, Kafka via Strimzi, Apicurio, never in-process); operate becomes signals and admin off the hot path (OpenTelemetry to LGTM, admin as Jobs and CronJobs). Each row carries a section reference."
    caption="Figure 1.4 — The twelve factors grouped by ask, mapped to where each lives in the system" %}
 
 Five groups cover all twelve. *Build & ship* (codebase, dependencies, build/release/run,
@@ -107,157 +107,149 @@ in each stack — pick your tab.
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-# application.yml — config from the environment (factor III)
-spring:
-  application:
-    name: order-service                           # surfaces in metrics, traces
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP}         # injected at runtime
-
-management:                                       # Actuator publishes probes
-  endpoint:
-    health:
-      probes:
-        enabled: true                             # /actuator/health/liveness
-  health:                                         #     /actuator/health/readiness
-    livenessstate.enabled: true
-    readinessstate.enabled: true
-
-// Custom readiness contributor — auto-discovered as a HealthIndicator bean
-@Component
-public class DatabaseReady implements HealthIndicator {
-    private final JdbcTemplate jdbc;
-    public DatabaseReady(JdbcTemplate jdbc) { this.jdbc = jdbc; }
-
-    @Override public Health health() {
-        try { jdbc.queryForObject("SELECT 1", Integer.class); return Health.up().build(); }
-        catch (DataAccessException e)            { return Health.down(e).build(); }
+// HealthController.java (excerpt), examples/01-cloud-native-principles/spring-boot
+// config from env (factor III): SPRING_DATASOURCE_URL, SERVICE_VERSION -> service.version
+@RestController
+public class HealthController {
+    private final DataSource dataSource;
+    @Value("${service.version}")
+    private String serviceVersion;
+    public HealthController(DataSource dataSource) { this.dataSource = dataSource; }
+    @GetMapping("/healthz")                           // liveness: the process is up
+    public Map<String, String> healthz() { return Map.of("status", "ok"); }
+    @GetMapping("/readyz")                            // readiness: SELECT 1 on the pool
+    public ResponseEntity<Map<String, Object>> readyz() {
+        try (var conn = dataSource.getConnection()) {
+            conn.createStatement().executeQuery("SELECT 1").close();
+        } catch (Exception e) {                       // down: 503, the pod leaves the Service
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("status", "down", "checks", Map.of("database", "unreachable")));
+        }
+        return ResponseEntity.ok(Map.of("status", "ready",
+                "checks", Map.of("database", "ok")));
     }
 }
 ```
 
 ```java
-# application.properties — config from the environment (factor III)
-quarkus.application.name=order-service
-quarkus.application.version=1.4.0
-%prod.kafka.bootstrap.servers=${KAFKA_BOOTSTRAP}
-
-// SmallRye Health publishes the probes Kubernetes calls
-@Liveness                                    // /q/health/live — process is up
-public class Alive implements HealthCheck {
-    public HealthCheckResponse call() { return HealthCheckResponse.up("alive"); }
-}
-
-@Readiness                                   // /q/health/ready — deps reachable
-public class Ready implements HealthCheck {
-    @Inject PgPool db;                       // injected datastore client
-    public HealthCheckResponse call() {
-        return db.query("SELECT 1") != null ? up("ready") : down("ready"); }
+// HealthResource.java (excerpt), examples/01-cloud-native-principles/quarkus
+@Path("/") @Produces(MediaType.APPLICATION_JSON)
+public class HealthResource {
+    @ConfigProperty(name = "quarkus.datasource.jdbc.url") String jdbcUrl;  // env, factor III
+    @GET @Path("healthz")                    // liveness: the process is up
+    public Map<String, String> healthz() { return Map.of("status", "ok"); }
+    @GET @Path("readyz")                     // readiness: SELECT 1 (one retry elided)
+    public Response readyz() {
+        try (var conn = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
+             var rs = conn.createStatement().executeQuery("SELECT 1")) {
+            return Response.ok(Map.of("status", "ready",
+                    "checks", Map.of("database", "ok"))).build();
+        } catch (Exception e) {              // down: 503, out of rotation
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                .entity(Map.of("status", "down", "checks", Map.of("database", "unreachable")))
+                .build();
+        }
+    }
 }
 ```
 
 ```csharp
-// Program.cs — minimal hosting, env-driven config (factor III)
+// Program.cs (excerpt), examples/01-cloud-native-principles/dotnet
 var builder = WebApplication.CreateBuilder(args);
-builder.Configuration.AddEnvironmentVariables();   // overrides appsettings.json
-
-// Health checks: liveness vs readiness, just like the WCF heartbeat —
-// only Kubernetes calls them now, not your monitoring server.
-builder.Services.AddHealthChecks()
-    .AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] { "live" })
-    .AddNpgSql(builder.Configuration.GetConnectionString("Db")!,
-               name: "db", tags: new[] { "ready" });        // AspNetCore.HealthChecks
-
+// ... ConnectionStrings__Default from the environment (factor III) -> NpgsqlDataSource
 var app = builder.Build();
-
-// The cloud-native equivalent of IIS "Ping" + ARR health probes,
-// but baked into the app, not the host.
-app.MapHealthChecks("/healthz/live",  new() { Predicate = c => c.Tags.Contains("live")  });
-app.MapHealthChecks("/healthz/ready", new() { Predicate = c => c.Tags.Contains("ready") });
-
-app.Run();
+app.MapGet("/healthz", () => new { status = "ok" });          // liveness: the process is up
+app.MapGet("/readyz", async (NpgsqlDataSource db) =>          // readiness: SELECT 1
+{
+    try
+    {
+        await using var conn = await db.OpenConnectionAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT 1";
+        await cmd.ExecuteScalarAsync();
+        return Results.Ok(new { status = "ready", checks = new { database = "ok" } });
+    }
+    catch                                                     // down: 503, out of rotation
+    {
+        return Results.Json(new { status = "down", checks = new { database = "unreachable" } },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
 ```
 
 ```python
-# pyproject.toml (Poetry) pins everything; config comes from the environment
+# main.py (excerpt); requirements.txt pins every package with ==
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):           # config from env — factor III
     database_url: str
-    kafka_bootstrap: str
+    kafka_bootstrap: str = ""
+    service_version: str = "0.0.0"
 
 settings = Settings()
-app = FastAPI(title="order-service", version="1.4.0")
+app = FastAPI(title="order-service", version=settings.service_version, lifespan=lifespan)
 
-@app.get("/healthz")                     # liveness — process is up
+@app.get("/healthz")                     # liveness — the process is up
 def healthz(): return {"status": "ok"}
 
-@app.get("/readyz")                      # readiness — deps are reachable
+@app.get("/readyz")                      # readiness — dependencies are reachable
 async def readyz():
-    await check_db(); await check_kafka()
-    return {"status": "ready"}
+    try:
+        async with pool.acquire() as conn:
+            await conn.fetchval("SELECT 1")
+    except Exception:
+        return JSONResponse({"status": "down", "checks": {"database": "unreachable"}}, 503)
+    return {"status": "ready", "checks": {"database": "ok"}}
 ```
 
 ```cpp
-{% raw %}// conanfile.py pins everything; config comes from the environment
-#include <drogon/drogon.h>
-#include <cstdlib>
-
-struct Settings {                          // config from env — factor III
-  std::string database_url    = std::getenv("DATABASE_URL");
-  std::string kafka_bootstrap = std::getenv("KAFKA_BOOTSTRAP");
-};
-
-const Settings settings;                   // parsed once, immutable
-constinit std::string_view kVersion = "1.4.0";
-
+// main.cpp (excerpt), examples/01-cloud-native-principles/cpp; conan.lock pins every library
+using Callback = std::function<void(const HttpResponsePtr&)>;
+const char* env(const char* name, const char* fallback) {   // config from env, factor III
+  const char* v = std::getenv(name);  return v ? v : fallback;   // unset: the default
+}
 int main() {
-  auto& app = drogon::app();
-  app.registerHandler("/healthz", [](auto&&, auto&& cb){   // liveness — process is up
-    cb(drogon::HttpResponse::newHttpJsonResponse({{"status","ok"}}));
-  });
-  app.registerHandler("/readyz", [](auto&&, auto&& cb){    // readiness — deps reachable
-    check_db(); check_kafka();
-    cb(drogon::HttpResponse::newHttpJsonResponse({{"status","ready"}}));
-  });
-  app.addListener("0.0.0.0", 8080).run();  // factor VII · port binding
-}{% endraw %}
+  g_version = env("SERVICE_VERSION", "1.0.0");
+  g_pool = std::make_unique<cndp::PgPool>(
+      env("PG_CONNINFO", "postgresql://appuser:apppass@postgres:5432/appdb"),
+      std::atoi(env("PG_POOL_SIZE", "4")));
+  app().registerHandler("/healthz", [](const HttpRequestPtr&, Callback&& cb) {
+    Json::Value j;  j["status"] = "ok";  cb(HttpResponse::newHttpJsonResponse(j));  // liveness
+  }, {Get});
+  app().registerHandler("/readyz", [](const HttpRequestPtr&, Callback&& cb) {
+    const bool db_ok = db_ready();             // SELECT 1 via the libpq pool (retry elided)
+    Json::Value j;  j["status"] = db_ok ? "ready" : "down";
+    auto resp = HttpResponse::newHttpJsonResponse(j);
+    if (!db_ok) resp->setStatusCode(k503ServiceUnavailable);   // down: out of rotation
+    cb(resp);
+  }, {Get});
+  app().addListener("0.0.0.0", 8080).run();    // factor VII: port binding
+}
 ```
 
 ```go
-// main.go — config from the environment (factor III); two probes, not one
-type Settings struct {
-	DatabaseURL    string // DATABASE_URL
-	KafkaBootstrap string // KAFKA_BOOTSTRAP
+// main.go (excerpt), examples/01-cloud-native-principles/go: config from env, two probes
+func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(HealthResponse{Status: "ok"}) // liveness: the process is up
 }
-
-func load() Settings { // config from env, never a baked-in file
-	return Settings{
-		DatabaseURL:    os.Getenv("DATABASE_URL"),
-		KafkaBootstrap: os.Getenv("KAFKA_BOOTSTRAP"),
+func (s *Server) handleReadyz(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	w.Header().Set("Content-Type", "application/json")
+	if err := s.pool.Ping(ctx); err != nil { // readiness: the database answers
+		w.WriteHeader(http.StatusServiceUnavailable) // 503: out of rotation, not restarted
+		json.NewEncoder(w).Encode(ReadinessResponse{Status: "down",
+			Checks: map[string]string{"database": "unreachable"}})
+		return
 	}
+	json.NewEncoder(w).Encode(ReadinessResponse{Status: "ready",
+		Checks: map[string]string{"database": "ok"}})
 }
-
-func main() {
-	cfg := load()
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"}) // liveness
-	})
-	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
-		// readiness drains traffic on failure; it never restarts the pod
-		if err := errors.Join(checkDB(r.Context()), checkKafka(r.Context())); err != nil {
-			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "down"})
-			return
-		}
-		writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
-	})
-
-	slog.Info("starting", "version", "1.4.0", "kafka", cfg.KafkaBootstrap)
-	_ = http.ListenAndServe(":8080", mux) // factor VII · port binding
-}
+// main(): SERVICE_VERSION and DATABASE_URL come from the environment (factor III); the mux
+// serves /, /healthz, /readyz and /orders on :8080 (factor VII, port binding)
 ```
 
 ### How the code works
@@ -265,19 +257,23 @@ func main() {
 The same two ideas appear in every tab:
 
 1. **Config comes from the environment, never from a baked-in file.** Spring and
-   Quarkus read `${KAFKA_BOOTSTRAP}` from the environment, .NET calls
-   `AddEnvironmentVariables()` so env vars override `appsettings.json`, Python
-   binds a `BaseSettings` class to env vars, and C++ reads `std::getenv`. One
+   Quarkus resolve their datasource URL and `service.version` from environment
+   variables, .NET reads `ConnectionStrings__Default` through its configuration
+   (env vars override `appsettings.json`), Python binds a `BaseSettings` class to env
+   vars, and C++ and Go read `std::getenv` and `os.Getenv`. One
    image, many environments — factor III, and the thing that lets the same
    artifact run in dev, staging, and production unchanged.
 2. **Two probes, not one.** *Liveness* answers "is the process up?" — if it fails,
    the platform restarts the pod. *Readiness* answers "are my dependencies
    reachable?" — if it fails, the platform stops routing traffic to this instance
    but leaves it running. Conflating the two is a classic mistake: a readiness
-   blip should drain traffic, not trigger a restart loop. The frameworks differ
-   in surface — Actuator endpoints, SmallRye `@Liveness`/`@Readiness`, ASP.NET
-   tag-filtered health checks, plain handlers — but Kubernetes calls them the same
-   way.
+   blip should drain traffic, not trigger a restart loop. The probe reads the
+   **status code**, not the body: Kubernetes counts any answer from 200 to 399 as
+   ready, so `/readyz` answers `503` (with `"status": "down"` in the body for
+   people) when the database is unreachable. Every tab writes the two handlers by
+   hand, as the examples do, so all six languages serve the same paths and bodies;
+   Spring Boot Actuator, SmallRye Health and ASP.NET Core health checks are the
+   framework routes to the same pair, and Kubernetes calls them the same way.
 
 Notice what *isn't* here: no retry logic, no scaling code, no port-binding
 plumbing. Those are the right column of Figure 1.3 — the platform's job.
@@ -287,12 +283,12 @@ plumbing. Those are the right column of Figure 1.3 — the platform's job.
 With the service running, the probes are just HTTP. Hit liveness and readiness
 with `curl` and confirm liveness returns healthy while the database is down but
 readiness does *not* — that difference is the whole point. `curl -i
-localhost:8080/readyz` should flip from ready to not-ready as you stop and start
-the database, without the process ever restarting.
+localhost:8080/readyz` should flip from `200` ready to `503` down as you stop the
+database and back as you start it, without the process ever restarting.
 
 The code is in [`examples/01-cloud-native-principles/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/01-cloud-native-principles/). The run script there builds
 and runs it; its `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: verified — [`examples/01-cloud-native-principles/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/01-cloud-native-principles/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-10)
+*Verification status: verified — [`examples/01-cloud-native-principles/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/01-cloud-native-principles/) passes 13/13 checks in each of the six languages on Docker Engine (2026-10-12)
 (health probes, config from environment, CRUD, readiness flip on dependency failure).*

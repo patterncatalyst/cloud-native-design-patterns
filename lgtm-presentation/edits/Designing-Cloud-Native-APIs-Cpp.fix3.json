@@ -1,0 +1,218 @@
+{
+ "ops": [
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    269
+   ],
+   "find": "/readyz runs SELECT 1 through the libpq pool and reports ready or down (readiness), so the probe",
+   "repl": "/readyz runs SELECT 1 through the libpq pool and answers 200 with status ready, or 503 with status down (readiness; the probe reads the status code, not the body), so the probe",
+   "expect": 1,
+   "cat": "notes",
+   "_slide": 14,
+   "_why": "examples/01 cpp: readiness answers 503 when the database is down (937f8d7)",
+   "_src": "align"
+  },
+  {
+   "op": "set_code",
+   "sldId": 269,
+   "lines": [
+    "// main.cpp (excerpt), examples/01-cloud-native-principles/cpp; conan.lock pins every library",
+    "using Callback = std::function<void(const HttpResponsePtr&)>;",
+    "const char* env(const char* name, const char* fallback) {   // config from env, factor III",
+    "  const char* v = std::getenv(name);  return v ? v : fallback;   // unset: the default",
+    "}",
+    "int main() {",
+    "  g_version = env(\"SERVICE_VERSION\", \"1.0.0\");",
+    "  g_pool = std::make_unique<cndp::PgPool>(",
+    "      env(\"PG_CONNINFO\", \"postgresql://appuser:apppass@postgres:5432/appdb\"),",
+    "      std::atoi(env(\"PG_POOL_SIZE\", \"4\")));",
+    "  app().registerHandler(\"/healthz\", [](const HttpRequestPtr&, Callback&& cb) {",
+    "    Json::Value j;  j[\"status\"] = \"ok\";  cb(HttpResponse::newHttpJsonResponse(j));  // liveness",
+    "  }, {Get});",
+    "  app().registerHandler(\"/readyz\", [](const HttpRequestPtr&, Callback&& cb) {",
+    "    const bool db_ok = db_ready();             // SELECT 1 via the libpq pool (retry elided)",
+    "    Json::Value j;  j[\"status\"] = db_ok ? \"ready\" : \"down\";",
+    "    auto resp = HttpResponse::newHttpJsonResponse(j);",
+    "    if (!db_ok) resp->setStatusCode(k503ServiceUnavailable);   // down: out of rotation",
+    "    cb(resp);",
+    "  }, {Get});",
+    "  app().addListener(\"0.0.0.0\", 8080).run();    // factor VII: port binding",
+    "}"
+   ],
+   "cat": "code",
+   "_slide": 14,
+   "_why": "examples/01: hand-written /healthz and /readyz; readiness answers 503 when the database is down",
+   "_src": "align"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    419
+   ],
+   "find": "SIGTERM → fail readiness → keep serving while endpoints update → drain in-flight → RAII closes the pool.",
+   "repl": "One SIGTERM → fail readiness → serve DRAIN_DELAY_SECONDS → drain in-flight (20 s) → quit → close the pool.",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 164,
+   "_why": "examples/21 cpp: watcher thread, drain delay, bounded wait, app().quit() (9676f32)",
+   "_src": "align"
+  },
+  {
+   "op": "set_code",
+   "sldId": 419,
+   "lines": [
+    "// order-service (excerpt), examples/21-graceful-shutdown/cpp: one SIGTERM drives the drain",
+    "std::atomic<bool> g_shutting_down{false};     // /readyz answers 503 once it is set",
+    "std::atomic<int>  g_in_flight{0};             // RAII InFlightGuard: one per request",
+    "extern \"C\" void sigterm_handler(int) {        // async-signal-safe: one atomic store",
+    "  g_shutting_down.store(true, std::memory_order_release);",
+    "}",
+    "void shutdown_watcher() {                     // outside signal context",
+    "  while (!g_shutting_down.load(std::memory_order_acquire))",
+    "    std::this_thread::sleep_for(50ms);        // (also returns on g_watcher_stop)",
+    "  const int delay = std::atoi(env(\"DRAIN_DELAY_SECONDS\", \"5\"));",
+    "  std::this_thread::sleep_for(std::chrono::seconds(delay));    // endpoints update",
+    "  const auto deadline = std::chrono::steady_clock::now() + 20s; // bounded in-flight wait",
+    "  while (g_in_flight.load() > 0 && std::chrono::steady_clock::now() < deadline)",
+    "    std::this_thread::sleep_for(100ms);",
+    "  app().quit();                               // stop the listeners: run() returns",
+    "}",
+    "int main() {",
+    "  app().registerBeginningAdvice([] { std::signal(SIGTERM, sigterm_handler); });  // after init",
+    "  std::thread watcher(shutdown_watcher);      // ... handlers, addListener(\"0.0.0.0\", 8080)",
+    "  app().run();  g_watcher_stop.store(true);  watcher.join();",
+    "  g_pool.reset();                             // close the database connections; exit 0",
+    "}"
+   ],
+   "cat": "code",
+   "_slide": 164,
+   "_why": "examples/21: one SIGTERM -> readiness 503 -> DRAIN_DELAY_SECONDS -> stop accepting -> in-flight drain within 20 s -> cleanup -> exit 0",
+   "_src": "align"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 419,
+   "cat": "notes",
+   "_slide": 164,
+   "_why": "notes follow the code",
+   "_src": "align",
+   "paragraphs": [
+    "The application side of graceful shutdown, from the C++ example; one SIGTERM, the only signal Kubernetes sends before SIGKILL, drives all of it. (1) The SIGTERM handler only stores an atomic flag, which is async-signal-safe: no locks, no allocation, no destructors. Drogon installs its own SIGTERM handler that quits at once, so the example replaces it after initialisation with registerBeginningAdvice. /readyz answers 503 once the flag is set, which removes the pod from the Service endpoints while the process keeps serving the requests already routed to it.",
+    "(2) A watcher thread does the rest outside signal context: it sees the flag, keeps serving for DRAIN_DELAY_SECONDS (5 s in Example 21; it plays the part of a preStop sleep) so the endpoint removal propagates, waits up to 20 seconds for the RAII InFlightGuard count to reach zero, and calls app().quit(), which stops the listeners so run() returns. (3) main() joins the watcher, closes the libpq pool and returns 0, inside the 30-second grace period. std::stop_token and std::jthread extend the same pattern to worker threads such as Kafka consumers: the watcher calls request_stop() after it sees the flag, never inside the handler. Deterministic destruction makes the teardown order predictable."
+   ]
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    476
+   ],
+   "find": "Write to Redis and mark dirty; a flusher upserts every 2 s and clears a mark only once the DB has the row.",
+   "repl": "PUT answers 202; the flusher upserts every 2 s, clears a mark once the DB has the row, and parks a key after 5 failures.",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 221,
+   "_why": "examples/25 cpp: 202 and bounded retry (ebca295)",
+   "_src": "align"
+  },
+  {
+   "op": "set_code",
+   "sldId": 476,
+   "lines": [
+    "// cache-service main.cpp (excerpt), examples/25-caching/cpp: write-back",
+    "app().registerHandler(\"/write-back/metrics/{id}\",   // cache_val {id, payload}; body {ok, ...}",
+    "    [](const HttpRequestPtr& req, Callback&& callback, const std::string& id) {",
+    "      redis_set(\"metric:\" + id, writer.write(cache_val), std::chrono::hours(1));  // 1. cache",
+    "      redis_sadd(\"writeback:dirty\", \"metric:\" + id);  // 2. mark dirty",
+    "      auto resp = HttpResponse::newHttpJsonResponse(body);  resp->setStatusCode(k202Accepted);",
+    "      callback(resp);                                 // 3. 202: queued, not yet durable",
+    "    }, {Put});",
+    "void writeback_flusher() {                          // std::thread, joined at shutdown",
+    "  std::map<std::string, int> attempts;  int failures = 0;   // per-key failure count",
+    "  while (!g_shutdown) {   // ... each cycle first sleeps std::min(2 << failures, 8) s",
+    "    for (const auto& key : redis_smembers(\"writeback:dirty\")) {  // key -> id, cached payload",
+    "      auto res = g_flush_db->exec(\"INSERT INTO metrics (id, payload) VALUES ($1, $2) \"",
+    "          \"ON CONFLICT (id) DO UPDATE SET payload = EXCLUDED.payload, ts = NOW()\",",
+    "          {id, payload});",
+    "      if (res && PQresultStatus(res.get()) == PGRES_COMMAND_OK) {",
+    "        redis_srem(\"writeback:dirty\", key);  attempts.erase(key);  continue;  // DB has it",
+    "      }                                             // failed: stays dirty, retried next cycle",
+    "      if (++attempts[key] >= kMaxFlushAttempts)     // bounded: park after 5 attempts",
+    "        { redis_sadd(\"writeback:failed\", key);  redis_srem(\"writeback:dirty\", key); }",
+    "    }   // ... failures + 1 (at most 2) after a cycle with a failure, 0 after a clean one",
+    "  }"
+   ],
+   "cat": "code",
+   "_slide": 221,
+   "_why": "examples/25: /write-back/metrics/{id} answers 202; upsert; bounded retry (metric:attempts, metric:failed, backoff)",
+   "_src": "align"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 476,
+   "cat": "notes",
+   "_slide": 221,
+   "_why": "notes follow the code",
+   "_src": "align",
+   "paragraphs": [
+    "Write-back from Example 25: PUT /write-back/metrics/{id} stores the payload in Redis under metric:<id> with a one-hour TTL (a queued write has to outlive a database outage), adds the key to the writeback:dirty set and answers 202 Accepted: the write is queued, not yet durable. A background std::thread wakes every two seconds, reads the dirty set, upserts each metric into Postgres with INSERT ... ON CONFLICT DO UPDATE, and removes the key from the set only after the upsert succeeds, so a failed write stays dirty and is retried on the next cycle.",
+    "Retries are bounded: a per-key counter parks a key on writeback:failed after five failed attempts, with its value still in the cache and an error in the log, and the cycle time backs off to four and then eight seconds while flushes fail. The upsert makes a repeated flush harmless. The flusher has its own libpq connection, separate from the request handlers', and main() joins it after the shutdown flag is set (Appendix H). The risk is the one every write-back carries: a write that was acknowledged but not yet flushed is lost if Redis loses it, so keep write-back for data that tolerates that window, such as metrics."
+   ]
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    500
+   ],
+   "find": "Shutdown is a failure mode: readiness flip, drain in-flight requests, RAII cleanup.",
+   "repl": "Shutdown is a failure mode: readiness flip, drain delay, bounded in-flight drain, then cleanup.",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 245,
+   "_why": "examples/21 cpp (9676f32)",
+   "_src": "align"
+  },
+  {
+   "op": "set_code",
+   "sldId": 500,
+   "lines": [
+    "// Recap of Appendix H in the failure-mode context: shutdown is a failure mode.",
+    "// A pod that dies mid-request causes 5xx; a pod that drains cleanly does not.",
+    "std::atomic<bool> g_shutting_down{false};         // /readyz answers 503 once it is set",
+    "std::atomic<int>  g_in_flight{0};                 // InFlightGuard per request",
+    "extern \"C\" void sigterm_handler(int) {            // async-signal-safe: one atomic store",
+    "  g_shutting_down.store(true, std::memory_order_release);",
+    "}",
+    "void shutdown_watcher() {                         // one SIGTERM drives the rest",
+    "  // ... wait for the flag, sleep DRAIN_DELAY_SECONDS (5), wait for g_in_flight == 0 (20 s)",
+    "  app().quit();                                   // stop the listeners: run() returns",
+    "}",
+    "int main() {",
+    "  app().registerBeginningAdvice([] { std::signal(SIGTERM, sigterm_handler); });",
+    "  std::thread watcher(shutdown_watcher);",
+    "  app().addListener(\"0.0.0.0\", 8080).run();",
+    "  watcher.join();",
+    "  g_pool.reset();                                 // close the pool, then exit 0",
+    "}",
+    "// K8s pod spec: terminationGracePeriodSeconds: 30 (>= 5 s delay + 20 s drain + buffer)"
+   ],
+   "cat": "code",
+   "_slide": 245,
+   "_why": "Appendix M recap follows examples/21 (one SIGTERM, drain delay, 20 s drain)",
+   "_src": "align"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 500,
+   "cat": "notes",
+   "_slide": 245,
+   "_why": "notes follow the code",
+   "_src": "align",
+   "text": "Recap of App H in the failure-mode context: pod shutdown is itself a failure mode that graceful drain converts into a non-failure. The C++ disposability discipline of Example 21 (one SIGTERM, an async-signal-safe flag, /readyz answering 503, the drain delay, a bounded in-flight wait, app().quit(), the pool closed and exit 0) is what makes rolling deploys clean."
+  }
+ ]
+}

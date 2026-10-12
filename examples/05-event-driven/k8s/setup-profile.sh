@@ -58,7 +58,8 @@ if [[ -n "$others" ]]; then
     while read -r n; do printf '  - %s\n' "$n" >&2; done <<<"$others"
     fail "stop them yourself (minikube stop -p <name>) and re-run; this script never stops another profile"
 fi
-foreign="$(docker ps --format '{{.Names}}' | grep -vx "$PROFILE" || true)"
+# The quarkus-agent MCP's doc-search containers (label quarkus-agent-mcp) are tooling, not a workshop.
+foreign="$(docker ps --format '{{.Names}}\t{{.Label "quarkus-agent-mcp"}}' | awk -F'\t' '$2 == "" {print $1}' | grep -vx "$PROFILE" || true)"
 if [[ -n "$foreign" ]]; then
     printf 'Containers are running:\n' >&2
     while read -r n; do printf '  - %s\n' "$n" >&2; done <<<"$foreign"

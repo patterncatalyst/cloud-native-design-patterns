@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 import asyncpg
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from pydantic_settings import BaseSettings
 
 
@@ -56,7 +57,10 @@ async def readyz():
         async with pool.acquire() as conn:
             await conn.fetchval("SELECT 1")
     except Exception:
-        return {"status": "down", "checks": {"database": "unreachable"}}
+        return JSONResponse(
+            status_code=503,
+            content={"status": "down", "checks": {"database": "unreachable"}},
+        )
     return {"status": "ready", "checks": {"database": "ok"}}
 
 

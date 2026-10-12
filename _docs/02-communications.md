@@ -18,7 +18,7 @@ one.
 
 {% include excalidraw.html
    file="02-pick-protocol"
-   alt="Four columns of interaction styles, each tagged sync or async: REST/HTTP (public and edge surface, wide reach, cacheable, resource-shaped, FastAPI), sync; gRPC (internal service-to-service, low latency, streaming, schema-first proto), sync; GraphQL (client-driven reads, compose many sources, one round-trip, Strawberry/Graphene), sync; and Async/events (fire-and-forget facts, decoupled in time, fan-out to many, Kafka/Pulsar), async."
+   alt="Four columns of interaction styles, each tagged sync or async: REST/HTTP (public and edge surface, wide reach, cacheable, resource-shaped, OpenAPI-described), sync; gRPC (internal service-to-service, low latency, streaming, schema-first proto, grpc + protobuf), sync; GraphQL (client-driven reads, compose many sources, one round-trip, schema (SDL) + resolvers), sync; and Async/events (fire-and-forget facts, decoupled in time, fan-out to many, Kafka/Pulsar), async."
    caption="Figure 2.1 — Four interaction styles, four defaults — three synchronous, one asynchronous" %}
 
 Read it by the sync/async tags along the bottom: REST, gRPC, and GraphQL are all
@@ -102,11 +102,7 @@ public class OrderResource {                  // Quarkus REST
 
 ```csharp
 // Program.cs — minimal API style; FluentValidation for input contracts
-var orders = app.MapGroup("/orders").WithOpenApi();
-
-public record OrderIn(                             // immutable, validated
-    [Required, StringLength(64)] string Sku,
-    [Range(1, 1_000)]            int    Quantity);
+var orders = app.MapGroup("/orders");
 
 orders.MapPost("/", async (
         [FromBody] OrderIn body,
@@ -124,6 +120,10 @@ orders.MapPost("/", async (
 
 orders.MapGet("/", (string? after, int limit, IOrderService svc) =>
     svc.Page(after, limit));                       // cursor pagination, not offset
+
+public record OrderIn(                             // immutable, validated
+    [Required, StringLength(64)] string Sku,
+    [Range(1, 1_000)]            int    Quantity);
 ```
 
 ```python
@@ -247,19 +247,22 @@ produces and fill in the one method, never touching the wire format itself.
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-@GrpcService                                    // grpc-spring-boot-starter
-public class InventoryService extends InventoryGrpc.InventoryImplBase {
-  private final Stock stock;
-  public InventoryService(Stock stock) { this.stock = stock; }
-
-  @Override                                      // generated base method
-  public void reserveStock(ReserveRequest req, StreamObserver<ReserveReply> obs) {
-    int remaining = stock.reserve(req.getSku(), req.getQuantity());   // generated getters
-    obs.onNext(ReserveReply.newBuilder()
-        .setReserved(remaining >= 0)
-        .setRemaining(Math.max(remaining, 0)).build());
-    obs.onCompleted();
-  }
+// inventory-service (excerpt): grpc-java server; protobuf-maven-plugin generates the stubs
+@SpringBootApplication
+public class InventoryServiceApplication extends InventoryGrpc.InventoryImplBase
+        implements CommandLineRunner {
+    @Override public void run(String... args) throws Exception {
+        server = ServerBuilder.forPort(grpcPort).addService(this).build().start();
+        server.awaitTermination();
+    }
+    @Override public void reserveStock(ReserveRequest req, StreamObserver<ReserveReply> obs) {
+        stock.putIfAbsent(req.getSku(), initialStock);
+        int remaining = stock.get(req.getSku()) - req.getQuantity();
+        if (remaining >= 0) stock.put(req.getSku(), remaining);   // reserve
+        obs.onNext(ReserveReply.newBuilder().setReserved(remaining >= 0)
+            .setRemaining(stock.get(req.getSku())).build());
+        obs.onCompleted();
+    }
 }
 ```
 
@@ -366,7 +369,7 @@ per-service reimplementations.
 
 {% include excalidraw.html
    file="02-mesh-handles-wire"
-   alt="Two pods, each containing an app (FastAPI or grpc server, speaking plain localhost) beside an istio-proxy Envoy sidecar that handles mTLS, retries, timeouts, and traces. The two sidecars communicate over mutual TLS, encrypted and authenticated. Below, the istiod control plane distributes policy, SPIFFE identity, and telemetry config to both pods."
+   alt="Two pods, each containing an app (a REST or gRPC server speaking plain localhost) beside an istio-proxy Envoy sidecar that handles mTLS, retries, timeouts, and traces. The two sidecars communicate over mutual TLS, encrypted and authenticated. The istiod control plane distributes policy, SPIFFE identity, and telemetry config to both pods."
    caption="Figure 2.3 — The mesh moves cross-cutting concerns off your code: sidecars handle mTLS, retries, timeouts, and telemetry, configured by istiod" %}
 
 Each pod runs your service next to an Envoy sidecar. Your code talks plain HTTP or gRPC

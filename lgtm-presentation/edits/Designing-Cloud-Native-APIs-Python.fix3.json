@@ -1,0 +1,451 @@
+{
+ "ops": [
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "Kafka is the substrate — a partitioned",
+   "repl": "Kafka is the substrate: a partitioned",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup (6 per paragraph)",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "Pulsar is also substrate — same broad category",
+   "repl": "Pulsar is also substrate, in the same broad category",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "Flink is compute — not a transport layer at all, but",
+   "repl": "Flink is compute: not a transport layer, but",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "NiFi is movement — a visual",
+   "repl": "NiFi is movement: a visual",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "They complement — pick by",
+   "repl": "They complement each other; pick by",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "This is the slide the user specifically asked for: distinguish auto-injection from auto-instrumentation from manual instrumentation — three things people conflate.",
+   "repl": "Auto-injection, auto-instrumentation and manual instrumentation are three things people conflate.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): leaked authoring request; em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "wrap known frameworks — your HTTP handler",
+   "repl": "wrap known frameworks: your HTTP handler",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "a Kubernetes-level mechanism — the OpenTelemetry Operator",
+   "repl": "a Kubernetes-level mechanism; the OpenTelemetry Operator",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "Python — ",
+   "repl": "Python: ",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "Java/Quarkus — ",
+   "repl": "Java/Quarkus: ",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    283
+   ],
+   "find": "The cost: eventual consistency — there is a small lag",
+   "repl": "The cost: eventual consistency, a small lag",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    283
+   ],
+   "find": "happily handles both — CQRS adds",
+   "repl": "handles both; CQRS adds",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    283
+   ],
+   "find": "for projections — we cover both distinctions in section 5.",
+   "repl": "for projections; the Event-Driven section draws both distinctions.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup; cross-reference by concept",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    324
+   ],
+   "find": "The sub-bullet is the reminder the user asked for: ",
+   "repl": "The sub-bullet is the reminder: ",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): leaked authoring request",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    380
+   ],
+   "find": "This is the specific case you asked about, and a common source of bad designs.",
+   "repl": "This case is a common source of bad designs.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): leaked authoring request",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    535
+   ],
+   "find": "Fallback: the recorded results that follow.",
+   "repl": "Fallback: the recorded results.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): soft positional reference",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    377
+   ],
+   "find": "This is the DB-backed option made concrete, and it's the one I'd reach for first.",
+   "repl": "This is the DB-backed option made concrete, and the default choice for a bounded saga.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "first-person and soft-hype tone in notes",
+   "_src": "tone"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    377
+   ],
+   "find": "Recovery is beautifully boring: after a crash, a sweeper just loads",
+   "repl": "Recovery needs no special path: after a crash, a sweeper loads",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "first-person and soft-hype tone in notes",
+   "_src": "tone"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    291
+   ],
+   "find": "group_id=\"notification\",                 # offset tracked per group",
+   "repl": "group_id=\"notification-group\",           # offset tracked per group",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 36,
+   "_why": "examples/05-event-driven/python/notification-consumer/main.py uses group_id=\"notification-group\" (Go slide and example agree)",
+   "_src": "content"
+  },
+  {
+   "op": "set_code",
+   "sldId": 476,
+   "shape_id": 2448,
+   "pt": 9.0,
+   "line_spacing": 1.0,
+   "cat": "code",
+   "_slide": 221,
+   "_why": "write-back flusher as examples/25-caching/python: decoded keys (mid was bytes, so hgetall read metric:b'..' and json.dumps failed on bytes) and an upsert (metrics.id is the primary key; a key flushed twice failed the plain INSERT); asyncpg's executemany",
+   "lines": [
+    "BATCH, PERIOD_S = 100, 1.0   # excerpt: cache: Redis(decode_responses=True); db: asyncpg",
+    "async def flusher():",
+    "    while True:                                       # 2. drain the dirty set to the DB",
+    "        await asyncio.sleep(PERIOD_S)",
+    "        ids, rows = await cache.spop(\"metric:dirty\", BATCH), []",
+    "        for mid in ids:",
+    "            data = await cache.hgetall(f\"metric:{mid}\")",
+    "            if data: rows.append((mid, json.dumps(data)))",
+    "        if not rows: continue",
+    "        try:                                          # upsert: one row per key",
+    "            await db.executemany(\"INSERT INTO metrics (id, payload) VALUES ($1, $2) \"",
+    "                                 \"ON CONFLICT (id) DO UPDATE SET payload = $2\", rows)",
+    "        except Exception:                             # 3. on failure, re-mark dirty",
+    "            await cache.sadd(\"metric:dirty\", *[m for m, _ in rows])",
+    "@asynccontextmanager",
+    "async def lifespan(app):",
+    "    task = asyncio.create_task(flusher())",
+    "    yield",
+    "    task.cancel()",
+    "app = FastAPI(lifespan=lifespan)                      # created once, with the flusher",
+    "@app.put(\"/metrics/{mid}\")",
+    "async def write_metric(mid: str, body: dict):",
+    "    await cache.hset(f\"metric:{mid}\", mapping=body)   # 1. cache only; return now",
+    "    await cache.sadd(\"metric:dirty\", mid)             # mark for flush",
+    "    return {\"ok\": True}                               # fast — microseconds"
+   ],
+   "_src": "content"
+  },
+  {
+   "op": "set_code",
+   "sldId": 496,
+   "shape_id": 2669,
+   "cat": "code",
+   "_slide": 241,
+   "_why": "OpenedState was used but never imported; purgatory 3.0.1 exports it only from purgatory.domain.model (not from the package root)",
+   "lines": [
+    "from purgatory import AsyncCircuitBreakerFactory",
+    "from purgatory.domain.model import OpenedState     # raised while the breaker is open",
+    "# Open after 5 failures; stay open 30s; then half-open to test recovery",
+    "breakers = AsyncCircuitBreakerFactory(default_threshold=5, default_ttl=30)",
+    "",
+    "async def charge(order: dict) -> dict:",
+    "    try:",
+    "        async with await breakers.get_breaker(\"payment\"):",
+    "            # While OPEN this raises immediately — no doomed downstream call",
+    "            r = await client.post(\"/charge\", json=order, timeout=2.0)",
+    "            r.raise_for_status()",
+    "            return r.json()",
+    "    except OpenedState:                       # breaker is open → degrade",
+    "        await outbox.enqueue(order)           # graceful fallback",
+    "        return {\"status\": \"pending\", \"id\": order[\"id\"]}",
+    "",
+    "# One breaker per dependency (\"payment\"), never one global breaker."
+   ],
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    476
+   ],
+   "find": "to the DB in one execute_many call.",
+   "repl": "to the DB in one executemany upsert (ON CONFLICT (id) DO UPDATE), so a key flushed twice stays one row.",
+   "expect": 1,
+   "cat": "notes",
+   "_slide": 221,
+   "_why": "notes follow the corrected code",
+   "_src": "content"
+  },
+  {
+   "op": "set_code",
+   "sldId": 419,
+   "lines": [
+    "# main.py (excerpt), examples/21-graceful-shutdown/python",
+    "import signal",
+    "from contextlib import asynccontextmanager",
+    "from fastapi import FastAPI",
+    "from fastapi.responses import JSONResponse",
+    "shutting_down, uvicorn_sigterm = False, None",
+    "def handle_sigterm(signum, frame):",
+    "    global shutting_down",
+    "    if shutting_down:            # 2nd signal (docker stop): uvicorn drains HTTP",
+    "        return uvicorn_sigterm(signum, frame)",
+    "    shutting_down = True         # 1st signal: fail readiness, keep serving",
+    "@asynccontextmanager",
+    "async def lifespan(app):",
+    "    global uvicorn_sigterm       # uvicorn's handler is already installed: chain to it",
+    "    uvicorn_sigterm = signal.signal(signal.SIGTERM, handle_sigterm)",
+    "    yield                        # --- runs after uvicorn has drained HTTP ---",
+    "    await db_pool.close()        # close pools, flush, release resources",
+    "app = FastAPI(lifespan=lifespan)",
+    "@app.get(\"/readyz\")",
+    "async def readyz(): return JSONResponse({}, 503 if shutting_down else 200)",
+    "# run: uvicorn main:app --timeout-graceful-shutdown 15   # bounds the HTTP drain"
+   ],
+   "cat": "code",
+   "_why": "examples/21-graceful-shutdown/python: the handler installed at import replaced uvicorn's (uvicorn imports the app inside capture_signals), so uvicorn never drained; the example now chains to uvicorn's handler (verified: second signal drains and exits)",
+   "_src": "shutdown"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    419
+   ],
+   "find": "uvicorn drains in-flight HTTP on SIGTERM (bounded by --timeout-graceful-shutdown); flip readiness early so the Service stops routing before you stop accepting.",
+   "repl": "The first SIGTERM flips readiness; the next goes to uvicorn, which drains in-flight HTTP (bounded by --timeout-graceful-shutdown).",
+   "expect": 1,
+   "cat": "code",
+   "_why": "caption follows the code",
+   "_src": "shutdown"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 419,
+   "text": "Three moving parts. First, a SIGTERM handler flips a readiness flag so /readyz returns 503 at once; this is the 'stop new traffic' step, and the process keeps serving while the load balancer stops routing to it. Second, the handler chains to uvicorn's own: uvicorn installs its signal handlers before it imports the app and runs the lifespan, so a handler that replaces them without chaining means uvicorn never starts its drain and the process waits for SIGKILL. In Example 21 the next signal (docker stop) goes to uvicorn, which stops accepting and finishes in-flight HTTP; --timeout-graceful-shutdown bounds that wait so a stuck request cannot hang the deploy. Third, FastAPI's lifespan shutdown block (after the yield) runs once HTTP has drained: that is where you stop consumers (an aiokafka consumer commits offsets and leaves the group) and close pools. The order matters: readiness down, drain HTTP, then drain everything else. Pair this with the preStop hook and the termination grace period in the pod spec.",
+   "cat": "notes",
+   "_why": "notes follow the code",
+   "_src": "shutdown"
+  },
+  {
+   "op": "set_code",
+   "sldId": 310,
+   "lines": [
+    "# registry_client.py — register a new version; the registry enforces the rule",
+    "import requests",
+    "REGISTRY = \"http://apicurio.registry.svc/apis/registry/v3\"",
+    "def publish(group: str, artifact_id: str, schema: str):",
+    "    body = {\"content\": {\"content\": schema,              # v3 CreateVersion body",
+    "                        \"contentType\": \"application/json\"}}",
+    "    r = requests.post(",
+    "        f\"{REGISTRY}/groups/{group}/artifacts/{artifact_id}/versions\",",
+    "        json=body, timeout=10,",
+    "    )",
+    "    if r.status_code == 400:            # RuleViolationException: the rule rejected it",
+    "        raise SystemExit(\"Incompatible schema change: blocking the merge\")",
+    "    r.raise_for_status()",
+    "# rule set once per artifact, e.g. BACKWARD: new consumers can read old data"
+   ],
+   "cat": "code",
+   "_why": "Apicurio Registry 3.3.3 REST v3: POST .../versions takes a CreateVersion JSON body (common/src/main/resources/META-INF/openapi.json); a raw schema body is the v2 shape. examples/09-api-registry/verify.sh sends the same body and expects 400 RuleViolationException",
+   "_src": "registry"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 487,
+   "shape": "Google Shape;2567;p234",
+   "png": "lgtm-presentation/edits/png/25-gray-failure.png",
+   "cat": "voice",
+   "_why": "ALL-CAPS emphasis baked into the old figure (PERCEIVED DIFFERENTLY, NOT fully down, OBSERVE FROM THE CLIENT, GREEN, OUTLIER DETECTION); replaced by the site figure assets/diagrams/25-gray-failure.svg",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 293,
+   "shape": "Google Shape;429;p40",
+   "png": "lgtm-presentation/edits/png/05-sourcing-vs-streaming.png",
+   "cat": "voice",
+   "_why": "ALL-CAPS emphasis baked into the old figure (SOURCING/STREAMING, ARE, IS, TRANSPORT, ABOUT, NOT, EVENT, PROPAGATED); replaced by the site figure assets/diagrams/05-sourcing-vs-streaming.svg (caps lowered there too)",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 294,
+   "shape": "Google Shape;440;p41",
+   "png": "lgtm-presentation/edits/png/05-tools-landscape.png",
+   "cat": "voice",
+   "_why": "ALL-CAPS emphasis baked into the old figure (COMPLEMENT); replaced by the site figure assets/diagrams/05-tools-landscape.svg (SUBSTRATE/COMPUTE/MOVEMENT are design labels)",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 410,
+   "shape": "Google Shape;1711;p157",
+   "png": "lgtm-presentation/edits/png/20-coupling-quadrant.png",
+   "cat": "voice",
+   "_why": "ALL-CAPS emphasis baked into the old figure ('strong OR distant'); replaced by the site figure assets/diagrams/20-coupling-quadrant.svg",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 445,
+   "shape_id": 2100,
+   "png": "lgtm-presentation/edits/png/22-hop-cost.png",
+   "cat": "voice",
+   "_why": "figure footer: 'where p99 goes to die' rewritten without the drama",
+   "_src": "hop"
+  }
+ ]
+}

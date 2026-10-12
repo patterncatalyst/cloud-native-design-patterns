@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 1120" font-family="'Red Hat Text', 'Liberation Sans', system-ui, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#999"/></marker></defs>
+<rect width="2000" height="1120" fill="#ffffff"/>
+<text x="1000.0" y="58" font-size="32" font-weight="700" fill="#2a2a2a" text-anchor="middle">From the Windows world to Kubernetes</text>
+<text x="1000.0" y="92" font-size="21" font-style="italic" fill="#6a6a6a" text-anchor="middle">what you knew, and what it becomes</text>
+<text x="560" y="182" font-size="23" font-weight="700" font-style="italic" fill="#5a5a5a" text-anchor="middle">Windows / .NET 4.x era</text>
+<text x="1475" y="182" font-size="23" font-weight="700" font-style="italic" fill="#5a5a5a" text-anchor="middle">Kubernetes / .NET 10 era</text>
+<rect x="104" y="190" width="914" height="54" rx="10" fill="#fcf2e1" stroke="#c9a14a" stroke-width="2.5"/>
+<rect x="1052" y="190" width="846" height="54" rx="10" fill="#f5ebd6" stroke="#c4a06a" stroke-width="2.5"/>
+<line x1="1018" y1="217" x2="1048" y2="217" stroke="#999" stroke-width="2.5" marker-end="url(#a)"/>
+<text x="561" y="224" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">IIS app pool</text>
+<text x="1475" y="224" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">Kubernetes Pod (ReplicaSet)</text>
+<rect x="104" y="251" width="914" height="54" rx="10" fill="#fcf2e1" stroke="#c9a14a" stroke-width="2.5"/>
+<rect x="1052" y="251" width="846" height="54" rx="10" fill="#f5ebd6" stroke="#c4a06a" stroke-width="2.5"/>
+<line x1="1018" y1="278" x2="1048" y2="278" stroke="#999" stroke-width="2.5" marker-end="url(#a)"/>
+<text x="561" y="285" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">App pool recycle</text>
+<text x="1475" y="285" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">Graceful shutdown + rolling deploy</text>
+<rect x="104" y="312" width="914" height="54" rx="10" fill="#fcf2e1" stroke="#c9a14a" stroke-width="2.5"/>
+<rect x="1052" y="312" width="846" height="54" rx="10" fill="#f5ebd6" stroke="#c4a06a" stroke-width="2.5"/>
+<line x1="1018" y1="339" x2="1048" y2="339" stroke="#999" stroke-width="2.5" marker-end="url(#a)"/>
+<text x="561" y="346" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">WCF service + DataContract</text>
+<text x="1475" y="346" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">gRPC + .proto (or ASP.NET Core + OpenAPI)</text>
+<rect x="104" y="373" width="914" height="54" rx="10" fill="#fcf2e1" stroke="#c9a14a" stroke-width="2.5"/>
+<rect x="1052" y="373" width="846" height="54" rx="10" fill="#f5ebd6" stroke="#c4a06a" stroke-width="2.5"/>
+<line x1="1018" y1="400" x2="1048" y2="400" stroke="#999" stroke-width="2.5" marker-end="url(#a)"/>
+<text x="561" y="407" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">WCF bindings (BasicHttp / NetTcp / MSMQ)</text>
+<text x="1475" y="407" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">REST + gRPC + Kafka, picked per call</text>
+<rect x="104" y="434" width="914" height="54" rx="10" fill="#fcf2e1" stroke="#c9a14a" stroke-width="2.5"/>
+<rect x="1052" y="434" width="846" height="54" rx="10" fill="#f5ebd6" stroke="#c4a06a" stroke-width="2.5"/>
+<line x1="1018" y1="461" x2="1048" y2="461" stroke="#999" stroke-width="2.5" marker-end="url(#a)"/>
+<text x="561" y="468" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">COM+ / MSDTC distributed transactions</text>
+<text x="1475" y="468" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">Saga + outbox (no two-phase commit)</text>
+<rect x="104" y="495" width="914" height="54" rx="10" fill="#fcf2e1" stroke="#c9a14a" stroke-width="2.5"/>
+<rect x="1052" y="495" width="846" height="54" rx="10" fill="#f5ebd6" stroke="#c4a06a" stroke-width="2.5"/>
+<line x1="1018" y1="522" x2="1048" y2="522" stroke="#999" stroke-width="2.5" marker-end="url(#a)"/>
+<text x="561" y="529" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">MSMQ / SQL Server Service Broker</text>
+<text x="1475" y="529" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">Kafka topic + consumer group (Confluent.Kafka)</text>
+<rect x="104" y="556" width="914" height="54" rx="10" fill="#fcf2e1" stroke="#c9a14a" stroke-width="2.5"/>
+<rect x="1052" y="556" width="846" height="54" rx="10" fill="#f5ebd6" stroke="#c4a06a" stroke-width="2.5"/>
+<line x1="1018" y1="583" x2="1048" y2="583" stroke="#999" stroke-width="2.5" marker-end="url(#a)"/>
+<text x="561" y="590" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">Windows Service</text>
+<text x="1475" y="590" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">IHostedService / BackgroundService in a Pod</text>
+<rect x="104" y="617" width="914" height="54" rx="10" fill="#fcf2e1" stroke="#c9a14a" stroke-width="2.5"/>
+<rect x="1052" y="617" width="846" height="54" rx="10" fill="#f5ebd6" stroke="#c4a06a" stroke-width="2.5"/>
+<line x1="1018" y1="644" x2="1048" y2="644" stroke="#999" stroke-width="2.5" marker-end="url(#a)"/>
+<text x="561" y="651" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">App.config / web.config</text>
+<text x="1475" y="651" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">appsettings.json + env vars + ConfigMap / Secret</text>
+<rect x="104" y="678" width="914" height="54" rx="10" fill="#fcf2e1" stroke="#c9a14a" stroke-width="2.5"/>
+<rect x="1052" y="678" width="846" height="54" rx="10" fill="#f5ebd6" stroke="#c4a06a" stroke-width="2.5"/>
+<line x1="1018" y1="705" x2="1048" y2="705" stroke="#999" stroke-width="2.5" marker-end="url(#a)"/>
+<text x="561" y="712" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">Windows performance counters</text>
+<text x="1475" y="712" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">OpenTelemetry metrics → Prometheus / Mimir</text>
+<rect x="104" y="739" width="914" height="54" rx="10" fill="#fcf2e1" stroke="#c9a14a" stroke-width="2.5"/>
+<rect x="1052" y="739" width="846" height="54" rx="10" fill="#f5ebd6" stroke="#c4a06a" stroke-width="2.5"/>
+<line x1="1018" y1="766" x2="1048" y2="766" stroke="#999" stroke-width="2.5" marker-end="url(#a)"/>
+<text x="561" y="773" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">Windows Event Log</text>
+<text x="1475" y="773" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">Structured logs (Microsoft.Extensions.Logging) → Loki</text>
+<rect x="104" y="800" width="914" height="54" rx="10" fill="#fcf2e1" stroke="#c9a14a" stroke-width="2.5"/>
+<rect x="1052" y="800" width="846" height="54" rx="10" fill="#f5ebd6" stroke="#c4a06a" stroke-width="2.5"/>
+<line x1="1018" y1="827" x2="1048" y2="827" stroke="#999" stroke-width="2.5" marker-end="url(#a)"/>
+<text x="561" y="834" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">Active Directory + Windows Auth</text>
+<text x="1475" y="834" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">mTLS via Istio + SPIFFE identity</text>
+<rect x="104" y="861" width="914" height="54" rx="10" fill="#fcf2e1" stroke="#c9a14a" stroke-width="2.5"/>
+<rect x="1052" y="861" width="846" height="54" rx="10" fill="#f5ebd6" stroke="#c4a06a" stroke-width="2.5"/>
+<line x1="1018" y1="888" x2="1048" y2="888" stroke="#999" stroke-width="2.5" marker-end="url(#a)"/>
+<text x="561" y="895" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">.NET Remoting</text>
+<text x="1475" y="895" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">gRPC over HTTP/2</text>
+<rect x="104" y="922" width="914" height="54" rx="10" fill="#fcf2e1" stroke="#c9a14a" stroke-width="2.5"/>
+<rect x="1052" y="922" width="846" height="54" rx="10" fill="#f5ebd6" stroke="#c4a06a" stroke-width="2.5"/>
+<line x1="1018" y1="949" x2="1048" y2="949" stroke="#999" stroke-width="2.5" marker-end="url(#a)"/>
+<text x="561" y="956" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">BizTalk orchestration</text>
+<text x="1475" y="956" font-size="19.5" font-weight="700" fill="#6b4a12" text-anchor="middle">Temporal workflows / Stateless state machines</text>
+<text x="1000.0" y="1030" font-size="21" font-style="italic" fill="#7a5a1a" text-anchor="middle">The architectural shift: stop owning the host (IIS, MSDTC, MSMQ). Kubernetes owns the platform; you own the code.</text>
+<text x="1000.0" y="1086" font-size="21" font-style="italic" fill="#7a5a1a" text-anchor="middle">Most of these are patterns you already used; the platform now runs them instead of IIS.</text>
+</svg>

@@ -18,8 +18,11 @@ the *Designing Cloud-Native APIs* deck series; the decks themselves live in
   are plain HTML + JS and work on GitHub Pages).
 - **Paired diagrams** — every figure ships as a themed `name.svg` plus an editable
   `name.excalidraw` source under `assets/diagrams/`.
-- **A companion deck series** — six Red Hat-branded conference decks (one per
-  language) in [`lgtm-presentation/`](lgtm-presentation/).
+- **A companion deck series** — eight Red Hat-branded decks in
+  [`lgtm-presentation/`](lgtm-presentation/): one per language (Python, Spring Boot,
+  Quarkus, .NET, Go, C++) and two policy decks, each edited in place with the toolkit
+  in `scripts/` and mirrored as Markdown text copies under `lgtm-presentation/text/`,
+  which CI checks.
 
 ## The running example
 
@@ -58,7 +61,7 @@ cd python && docker compose down -v
 | `_docs/` | the setup guide, chapters, appendices A–S, and the glossary |
 | `_includes/codetabs.html` + `assets/js/codetabs.js` | the multi-language code tabs (no plugin) |
 | `assets/diagrams/` | paired `name.svg` + `name.excalidraw` figures |
-| `lgtm-presentation/` | the six source decks + `BUILD.md` manifest |
+| `lgtm-presentation/` | the eight decks (six language decks, two policy decks), their text copies in `text/`, the edit files in `edits/`, and the `BUILD.md` record |
 | `_plans/` | internal planning notes |
 
 ## Deploy

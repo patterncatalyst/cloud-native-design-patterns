@@ -1,7 +1,9 @@
 #include <drogon/drogon.h>
 #include <sw/redis++/redis++.h>
 #include <libpq-fe.h>
+#include <algorithm>
 #include <atomic>
+#include <map>
 #include <thread>
 #include <chrono>
 #include <mutex>
@@ -15,7 +17,6 @@ using namespace sw::redis;
 
 // Global state
 std::unique_ptr<Redis> g_redis;
-std::atomic<int> g_persisted_rows{0};
 std::atomic<bool> g_shutdown{false};
 std::mutex g_redis_mutex;
 
@@ -210,12 +211,23 @@ std::vector<std::string> redis_keys(const std::string& pattern) {
     }
 }
 
-// Background flusher thread
+// Background flusher thread.
+// Write-back flush policy: an entry stays on the dirty set until Postgres has it, so a failed
+// upsert is retried on the next cycle. Retries back off exponentially between cycles and are
+// bounded per key: after kMaxFlushAttempts the key moves to writeback:failed (its value stays in
+// the cache) and is logged, never dropped silently.
 void writeback_flusher() {
+    constexpr int kMaxFlushAttempts = 5;
+    constexpr int kMaxBackoffSeconds = 8;
+    std::map<std::string, int> attempts;
+    int failures = 0;
     while (!g_shutdown) {
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        const int wait = std::min(2 << failures, kMaxBackoffSeconds);
+        for (int i = 0; i < wait * 10 && !g_shutdown; ++i)
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
         auto dirty_keys = redis_smembers("writeback:dirty");
+        bool any_failed = false;
 
         for (const auto& key : dirty_keys) {
             auto val = redis_get(key);
@@ -235,13 +247,26 @@ void writeback_flusher() {
 
             auto res = g_flush_db->exec(
                 "INSERT INTO metrics (id, payload) VALUES ($1, $2) "
-                "ON CONFLICT (id) DO UPDATE SET payload = EXCLUDED.payload",
+                "ON CONFLICT (id) DO UPDATE SET payload = EXCLUDED.payload, ts = NOW()",
                 {id, payload});
             if (res && PQresultStatus(res.get()) == PGRES_COMMAND_OK) {
-                g_persisted_rows++;
                 redis_srem("writeback:dirty", key);
+                attempts.erase(key);
+                continue;
+            }
+
+            any_failed = true;
+            const int n = ++attempts[key];
+            LOG_ERROR << "flusher: flush failed for " << id << " (attempt " << n << "/"
+                      << kMaxFlushAttempts << ")";
+            if (n >= kMaxFlushAttempts) {
+                redis_sadd("writeback:failed", key);
+                redis_srem("writeback:dirty", key);
+                attempts.erase(key);
+                LOG_ERROR << "flusher: giving up on " << id << ", parked on writeback:failed";
             }
         }
+        failures = any_failed ? std::min(failures + 1, 2) : 0;
     }
 }
 
@@ -544,13 +569,19 @@ int main() {
             cache_val["payload"] = *json;
 
             Json::FastWriter writer;
-            redis_set("metric:" + id, writer.write(cache_val));
+            // A queued write must outlive a database outage, so no 60 s default TTL here.
+            redis_set("metric:" + id, writer.write(cache_val), std::chrono::hours(1));
 
             // Mark as dirty for background flush
             redis_sadd("writeback:dirty", "metric:" + id);
 
-            auto resp = HttpResponse::newHttpResponse();
-            resp->setStatusCode(k200OK);
+            // 202: queued in the cache, not yet durable in Postgres
+            Json::Value body;
+            body["ok"] = true;
+            body["pattern"] = "write-back";
+            body["action"] = "cached-for-flush";
+            auto resp = HttpResponse::newHttpJsonResponse(body);
+            resp->setStatusCode(k202Accepted);
             callback(resp);
         },
         {Put});
@@ -588,7 +619,8 @@ int main() {
     app().registerHandler("/write-back/flush-status",
         [](const HttpRequestPtr&, std::function<void(const HttpResponsePtr&)>&& callback) {
             Json::Value resp;
-            resp["persisted_rows"] = g_persisted_rows.load();
+            auto res = g_db->exec("SELECT count(*) FROM metrics", {});
+            resp["persisted_rows"] = ok_rows(res) ? std::atoi(PQgetvalue(res.get(), 0, 0)) : -1;
             auto http_resp = HttpResponse::newHttpJsonResponse(resp);
             callback(http_resp);
         },

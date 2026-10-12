@@ -4,18 +4,18 @@
 <text x="130.0" y="216.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">inputs</text>
 <text x="130.0" y="233.0" font-size="11.5" fill="#555555" text-anchor="middle">REST · WebSocket · Kafka</text>
 <rect x="280" y="85" width="560" height="250" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
-<text x="560.0" y="163.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">FastAPI / Starlette router</text>
+<text x="560.0" y="163.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">in-service router</text>
 <text x="560.0" y="180.0" font-size="11.5" fill="#555555" text-anchor="middle"></text>
-<text x="560.0" y="195.0" font-size="11.5" fill="#555555" text-anchor="middle">@app.post(&quot;/orders/route&quot;)        # front</text>
-<text x="560.0" y="210.0" font-size="11.5" fill="#555555" text-anchor="middle">async def route(order, producer):</text>
-<text x="560.0" y="225.0" font-size="11.5" fill="#555555" text-anchor="middle">    ctx  = await enrich(order)       # context</text>
-<text x="560.0" y="240.0" font-size="11.5" fill="#555555" text-anchor="middle">    fact = post(&quot;orders&quot;, order | ctx)   # ruleset</text>
-<text x="560.0" y="255.0" font-size="11.5" fill="#555555" text-anchor="middle">    for dest in fact[&quot;where_to&quot;]:    # dispatch</text>
-<text x="560.0" y="270.0" font-size="11.5" fill="#555555" text-anchor="middle">        await producer.send(dest, body)</text>
+<text x="560.0" y="195.0" font-size="11.5" fill="#555555" text-anchor="middle">route(order):                      // front</text>
+<text x="560.0" y="210.0" font-size="11.5" fill="#555555" text-anchor="middle">  ctx   = enrich(order)             // context</text>
+<text x="560.0" y="225.0" font-size="11.5" fill="#555555" text-anchor="middle">  dests = rules.evaluate(order, ctx) // ruleset</text>
+<text x="560.0" y="240.0" font-size="11.5" fill="#555555" text-anchor="middle">  for dest in dests:                // dispatch</text>
+<text x="560.0" y="255.0" font-size="11.5" fill="#555555" text-anchor="middle">    produce(dest, order)            // Kafka or HTTP</text>
+<text x="560.0" y="270.0" font-size="11.5" fill="#555555" text-anchor="middle">  return dests</text>
 <rect x="890" y="150" width="250" height="120" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5"/>
-<text x="1015.0" y="193.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">durable-rules</text>
-<text x="1015.0" y="210.0" font-size="11.5" fill="#555555" text-anchor="middle">Rete engine in C</text>
-<text x="1015.0" y="225.0" font-size="11.5" fill="#555555" text-anchor="middle">Python ruleset DSL</text>
+<text x="1015.0" y="193.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">rule engine</text>
+<text x="1015.0" y="210.0" font-size="11.5" fill="#555555" text-anchor="middle">Drools · NRules · durable-rules</text>
+<text x="1015.0" y="225.0" font-size="11.5" fill="#555555" text-anchor="middle">Lua in C++ and Go</text>
 <text x="1015.0" y="240.0" font-size="11.5" fill="#555555" text-anchor="middle">(forward chaining)</text>
 <rect x="260" y="405" width="200" height="84" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
 <text x="360.0" y="445.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">service A</text>

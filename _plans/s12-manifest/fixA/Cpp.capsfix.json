@@ -1,0 +1,269 @@
+{
+ "ops": [
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    259
+   ],
+   "find": "LEAST-WORST",
+   "repl": "least-worst",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    259
+   ],
+   "find": "RISK management",
+   "repl": "risk management",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    259
+   ],
+   "find": "FREE LUNCH",
+   "repl": "free lunch",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    259
+   ],
+   "find": "MADE WORSE",
+   "repl": "made worse",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    293
+   ],
+   "find": "events are the TRANSPORT.",
+   "repl": "events are the transport.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    317
+   ],
+   "find": "in THIS request",
+   "repl": "in this request",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    317
+   ],
+   "find": "what EXACTLY happened",
+   "repl": "what exactly happened",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    317
+   ],
+   "find": "which FUNCTION is burning",
+   "repl": "which function is burning",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    318
+   ],
+   "find": "Needed for BUSINESS operations",
+   "repl": "Needed for business operations",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    324
+   ],
+   "find": "ALL errors, ALL traces",
+   "repl": "all errors, all traces",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    324
+   ],
+   "find": "PLUS tail sampling",
+   "repl": "plus tail sampling",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    328
+   ],
+   "find": "at the WRONG layer",
+   "repl": "at the wrong layer",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    429,
+    441
+   ],
+   "find": "a BUSINESS rule",
+   "repl": "a business rule",
+   "expect": 2,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    441
+   ],
+   "find": "It runs INSIDE one service",
+   "repl": "It runs inside one service",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    451
+   ],
+   "find": "affects ALL clients",
+   "repl": "affects all clients",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    458
+   ],
+   "find": "routing layer FIRST",
+   "repl": "routing layer first",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    464
+   ],
+   "find": "is a TRANSITION state",
+   "repl": "is a transition state",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    480
+   ],
+   "find": "constraint AND eventual durability is acceptable AND your",
+   "repl": "constraint, eventual durability is acceptable and your",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    482
+   ],
+   "find": "to BOUND the blast radius",
+   "repl": "to bound the blast radius",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    487
+   ],
+   "find": "is PERCEIVED DIFFERENTLY by",
+   "repl": "is perceived differently by",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    498
+   ],
+   "find": "reject excess work IMMEDIATELY",
+   "repl": "reject excess work immediately",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    501
+   ],
+   "find": "RED metrics PER DEPENDENCY",
+   "repl": "RED metrics per dependency",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    503
+   ],
+   "find": "at ONE layer",
+   "repl": "at one layer",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    440
+   ],
+   "find": "inject correlation and identity",
+   "repl": "inject the caller address and identity",
+   "expect": 1,
+   "cat": "code"
+  }
+ ]
+}

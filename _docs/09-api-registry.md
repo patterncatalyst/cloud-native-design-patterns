@@ -49,7 +49,8 @@ curl -sf -X POST \
 curl -s -o /dev/null -w "%{http_code}" -X POST \
   http://apicurio.registry.svc/apis/registry/v3/groups/orders/artifacts/order-placed/versions \
   -H "Content-Type: application/json" \
-  --data-binary @order-placed.avsc        # → 200 if compatible, 400 if not
+  -d "{\"content\": {\"content\": $(jq -Rs '.' < order-placed.avsc), \"contentType\": \"application/json\"}}"
+# → 200 if compatible, 400 if not
 ```
 
 The same call works from application or pipeline code in any language, returning
@@ -65,14 +66,15 @@ public class RegistryClient {
         "http://apicurio.registry.svc/apis/registry/v3";
     private final RestClient rest = RestClient.create();
 
-    public int publish(String group, String artifactId, byte[] schema) {
-        var resp = rest.post()
+    public int publish(String group, String artifactId, String schema) {
+        var body = Map.of("content",                       // the v3 CreateVersion body
+            Map.of("content", schema, "contentType", "application/json"));
+        return rest.post()
             .uri(REGISTRY + "/groups/{g}/artifacts/{a}/versions", group, artifactId)
             .contentType(MediaType.APPLICATION_JSON)
-            .body(schema)
-            .retrieve()
-            .toBodilessEntity();
-        return resp.getStatusCode().value();   // 200 if compatible, 400 if rejected
+            .body(body)
+            .exchange((req, res) -> res.getStatusCode().value());  // 4xx returned, not thrown
+        // 200 if compatible, 400 (RuleViolationException) if the rule rejects it
     }
 }
 ```
@@ -82,12 +84,15 @@ public class RegistryClient {
 @RegisterRestClient(baseUri = "http://apicurio.registry.svc/apis/registry/v3")
 @Path("/groups/{group}/artifacts/{artifactId}/versions")
 public interface RegistryClient {
+    record VersionContent(String content, String contentType) {}
+    record CreateVersion(VersionContent content) {}      // the v3 request body
 
     @POST @Consumes(MediaType.APPLICATION_JSON)
     Response publish(@PathParam("group") String group,
                      @PathParam("artifactId") String artifactId,
-                     byte[] schema);
-    // caller checks response.getStatus(): 200 = compatible, 400 = rejected
+                     CreateVersion version);
+    // call with new CreateVersion(new VersionContent(schema, "application/json"));
+    // 200 = compatible; a 400 (rule violated) arrives as a WebApplicationException
 }
 ```
 
@@ -98,12 +103,11 @@ public class RegistryClient(HttpClient http)
     private const string Registry =
         "http://apicurio.registry.svc/apis/registry/v3";
 
-    public async Task<int> PublishAsync(string group, string artifactId, byte[] schema)
+    public async Task<int> PublishAsync(string group, string artifactId, string schema)
     {
-        var content = new ByteArrayContent(schema);
-        content.Headers.ContentType = new("application/json");
-        var resp = await http.PostAsync(
-            $"{Registry}/groups/{group}/artifacts/{artifactId}/versions", content);
+        var body = new { content = new { content = schema, contentType = "application/json" } };
+        var resp = await http.PostAsJsonAsync(              // the v3 CreateVersion body
+            $"{Registry}/groups/{group}/artifacts/{artifactId}/versions", body);
         return (int)resp.StatusCode;       // 200 if compatible, 400 if rejected
     }
 }
@@ -115,29 +119,32 @@ import requests
 
 REGISTRY = "http://apicurio.registry.svc/apis/registry/v3"
 
-def publish(group: str, artifact_id: str, schema: bytes) -> int:
+def publish(group: str, artifact_id: str, schema: str) -> int:
     r = requests.post(
         f"{REGISTRY}/groups/{group}/artifacts/{artifact_id}/versions",
-        headers={"Content-Type": "application/json"},
-        data=schema,
-    )
+        json={"content": {"content": schema, "contentType": "application/json"}},
+    )                           # the v3 CreateVersion body; the schema text is a string
     return r.status_code        # 200 if compatible, 400 if the rule rejects it
 ```
 
 {% raw %}
 ```cpp
-// registry_client.h — register a new version; the registry enforces the rule
-#include <cpr/cpr.h>
+// registry_client.h — register a new version (Drogon HttpClient); the registry enforces the rule
+#include <drogon/HttpClient.h>
 
-inline int publish(std::string_view group, std::string_view artifact_id,
-                   std::string_view schema) {
-  auto url = fmt::format(
-      "http://apicurio.registry.svc/apis/registry/v3"
-      "/groups/{}/artifacts/{}/versions", group, artifact_id);
-  auto r = cpr::Post(cpr::Url{url},
-                      cpr::Header{{"Content-Type", "application/json"}},
-                      cpr::Body{std::string(schema)});
-  return r.status_code;          // 200 if compatible, 400 if rejected
+inline int publish(const std::string& group, const std::string& artifact_id,
+                   const std::string& schema) {
+  Json::Value body;                                   // the v3 CreateVersion body
+  body["content"]["content"] = schema;                // the schema text, as a string
+  body["content"]["contentType"] = "application/json";
+  auto req = drogon::HttpRequest::newHttpJsonRequest(body);
+  req->setMethod(drogon::Post);
+  req->setPath("/apis/registry/v3/groups/" + group + "/artifacts/" + artifact_id +
+               "/versions");
+  auto client = drogon::HttpClient::newHttpClient("http://apicurio.registry.svc");
+  auto [result, resp] = client->sendRequest(req);     // synchronous: not on the event loop
+  if (result != drogon::ReqResult::Ok) return 0;      // no answer from the registry
+  return static_cast<int>(resp->statusCode());        // 200 if compatible, 400 if rejected
 }
 ```
 {% endraw %}
@@ -148,7 +155,10 @@ func publish(group, artifactID string, schema []byte) (int, error) {
 	url := fmt.Sprintf(
 		"http://apicurio.registry.svc/apis/registry/v3/groups/%s/artifacts/%s/versions",
 		group, artifactID)
-	resp, err := http.Post(url, "application/json", bytes.NewReader(schema))
+	body, _ := json.Marshal(map[string]any{ // the v3 CreateVersion body
+		"content": map[string]string{"content": string(schema), "contentType": "application/json"},
+	})
+	resp, err := http.Post(url, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return 0, err
 	}
@@ -176,7 +186,8 @@ discovered broken in production by a downstream team three days later.
   run: |
     code=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
       "$REGISTRY/groups/orders/artifacts/order-placed/versions" \
-      -H "Content-Type: application/json" --data-binary @order-placed.avsc)
+      -H "Content-Type: application/json" \
+      -d "{\"content\": {\"content\": $(jq -Rs '.' < order-placed.avsc), \"contentType\": \"application/json\"}}")
     if [ "$code" = "400" ]; then
       echo "::error::Incompatible schema change — blocking the merge"
       exit 1
@@ -232,15 +243,16 @@ polluting the registry with test versions.
 
 ```java
 // DryRunValidator.java — validate a schema without creating a version
-public boolean isCompatible(String group, String artifactId, byte[] schema) {
-    var resp = restClient.post()
-        .uri(REGISTRY + "/groups/{g}/artifacts/{a}/versions", group, artifactId)
-        .header("X-Registry-DryRun", "true")      // dry-run: no version created
+public boolean isCompatible(String group, String artifactId, String schema) {
+    var body = Map.of("content",                           // the v3 CreateVersion body
+        Map.of("content", schema, "contentType", "application/json"));
+    int status = restClient.post()
+        .uri(REGISTRY + "/groups/{g}/artifacts/{a}/versions?dryRun=true",   // no version created
+             group, artifactId)
         .contentType(MediaType.APPLICATION_JSON)
-        .body(schema)
-        .retrieve()
-        .toBodilessEntity();
-    return resp.getStatusCode().is2xxSuccessful(); // true = compatible
+        .body(body)
+        .exchange((req, res) -> res.getStatusCode().value());
+    return status == 200;                                  // 400 = the rule rejects it
 }
 ```
 
@@ -251,55 +263,51 @@ public boolean isCompatible(String group, String artifactId, byte[] schema) {
 public interface DryRunValidator {
 
     @POST @Consumes(MediaType.APPLICATION_JSON)
-    @ClientHeaderParam(name = "X-Registry-DryRun", value = "true")
     Response validate(@PathParam("group") String group,
                       @PathParam("artifactId") String artifactId,
-                      byte[] schema);
-    // 200 = compatible (no version created); 400 = incompatible
+                      @QueryParam("dryRun") boolean dryRun,   // call with true: no version created
+                      RegistryClient.CreateVersion version);  // the same v3 body
+    // 200 = compatible (no version created); 400 = incompatible (WebApplicationException)
 }
 ```
 
 ```csharp
 // DryRunValidator.cs — validate a schema without creating a version
-public async Task<bool> IsCompatibleAsync(string group, string artifactId, byte[] schema)
+public async Task<bool> IsCompatibleAsync(string group, string artifactId, string schema)
 {
-    var content = new ByteArrayContent(schema);
-    content.Headers.ContentType = new("application/json");
-    using var req = new HttpRequestMessage(HttpMethod.Post,
-        $"{Registry}/groups/{group}/artifacts/{artifactId}/versions");
-    req.Headers.Add("X-Registry-DryRun", "true");     // dry-run: no version created
-    req.Content = content;
-    var resp = await http.SendAsync(req);
-    return resp.IsSuccessStatusCode;                   // true = compatible
+    var body = new { content = new { content = schema, contentType = "application/json" } };
+    var resp = await http.PostAsJsonAsync(                  // the v3 CreateVersion body
+        $"{Registry}/groups/{group}/artifacts/{artifactId}/versions?dryRun=true", body);
+    return resp.IsSuccessStatusCode;                         // no version created either way
 }
 ```
 
 ```python
-def is_compatible(group: str, artifact_id: str, schema: bytes) -> bool:
+def is_compatible(group: str, artifact_id: str, schema: str) -> bool:
     r = requests.post(
         f"{REGISTRY}/groups/{group}/artifacts/{artifact_id}/versions",
-        headers={
-            "Content-Type": "application/json",
-            "X-Registry-DryRun": "true",               # dry-run: no version created
-        },
-        data=schema,
+        params={"dryRun": "true"},                         # no version created
+        json={"content": {"content": schema, "contentType": "application/json"}},
     )
-    return r.status_code == 200                        # True = compatible
+    return r.status_code == 200                            # True = compatible
 ```
 
 {% raw %}
 ```cpp
-// dry_run_validator.h — validate a schema without creating a version
-inline bool is_compatible(std::string_view group, std::string_view artifact_id,
-                           std::string_view schema) {
-  auto url = fmt::format(
-      "http://apicurio.registry.svc/apis/registry/v3"
-      "/groups/{}/artifacts/{}/versions", group, artifact_id);
-  auto r = cpr::Post(cpr::Url{url},
-                      cpr::Header{{"Content-Type", "application/json"},
-                                  {"X-Registry-DryRun", "true"}},
-                      cpr::Body{std::string(schema)});
-  return r.status_code == 200;                         // true = compatible
+// dry_run_validator.h — validate a schema without creating a version (Drogon HttpClient)
+inline bool is_compatible(const std::string& group, const std::string& artifact_id,
+                          const std::string& schema) {
+  Json::Value body;                                   // the v3 CreateVersion body
+  body["content"]["content"] = schema;
+  body["content"]["contentType"] = "application/json";
+  auto req = drogon::HttpRequest::newHttpJsonRequest(body);
+  req->setMethod(drogon::Post);
+  req->setPath("/apis/registry/v3/groups/" + group + "/artifacts/" + artifact_id +
+               "/versions");
+  req->setParameter("dryRun", "true");                // query string: no version created
+  auto client = drogon::HttpClient::newHttpClient("http://apicurio.registry.svc");
+  auto [result, resp] = client->sendRequest(req);
+  return result == drogon::ReqResult::Ok && resp->statusCode() == drogon::k200OK;
 }
 ```
 {% endraw %}
@@ -307,18 +315,18 @@ inline bool is_compatible(std::string_view group, std::string_view artifact_id,
 ```go
 // dry_run_validator.go — validate a schema without creating a version
 func isCompatible(group, artifactID string, schema []byte) (bool, error) {
-	url := fmt.Sprintf(
-		"http://apicurio.registry.svc/apis/registry/v3/groups/%s/artifacts/%s/versions",
+	url := fmt.Sprintf( // dryRun=true: no version created
+		"http://apicurio.registry.svc/apis/registry/v3/groups/%s/artifacts/%s/versions?dryRun=true",
 		group, artifactID)
-	req, _ := http.NewRequest("POST", url, bytes.NewReader(schema))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Registry-DryRun", "true")        // dry-run: no version created
-	resp, err := http.DefaultClient.Do(req)
+	body, _ := json.Marshal(map[string]any{ // the v3 CreateVersion body
+		"content": map[string]string{"content": string(schema), "contentType": "application/json"},
+	})
+	resp, err := http.Post(url, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return false, err
 	}
 	defer resp.Body.Close()
-	return resp.StatusCode == 200, nil                 // true = compatible
+	return resp.StatusCode == 200, nil // true = compatible
 }
 ```
 

@@ -136,27 +136,23 @@ sits on the request path.
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-// Spring Data JPA: the state change AND the outbox row in one @Transactional.
-@Service
-public class OrderService {
-    private final OrderRepository orders;
-    private final OutboxRepository outbox;
-
-    public OrderService(OrderRepository orders, OutboxRepository outbox) {
-        this.orders = orders;
-        this.outbox = outbox;
-    }
-
-    @Transactional                               // single local transaction
-    public Order create(OrderIn body) {
-        Order order = Order.from(body);
-        orders.save(order);                      // state change
-        outbox.save(OutboxEntry.of(              // same txn -> outbox row
-            "order.placed", "orders", order.id(), order.toJson()));
-        return order;                            // Debezium tails the WAL, publishes
-    }
+// order-service OrderController.java (excerpt): order row and outbox row, one transaction
+@PostMapping("/orders")
+@ResponseStatus(HttpStatus.CREATED)
+@Transactional                                   // single local transaction
+public Map<String, Object> createOrder(@RequestBody Map<String, Object> body) {
+    String orderId = UUID.randomUUID().toString();
+    // sku, quantity and status come from the body (elided)
+    jdbc.sql("INSERT INTO orders (id, sku, quantity, status) VALUES (?, ?, ?, ?)")
+        .param(orderId).param(sku).param(quantity).param(status)
+        .update();                               // state change
+    String payloadJson = objectMapper.writeValueAsString(payload);   // Jackson 3
+    jdbc.sql("INSERT INTO outbox (aggregate_id, event_type, payload) VALUES (?, ?, ?::jsonb)")
+        .param(orderId).param("order.placed").param(payloadJson)
+        .update();                               // same transaction: outbox row
+    return Map.of("id", orderId, "sku", sku, "quantity", quantity, "status", status);
 }
-// Broker down? The order still commits; the event ships when CDC catches up.
+// No Kafka call on the request path: Debezium tails the WAL and publishes order.placed.
 ```
 
 ```java
@@ -219,19 +215,22 @@ async def create(body: OrderIn) -> Order:
 ```
 
 ```cpp
-Task<Order> Orders::create_impl(OrderIn body) {
-    PgTxn txn = co_await pg_.begin();                  // single local txn
-    Order o   = co_await txn.exec_one(insert_order_sql, body);
-    co_await txn.exec(
-        insert_outbox_sql,                             // atomic with the state change
-        "order.placed",   // topic
-        o.id,             // key
-        to_json(o));      // payload
-    co_await txn.commit();                             // Debezium publishes
-    co_return o;
-}
-// PgTxn is RAII: the destructor rolls back if commit() was never called, so any
-// exception thrown inside the handler unwinds the transaction cleanly.
+// order-service (excerpt): order row + outbox row in one libpq transaction
+PGresult* res = PQexec(conn, "BEGIN");                // single local txn
+if (PQresultStatus(res) != PGRES_COMMAND_OK) { /* 500, nothing written */ }
+PQclear(res);
+const char* params_order[4] = {id.c_str(), sku.c_str(), quantity_s.c_str(), status.c_str()};
+res = PQexecParams(conn,
+    "INSERT INTO orders (id, sku, quantity, status) VALUES ($1, $2, $3, $4)",
+    4, nullptr, params_order, nullptr, nullptr, 0);   // the state change
+// on any error: PQexec(conn, "ROLLBACK") and answer 500
+const char* params_outbox[3] = {id.c_str(), "order.placed", payload_str.c_str()};
+res = PQexecParams(conn,
+    "INSERT INTO outbox (aggregate_id, event_type, payload) VALUES ($1, $2, $3::jsonb)",
+    3, nullptr, params_outbox, nullptr, nullptr, 0);  // atomic with the state change
+res = PQexec(conn, "COMMIT");                         // Debezium publishes the row
+// No Kafka call on the request path: if the broker is down the order
+// still commits, and the event is delivered when CDC catches up.
 ```
 
 ```go

@@ -9,6 +9,7 @@ from typing import Optional
 import asyncpg
 import redis.asyncio as aioredis
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 log = logging.getLogger("cache-service")
@@ -67,34 +68,62 @@ FLUSH_PERIOD = 1.0
 REFRESH_BEFORE_S = 10
 
 
+# Write-back flush policy: a failed upsert is re-queued, with exponential backoff between flush
+# cycles and a bounded number of attempts per id. After MAX_FLUSH_ATTEMPTS the id moves to
+# metric:failed (its value stays in the cache) and is logged, never dropped silently.
+MAX_FLUSH_ATTEMPTS = 5
+MAX_FLUSH_BACKOFF = 8
+
+
+async def requeue(ids):
+    for mid in ids:
+        n = await cache.hincrby("metric:attempts", mid, 1)
+        if n >= MAX_FLUSH_ATTEMPTS:
+            await cache.sadd("metric:failed", mid)
+            await cache.hdel("metric:attempts", mid)
+            log.error("flusher: giving up on %s after %d attempts, parked on metric:failed", mid, n)
+        else:
+            await cache.sadd("metric:dirty", mid)
+            log.warning("flusher: re-queued %s (attempt %d/%d)", mid, n, MAX_FLUSH_ATTEMPTS)
+
+
 async def flusher():
-    """Write-back flusher: drain dirty set to Postgres in batches."""
+    """Write-back flusher: drain dirty set to Postgres in batches; re-queue failures."""
+    failures = 0
     while True:
-        await asyncio.sleep(FLUSH_PERIOD)
+        await asyncio.sleep(min(FLUSH_PERIOD * 2**failures, MAX_FLUSH_BACKOFF))
+        ids = []
         try:
             ids = await cache.spop("metric:dirty", FLUSH_BATCH)
             if not ids:
                 continue
-            async with pool.acquire() as conn:
-                for mid_b in ids:
-                    mid = mid_b if isinstance(mid_b, str) else mid_b.decode()
-                    data = await cache.hgetall(f"metric:{mid}")
-                    if data:
-                        payload = {
-                            (k if isinstance(k, str) else k.decode()): (
-                                v if isinstance(v, str) else v.decode()
-                            )
-                            for k, v in data.items()
-                        }
-                        await conn.execute(
-                            "INSERT INTO metrics (id, payload) VALUES ($1, $2) "
-                            "ON CONFLICT (id) DO UPDATE SET payload = $2, ts = NOW()",
-                            mid,
-                            json.dumps(payload),
+            mids = [m if isinstance(m, str) else m.decode() for m in ids]
+            rows = []
+            for mid in mids:
+                data = await cache.hgetall(f"metric:{mid}")
+                if data:
+                    payload = {
+                        (k if isinstance(k, str) else k.decode()): (
+                            v if isinstance(v, str) else v.decode()
                         )
-                log.info("flusher: persisted %d metrics", len(ids))
+                        for k, v in data.items()
+                    }
+                    rows.append((mid, json.dumps(payload)))
+            if rows:
+                async with pool.acquire() as conn:
+                    await conn.executemany(
+                        "INSERT INTO metrics (id, payload) VALUES ($1, $2) "
+                        "ON CONFLICT (id) DO UPDATE SET payload = $2, ts = NOW()",
+                        rows,
+                    )
+                await cache.hdel("metric:attempts", *[m for m, _ in rows])
+            log.info("flusher: persisted %d metrics", len(rows))
+            failures = 0
         except Exception:
-            log.exception("flusher error")
+            log.exception("flusher error: flush failed")
+            failures += 1
+            if ids:
+                await requeue([m if isinstance(m, str) else m.decode() for m in ids])
 
 
 async def refresher():
@@ -308,7 +337,11 @@ async def write_back_write(mid: str, body: MetricIn):
         await cache.sadd("metric:dirty", mid)
     except Exception:
         raise HTTPException(503, "cache unavailable")
-    return {"ok": True, "pattern": "write-back", "action": "cached-for-flush"}
+    # 202: queued in the cache, not yet durable in Postgres
+    return JSONResponse(
+        status_code=202,
+        content={"ok": True, "pattern": "write-back", "action": "cached-for-flush"},
+    )
 
 
 @app.get("/write-back/metrics/{mid}")

@@ -40,79 +40,82 @@ database in the hot path.
 
 Here is the canonical example — revenue per merchant, in tumbling five-minute
 windows — in each ecosystem. The JVM stacks use Kafka Streams; .NET uses Streamiz
-(a native Kafka Streams port); Python uses Faust; C++ keeps bounded state
+(a native Kafka Streams port); Python uses faust-streaming; C++ keeps bounded state
 in-process and reaches for Flink only when the state outgrows a single worker.
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-// spring-kafka: the topology is built via a StreamsBuilder bean
+// stream-processor RevenueTopology.java (excerpt): order.placed -> revenue.by-merchant
 @Configuration
 @EnableKafkaStreams
 public class RevenueTopology {
     @Bean
-    public KStream<String, Order> revenueStream(StreamsBuilder b) {
-        KStream<String, Order> s = b.stream("order.placed",
-            Consumed.with(Serdes.String(), orderSerde));
-        s.groupBy((k, o) -> o.merchantId())
-         .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofMinutes(5)))
-         .aggregate(() -> 0.0,                        // local, changelog-backed
-                    (mId, o, total) -> total + o.total(),
-                    Materialized.with(Serdes.String(), Serdes.Double()))
-         .toStream()
-         .to("revenue.by-merchant");                  // derived stream out
-        return s;
+    public KStream<String, String> revenueStream(StreamsBuilder builder) {
+        JacksonJsonSerde<Acc> accSerde = new JacksonJsonSerde<>(Acc.class).noTypeInfo();
+        var revenue = builder.stream(ORDERS, Consumed.with(Serdes.String(), Serdes.String()))
+            .map((key, json) -> parse(json))               // re-key by merchant_id
+            .filter((merchant, amount) -> merchant != null)
+            .groupByKey(Grouped.with(Serdes.String(), Serdes.String()))
+            .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(windowSeconds)))
+            .aggregate(() -> new Acc(0, BigDecimal.ZERO),  // local, changelog-backed
+                (merchant, amount, acc) -> add(merchant, acc, amount),
+                Materialized.with(Serdes.String(), accSerde))
+            .toStream()
+            .map((window, acc) -> KeyValue.pair(window.key(), toJson(window, acc)));
+        revenue.to(REVENUE, Produced.with(Serdes.String(), Serdes.String()));
+        return revenue;
     }
 }
 ```
 
 ```java
-// quarkus-kafka-streams: the topology is a CDI-produced bean
+// stream-processor RevenueTopology.java (excerpt), quarkus-kafka-streams: a CDI-produced Topology
 @ApplicationScoped
 public class RevenueTopology {
-  @Produces
-  public Topology build() {
-    StreamsBuilder b = new StreamsBuilder();
-    b.stream("order.placed", Consumed.with(Serdes.String(), orderSerde))
-     .groupBy((k, o) -> o.merchantId())
-     .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofMinutes(5)))
-     .aggregate(() -> 0.0,                            // local, changelog-backed
-                (mId, o, total) -> total + o.total(),
-                Materialized.as("revenue-by-merchant"))
-     .toStream()
-     .to("revenue.by-merchant");
-    return b.build();
-  }
+    @Produces
+    public Topology topology() {
+        StreamsBuilder builder = new StreamsBuilder();
+        ObjectMapperSerde<Acc> accSerde = new ObjectMapperSerde<>(Acc.class);
+        builder.stream(ORDERS, Consumed.with(Serdes.String(), Serdes.String()))
+            .map((key, json) -> parse(json))               // re-key by merchant_id
+            .filter((merchant, amount) -> merchant != null)
+            .groupByKey(Grouped.with(Serdes.String(), Serdes.String()))
+            .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(windowSeconds)))
+            .aggregate(() -> new Acc(0, BigDecimal.ZERO),  // local, changelog-backed
+                (merchant, amount, acc) -> add(merchant, acc, amount),
+                Materialized.with(Serdes.String(), accSerde))
+            .toStream()
+            .map((window, acc) -> KeyValue.pair(window.key(), toJson(window, acc)))
+            .to(REVENUE, Produced.with(Serdes.String(), Serdes.String()));
+        return builder.build();
+    }
 }
 ```
 
 ```csharp
-// Streamiz.Kafka.Net (MIT) — a .NET port of Kafka Streams: same
-// topology / state-store / changelog model, native C#, no JVM in the container.
-
+// StreamProcessor/Program.cs (excerpt) — Streamiz.Kafka.Net 1.8.2
 var config = new StreamConfig<StringSerDes, StringSerDes>
 {
-    ApplicationId    = "revenue-aggregator",
-    BootstrapServers = "kafka:9092",
-    StateDir         = "/var/streamiz/state",   // local RocksDB, changelog-backed
+    ApplicationId    = "stream-processor",    // also the consumer group
+    BootstrapServers = kafkaBootstrap,
+    StateDir         = "/tmp/kafka-streams",  // local RocksDB, changelog-backed
 };
-
 var builder = new StreamBuilder();
-
-builder.Stream<string, Order, StringSerDes, JsonSerDes<Order>>("order.placed")
-    .GroupBy((k, o, _) => o.MerchantId)
-    .WindowedBy(TumblingWindowOptions.Of(TimeSpan.FromMinutes(5), TimeSpan.Zero))  // no grace
-    .Aggregate(() => 0.0,                        // local, changelog-backed
-               (mId, o, total) => total + o.Total,
-               RocksDbWindows.As<string, double>("revenue-by-merchant")
-                   .WithKeySerdes(new StringSerDes())
-                   .WithValueSerdes(new DoubleSerDes()))
+builder.Stream<string, string>("order.placed")
+    .Map((_, json, _) => Rekey(json))                     // key by merchant_id
+    .Filter((merchant, _, _) => merchant.Length > 0)
+    .GroupByKey()
+    .WindowedBy(TumblingWindowOptions.Of(TimeSpan.FromSeconds(windowSeconds), TimeSpan.Zero))
+    .Aggregate(() => new Acc(),
+        (merchant, amount, acc) => Add(merchant, acc, amount),   // exact decimal total
+        RocksDbWindows.As<string, Acc>("revenue-store")
+            .WithKeySerdes(new StringSerDes())
+            .WithValueSerdes(new JsonSerDes<Acc>()))
     .ToStream()
-    .Map((w, t, _) => KeyValuePair.Create(w.Key, t))   // unwrap Windowed<string> to the merchant id
-    .To<StringSerDes, DoubleSerDes>("revenue.by-merchant");   // derived stream out
-
-var stream = new KafkaStream(builder.Build(), config);
-await stream.StartAsync();
+    // .Map(...): window_start, merchant_id, order_count, revenue rounded half-up
+    .To<StringSerDes, StringSerDes>("revenue.by-merchant");
+await new KafkaStream(builder.Build(), config).StartAsync(cts.Token);
 ```
 
 ```python
@@ -141,26 +144,27 @@ async def aggregate(stream):
 ```
 
 ```cpp
-// In-process windowed aggregation: revenue-per-merchant, 5-minute tumbling.
-// Stateful but bounded — fits in-process. For joins or large state: use Flink.
-struct Window {
-  std::chrono::sys_seconds start;
-  std::unordered_map<std::string, double> revenue;   // per-merchant
-};
-Window current{floor_to_5min(now()), {}};
+// stream-processor (excerpt, simplified): order.placed -> per-merchant tumbling
+// windows -> revenue.by-merchant. Bounded state fits in-process; joins: Flink.
+std::unordered_map<std::string, cndp::MerchantWindows> merchants_;  // open windows
 
-consumer.subscribe({"order.placed"});
-while (!stop_token.stop_requested()) {
-  for (auto& msg : consumer.poll(100ms)) {
-    Order o       = deserialize(msg.value());
-    auto win_start = floor_to_5min(o.placed_at);
-    if (win_start != current.start) {                // window rolled over
-      emit_window(current);                           // flush to revenue.by-merchant
-      current = Window{win_start, {}};
-    }
-    current.revenue[o.merchant_id] += o.total;        // stateful, in-process
-  }
+void aggregate(const std::string& merchant, int64_t ts, const cndp::Decimal& amount) {
+  auto it = merchants_.try_emplace(merchant,
+                cndp::MerchantWindows(window_seconds_)).first;   // WINDOW_SECONDS
+  auto update = it->second.apply(ts, amount);    // nullopt: late record, dropped
+  if (!update) return;
+  send("revenue.by-merchant", merchant,           // running total for the window
+       cndp::revenue_json(merchant, *update), 0);
 }
+
+bool commit_batch() {                            // after each batch of up to 500
+  producer_->flush(30000);                       // outputs delivery-reported first
+  if (reports_.failed() > 0) return false;       // else exit, replay from last commit
+  consumer_->commitSync();                       // then commit the input offsets
+  return true;
+}
+// The example re-keys order.placed through a repartition topic first, so each
+// merchant's records land on one partition and one instance.
 ```
 
 ```go
@@ -190,7 +194,7 @@ func aggregate(ctx goka.Context, msg any) {
 
 Every tab is the same topology: read `order.placed`, group by merchant, bucket into
 five-minute windows, fold each window into a running total, and write the result to
-a derived `revenue.by-merchant` stream. The JVM, .NET, Python and Go versions (Kafka Streams, Streamiz, Faust, goka) get a
+a derived `revenue.by-merchant` stream. The JVM, .NET, Python and Go versions (Kafka Streams, Streamiz, faust-streaming, goka) get a
 changelog-backed store built in — kill the pod and the window state rebuilds by
 replaying the changelog topic. The C++ version keeps the window map in process,
 which is fine while the state is bounded; once you need joins or state larger than a
@@ -237,7 +241,7 @@ where double-counting would be incorrect rather than merely redundant.
 ## Beyond tumbling windows
 
 The revenue example uses a tumbling window — fixed-size, non-overlapping buckets.
-Kafka Streams, Faust, and Streamiz support three other window types, each suited to
+Kafka Streams, faust-streaming, and Streamiz support three other window types, each suited to
 a different access pattern:
 
 {% include excalidraw.html
@@ -269,7 +273,7 @@ Flink extends this with **watermarks** — a system-wide notion of "how far behi
 event-time we expect to be" — which is essential for multi-source joins where
 sources have different latencies.
 
-**When to reach for Flink** — in-process stream processing (Kafka Streams, Faust,
+**When to reach for Flink** — in-process stream processing (Kafka Streams, faust-streaming,
 Streamiz, goka, the C++ loop in this chapter's example) works well for single-topic,
 bounded-state computations. Once you need **stream-to-stream joins** (correlate
 orders with payments by key and time), **state larger than a single worker's
@@ -294,17 +298,24 @@ One mechanism, two signals.
 # event-driven: scale consumers on Kafka lag
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
+metadata: { name: payment-consumer }
 spec:
   scaleTargetRef: { name: payment-consumer }
   minReplicaCount: 0                     # scale to zero when there is no lag
   maxReplicaCount: 20
   triggers:
     - type: kafka
-      metadata: { topic: order.placed, consumerGroup: payment, lagThreshold: "100" }
+      metadata: { bootstrapServers: "cndp-kafka-bootstrap:9092", topic: order.placed,
+                  consumerGroup: payment, lagThreshold: "100" }
 ---
 # synchronous: scale the HTTP service on concurrent requests (KEDA http-add-on)
+apiVersion: http.keda.sh/v1alpha1
 kind: HTTPScaledObject
-spec: { scaleTargetRef: { service: order-service }, replicas: { min: 0, max: 30 } }
+metadata: { name: order-service }
+spec:
+  hosts: [orders.example.com]
+  scaleTargetRef: { name: order-service, service: order-service, port: 8080 }
+  replicas: { min: 0, max: 30 }
 ```
 
 The `lagThreshold: "100"` is the tuning knob — how many messages of backlog a

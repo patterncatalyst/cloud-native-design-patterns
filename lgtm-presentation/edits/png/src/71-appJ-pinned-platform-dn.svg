@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 781" font-family="'Red Hat Text', 'Liberation Sans', system-ui, sans-serif">
+<rect width="1600" height="781" fill="#ffffff"/>
+<text x="800.0" y="48" font-size="26" font-weight="700" fill="#151515" text-anchor="middle">The pinned cloud-native platform stack</text>
+<text x="800.0" y="78" font-size="16" font-style="italic" fill="#5a5a5a" text-anchor="middle">the cluster-side open-source components your .NET Pods rely on</text>
+<text x="46" y="140" font-size="14" font-weight="700" fill="#242424">Concern</text>
+<text x="306" y="140" font-size="14" font-weight="700" fill="#242424">Component</text>
+<text x="726" y="140" font-size="14" font-weight="700" fill="#242424">Purpose</text>
+<text x="1246" y="140" font-size="14" font-weight="700" fill="#242424">License</text>
+<line x1="40" y1="150" x2="1580" y2="150" stroke="#151515" stroke-width="1.5"/>
+<rect x="40" y="154" width="1540" height="30" fill="#f4f4f4"/>
+<text x="46" y="174" font-size="13.5" font-style="italic" fill="#5a5a5a">Container orchestration</text>
+<text x="306" y="174" font-size="13.5" font-weight="700" fill="#151515">Kubernetes</text>
+<text x="726" y="174" font-size="13.5" fill="#242424">Pods, Services, Deployments, ConfigMaps, Secrets</text>
+<text x="1246" y="174" font-size="13.5" font-weight="700" fill="#0066CC">Apache 2.0</text>
+<text x="46" y="204" font-size="13.5" font-style="italic" fill="#5a5a5a">Service mesh</text>
+<text x="306" y="204" font-size="13.5" font-weight="700" fill="#151515">Istio / Linkerd</text>
+<text x="726" y="204" font-size="13.5" fill="#242424">mTLS, retries, traffic shaping, observability</text>
+<text x="1246" y="204" font-size="13.5" font-weight="700" fill="#0066CC">Apache 2.0</text>
+<rect x="40" y="214" width="1540" height="30" fill="#f4f4f4"/>
+<text x="46" y="234" font-size="13.5" font-style="italic" fill="#5a5a5a">Autoscaling</text>
+<text x="306" y="234" font-size="13.5" font-weight="700" fill="#151515">KEDA</text>
+<text x="726" y="234" font-size="13.5" fill="#242424">Event- and lag-driven scaling (incl. scale to zero)</text>
+<text x="1246" y="234" font-size="13.5" font-weight="700" fill="#0066CC">Apache 2.0</text>
+<text x="46" y="264" font-size="13.5" font-style="italic" fill="#5a5a5a">Messaging</text>
+<text x="306" y="264" font-size="13.5" font-weight="700" fill="#151515">Apache Kafka / Strimzi</text>
+<text x="726" y="264" font-size="13.5" fill="#242424">Distributed log + Kubernetes-native operator</text>
+<text x="1246" y="264" font-size="13.5" font-weight="700" fill="#0066CC">Apache 2.0</text>
+<rect x="40" y="274" width="1540" height="30" fill="#f4f4f4"/>
+<text x="46" y="294" font-size="13.5" font-style="italic" fill="#5a5a5a">Schema registry</text>
+<text x="306" y="294" font-size="13.5" font-weight="700" fill="#151515">Apicurio Registry</text>
+<text x="726" y="294" font-size="13.5" fill="#242424">OpenAPI / .proto / Avro / JSON Schema, versioned</text>
+<text x="1246" y="294" font-size="13.5" font-weight="700" fill="#0066CC">Apache 2.0</text>
+<text x="46" y="324" font-size="13.5" font-style="italic" fill="#5a5a5a">Data catalog / lineage</text>
+<text x="306" y="324" font-size="13.5" font-weight="700" fill="#151515">OpenMetadata</text>
+<text x="726" y="324" font-size="13.5" fill="#242424">Asset catalog, lineage, SLOs, ownership</text>
+<text x="1246" y="324" font-size="13.5" font-weight="700" fill="#0066CC">Apache 2.0</text>
+<rect x="40" y="334" width="1540" height="30" fill="#f4f4f4"/>
+<text x="46" y="354" font-size="13.5" font-style="italic" fill="#5a5a5a">Tracing backend</text>
+<text x="306" y="354" font-size="13.5" font-weight="700" fill="#151515">Grafana Tempo</text>
+<text x="726" y="354" font-size="13.5" fill="#242424">Trace storage + query, OTLP ingest</text>
+<text x="1246" y="354" font-size="13.5" font-weight="700" fill="#0066CC">AGPL-3.0</text>
+<text x="46" y="384" font-size="13.5" font-style="italic" fill="#5a5a5a">Metrics backend</text>
+<text x="306" y="384" font-size="13.5" font-weight="700" fill="#151515">Grafana Mimir / Prometheus</text>
+<text x="726" y="384" font-size="13.5" fill="#242424">Long-term metrics, OTLP + Prom remote-write</text>
+<text x="1246" y="384" font-size="13.5" font-weight="700" fill="#0066CC">AGPL / Apache</text>
+<rect x="40" y="394" width="1540" height="30" fill="#f4f4f4"/>
+<text x="46" y="414" font-size="13.5" font-style="italic" fill="#5a5a5a">Logs backend</text>
+<text x="306" y="414" font-size="13.5" font-weight="700" fill="#151515">Grafana Loki</text>
+<text x="726" y="414" font-size="13.5" fill="#242424">Label-indexed log store, low cardinality cost</text>
+<text x="1246" y="414" font-size="13.5" font-weight="700" fill="#0066CC">AGPL-3.0</text>
+<text x="46" y="444" font-size="13.5" font-style="italic" fill="#5a5a5a">Dashboards / alerts</text>
+<text x="306" y="444" font-size="13.5" font-weight="700" fill="#151515">Grafana</text>
+<text x="726" y="444" font-size="13.5" fill="#242424">Unified panel for traces, metrics, logs</text>
+<text x="1246" y="444" font-size="13.5" font-weight="700" fill="#0066CC">AGPL-3.0</text>
+<rect x="40" y="454" width="1540" height="30" fill="#f4f4f4"/>
+<text x="46" y="474" font-size="13.5" font-style="italic" fill="#5a5a5a">CDC</text>
+<text x="306" y="474" font-size="13.5" font-weight="700" fill="#151515">Debezium</text>
+<text x="726" y="474" font-size="13.5" fill="#242424">Postgres / SQL Server WAL tailing → Kafka</text>
+<text x="1246" y="474" font-size="13.5" font-weight="700" fill="#0066CC">Apache 2.0</text>
+<text x="46" y="504" font-size="13.5" font-style="italic" fill="#5a5a5a">Relational DB</text>
+<text x="306" y="504" font-size="13.5" font-weight="700" fill="#151515">PostgreSQL</text>
+<text x="726" y="504" font-size="13.5" fill="#242424">Primary OLTP store; CDC source</text>
+<text x="1246" y="504" font-size="13.5" font-weight="700" fill="#0066CC">PostgreSQL</text>
+<rect x="40" y="514" width="1540" height="30" fill="#f4f4f4"/>
+<text x="46" y="534" font-size="13.5" font-style="italic" fill="#5a5a5a">Key-value / cache</text>
+<text x="306" y="534" font-size="13.5" font-weight="700" fill="#151515">Redis (or Valkey)</text>
+<text x="726" y="534" font-size="13.5" fill="#242424">SignalR backplane, distributed locks, caching</text>
+<text x="1246" y="534" font-size="13.5" font-weight="700" fill="#0066CC">AGPL-3.0 (Redis 8) / BSD (Valkey)</text>
+<text x="46" y="564" font-size="13.5" font-style="italic" fill="#5a5a5a">Workflow server</text>
+<text x="306" y="564" font-size="13.5" font-weight="700" fill="#151515">Temporal Server</text>
+<text x="726" y="564" font-size="13.5" fill="#242424">Durable-execution server (paired with .NET SDK)</text>
+<text x="1246" y="564" font-size="13.5" font-weight="700" fill="#0066CC">MIT</text>
+<rect x="40" y="574" width="1540" height="30" fill="#f4f4f4"/>
+<text x="46" y="594" font-size="13.5" font-style="italic" fill="#5a5a5a">Secrets</text>
+<text x="306" y="594" font-size="13.5" font-weight="700" fill="#151515">Kubernetes Secrets + external-secrets-operator</text>
+<text x="726" y="594" font-size="13.5" fill="#242424">Secrets sync from your vault of choice</text>
+<text x="1246" y="594" font-size="13.5" font-weight="700" fill="#0066CC">Apache 2.0</text>
+<text x="46" y="624" font-size="13.5" font-style="italic" fill="#5a5a5a">Observability pipeline</text>
+<text x="306" y="624" font-size="13.5" font-weight="700" fill="#151515">OpenTelemetry Collector</text>
+<text x="726" y="624" font-size="13.5" fill="#242424">OTLP ingest, processing, fan-out</text>
+<text x="1246" y="624" font-size="13.5" font-weight="700" fill="#0066CC">Apache 2.0</text>
+<text x="800.0" y="674" font-size="15" font-weight="700" fill="#3f7a1f" text-anchor="middle">These components serve a Spring Boot or Python stack the same way.</text>
+<text x="800.0" y="700" font-size="15" font-weight="400" fill="#5a5a5a" text-anchor="middle" font-style="italic">Standard CNCF-friendly stack; .NET 10 is the runtime in the application Pods.</text>
+</svg>

@@ -21,6 +21,6 @@
 <path d="M250,142 L190,142" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
 <text x="226.0" y="134.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">blocks</text>
 <text x="226.0" y="134.0" font-size="11" fill="#b8650a" text-anchor="middle">blocks</text>
-<text x="450" y="212" font-size="11" fill="#a11" text-anchor="middle" font-weight="700">a slow dependency fills the caller&#x27;s threads/pool; with resources exhausted it fails for ALL callers, and the wave propagates up the graph</text>
+<text x="450" y="212" font-size="11" fill="#a11" text-anchor="middle" font-weight="700">a slow dependency fills the caller&#x27;s threads/pool; with resources exhausted it fails for all callers, and the wave propagates up the graph</text>
 <text x="450" y="236" font-size="11" fill="#2f6db5" text-anchor="middle">each pattern breaks one link: timeouts free threads · bulkheads isolate the pool · breakers stop calling · shedding rejects at the edge</text>
 </svg>

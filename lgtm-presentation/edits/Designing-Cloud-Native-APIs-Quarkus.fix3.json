@@ -1,0 +1,382 @@
+{
+ "ops": [
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "Kafka is the substrate — a partitioned",
+   "repl": "Kafka is the substrate: a partitioned",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup (6 per paragraph)",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "Pulsar is also substrate — same broad category",
+   "repl": "Pulsar is also substrate, in the same broad category",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "Flink is compute — not a transport layer at all, but",
+   "repl": "Flink is compute: not a transport layer, but",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "NiFi is movement — a visual",
+   "repl": "NiFi is movement: a visual",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "They complement — pick by",
+   "repl": "They complement each other; pick by",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "This is the slide the user specifically asked for: distinguish auto-injection from auto-instrumentation from manual instrumentation — three things people conflate.",
+   "repl": "Auto-injection, auto-instrumentation and manual instrumentation are three things people conflate.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): leaked authoring request; em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "wrap known frameworks — your HTTP handler",
+   "repl": "wrap known frameworks: your HTTP handler",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "a Kubernetes-level mechanism — the OpenTelemetry Operator",
+   "repl": "a Kubernetes-level mechanism; the OpenTelemetry Operator",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "Python — ",
+   "repl": "Python: ",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "Java/Quarkus — ",
+   "repl": "Java/Quarkus: ",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    283
+   ],
+   "find": "The cost: eventual consistency — there is a small lag",
+   "repl": "The cost: eventual consistency, a small lag",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    283
+   ],
+   "find": "happily handles both — CQRS adds",
+   "repl": "handles both; CQRS adds",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    283
+   ],
+   "find": "for projections — we cover both distinctions in section 5.",
+   "repl": "for projections; the Event-Driven section draws both distinctions.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup; cross-reference by concept",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    324
+   ],
+   "find": "The sub-bullet is the reminder the user asked for: ",
+   "repl": "The sub-bullet is the reminder: ",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): leaked authoring request",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    380
+   ],
+   "find": "This is the specific case you asked about, and a common source of bad designs.",
+   "repl": "This case is a common source of bad designs.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): leaked authoring request",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    535
+   ],
+   "find": "Fallback: the recorded results that follow.",
+   "repl": "Fallback: the recorded results.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): soft positional reference",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    377
+   ],
+   "find": "and it's the one I'd reach for first when I want to own the transitions.",
+   "repl": "and the default choice when the team wants to own the transitions.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "first-person and soft-hype tone in notes",
+   "_src": "tone"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    377
+   ],
+   "find": "Recovery is beautifully boring:",
+   "repl": "Recovery needs no special path:",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "first-person and soft-hype tone in notes",
+   "_src": "tone"
+  },
+  {
+   "op": "set_code",
+   "sldId": 298,
+   "cat": "code",
+   "_why": "Kafka Streams serdes: the old box grouped and materialized with default serdes (runtime ClassCastException) and used a 5-minute window; now the excerpt of examples/06-stream-processing/quarkus RevenueTopology (explicit Grouped/Materialized serdes, window.seconds, String JSON output)",
+   "lines": [
+    "// stream-processor RevenueTopology.java (excerpt): order.placed -> revenue.by-merchant",
+    "@ApplicationScoped",
+    "public class RevenueTopology {",
+    "    @Produces                                      // quarkus-kafka-streams runs it",
+    "    public Topology topology() {",
+    "        StreamsBuilder builder = new StreamsBuilder();",
+    "        ObjectMapperSerde<Acc> accSerde = new ObjectMapperSerde<>(Acc.class);",
+    "        builder.stream(ORDERS, Consumed.with(Serdes.String(), Serdes.String()))",
+    "            .map((key, json) -> parse(json))               // re-key by merchant_id",
+    "            .filter((merchant, amount) -> merchant != null)",
+    "            .groupByKey(Grouped.with(Serdes.String(), Serdes.String()))",
+    "            .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(windowSeconds)))",
+    "            .aggregate(() -> new Acc(0, BigDecimal.ZERO),  // local, changelog-backed",
+    "                (merchant, amount, acc) -> add(merchant, acc, amount),",
+    "                Materialized.with(Serdes.String(), accSerde))",
+    "            .toStream()",
+    "            .map((window, acc) -> KeyValue.pair(window.key(), toJson(window, acc)))",
+    "            .to(REVENUE, Produced.with(Serdes.String(), Serdes.String()));",
+    "        return builder.build();",
+    "    }",
+    "}"
+   ],
+   "pt": 10.5,
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    298
+   ],
+   "expect": 1,
+   "cat": "notes",
+   "_why": "window and serde as in examples/06-stream-processing/quarkus",
+   "find": "The 5-minute tumbling window buckets the aggregation by time.",
+   "repl": "The tumbling window (window.seconds, 10 seconds by default) buckets the aggregation by time; the accumulator, a count and a BigDecimal total, is serialized with ObjectMapperSerde, and each update is written to the output topic as a JSON row (window, merchant_id, order_count, revenue).",
+   "_src": "content"
+  },
+  {
+   "op": "set_code",
+   "sldId": 310,
+   "lines": [
+    "<!-- pom.xml: the apicurio-registry-maven-plugin checks the rule in CI -->",
+    "<plugin>",
+    "  <groupId>io.apicurio</groupId>",
+    "  <artifactId>apicurio-registry-maven-plugin</artifactId>",
+    "  <version>3.3.3</version>",
+    "  <executions><execution>",
+    "    <goals><goal>register</goal></goals>",
+    "    <configuration>",
+    "      <registryUrl>http://apicurio.registry.svc/apis/registry/v3</registryUrl>",
+    "      <dryRun>true</dryRun>   <!-- check the rule, store nothing -->",
+    "      <artifacts><artifact>",
+    "        <groupId>orders</groupId>",
+    "        <artifactId>order-placed</artifactId>",
+    "        <artifactType>AVRO</artifactType>",
+    "        <ifExists>CREATE_VERSION</ifExists>   <!-- a new version -->",
+    "        <file>src/main/avro/order-placed.avsc</file>",
+    "      </artifact></artifacts>",
+    "    </configuration>",
+    "  </execution></executions>",
+    "</plugin>"
+   ],
+   "cat": "code",
+   "_why": "apicurio-registry-maven-plugin 3.3.3: test-update is deprecated in favour of register + dryRun (TestUpdateRegistryMojo javadoc); dryRun only applies with ifExists set (RegisterRegistryMojo); artifact order-placed as Example 09; plugin version pinned",
+   "_src": "registry"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    310
+   ],
+   "find": "The test-update goal fails the build",
+   "repl": "The dry-run register fails the build",
+   "expect": 1,
+   "cat": "code",
+   "_why": "caption follows the goal",
+   "_src": "registry"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    310
+   ],
+   "find": "The apicurio-registry-maven-plugin's test-update goal validates the new schema against the artifact's compatibility rule in the registry without registering it — and fails the build (and the merge) if it's incompatible.",
+   "repl": "The apicurio-registry-maven-plugin's register goal with dryRun set checks the new schema against the artifact's compatibility rule in the registry without storing it, and fails the build (and the merge) if it is incompatible. The older test-update goal still exists in 3.3.3 but is deprecated in favour of dryRun.",
+   "expect": 1,
+   "cat": "notes",
+   "_why": "notes follow the goal",
+   "_src": "registry"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 487,
+   "shape": "Google Shape;2567;p234",
+   "png": "lgtm-presentation/edits/png/25-gray-failure.png",
+   "cat": "voice",
+   "_why": "ALL-CAPS emphasis baked into the old figure (PERCEIVED DIFFERENTLY, NOT fully down, OBSERVE FROM THE CLIENT, GREEN, OUTLIER DETECTION); replaced by the site figure assets/diagrams/25-gray-failure.svg",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 293,
+   "shape": "Google Shape;429;p40",
+   "png": "lgtm-presentation/edits/png/05-sourcing-vs-streaming.png",
+   "cat": "voice",
+   "_why": "ALL-CAPS emphasis baked into the old figure (SOURCING/STREAMING, ARE, IS, TRANSPORT, ABOUT, NOT, EVENT, PROPAGATED); replaced by the site figure assets/diagrams/05-sourcing-vs-streaming.svg (caps lowered there too)",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 294,
+   "shape": "Google Shape;440;p41",
+   "png": "lgtm-presentation/edits/png/05-tools-landscape.png",
+   "cat": "voice",
+   "_why": "ALL-CAPS emphasis baked into the old figure (COMPLEMENT); replaced by the site figure assets/diagrams/05-tools-landscape.svg (SUBSTRATE/COMPUTE/MOVEMENT are design labels)",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 410,
+   "shape": "Google Shape;1711;p157",
+   "png": "lgtm-presentation/edits/png/20-coupling-quadrant.png",
+   "cat": "voice",
+   "_why": "ALL-CAPS emphasis baked into the old figure ('strong OR distant'); replaced by the site figure assets/diagrams/20-coupling-quadrant.svg",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 445,
+   "shape_id": 2100,
+   "png": "lgtm-presentation/edits/png/22-hop-cost-drools.png",
+   "cat": "voice",
+   "_why": "figure footer: 'where p99 goes to die' rewritten without the drama",
+   "_src": "hop"
+  }
+ ]
+}

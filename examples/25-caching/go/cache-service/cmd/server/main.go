@@ -272,7 +272,8 @@ func handleWriteBackPut(w http.ResponseWriter, r *http.Request) {
 	safeSet(r.Context(), key, string(data), 0)
 	rdb.SAdd(r.Context(), "metric:dirty", key)
 
-	writeJSON(w, 200, parsed)
+	// 202: queued in the cache, not yet durable in Postgres
+	writeJSON(w, 202, parsed)
 }
 
 func handleWriteBackGet(w http.ResponseWriter, r *http.Request) {
@@ -342,33 +343,75 @@ func handleCacheKeys(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"keys": keys})
 }
 
+// Write-back flush policy: a failed upsert is re-queued, with exponential backoff between
+// flush cycles and a bounded number of attempts per key. After maxFlushAttempts the key moves
+// to metric:failed (its value stays in the cache) and is logged, never dropped silently.
+const (
+	flushBatch       = 100
+	flushPeriod      = 1 * time.Second
+	maxFlushBackoff  = 8 * time.Second
+	maxFlushAttempts = 5
+)
+
 func flusher(ctx context.Context) {
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
+	failures := 0
 	for {
+		wait := flushPeriod
+		if failures > 0 {
+			wait = min(flushPeriod<<failures, maxFlushBackoff)
+		}
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			members, err := rdb.SPopN(ctx, "metric:dirty", 100).Result()
-			if err != nil || len(members) == 0 {
+		case <-time.After(wait):
+		}
+
+		members, err := rdb.SPopN(ctx, "metric:dirty", flushBatch).Result()
+		if err != nil || len(members) == 0 {
+			continue
+		}
+		var failed []string
+		for _, key := range members {
+			val, err := rdb.Get(ctx, key).Result()
+			if err != nil {
 				continue
 			}
-			for _, key := range members {
-				val, err := rdb.Get(ctx, key).Result()
-				if err != nil {
-					continue
-				}
-				var m map[string]any
-				json.Unmarshal([]byte(val), &m)
-				id, _ := m["id"].(string)
-				payload, _ := json.Marshal(m)
-				pool.Exec(ctx,
-					"INSERT INTO metrics (id, payload) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET payload=$2, ts=NOW()",
-					id, payload)
-				slog.Info("flushed metric", "id", id)
+			var m map[string]any
+			json.Unmarshal([]byte(val), &m)
+			id, _ := m["id"].(string)
+			payload, _ := json.Marshal(m)
+			if _, err := pool.Exec(ctx,
+				"INSERT INTO metrics (id, payload) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET payload=$2, ts=NOW()",
+				id, payload); err != nil {
+				slog.Error("flush failed", "id", id, "err", err)
+				failed = append(failed, key)
+				continue
 			}
+			rdb.HDel(ctx, "metric:attempts", key)
+			slog.Info("flushed metric", "id", id)
 		}
+		if len(failed) == 0 {
+			failures = 0
+			continue
+		}
+		failures++
+		requeue(ctx, failed)
+	}
+}
+
+// requeue puts failed keys back on the dirty set, or parks them on metric:failed once
+// they have used up their attempts.
+func requeue(ctx context.Context, keys []string) {
+	for _, key := range keys {
+		n := rdb.HIncrBy(ctx, "metric:attempts", key, 1).Val()
+		if n >= maxFlushAttempts {
+			rdb.SAdd(ctx, "metric:failed", key)
+			rdb.HDel(ctx, "metric:attempts", key)
+			slog.Error("flush gave up; key parked on metric:failed", "key", key, "attempts", n)
+			continue
+		}
+		rdb.SAdd(ctx, "metric:dirty", key)
+		slog.Warn("flush failed; re-queued", "key", key, "attempt", n, "max", maxFlushAttempts)
 	}
 }
 

@@ -33,9 +33,12 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | S8 | chore/infra-images | 2 | done (111/111 PASS; two Opus repair rounds; PR #66; lgtm-skills #45 + r5.x; main run green, Actions cache 2.4 GB) |
 | S9 | docs/minikube-docker-driver (+ 05 on minikube) | 7 | done (PR #67) |
 | S10 | feature/openshift-local-appendix | 8 | done (PR #68, 48e7736) |
-| S11 | docs/professional-voice | 9 | validated (PR pending; plan: _plans/s11-professional-voice-plan.md) |
-| S12 | docs/deck-refresh | 10 (expanded 2026-10-11) | pending |
+| S11 | docs/professional-voice | 9 | done (PR #69, 2d8c2a8) |
+| S12 | docs/deck-refresh | 10 (expanded 2026-10-11) | done (plan: _plans/s12-deck-refresh-plan.md; examples 01, 21, 25 fixed and verified 6/6) |
+| S13 | refactor/idiomatic-persistence | 11 (added 2026-10-12) | next |
 
+
+- S13 (user, 2026-10-12): examples use each framework's idiomatic persistence: Hibernate ORM with Panache in every Quarkus example that touches a database (01, 04, 25 and any others), Spring Data JPA in the Spring Boot examples, EF Core in the .NET examples. Python (asyncpg), Go (pgx) and C++ (libpq) keep their drivers. Every changed example re-runs `verify.sh` green on Docker Engine; slides (via deck edit files) and site codetabs follow the examples, including the caching, outbox, health and write-back slides; CLAUDE.md's locked stacks name the ORMs.
 ## Target pins (verified 2026-10-09; re-check at the start of each branch)
 
 | Component | Version or image |

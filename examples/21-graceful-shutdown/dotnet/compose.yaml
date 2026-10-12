@@ -19,6 +19,7 @@ services:
       - "8080:8080"
     environment:
       - ConnectionStrings__Default=Host=postgres;Port=5432;Database=appdb;Username=appuser;Password=apppass
+      - DRAIN_DELAY_SECONDS=5
     stop_grace_period: 30s
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8080/healthz"]

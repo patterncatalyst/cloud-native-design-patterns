@@ -130,12 +130,13 @@ reports; `htmlextra` (a community reporter) produces a shareable page.
 
 ```bash
 # install once (Node.js): npm install -g --prefix ~/.local newman@6.2.3 newman-reporter-htmlextra@1.23.1
+# --timeout-request: per-request ceiling (ms); --bail: stop at the first failure
 newman run orders.postman_collection.json \
   --environment local.postman_environment.json \
   --reporters cli,junit,htmlextra \
   --reporter-junit-export results/newman.xml \
-  --bail \                         # stop on first failure (fail fast in CI)
-  --timeout-request 5000           # per-request ceiling
+  --timeout-request 5000 \
+  --bail
 ```
 
 `--bail` stops at the first failed assertion, which is usually what you want in a gate; drop it
@@ -206,7 +207,7 @@ jobs:
   api-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: docker compose up -d --build --wait   # order, payment, inventory, …
       - run: ./scripts/wait-for-ready.sh     # poll /readyz before testing
       - run: npm i -g newman@6.2.3 newman-reporter-htmlextra@1.23.1
@@ -215,7 +216,7 @@ jobs:
             -e ci.postman_environment.json \
             --reporters cli,junit \
             --reporter-junit-export results/newman.xml
-      - uses: actions/upload-artifact@v4      # keep the report even on failure
+      - uses: actions/upload-artifact@v7      # keep the report even on failure
         if: always()
         with: { name: newman-results, path: results/ }
 ```

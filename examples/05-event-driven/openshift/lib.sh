@@ -74,7 +74,8 @@ require_alone() {
     local running containers
     running="$(running_minikube_profiles)"
     [[ -z "$running" ]] || fail "minikube profile(s) running: $(tr '\n' ' ' <<<"$running"). Stop them first (minikube stop -p <profile>); run one cluster at a time"
-    containers="$(docker ps --format '{{.Names}}' 2>/dev/null || true)"
+    # The quarkus-agent MCP's doc-search containers (label quarkus-agent-mcp) are tooling, not a workshop.
+    containers="$(docker ps --format '{{.Names}}\t{{.Label "quarkus-agent-mcp"}}' 2>/dev/null | awk -F'\t' '$2 == "" {print $1}' || true)"
     [[ -z "$containers" ]] || fail "containers are running (one workshop at a time): $(tr '\n' ' ' <<<"$containers")"
 }
 

@@ -1,0 +1,367 @@
+{
+ "entries": [
+  {
+   "sldId": 256,
+   "shape_id": 20,
+   "resize": {
+    "y": 5007611,
+    "cy": 467359
+   },
+   "_why": "slide 1: text overflows its frame by overflow-top 2.3 pt, overflow-bottom 3.3 pt; free space around the frame"
+  },
+  {
+   "sldId": 257,
+   "shape_id": 30,
+   "resize": {
+    "y": 1589592,
+    "cy": 4688780
+   },
+   "_why": "slide 2: text overflows its frame by overflow-bottom 13.4 pt; free space around the frame"
+  },
+  {
+   "sldId": 284,
+   "shape_id": 327,
+   "resize": {
+    "cx": 2519650,
+    "keep": "right"
+   },
+   "_why": "slide 29: chip 'go · net/http + pgx + franz-go' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 291,
+   "shape_id": 407,
+   "pt": 11.0,
+   "_why": "slide 36: 20 code lines, 84 columns; 11.5 pt overflows the box"
+  },
+  {
+   "sldId": 300,
+   "shape_id": 509,
+   "pt": 11.0,
+   "_why": "slide 45: 20 code lines, 85 columns; 12.0 pt overflows the box"
+  },
+  {
+   "sldId": 321,
+   "shape_id": 740,
+   "resize": {
+    "cx": 2214850,
+    "keep": "right"
+   },
+   "_why": "slide 66: chip 'go · OpenTelemetry baggage' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 324,
+   "shape_id": 774,
+   "resize": {
+    "cy": 4607500
+   },
+   "_why": "slide 69: text overflows its frame by overflow-bottom 7.0 pt; free space around the frame"
+  },
+  {
+   "sldId": 328,
+   "shape_id": 815,
+   "resize": {
+    "cy": 4607500
+   },
+   "_why": "slide 73: text overflows its frame by overflow-bottom 7.0 pt; free space around the frame"
+  },
+  {
+   "sldId": 329,
+   "shape_id": 825,
+   "resize": {
+    "cy": 4597340
+   },
+   "_why": "slide 74: text overflows its frame by overflow-bottom 6.2 pt; free space around the frame"
+  },
+  {
+   "sldId": 331,
+   "shape_id": 846,
+   "resize": {
+    "cy": 4607500
+   },
+   "_why": "slide 76: text overflows its frame by overflow-bottom 7.0 pt; free space around the frame"
+  },
+  {
+   "sldId": 333,
+   "shape_id": 868,
+   "resize": {
+    "cx": 2443450,
+    "keep": "right"
+   },
+   "_why": "slide 78: chip 'go · net/http + golang-jwt v5' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 338,
+   "shape_id": 922,
+   "resize": {
+    "cx": 3357849,
+    "keep": "right"
+   },
+   "_why": "slide 83: chip 'yaml · OPA Gatekeeper  (language-neutral)' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 340,
+   "shape_id": 945,
+   "resize": {
+    "cx": 1833850,
+    "keep": "right"
+   },
+   "_why": "slide 85: chip 'go · buffered channel' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 342,
+   "shape_id": 968,
+   "resize": {
+    "cx": 2443450,
+    "keep": "right"
+   },
+   "_why": "slide 87: chip 'go · franz-go + golang-jwt v5' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 372,
+   "shape_id": 1290,
+   "resize": {
+    "cx": 2595849,
+    "keep": "right"
+   },
+   "_why": "slide 117: chip 'protobuf + go · coder/websocket' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 379,
+   "shape_id": 1370,
+   "pt": 10.5,
+   "_why": "slide 124: 21 code lines, 90 columns; 11.5 pt overflows the box"
+  },
+  {
+   "sldId": 401,
+   "shape_id": 1617,
+   "resize": {
+    "cx": 1833850,
+    "keep": "right"
+   },
+   "_why": "slide 146: chip 'go · ports & adapters' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 420,
+   "shape_id": 1820,
+   "resize": {
+    "cy": 436820
+   },
+   "_why": "slide 165: text overflows its frame by overflow-bottom 2.6 pt; free space around the frame"
+  },
+  {
+   "sldId": 431,
+   "shape_id": 1938,
+   "pt": 11.0,
+   "_why": "slide 176: 20 code lines, 70 columns; 13.0 pt overflows the box"
+  },
+  {
+   "sldId": 432,
+   "shape_id": 1950,
+   "resize": {
+    "cx": 2291050,
+    "keep": "right"
+   },
+   "_why": "slide 177: chip 'yaml · Istio VirtualService' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 437,
+   "shape_id": 2006,
+   "pt": 10.0,
+   "_why": "slide 182: 22 code lines, 73 columns; 11.0 pt overflows the box"
+  },
+  {
+   "sldId": 438,
+   "shape_id": 2018,
+   "resize": {
+    "cx": 2138650,
+    "keep": "right"
+   },
+   "_why": "slide 183: chip 'yaml · Istio header-based' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 444,
+   "shape_id": 2088,
+   "resize": {
+    "cx": 2214850,
+    "keep": "right"
+   },
+   "_why": "slide 189: chip 'go · gopher-lua + franz-go' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 449,
+   "shape_id": 2143,
+   "resize": {
+    "cx": 1910050,
+    "keep": "right"
+   },
+   "_why": "slide 194: chip 'yaml · Istio east/west' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 463,
+   "shape_id": 2297,
+   "resize": {
+    "cx": 2900650,
+    "keep": "right"
+   },
+   "_why": "slide 208: chip 'go · net/http + go-redis + franz-go' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 464,
+   "shape_id": 2309,
+   "resize": {
+    "cy": 4568130
+   },
+   "_why": "slide 209: text overflows its frame by overflow-bottom 3.9 pt; free space around the frame"
+  },
+  {
+   "sldId": 470,
+   "shape_id": 2375,
+   "resize": {
+    "cx": 2062450,
+    "keep": "right"
+   },
+   "_why": "slide 215: chip 'go · go-redis (generics)' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 470,
+   "shape_id": 2376,
+   "pt": 10.5,
+   "_why": "slide 215: 21 code lines, 92 columns; 11.5 pt overflows the box"
+  },
+  {
+   "sldId": 474,
+   "shape_id": 2424,
+   "pt": 11.0,
+   "_why": "slide 219: 20 code lines, 84 columns; 11.5 pt overflows the box"
+  },
+  {
+   "sldId": 476,
+   "shape_id": 2447,
+   "resize": {
+    "cx": 2138650,
+    "keep": "right"
+   },
+   "_why": "slide 221: chip 'go · go-redis + goroutine' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 476,
+   "shape_id": 2448,
+   "pt": 11.0,
+   "_why": "slide 221: 20 code lines, 82 columns; 11.5 pt overflows the box"
+  },
+  {
+   "sldId": 478,
+   "shape_id": 2471,
+   "resize": {
+    "cx": 2138650,
+    "keep": "right"
+   },
+   "_why": "slide 223: chip 'go · go-redis + goroutine' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 478,
+   "shape_id": 2472,
+   "pt": 10.0,
+   "_why": "slide 223: 22 code lines, 90 columns; 10.5 pt overflows the box"
+  },
+  {
+   "sldId": 480,
+   "shape_id": 2493,
+   "resize": {
+    "cy": 4568130
+   },
+   "_why": "slide 225: text overflows its frame by overflow-bottom 3.9 pt; free space around the frame"
+  },
+  {
+   "sldId": 492,
+   "shape_id": 2622,
+   "resize": {
+    "cx": 1986250,
+    "keep": "right"
+   },
+   "_why": "slide 237: chip 'go · net/http + context' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 494,
+   "shape_id": 2645,
+   "resize": {
+    "cx": 2062450,
+    "keep": "right"
+   },
+   "_why": "slide 239: chip 'go · cenkalti/backoff v7' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 496,
+   "shape_id": 2668,
+   "resize": {
+    "cx": 1910050,
+    "keep": "right"
+   },
+   "_why": "slide 241: chip 'go · sony/gobreaker v2' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 338,
+   "shape_id": 923,
+   "cuts": [
+    {
+     "from": 7,
+     "to": 13,
+     "first": "  crd:",
+     "last": "            allowedRegistries: { type: array, items: { type: string } }",
+     "ellipsis": "    # ... crd: kind K8sRequireSignedImages, parameter allowedRegistries (string array)"
+    }
+   ],
+   "pt": 9.0,
+   "line_spacing": 1.0,
+   "_why": "slide 83: 33 code lines do not fit the box at 9 pt; excerpt of 27 lines at 9.0 pt (line spacing 1.0), was 9.5 pt"
+  },
+  {
+   "sldId": 449,
+   "shape_id": 2144,
+   "cuts": [
+    {
+     "from": 7,
+     "to": 8,
+     "first": "    connectionPool:",
+     "last": "      http: { http2MaxRequests: 1000, maxRequestsPerConnection: 10 }",
+     "ellipsis": "    # ... connectionPool: http2MaxRequests 1000, maxRequestsPerConnection 10"
+    },
+    {
+     "from": 13,
+     "to": 14,
+     "first": "    loadBalancer:",
+     "last": "      localityLbSetting: { enabled: true }         # prefer same zone",
+     "ellipsis": "    # ... loadBalancer: localityLbSetting enabled (prefer same zone)"
+    }
+   ],
+   "pt": 9.0,
+   "line_spacing": 1.0,
+   "_why": "slide 194: 27 code lines do not fit the box at 9 pt; excerpt of 25 lines at 9.0 pt (line spacing 1.0), was 10.0 pt"
+  },
+  {
+   "op": "fit_font",
+   "sldId": 343,
+   "shape_id": 979,
+   "pt": 15,
+   "_why": "'Choosing the right pattern': eight two-line bullets run 35 pt past the frame into the page number and logo; the frame cannot grow"
+  },
+  {
+   "op": "fit_font",
+   "sldId": 349,
+   "shape_id": 1040,
+   "pt": 14,
+   "_why": "references: the reference lines run past the frame into the page number; the frame cannot grow"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "find": "Glossary of acronyms  (2 of 2)  —  platform, security, observability",
+   "repl": "Glossary of acronyms (2 of 2) — platform, security, telemetry",
+   "expect": 1,
+   "sldIds": [
+    352
+   ],
+   "_why": "title wraps to two lines and collides with the eyebrow; 'observability' -> 'telemetry' keeps it on one line"
+  }
+ ]
+}

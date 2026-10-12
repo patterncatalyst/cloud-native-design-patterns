@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1860 976" font-family="'Red Hat Text', 'Liberation Sans', system-ui, sans-serif">
+<rect width="1860" height="976" fill="#ffffff"/>
+<text x="930.0" y="48" font-size="26" font-weight="700" fill="#151515" text-anchor="middle">Migration reference</text>
+<text x="930.0" y="78" font-size="16" font-style="italic" fill="#5a5a5a" text-anchor="middle">concrete patterns from Windows / .NET Framework 4.x to Kubernetes / .NET 10</text>
+<text x="46" y="140" font-size="14" font-weight="700" fill="#242424">Concern</text>
+<text x="246" y="140" font-size="14" font-weight="700" fill="#242424">Coming from (Windows / .NET 4.x)</text>
+<text x="626" y="140" font-size="14" font-weight="700" fill="#242424">Going to (.NET 10 / Kubernetes)</text>
+<text x="1186" y="140" font-size="14" font-weight="700" fill="#242424">What changes most</text>
+<line x1="40" y1="150" x2="1820" y2="150" stroke="#151515" stroke-width="1.5"/>
+<rect x="40" y="154" width="1780" height="30" fill="#f4f4f4"/>
+<text x="46" y="174" font-size="13.5" font-style="italic" fill="#5a5a5a">Hosting</text>
+<text x="246" y="174" font-size="13.5" font-weight="700" fill="#151515">IIS app pool, web.config</text>
+<text x="626" y="174" font-size="13.5" fill="#242424">ASP.NET Core 10 in container; appsettings.json + ConfigMap</text>
+<text x="1186" y="174" font-size="13.5" fill="#242424">Process is now stateless; cluster injects config; image is the unit</text>
+<text x="46" y="204" font-size="13.5" font-style="italic" fill="#5a5a5a">Lifecycle</text>
+<text x="246" y="204" font-size="13.5" font-weight="700" fill="#151515">App pool recycle on memory threshold</text>
+<text x="626" y="204" font-size="13.5" fill="#242424">Kubernetes rolling deploy + graceful shutdown</text>
+<text x="1186" y="204" font-size="13.5" fill="#242424">SIGTERM is your shutdown signal; HostOptions.ShutdownTimeout is your budget</text>
+<rect x="40" y="214" width="1780" height="30" fill="#f4f4f4"/>
+<text x="46" y="234" font-size="13.5" font-style="italic" fill="#5a5a5a">Service shape</text>
+<text x="246" y="234" font-size="13.5" font-weight="700" fill="#151515">WCF [ServiceContract] / [OperationContract]</text>
+<text x="626" y="234" font-size="13.5" fill="#242424">ASP.NET Core minimal API, Grpc.AspNetCore service, HotChocolate type</text>
+<text x="1186" y="234" font-size="13.5" fill="#242424">Pick the protocol per call site, not per binding</text>
+<text x="46" y="264" font-size="13.5" font-style="italic" fill="#5a5a5a">Contracts</text>
+<text x="246" y="264" font-size="13.5" font-weight="700" fill="#151515">DataContract / .svc / WSDL</text>
+<text x="626" y="264" font-size="13.5" fill="#242424">Microsoft.AspNetCore.OpenApi; Grpc.Tools; HotChocolate SDL</text>
+<text x="1186" y="264" font-size="13.5" fill="#242424">Contracts live in Apicurio; consumers code against the contract</text>
+<rect x="40" y="274" width="1780" height="30" fill="#f4f4f4"/>
+<text x="46" y="294" font-size="13.5" font-style="italic" fill="#5a5a5a">Wire</text>
+<text x="246" y="294" font-size="13.5" font-weight="700" fill="#151515">NetTcpBinding (binary), BasicHttpBinding (SOAP)</text>
+<text x="626" y="294" font-size="13.5" fill="#242424">gRPC over HTTP/2 (binary); REST / JSON</text>
+<text x="1186" y="294" font-size="13.5" fill="#242424">Binary on internal paths; REST at the edge</text>
+<text x="46" y="324" font-size="13.5" font-style="italic" fill="#5a5a5a">Distributed txn</text>
+<text x="246" y="324" font-size="13.5" font-weight="700" fill="#151515">COM+ / MSDTC two-phase commit</text>
+<text x="626" y="324" font-size="13.5" fill="#242424">Saga + outbox (EF Core + Debezium)</text>
+<text x="1186" y="324" font-size="13.5" fill="#242424">No two-phase commit across services; compensation replaces rollback</text>
+<rect x="40" y="334" width="1780" height="30" fill="#f4f4f4"/>
+<text x="46" y="354" font-size="13.5" font-style="italic" fill="#5a5a5a">Messaging</text>
+<text x="246" y="354" font-size="13.5" font-weight="700" fill="#151515">MSMQ, SQL Server Service Broker</text>
+<text x="626" y="354" font-size="13.5" fill="#242424">Apache Kafka (Strimzi) + Confluent.Kafka</text>
+<text x="1186" y="354" font-size="13.5" fill="#242424">Replayable log + consumer groups + dead-letter routing</text>
+<text x="46" y="384" font-size="13.5" font-style="italic" fill="#5a5a5a">Background work</text>
+<text x="246" y="384" font-size="13.5" font-weight="700" fill="#151515">Windows Service hosting a queue listener</text>
+<text x="626" y="384" font-size="13.5" fill="#242424">BackgroundService in a Pod, scaled by KEDA</text>
+<text x="1186" y="384" font-size="13.5" fill="#242424">Long-running concerns ride the same Pod lifecycle as your web host</text>
+<rect x="40" y="394" width="1780" height="30" fill="#f4f4f4"/>
+<text x="46" y="414" font-size="13.5" font-style="italic" fill="#5a5a5a">Scheduled work</text>
+<text x="246" y="414" font-size="13.5" font-weight="700" fill="#151515">Windows Scheduled Tasks</text>
+<text x="626" y="414" font-size="13.5" fill="#242424">Kubernetes CronJob / KEDA Cron / Quartz.NET</text>
+<text x="1186" y="414" font-size="13.5" fill="#242424">Pick by scope: cluster-wide → CronJob; in-app → Quartz.NET</text>
+<text x="46" y="444" font-size="13.5" font-style="italic" fill="#5a5a5a">Config</text>
+<text x="246" y="444" font-size="13.5" font-weight="700" fill="#151515">web.config + Web.Release.config xforms</text>
+<text x="626" y="444" font-size="13.5" fill="#242424">appsettings.json + env vars + ConfigMap</text>
+<text x="1186" y="444" font-size="13.5" fill="#242424">Config flows via the platform; the image never embeds env</text>
+<rect x="40" y="454" width="1780" height="30" fill="#f4f4f4"/>
+<text x="46" y="474" font-size="13.5" font-style="italic" fill="#5a5a5a">Auth</text>
+<text x="246" y="474" font-size="13.5" font-weight="700" fill="#151515">Windows Auth, AD, NTLM, Kerberos</text>
+<text x="626" y="474" font-size="13.5" fill="#242424">OIDC + mTLS via Istio + SPIFFE</text>
+<text x="1186" y="474" font-size="13.5" fill="#242424">Identity is workload-bound, not machine-bound</text>
+<text x="46" y="504" font-size="13.5" font-style="italic" fill="#5a5a5a">Telemetry</text>
+<text x="246" y="504" font-size="13.5" font-weight="700" fill="#151515">Windows Perf Counters + ETW + Event Log</text>
+<text x="626" y="504" font-size="13.5" fill="#242424">OpenTelemetry .NET → OTLP → Tempo / Mimir / Loki</text>
+<text x="1186" y="504" font-size="13.5" fill="#242424">One model for traces, metrics, logs across all languages</text>
+<rect x="40" y="514" width="1780" height="30" fill="#f4f4f4"/>
+<text x="46" y="534" font-size="13.5" font-style="italic" fill="#5a5a5a">Logs</text>
+<text x="246" y="534" font-size="13.5" font-weight="700" fill="#151515">log4net, NLog, EventLog</text>
+<text x="626" y="534" font-size="13.5" fill="#242424">Microsoft.Extensions.Logging + Serilog → Loki</text>
+<text x="1186" y="534" font-size="13.5" fill="#242424">Structured JSON; never the local filesystem</text>
+<text x="46" y="564" font-size="13.5" font-style="italic" fill="#5a5a5a">Caching</text>
+<text x="246" y="564" font-size="13.5" font-weight="700" fill="#151515">ASP.NET Cache, AppFabric</text>
+<text x="626" y="564" font-size="13.5" fill="#242424">Redis (open source) via StackExchange.Redis</text>
+<text x="1186" y="564" font-size="13.5" fill="#242424">Distributed cache lives outside the Pod</text>
+<rect x="40" y="574" width="1780" height="30" fill="#f4f4f4"/>
+<text x="46" y="594" font-size="13.5" font-style="italic" fill="#5a5a5a">Sessions</text>
+<text x="246" y="594" font-size="13.5" font-weight="700" fill="#151515">ASP.NET Session State</text>
+<text x="626" y="594" font-size="13.5" fill="#242424">Stateless services + Redis (or no sessions, use JWT)</text>
+<text x="1186" y="594" font-size="13.5" fill="#242424">12-factor disposability; do not pin users to Pods</text>
+<text x="46" y="624" font-size="13.5" font-style="italic" fill="#5a5a5a">.NET Remoting</text>
+<text x="246" y="624" font-size="13.5" font-weight="700" fill="#151515">Remoting, MarshalByRefObject</text>
+<text x="626" y="624" font-size="13.5" fill="#242424">gRPC over HTTP/2 / HTTP API</text>
+<text x="1186" y="624" font-size="13.5" fill="#242424">Wire boundary is explicit; serialization is contractual</text>
+<rect x="40" y="634" width="1780" height="30" fill="#f4f4f4"/>
+<text x="46" y="654" font-size="13.5" font-style="italic" fill="#5a5a5a">Distributed transactions UI</text>
+<text x="246" y="654" font-size="13.5" font-weight="700" fill="#151515">BizTalk orchestration</text>
+<text x="626" y="654" font-size="13.5" fill="#242424">Temporal .NET workflows / Stateless (lightweight)</text>
+<text x="1186" y="654" font-size="13.5" fill="#242424">Orchestration is plain C#; the engine handles durability</text>
+<text x="46" y="684" font-size="13.5" font-style="italic" fill="#5a5a5a">Routing logic</text>
+<text x="246" y="684" font-size="13.5" font-weight="700" fill="#151515">BizTalk pipelines + content-based routing</text>
+<text x="626" y="684" font-size="13.5" fill="#242424">NRules + Confluent.Kafka producers</text>
+<text x="1186" y="684" font-size="13.5" fill="#242424">EIP patterns in code; rules in their own .csproj</text>
+<rect x="40" y="694" width="1780" height="30" fill="#f4f4f4"/>
+<text x="46" y="714" font-size="13.5" font-style="italic" fill="#5a5a5a">UI · LOB</text>
+<text x="246" y="714" font-size="13.5" font-weight="700" fill="#151515">ASP.NET Web Forms / MVC + jQuery</text>
+<text x="626" y="714" font-size="13.5" fill="#242424">Blazor Server (SignalR) or Blazor WebAssembly (browser .NET)</text>
+<text x="1186" y="714" font-size="13.5" fill="#242424">Same C# both sides of the wire; no managed cloud service required</text>
+<text x="46" y="744" font-size="13.5" font-style="italic" fill="#5a5a5a">Reverse proxy</text>
+<text x="246" y="744" font-size="13.5" font-weight="700" fill="#151515">ARR (IIS Application Request Routing)</text>
+<text x="626" y="744" font-size="13.5" fill="#242424">YARP (in-app) / Istio Gateway (mesh edge)</text>
+<text x="1186" y="744" font-size="13.5" fill="#242424">Code-level routing or declarative platform routing</text>
+<rect x="40" y="754" width="1780" height="30" fill="#f4f4f4"/>
+<text x="46" y="774" font-size="13.5" font-style="italic" fill="#5a5a5a">Resilience</text>
+<text x="246" y="774" font-size="13.5" font-weight="700" fill="#151515">Hand-coded try/retry loops, Polly v6 standalone</text>
+<text x="626" y="774" font-size="13.5" fill="#242424">M.E.Resilience pipelines (built on Polly)</text>
+<text x="1186" y="774" font-size="13.5" fill="#242424">Composable: retry + circuit breaker + timeout + hedging</text>
+<text x="46" y="804" font-size="13.5" font-style="italic" fill="#5a5a5a">Health probes</text>
+<text x="246" y="804" font-size="13.5" font-weight="700" fill="#151515">ASP.NET app warmup, monitoring agents</text>
+<text x="626" y="804" font-size="13.5" fill="#242424">M.E.Diagnostics.HealthChecks → /healthz/live + ready</text>
+<text x="1186" y="804" font-size="13.5" fill="#242424">Kubernetes is the monitoring agent</text>
+<text x="930.0" y="854" font-size="15" font-weight="700" fill="#3f7a1f" text-anchor="middle">Almost every row keeps the shape of the pattern; what changes is who owns the host and the substrate.</text>
+<text x="930.0" y="880" font-size="15" font-weight="400" fill="#5a5a5a" text-anchor="middle" font-style="italic">The last column is usually &#x27;the platform owns more, your code owns less&#x27;.</text>
+</svg>

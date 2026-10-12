@@ -23,7 +23,7 @@ and GitOps — applied differently per environment.
 
 ---
 
-## 2. Three environments, three risk profiles
+## 2. Risk profiles by environment
 
 Each environment serves a different purpose and demands a different level of control:
 
@@ -240,7 +240,7 @@ In production, no human runs `kubectl apply`. Every change follows a GitOps pipe
 
 1. **Developer opens a PR** against the environment repo (or a `kustomize` overlay
    for the prod branch).
-2. **CI validates** — `kubeval` checks schema, `conftest` runs OPA policies, a
+2. **CI validates** — `kubeconform` checks schema, `conftest` runs OPA policies, a
    staging deployment proves the change doesn't break.
 3. **Peer review + approval** — at least one reviewer from the platform or SRE team.
 4. **Merge triggers deployment** — ArgoCD or Flux detects the merge, syncs the
@@ -385,7 +385,7 @@ same validation pipeline before reaching any cluster:
 
 | Stage | Tool | What it catches |
 |-------|------|----------------|
-| **Schema validation** | kubeval, kubeconform | Invalid YAML, unknown fields, wrong API versions |
+| **Schema validation** | kubeconform v0.8.0 | Invalid YAML, unknown fields, wrong API versions |
 | **Policy lint** | conftest, kyverno CLI | Violations of organizational policies (no privileged, trusted registry, etc.) |
 | **Dry-run apply** | `kubectl apply --dry-run=server` | API server rejects (quota exceeded, admission denial) |
 | **Staging deploy** | ArgoCD sync to staging | Runtime failures, misconfigured selectors, broken connectivity |

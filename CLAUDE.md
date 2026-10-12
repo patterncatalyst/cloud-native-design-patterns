@@ -7,7 +7,7 @@ otherwise carry over from the claude.ai sessions where this repo was built.
 
 A Jekyll / GitHub Pages tutorial site teaching cloud-native API design, with **six-language
 code tabs** (Spring Boot, Quarkus, .NET, Python, C++, Go), paired **SVG + Excalidraw**
-diagrams, and a companion **six-deck PPTX series** in `lgtm-presentation/`.
+diagrams, and a companion **eight-deck PPTX set** in `lgtm-presentation/` (six language decks and two policy decks).
 
 - Live site: https://patterncatalyst.github.io/cloud-native-design-patterns/
 - Owner: `patterncatalyst`. Deploy: GitHub Actions → Pages (`.github/workflows/pages.yml`).
@@ -29,7 +29,7 @@ approvals**, no direct pushes. The required checks are summary jobs that always 
 | Check | Workflow | Covers |
 |-------|----------|--------|
 | `site` | `pages.yml` | Jekyll build (deploys only on a push to main) |
-| `content-ok` | `content.yml` | `scripts/validate_site.py` (the "Validate before commit" rules) + voice scan, ban tier (`scripts/voice-scan.sh`) |
+| `content-ok` | `content.yml` | `scripts/validate_site.py` (the "Validate before commit" rules, including the positional, old-engine and stale-stack checks over `lgtm-presentation/`) + voice scan, ban tier (`scripts/voice-scan.sh`) + `scripts/deck_text.py --check` (the deck text copies) |
 | `examples-ok` | `examples.yml` | build matrix per changed example project |
 
 Workflows trigger on `push: branches: [main]` plus `pull_request:` (no `paths:` filters).
@@ -193,12 +193,24 @@ k6, Locust.
   `content-ok`). Watch-tier hits are reviewed in context: rewrite them unless the word is
   literal (a machine that fails silently, minikube as the subject, a result table). Scope:
   `_docs`, `_parts`, `_example_pages`, `_includes`, `_layouts`, `index.html`, `README.md`,
-  `assets/diagrams/*.svg`, and `examples/**/*.md`; `lgtm-presentation/` joins in S12. When a
+  `assets/diagrams/*.svg`, `examples/**/*.md`, and the Markdown in `lgtm-presentation/` (the text copies under `text/`, the policy-deck companions, `BUILD.md`; the `.pptx` and `.docx` files are not scanned). When a
   diagram label changes, change the SVG, both `text` and `originalText` in the `.excalidraw`,
   and any alt text or caption that repeats it. The scanner is vendored from lgtm-skills
   (`scripts/voice/README.md`): fix it upstream and re-vendor, never edit the copy.
   Check a few files while writing with `scripts/voice-scan.sh --tier all --hits all <paths>`
   (paths relative to the current directory; `examples/` paths are scanned as Markdown).
+
+## The decks (`lgtm-presentation/`)
+
+Eight decks: Python, Spring Boot, Quarkus, .NET, Go and C++ (`Designing-Cloud-Native-APIs-<Lang>.pptx`,
+Appendix R on minikube in all six, no Appendix S) plus `K8s-Environment-Access-Policies` and
+`Network-Policy-Process-Advisory` with their `.md` and `.docx` companions. No generator exists: change a deck
+in place with `scripts/deck_edit.py` and an edit file under `lgtm-presentation/edits/` (applied once, to the
+committed deck; the S12 venv holds python-pptx and cairosvg), then run `python3 scripts/deck_text.py --write`
+to refresh the Markdown copies in `lgtm-presentation/text/`. CI fails when a copy is stale
+(`deck_text.py --check`). `scripts/deck_render.sh` renders slides for inspection (brand fonts required) and
+`scripts/deck_fit.py` checks a render for overflow. Code on a slide follows `examples/`; the decks are
+vendor-neutral and name no cloud SDK. `lgtm-presentation/BUILD.md` records the method, slide counts and pins.
 
 ## Workflow in Claude Code (changed from claude.ai)
 

@@ -1,0 +1,928 @@
+{
+ "ops": [
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    525
+   ],
+   "find": "on unless deliberately killed",
+   "repl": "on until an operator kills it",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    259
+   ],
+   "find": "LEAST-WORST",
+   "repl": "least-worst",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    259
+   ],
+   "find": "RISK management",
+   "repl": "risk management",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    259
+   ],
+   "find": "FREE LUNCH",
+   "repl": "free lunch",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    259
+   ],
+   "find": "MADE WORSE",
+   "repl": "made worse",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    295
+   ],
+   "find": "events are the TRANSPORT.",
+   "repl": "events are the transport.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    319
+   ],
+   "find": "in THIS request",
+   "repl": "in this request",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    319
+   ],
+   "find": "what EXACTLY happened",
+   "repl": "what exactly happened",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    319
+   ],
+   "find": "which FUNCTION is burning",
+   "repl": "which function is burning",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    320
+   ],
+   "find": "Needed for BUSINESS operations",
+   "repl": "Needed for business operations",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    320
+   ],
+   "find": "agent INTO the pod",
+   "repl": "agent into the pod",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    326
+   ],
+   "find": "ESSENTIAL in distributed systems",
+   "repl": "Essential in distributed systems",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    326
+   ],
+   "find": "ALL errors, ALL traces",
+   "repl": "all errors, all traces",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    326
+   ],
+   "find": "PLUS tail sampling",
+   "repl": "plus tail sampling",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    330
+   ],
+   "find": "at the WRONG layer",
+   "repl": "at the wrong layer",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    418
+   ],
+   "find": "Strong OR distant",
+   "repl": "Strong or distant",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    425
+   ],
+   "find": "stop NEW traffic",
+   "repl": "stop new traffic",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    449
+   ],
+   "find": "a BUSINESS rule",
+   "repl": "a business rule",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    449
+   ],
+   "find": "It runs INSIDE one service",
+   "repl": "It runs inside one service",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    459
+   ],
+   "find": "affects ALL clients",
+   "repl": "affects all clients",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    472
+   ],
+   "find": "routing layer FIRST",
+   "repl": "routing layer first",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    478
+   ],
+   "find": "is a TRANSITION state",
+   "repl": "is a transition state",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    496
+   ],
+   "find": "to BOUND the blast radius",
+   "repl": "to bound the blast radius",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    501
+   ],
+   "find": "is PERCEIVED DIFFERENTLY by",
+   "repl": "is perceived differently by",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    512
+   ],
+   "find": "reject excess work IMMEDIATELY",
+   "repl": "reject excess work immediately",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    515
+   ],
+   "find": "RED metrics PER DEPENDENCY",
+   "repl": "RED metrics per dependency",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    517
+   ],
+   "find": "at ONE layer",
+   "repl": "at one layer",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    287
+   ],
+   "find": "the SINGLE source of truth",
+   "repl": "the single source of truth",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    288
+   ],
+   "find": "in ONE local transaction",
+   "repl": "in one local transaction",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    295
+   ],
+   "find": "EVENT SOURCING means",
+   "repl": "Event sourcing means",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    295
+   ],
+   "find": "EVENT STREAMING means",
+   "repl": "Event streaming means",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    295
+   ],
+   "find": "a propagated FACT about",
+   "repl": "a propagated fact about",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    296
+   ],
+   "find": "KAFKA is the SUBSTRATE",
+   "repl": "Kafka is the substrate",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    296
+   ],
+   "find": "PULSAR is also substrate",
+   "repl": "Pulsar is also substrate",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    296
+   ],
+   "find": "pub/sub PLUS queue",
+   "repl": "pub/sub plus queue",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    296
+   ],
+   "find": "FLINK is COMPUTE",
+   "repl": "Flink is compute",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    296
+   ],
+   "find": "sits ON TOP of",
+   "repl": "sits on top of",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    296
+   ],
+   "find": "NIFI is MOVEMENT",
+   "repl": "NiFi is movement",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "answer WHERE the time went",
+   "repl": "answer where the time went",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "what EXACTLY happened",
+   "repl": "what exactly happened",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "propagates ALONG the whole trace",
+   "repl": "propagates along the whole trace",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "which FUNCTION is burning",
+   "repl": "which function is burning",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "you can PIVOT",
+   "repl": "you can pivot",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    319
+   ],
+   "find": "took 200ms but WHY",
+   "repl": "took 200ms but why",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    320
+   ],
+   "find": "auto-INJECTION from auto-INSTRUMENTATION from MANUAL instrumentation",
+   "repl": "auto-injection from auto-instrumentation from manual instrumentation",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    322
+   ],
+   "find": "travelling WITH the request",
+   "repl": "travelling with the request",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    322
+   ],
+   "find": "is CONSTANT across",
+   "repl": "is constant across",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    325
+   ],
+   "find": "question is WHEN the",
+   "repl": "question is when the",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    325
+   ],
+   "find": "HEAD sampling decides at the START",
+   "repl": "Head sampling decides at the start",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    325
+   ],
+   "find": "it's BLIND at",
+   "repl": "it is blind at",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    325
+   ],
+   "find": "TAIL sampling decides at the END",
+   "repl": "Tail sampling decides at the end",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    325
+   ],
+   "find": "sample by TRACE not by span",
+   "repl": "sample by trace, not by span",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    339
+   ],
+   "find": "are REJECTED",
+   "repl": "are rejected",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    340
+   ],
+   "find": "defines the LOGIC",
+   "repl": "defines the logic",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    340
+   ],
+   "find": "is the INSTANCE that",
+   "repl": "is the instance that",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    343
+   ],
+   "find": "a CLAIM TICKET (",
+   "repl": "a claim ticket (",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    390
+   ],
+   "find": "agree ONE error contract",
+   "repl": "agree one error contract",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    391
+   ],
+   "find": "a STABLE machine-readable",
+   "repl": "a stable machine-readable",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    392
+   ],
+   "find": "status CLASS, which",
+   "repl": "status class, which",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    400
+   ],
+   "find": "backoff PLUS jitter",
+   "repl": "backoff plus jitter",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    424
+   ],
+   "find": "lag, THEN stop accepting",
+   "repl": "lag, then stop accepting",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    431
+   ],
+   "find": "north/south AND east/west",
+   "repl": "north/south and east/west",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    444
+   ],
+   "find": "The DIFFICULT part",
+   "repl": "The difficult part",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    455
+   ],
+   "find": "(encryption AND identity)",
+   "repl": "(encryption and identity)",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    455
+   ],
+   "find": "with NO app code",
+   "repl": "with no app code",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    468
+   ],
+   "find": "a DEPLOYMENT-organisation property",
+   "repl": "a deployment-organisation property",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    468
+   ],
+   "find": "when does THIS monolith",
+   "repl": "when does this monolith",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    479
+   ],
+   "find": "differ in WHO reads/writes the cache, WHEN, and WHO owns",
+   "repl": "differ in who reads/writes the cache, when, and who owns",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    481
+   ],
+   "find": "in WHO does the work",
+   "repl": "in who does the work",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    499
+   ],
+   "find": "is QUORUM:",
+   "repl": "is quorum:",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    502
+   ],
+   "find": "exactly ONE layer",
+   "repl": "exactly one layer",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    503
+   ],
+   "find": "for ALL callers",
+   "repl": "for all callers",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    505
+   ],
+   "find": "call MUST have a timeout",
+   "repl": "call must have a timeout",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    513
+   ],
+   "find": "it EJECTS that host",
+   "repl": "it ejects that host",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    513
+   ],
+   "find": "don't ALSO retry",
+   "repl": "don't also retry",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    516
+   ],
+   "find": "across a ROW",
+   "repl": "across a row",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    516
+   ],
+   "find": "down a COLUMN",
+   "repl": "down a column",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    435
+   ],
+   "find": "the SERVICE MESH (",
+   "repl": "the service mesh (",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    435
+   ],
+   "find": "into the APP itself",
+   "repl": "into the app itself",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    441
+   ],
+   "find": "so the latency-budget slide later makes sense",
+   "repl": "so the L7 latency budget makes sense",
+   "expect": 1,
+   "cat": "positional"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    457
+   ],
+   "find": "as the canary slide earlier",
+   "repl": "as the weighted canary",
+   "expect": 1,
+   "cat": "positional"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    507
+   ],
+   "find": "storm two slides back",
+   "repl": "storm from the amplification-loop discussion",
+   "expect": 1,
+   "cat": "positional"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    382
+   ],
+   "find": "persisted FAILED state",
+   "repl": "persisted COMPENSATED state",
+   "expect": 1,
+   "cat": "code"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    448
+   ],
+   "find": "inject correlation and identity",
+   "repl": "inject the caller address and identity",
+   "expect": 1,
+   "cat": "code"
+  }
+ ]
+}

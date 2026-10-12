@@ -1,0 +1,3 @@
+{"ops":[
+ {"op":"replace","scope":"slide","sldIds":[539],"find":"k8s/build-images.sh spring-boot# docker build","repl":"k8s/build-images.sh spring-boot  # docker build","expect":1,"_cat":"code","_why":"missing space before the comment (the language name filled the padding)"}
+]}

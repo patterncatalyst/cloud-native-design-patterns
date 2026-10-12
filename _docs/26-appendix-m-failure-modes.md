@@ -329,7 +329,7 @@ public class QuoteService {
     private final QuoteClient client;
 
     @Retry(name = "quote")                  // config in application.yml
-    @CircuitBreaker(name = "quote")         // ALWAYS pair retry with a breaker
+    @CircuitBreaker(name = "quote")         // always pair retry with a breaker
     public Quote quote(String symbol) {     // idempotent GET only
         return client.getQuote(symbol);
     }
@@ -353,17 +353,17 @@ public class QuoteService {
            delay = 100, delayUnit = MILLIS,      // base backoff
            jitter = 50, jitterUnit = MILLIS,     // de-synchronise clients
            retryOn = TransientException.class)   // transient failures only
-    @CircuitBreaker(requestVolumeThreshold = 10, // ALWAYS pair with a breaker
+    @CircuitBreaker(requestVolumeThreshold = 10, // always pair with a breaker
                     failureRatio = 0.5, delay = 5000)
     public Quote quote(String symbol) {           // idempotent GET
         return client.getQuote(symbol);
     }
 }
-// MicroProfile applies the breaker first, then retry within the closed state.
+// Retry wraps the breaker; an open breaker fails each retry fast.
 ```
 
 ```csharp
-// Polly v8: exponential backoff WITH jitter is built in
+// Polly v8: exponential backoff with jitter is built in
 private static readonly ResiliencePipeline _pipeline =
     new ResiliencePipelineBuilder()
         .AddRetry(new RetryStrategyOptions {
@@ -537,6 +537,7 @@ public class PaymentService(HttpClient http, IOutbox outbox)
 
 ```python
 from purgatory import AsyncCircuitBreakerFactory
+from purgatory.domain.model import OpenedState   # raised while the breaker is open
 
 # Open after 5 failures; stay open 30s; then half-open to test recovery
 breakers = AsyncCircuitBreakerFactory(default_threshold=5, default_ttl=30)
@@ -588,9 +589,11 @@ class CircuitBreaker {
 ```
 
 ```go
-// circuit breaker, one per dependency — sony/gobreaker.
+// circuit breaker, one per dependency — sony/gobreaker v2.
 // Production shops often let Istio do this; shown for reference.
-var paymentBreaker = gobreaker.NewCircuitBreaker(gobreaker.Settings{
+import "github.com/sony/gobreaker/v2"
+
+var paymentBreaker = gobreaker.NewCircuitBreaker[Result](gobreaker.Settings{
 	Name:    "payment",
 	Timeout: 30 * time.Second, // stay open 30s, then half-open to test recovery
 	ReadyToTrip: func(c gobreaker.Counts) bool {
@@ -599,14 +602,14 @@ var paymentBreaker = gobreaker.NewCircuitBreaker(gobreaker.Settings{
 })
 
 func charge(ctx context.Context, order Order) (Result, error) {
-	v, err := paymentBreaker.Execute(func() (any, error) {
-		return client.Post(ctx, "/charge", order) // skipped while OPEN — no doomed call
+	res, err := paymentBreaker.Execute(func() (Result, error) {
+		return client.Post(ctx, "/charge", order) // skipped while open — no doomed call
 	})
-	if err != nil { // breaker open or call failed → degrade
-		_ = outbox.Enqueue(ctx, order)                  // graceful fallback
+	if errors.Is(err, gobreaker.ErrOpenState) || errors.Is(err, gobreaker.ErrTooManyRequests) {
+		_ = outbox.Enqueue(ctx, order) // breaker open → graceful fallback
 		return Result{Status: "pending", ID: order.ID}, nil
 	}
-	return v.(Result), nil
+	return res, err
 }
 ```
 
@@ -727,8 +730,8 @@ concerns between the mesh and the app and never double-retry; and observe from t
 vantage point, because gray failures are invisible to naive health checks. The canonical
 references are the Google SRE Book (the chapters on addressing cascading failures and handling
 overload are the best free resource), Michael Nygard's *Release It!* (where the circuit breaker
-and bulkhead were named for software), the AWS Builders' Library (timeouts, retries, backoff with
-jitter), the Istio traffic-management docs, and the metastable-failures research (Bronson et al.,
+and bulkhead were named for software), the gRPC retry design, gRFC A6 (retry policy, backoff with jitter, retry
+throttling), the Istio traffic-management docs, and the metastable-failures research (Bronson et al.,
 2021).
 
 ### Cross-check it yourself
