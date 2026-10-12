@@ -141,3 +141,12 @@ Script bugs found and fixed during the live run (a379989, 1f77342, 82fdd88):
 - D10: setup-crc.sh exit trap exits non-zero when the current-context cannot be restored.
 - D11: .NET 05 consumers skip null header values and set `ActivityStatusCode.Error` on failed processing; OrderService sets it on a failed publish. Compose verify 10/10; linked trace (order-service, shipping-consumer, notification-consumer) found in Tempo; compose down -v, `docker ps` empty.
 - Live re-run (cold start, teardown) is left to the orchestrator.
+
+## Live verification after repair round 1 (2026-10-11)
+
+- Cold start (CRC Stopped, then `setup-crc.sh`, which held a 300 s settled window): all five languages 10 passed, 0 failed (spring-boot 162 s, quarkus 118 s, dotnet 117 s, python 116 s, go 114 s); linked traces with all three services; all 30 pods `restricted-v2`. Evidence: session scratchpad `s10/final/`.
+- Foreign-CRD probe: with a KafkaTopic in a separate namespace, teardown kept all 10 CRDs and named the item. That exposed orphaned CRDs once the probe was gone (the CSV no longer existed); fixed by also selecting CRDs carrying OLM's `operators.coreos.com/amq-streams.<operator namespace>` label (94ac394). The orphans were removed live (`teardown-orphans.log`).
+- `deploy.sh` fails fast when the three ImageStreamTags are missing (94ac394); inventory lists `strimzi.io` CRDs.
+- Final recheck (Opus): merge verdict; D1 to D11 fixed; cold-start python cycle passed. Its follow-ups, fixed in 0c874e7: refuse Strimzi CRDs not installed by our Subscription and Strimzi cluster-operator Deployments in other namespaces; teardown removes OLM's `Operator` object `amq-streams.cndp-amq-streams`; setup waits for a settled cluster before its first reads and annotates the registry config before patching; waits use wall-clock deadlines and `--request-timeout`; docs snippets and CLAUDE.md updated.
+- Last cold cycle on 0c874e7: spring-boot and go 10 passed, 0 failed (166 s, 116 s), linked traces, `restricted-v2`; teardown removed the OLM Operator object, 10 CRDs and both namespaces, reverted the route, `crc stop`; second teardown exit 0; current-context unset and `~/.kube/config` sha256 unchanged (026ef3ce…721a). Evidence: `s10/last/`.
+- Not ours, left untouched: stale OLM `Operator` objects from other projects on this CRC (reported to the user).
