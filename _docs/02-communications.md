@@ -18,19 +18,19 @@ one.
 
 {% include excalidraw.html
    file="02-pick-protocol"
-   alt="Four columns of interaction styles, each tagged sync or async: REST/HTTP (public and edge surface, wide reach, cacheable, resource-shaped, FastAPI) — sync; gRPC (internal service-to-service, low latency, streaming, schema-first proto) — sync; GraphQL (client-driven reads, compose many sources, one round-trip, Strawberry/Graphene) — sync; and Async/events (fire-and-forget facts, decoupled in time, fan-out to many, Kafka/Pulsar) — async."
+   alt="Four columns of interaction styles, each tagged sync or async: REST/HTTP (public and edge surface, wide reach, cacheable, resource-shaped, FastAPI), sync; gRPC (internal service-to-service, low latency, streaming, schema-first proto), sync; GraphQL (client-driven reads, compose many sources, one round-trip, Strawberry/Graphene), sync; and Async/events (fire-and-forget facts, decoupled in time, fan-out to many, Kafka/Pulsar), async."
    caption="Figure 2.1 — Four interaction styles, four defaults — three synchronous, one asynchronous" %}
 
 Read it by the sync/async tags along the bottom: REST, gRPC, and GraphQL are all
 request/response — the caller waits — while events are fire-and-forget. Three of the
 four couple the caller to the callee's availability for the duration of the call; only
 the fourth breaks that coupling. Choosing a style is therefore choosing how much
-availability you are willing to inherit — the thread the rest of the chapter pulls on.
+availability you are willing to inherit — the thread that runs through this chapter.
 REST wins where reach and caching matter; gRPC where an internal hop must be fast and
 strongly typed; GraphQL where one client read would otherwise be a handful of round
 trips; and events wherever immediacy is not strictly required.
 
-Two interaction styles are deliberately deferred from this chapter. **GraphQL** gets
+Two interaction styles are deferred from this chapter. **GraphQL** gets
 its own treatment in **03 · Composition**, because GraphQL is fundamentally a
 composition pattern — a gateway that fans out to REST and gRPC back-ends — and that
 context matters more than the wire format. **WebSockets** are covered in
@@ -214,10 +214,10 @@ func (s *Server) routes() {
 }
 ```
 
-The `events.publish("order.placed", …)` line is shown simply here so the focus
+The `events.publish("order.placed", …)` line is shown in simplified form here so the focus
 stays on the edge concerns; **04 · Data** makes that emission transactionally safe
 with the outbox. FastAPI, Spring, and the others also emit an OpenAPI document
-for free, which becomes the registered contract.
+automatically, which becomes the registered contract.
 
 ## gRPC for internal calls
 

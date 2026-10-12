@@ -34,5 +34,5 @@
 <path d="M367,112 L367,175" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M607,112 L607,175" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M847,112 L847,175" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
-<text x="490" y="362" font-size="12" fill="#2f6db5" text-anchor="middle">sharing a database couples deploys and schemas — the most common way a &#x27;microservice&#x27; system quietly fails</text>
+<text x="490" y="362" font-size="12" fill="#2f6db5" text-anchor="middle">sharing a database couples deploys and schemas — the most common way a &#x27;microservice&#x27; system fails</text>
 </svg>

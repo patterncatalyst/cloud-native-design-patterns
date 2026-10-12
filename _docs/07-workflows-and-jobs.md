@@ -17,7 +17,7 @@ There are two ways to coordinate a multi-step process, and they are mirror image
 
 **Orchestration** puts a central coordinator in charge: it commands each service
 in turn — reserve stock, take payment, book shipping — and owns the end-to-end
-flow. It is easy to follow, easy to observe, and easy to audit. Its failure mode
+flow. It is straightforward to follow, observe, and audit. Its failure mode
 is the **god-service**: the coordinator accretes business logic until it becomes
 the monolith you were trying to avoid.
 
@@ -51,7 +51,7 @@ The heuristic:
   than visibility — send a welcome email when a user signs up. Adding a reaction
   shouldn't require touching a coordinator.
 
-The trap is using choreography for a process that's actually complex, then
+The trap is using choreography for a process that's complex, then
 discovering six months later that no single place describes what the process *is*.
 When the flow has compensations and a lifecycle, that lifecycle wants to live
 somewhere explicit — which is exactly the persisted saga state machine in **Appendix D · Sagas**.
@@ -95,7 +95,7 @@ spec:
               args: ["reconcile", "--since=24h"]
 ```
 
-A queue worker isn't a Job at all — it's an ordinary Deployment that loops on a
+A queue worker is not a Job; it is an ordinary Deployment that loops on a
 topic, with the `ScaledObject` from the stream-processing chapter giving it
 scale-to-zero. The shape of the work picks the home: run-once is a Job, scheduled
 is a CronJob, continuous is a scaled Deployment.

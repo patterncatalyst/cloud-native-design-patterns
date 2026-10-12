@@ -17,7 +17,7 @@ monolith.
 {% include excalidraw.html
    file="08-four-planes"
    alt="Four planes side by side: the runtime plane (gateway and mesh), the contract plane (registry, section 9), the discovery plane (metadata, section 10), and the signal plane (observability, section 11)"
-   caption="Figure 8.1 — Four planes, four owners — each a section of the platform" %}
+   caption="Figure 8.1 — Four planes, each a section of the platform with its own owner" %}
 
 - **Runtime plane** — the gateway and the Istio mesh. Traffic, authentication,
   rate limiting, and resilience happen here, on the wire, as configuration. This
@@ -27,12 +27,12 @@ monolith.
   and event schema, versioned and gated in CI.
 - **Discovery plane** — the catalog and metadata (**10 · API Metadata**). How a
   human finds an API and decides whether to trust it.
-- **Signal plane** — observability (**11 · Observability**). What is actually
+- **Signal plane** — observability (**11 · Observability**). What is
   happening to the APIs in production.
 
 The point is the separation. A single "API gateway product" that tries to own all
 four becomes exactly the god-service the workflows chapter warned about — runtime
-policy, contract storage, discovery UX, and telemetry pipelines have genuinely
+policy, contract storage, discovery UX, and telemetry pipelines have
 different owners and release cadences, and fusing them into one box recreates the
 monolith at the edge. Distinct planes have distinct owners and evolve independently;
 this chapter's job is largely to insist they stay distinct.
@@ -101,13 +101,13 @@ policy, not code; changing the rate or the burst is a config commit, not a redep
 
 Versioning is a management concern, not an afterthought bolted on when something
 breaks. The core discipline is to **evolve additively**: add optional fields and new
-endpoints; never repurpose a field's meaning and never silently remove one. This
+endpoints; never repurpose a field's meaning and never remove one without warning. This
 works because well-behaved consumers ignore fields they do not recognise, so a new
 optional field is invisible to old clients while available to new ones. A consumer
 written against last year's contract should still work against this year's service
 without a single change.
 
-When you genuinely must break compatibility, you don't mutate the existing
+When you must break compatibility, you don't mutate the existing
 contract — you stand up a new major version beside the old one. Carry the major in
 the path (`/v2`) or in the media type, run both side by side, publish a **sunset
 date**, and migrate consumers off before retiring the old one. The mechanics —

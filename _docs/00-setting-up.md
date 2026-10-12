@@ -2,7 +2,7 @@
 title: "Setting up · Patterns in the age of AI"
 order: 0
 part: "Setting up"
-description: "Why a shared vocabulary of patterns matters more now that an AI writes the first draft, and the canonical five-service system we design against for the rest of the book."
+description: "Why a shared vocabulary of patterns matters more now that an AI writes the first draft, and the canonical five-service system we design against throughout the book."
 duration: 10 minutes
 ---
 
@@ -36,8 +36,8 @@ them in view:
   operational complexity. The question is whether you are buying the right thing
   for what you are paying.
 - **No problem cannot be made worse.** A confidently-wrong intervention amplifies
-  the original pain. AI tooling makes confident interventions cheap and easy,
-  which is exactly why this maxim earns its place.
+  the original pain. AI tooling makes confident interventions cheap,
+  which is exactly why this maxim is needed.
 
 ## Three layers of patterns literacy
 
@@ -88,7 +88,7 @@ When a later chapter shows the transactional outbox, or content-based routing, o
 a saga, it is wiring up *these* services. Keeping one concrete system in mind is
 what stops the patterns from staying abstract.
 
-## How the rest of the book is ordered
+## How the book is ordered
 
 The order is deliberate: principles first, because they justify every later
 choice; then the synchronous surface (communications, composition); then data

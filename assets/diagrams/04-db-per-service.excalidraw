@@ -1187,13 +1187,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "sharing a database couples deploys and schemas \u2014 the most common way a 'microservice' system quietly fails",
+   "text": "sharing a database couples deploys and schemas \u2014 the most common way a 'microservice' system fails",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "sharing a database couples deploys and schemas \u2014 the most common way a 'microservice' system quietly fails",
+   "originalText": "sharing a database couples deploys and schemas \u2014 the most common way a 'microservice' system fails",
    "lineHeight": 1.25,
    "baseline": 12
   }

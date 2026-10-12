@@ -7,7 +7,7 @@ duration: 28 minutes
 ---
 
 The signal plane. Once you have services, events, and a platform, the question is
-what is *actually* happening in production — and the answer is three signals,
+what is happening in production — and the answer is three signals,
 emitted by **OpenTelemetry** (vendor-neutral) and stored in an LGTM-style stack
 (Loki, Grafana, Tempo, Mimir).
 
@@ -197,14 +197,14 @@ func placeOrder(w http.ResponseWriter, r *http.Request) {
 Every tab does two things: turn on auto-instrumentation for the frameworks (one
 line of config, or a builder chain in .NET), and add **one** manual span around the
 business operation — `reserve_stock`. The plumbing spans (HTTP in, gRPC out, Kafka
-publish) come for free; the domain span is the bit only you can write. The honest
+publish) need no code; the domain span is the bit only you can write. The one
 exception is C++: there is no auto-instrumentation for Drogon or
 `librdkafka`, so you add a request-scoped middleware span by hand — the
 chapter says so rather than pretending the agent exists.
 
 ## The other two signals, in code
 
-Auto-instrumentation gives you trace spans for free, but the **metric** and the
+Auto-instrumentation creates the trace spans, but the **metric** and the
 **trace-correlated log** are a line you write at the business moment. Emit a counter
 (or histogram) for the operation, and log through the OTel-aware logger so the active
 `trace_id` is stamped onto the line — that stamp is what lets you jump from a log
@@ -303,7 +303,7 @@ The metric feeds the RED/USE dashboards and SLO alerts; the log carries the
 `trace_id` so Loki can filter to exactly the request you are chasing. Same operation,
 three correlated signals from one place in the code.
 
-## How correlation actually works
+## How correlation works
 
 "Correlation" sounds like backend magic; it isn't. The trace context travels
 **with the request, in band, at every hop** — the W3C `traceparent` header,
@@ -429,7 +429,7 @@ processors:
 ```
 
 The shape — keep errors, keep slow, sample the rest — is the one most teams want:
-you never drop the traces you'd actually investigate, and you pay full storage only
+you never drop the traces you'd investigate, and you pay full storage only
 for the boring majority you sample down.
 
 ### Cross-check it yourself

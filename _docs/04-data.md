@@ -22,7 +22,7 @@ one atomic act.
 The first rule of data in a microservice system is the one most often broken:
 **each service owns its data, and no other service touches its tables.** Peers reach
 an owned dataset only through the owning service's API, never by connecting to its
-database. Sharing a database may look like reuse, but it silently couples every
+database. Sharing a database may look like reuse, but it couples every
 consumer to the owner's schema — a column rename becomes a cross-team migration, and
 two services' deploys can no longer move independently. A shared database is the
 single most common way a nominally microservice system collapses back into a
@@ -53,7 +53,7 @@ are linked by a stream of changes flowing from the write side to the read side.
 
 The cost is eventual consistency — a small lag between the write committing and
 the read model catching up. The benefit is that each side can scale and evolve
-independently. Reach for it when reads and writes genuinely have different
+independently. Reach for it when reads and writes have different
 shapes and access patterns; skip it when a single store handles both happily,
 because the separation is not free.
 
@@ -104,7 +104,7 @@ Kubernetes the rest of the stack runs on.
 
 > **WAL — Write-Ahead Log.** The database's commit-ordered, durable log. It
 > already exists so the database can replicate and recover from a crash;
-> Debezium simply subscribes to it.
+> Debezium subscribes to it.
 
 ## The dual-write bug, and the outbox that fixes it
 
@@ -128,7 +128,7 @@ guaranteed, ordered consequence of it.
 
 ### The code, in your language
 
-Pick your stack — the tab selection follows you through the rest of the book. The
+Pick your stack — the tab selection follows you across all chapters. The
 shape is identical everywhere: open one local transaction, persist the state
 change, persist the outbox row in the *same* transaction, commit. No broker call
 sits on the request path.

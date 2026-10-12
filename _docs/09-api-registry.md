@@ -324,7 +324,7 @@ func isCompatible(group, artifactID string, schema []byte) (bool, error) {
 
 ### Cross-check it yourself
 
-Prove the gate bites. Register `order-placed.avsc`, then make a genuinely breaking
+Prove the gate bites. Register `order-placed.avsc`, then make a breaking
 change — rename a required field — and `curl` the new version: you should get a
 `400`, and the CI step should exit non-zero. Then make an additive change — a new
 *optional* field — and confirm it returns `200` and publishes a new version. The

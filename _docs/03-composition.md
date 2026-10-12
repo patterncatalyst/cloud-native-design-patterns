@@ -227,7 +227,7 @@ domains must present as one graph and reads dominate.
 The anti-pattern to name explicitly is the opposite of all three:
 **service-to-service call chains**, where `order` calls `inventory` calls
 `pricing` calls… — synchronous, deeply coupled, and impossible to reason about. It
-quietly rebuilds a distributed monolith. Composition belongs at the edge, not
+rebuilds a distributed monolith. Composition belongs at the edge, not
 buried in a chain of internal calls.
 
 ## Composition through the coupling lens
@@ -265,7 +265,7 @@ exactly why it becomes a distributed monolith.
 
 The gateway is just HTTP. Send the same query with `curl` or Postman and request
 `stock` in one call, then omit it in another — confirm the gateway only calls
-`inventory` when `stock` is actually selected. Then request a *list* of orders with
+`inventory` when `stock` is selected. Then request a *list* of orders with
 `stock` and watch the back-end call count: without batching it climbs with the
 list size; with a DataLoader it stays flat. That flat line is the N+1 fix working.
 
