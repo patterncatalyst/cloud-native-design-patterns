@@ -171,7 +171,7 @@ talk to the storage system directly.
 
 {% include excalidraw.html
    file="12-valet-key"
-   alt="A client requests a key from the application, which mints a scoped, time-bound, operation-restricted valet key and returns a signed token. The client then PUTs or GETs directly against the resource (S3, blob, file) using the token; the storage/KMS layer validates the token, permits the named operation, and rejects everything else. The app never proxies the bytes."
+   alt="A client requests a key from the application, which mints a scoped, time-bound, operation-restricted valet key and returns a signed token. The client then PUTs or GETs directly against the resource (object store, file) using the token; the storage/KMS layer validates the token, permits the named operation, and rejects everything else. The app never proxies the bytes."
    caption="Figure 12.3 — The app mints a scoped, time-bound token; the client accesses storage directly and the app never proxies the bytes" %}
 
 The application mints a key that is *scoped* (this one object), *time-bound* (minutes,
@@ -183,111 +183,158 @@ on the client, and your service is out of the data path:
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-// ValetKeyService.java — mint a scoped, time-bound upload ticket
+// ValetKeyService.java (excerpt), examples/12-security/spring-boot: HMAC-SHA256 valet key
 @Service
 public class ValetKeyService {
-    private final S3Presigner presigner;
-    public ValetKeyService(S3Presigner presigner) { this.presigner = presigner; }
-
-    public String uploadTicket(String bucket, String key) {
-        var req = PutObjectRequest.builder().bucket(bucket).key(key).build();
-        var presignReq = PutObjectPresignRequest.builder()
-            .signatureDuration(Duration.ofMinutes(5))   // time-bound
-            .putObjectRequest(req)                      // this object, PUT only
-            .build();
-        return presigner.presignPutObject(presignReq).url().toString();
+    private static final int TTL_SECONDS = 300;                       // time-bound
+    private final byte[] secret;          // VALET_SECRET, injected through @Value
+    public Map<String, Object> mint(String resource, String operation) {
+        long expires = System.currentTimeMillis() / 1000 + TTL_SECONDS;
+        String payload = resource + ":" + operation + ":" + expires;  // one object, one op
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("resource", resource);
+        result.put("operation", operation);
+        result.put("expires", expires);
+        result.put("token", hmac(payload));               // HmacSHA256, hex-encoded
+        return result;
     }
-    // client PUTs straight to S3; the app never proxies the bytes
+    public boolean verify(String resource, String operation, long expires, String token) {
+        if (System.currentTimeMillis() / 1000 > expires) return false;   // expired
+        String expected = hmac(resource + ":" + operation + ":" + expires);
+        return MessageDigest.isEqual(token.getBytes(), expected.getBytes()); // constant time
+    }
 }
+// OrderController maps POST /valet-key to mint() and GET /verify-valet to verify()
 ```
 
 ```java
-// ValetKeyService.java — Quarkus with the AWS SDK
+// ValetKeyService.java (excerpt), examples/12-security/quarkus: HMAC-SHA256 valet key
 @ApplicationScoped
 public class ValetKeyService {
-    @Inject S3Presigner presigner;
-
-    public String uploadTicket(String bucket, String key) {
-        var req = PutObjectRequest.builder().bucket(bucket).key(key).build();
-        var presignReq = PutObjectPresignRequest.builder()
-            .signatureDuration(Duration.ofMinutes(5))   // time-bound
-            .putObjectRequest(req)                      // scoped: this object, PUT only
-            .build();
-        return presigner.presignPutObject(presignReq).url().toString();
+    private static final int TTL_SECONDS = 300;                       // time-bound
+    private final byte[] secret;          // VALET_SECRET, injected through @ConfigProperty
+    public Map<String, Object> mint(String resource, String operation) {
+        long expires = System.currentTimeMillis() / 1000 + TTL_SECONDS;
+        String payload = resource + ":" + operation + ":" + expires;  // one object, one op
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("resource", resource);
+        result.put("operation", operation);
+        result.put("expires", expires);
+        result.put("token", hmac(payload));               // HmacSHA256, hex-encoded
+        return result;
+    }
+    public boolean verify(String resource, String operation, long expires, String token) {
+        if (System.currentTimeMillis() / 1000 > expires) return false;   // expired
+        String expected = hmac(resource + ":" + operation + ":" + expires);
+        return MessageDigest.isEqual(token.getBytes(), expected.getBytes()); // constant time
     }
 }
+// OrderResource maps POST /valet-key to mint() and GET /verify-valet to verify()
 ```
 
 ```csharp
-// ValetKeyService.cs — mint a scoped, time-bound upload ticket
-public class ValetKeyService(IAmazonS3 s3)
+// Program.cs (excerpt), examples/12-security/dotnet: an HMAC-SHA256 valet key
+var valetSecret = Environment.GetEnvironmentVariable("VALET_SECRET")
+    ?? "demo-secret-do-not-use-in-prod";
+app.MapPost("/valet-key", (HttpContext ctx) =>
 {
-    public async Task<string> UploadTicketAsync(string bucket, string key)
-    {
-        var url = await s3.GetPreSignedURLAsync(new GetPreSignedUrlRequest
-        {
-            BucketName = bucket,
-            Key        = key,
-            Verb       = HttpVerb.PUT,             // this object, PUT only
-            Expires    = DateTime.UtcNow.AddMinutes(5),   // time-bound
-        });
-        return url;   // client PUTs straight to S3; the app never sees the bytes
-    }
-}
+    var resource = ctx.Request.Query["resource"].ToString();
+    var operation = ctx.Request.Query["operation"].FirstOrDefault() ?? "GET";
+    var expires = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 300;      // time-bound
+    var payload = $"{resource}:{operation}:{expires}";                 // one object, one op
+    var sig = ComputeHmac(valetSecret, payload);
+    return Results.Ok(new { resource, operation, expires, token = sig });
+});
+// GET /verify-valet: 403 once expired, then a constant-time compare
+    if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() > expires)
+        return Results.Json(new { detail = "expired valet key" }, statusCode: 403);
+    var expected = ComputeHmac(valetSecret, $"{resource}:{operation}:{expires}");
+    if (!CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(token), Encoding.UTF8.GetBytes(expected)))
+        return Results.Json(new { detail = "invalid or expired valet key" }, statusCode: 403);
+// ComputeHmac: HMACSHA256 keyed with the secret, Convert.ToHexStringLower of the hash
 ```
 
 ```python
-import boto3
-from datetime import timedelta
+# main.py (excerpt), examples/12-security/python: an HMAC-SHA256 valet key
+VALET_SECRET = os.environ.get("VALET_SECRET", "demo-secret-do-not-use-in-prod")
 
-s3 = boto3.client("s3")
+def _mint_valet(resource: str, operation: str, ttl: int = 300) -> dict:
+    expires = int(time.time()) + ttl                        # time-bound
+    payload = f"{resource}:{operation}:{expires}"           # one object, one operation
+    sig = hmac.new(VALET_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return {"resource": resource, "operation": operation, "expires": expires, "token": sig}
 
-def upload_ticket(bucket: str, key: str) -> str:
-    # a valet key: this object, PUT only, expires in 5 minutes
-    return s3.generate_presigned_url(
-        "put_object",
-        Params={"Bucket": bucket, "Key": key},
-        ExpiresIn=int(timedelta(minutes=5).total_seconds()),
-    )
-# the client PUTs straight to S3 with the returned URL; the app never sees the bytes
+def _verify_valet(resource: str, operation: str, expires: int, token: str) -> bool:
+    if time.time() > expires:
+        return False                                        # expired: worthless
+    payload = f"{resource}:{operation}:{expires}"
+    expected = hmac.new(
+        VALET_SECRET.encode(), payload.encode(), hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(token, expected)             # constant-time compare
+
+@app.post("/valet-key")
+async def mint_key(resource: str, operation: str = "GET"):
+    return _mint_valet(resource, operation)
+# GET /verify-valet answers 403 for an expired or tampered key
 ```
 
 ```cpp
-// valet_key.h — mint a scoped, time-bound upload ticket (AWS SDK for C++)
-#include <aws/s3/S3Client.h>
-#include <aws/s3/model/PutObjectRequest.h>
-
-inline std::string upload_ticket(const Aws::S3::S3Client& s3,
-                                  const std::string& bucket,
-                                  const std::string& key) {
-  Aws::S3::Model::PutObjectRequest req;
-  req.SetBucket(bucket);
-  req.SetKey(key);
-  // scoped: this object, PUT only, expires in 5 minutes
-  return s3.GeneratePresignedUrl(bucket, key,
-      Aws::Http::HttpMethod::HTTP_PUT,
-      /*expirationInSeconds=*/300);
-  // client PUTs straight to S3; the app never proxies the bytes
+// valet.hpp (excerpt), examples/12-security/cpp: the valet key is an HS256 JWT (jwt-cpp)
+inline Minted mint(const std::string& secret, const std::string& resource,
+                   const std::string& operation,
+                   std::chrono::seconds ttl = std::chrono::minutes(5)) {   // time-bound
+    const auto now = std::chrono::system_clock::now();
+    const auto exp = std::chrono::time_point_cast<std::chrono::seconds>(now + ttl);
+    auto token = jwt::create()
+                     .set_type("JWT")
+                     .set_issuer(kIssuer)                         // "order-service"
+                     .set_issued_at(now)
+                     .set_expires_at(exp)
+                     .set_payload_claim("res", jwt::claim(resource))   // one object
+                     .set_payload_claim("op", jwt::claim(operation))   // one operation
+                     .sign(jwt::algorithm::hs256{secret});
+    return {std::move(token), exp.time_since_epoch().count()};
 }
+// verify(): HS256 pinned ("none" and RS256 never reach the verifier), then iss, res, op
+const auto decoded = jwt::decode(token);
+if (decoded.get_algorithm() != "HS256") return false;
+jwt::verify().allow_algorithm(jwt::algorithm::hs256{secret}).with_issuer(kIssuer)
+    .with_claim("res", jwt::claim(resource)).with_claim("op", jwt::claim(operation))
+    .verify(decoded);                                  // signature + exp; throws on failure
 ```
 
 ```go
-// valet_key.go — mint a scoped, time-bound upload ticket
-func uploadTicket(ctx context.Context, client *s3.PresignClient,
-	bucket, key string) (string, error) {
-
-	req, err := client.PresignPutObject(ctx, &s3.PutObjectInput{
-		Bucket: &bucket,
-		Key:    &key,
-	}, s3.WithPresignExpires(5*time.Minute)) // scoped: this object, PUT only, 5 min
-	if err != nil {
-		return "", err
-	}
-	return req.URL, nil // client PUTs straight to S3; the app never sees the bytes
+// main.go (excerpt), examples/12-security/go — the valet key is an HS256 JWT (golang-jwt v5)
+type valetClaims struct {
+	Resource  string `json:"res"`
+	Operation string `json:"op"`
+	jwt.RegisteredClaims
 }
+
+func mintValet(resource, operation string) map[string]any {
+	expires := time.Now().Add(5 * time.Minute) // time-bound
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, valetClaims{
+		Resource:  resource,  // scoped: this one object
+		Operation: operation, // operation-restricted: GET or PUT, not both
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expires),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    "order-service",
+		},
+	}).SignedString([]byte(valetSecret))
+	if err != nil {
+		slog.Error("sign valet key", "err", err)
+	}
+	return map[string]any{"resource": resource, "operation": operation,
+		"expires": expires.Unix(), "token": token}
+}
+// the verifier accepts HS256 only, requires exp, checks the issuer, then matches res, op and exp
 ```
 
-The same shape covers Azure SAS tokens, GCS signed URLs, and AWS STS scoped roles.
+Example 12 mints and verifies the ticket in the service itself. Most object stores, open-source ones included,
+accept signed URLs of the same shape: the method, the object key and the expiry signed into the URL.
 
 ## Zero-trust: every request proves itself
 
@@ -374,42 +421,41 @@ a per-call thread group, or a semaphore that caps concurrency:
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-// Per-tenant bulkhead with Resilience4j; A's storm can't drain B's capacity
+// BulkheadService.java + OrderController.java (excerpt), examples/12-security/spring-boot
 @Service
-public class TenantBulkhead {
-    private final ConcurrentMap<String, Bulkhead> bulkheads = new ConcurrentHashMap<>();
-
-    private Bulkhead forTenant(String tenant) {
-        return bulkheads.computeIfAbsent(tenant, t ->
-            Bulkhead.of(t, BulkheadConfig.custom()
-                .maxConcurrentCalls(20)              // 20 concurrent per tenant
-                .maxWaitDuration(Duration.ZERO)      // fail-fast when full
-                .build()));
-    }
-
-    public <T> T handle(String tenant, Supplier<T> work) {
-        return Bulkhead.decorateSupplier(forTenant(tenant), work).get();
+public class BulkheadService {
+    static final int CAPACITY = 5;                             // 5 concurrent per tenant
+    private final ConcurrentHashMap<String, Semaphore> semaphores = new ConcurrentHashMap<>();
+    public Semaphore forTenant(String tenant) {
+        return semaphores.computeIfAbsent(tenant, k -> new Semaphore(CAPACITY));
     }
 }
+// POST /orders: A's storm can't drain B's capacity
+Semaphore sem = bulkhead.forTenant(body.tenant());
+if (!sem.tryAcquire(5, TimeUnit.SECONDS)) {                    // wait briefly, then shed
+    return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+            .body(Map.of("detail", "tenant bulkhead full"));
+}
+try { /* create the order */ } finally { sem.release(); }
 ```
 
 ```java
-// Per-tenant bulkhead with MicroProfile Fault Tolerance
+// BulkheadService.java + OrderResource.java (excerpt), examples/12-security/quarkus
 @ApplicationScoped
-public class TenantBulkhead {
-    private final ConcurrentMap<String, Semaphore> sems = new ConcurrentHashMap<>();
-
-    private Semaphore forTenant(String tenant) {
-        return sems.computeIfAbsent(tenant, t -> new Semaphore(20));  // 20 / tenant
-    }
-
-    public <T> T handle(String tenant, Callable<T> work) throws Exception {
-        Semaphore sem = forTenant(tenant);
-        if (!sem.tryAcquire()) throw new BulkheadException(tenant);
-        try { return work.call(); }
-        finally { sem.release(); }           // blocks only this tenant when full
+public class BulkheadService {
+    static final int CAPACITY = 5;                             // 5 concurrent per tenant
+    private final ConcurrentHashMap<String, Semaphore> semaphores = new ConcurrentHashMap<>();
+    public Semaphore forTenant(String tenant) {
+        return semaphores.computeIfAbsent(tenant, k -> new Semaphore(CAPACITY));
     }
 }
+// POST /orders: A's storm can't drain B's capacity
+Semaphore sem = bulkhead.forTenant(body.tenant());
+if (!sem.tryAcquire(5, TimeUnit.SECONDS)) {                    // wait briefly, then shed
+    return Response.status(429)
+            .entity(Map.of("detail", "tenant bulkhead full")).build();
+}
+try { /* create the order */ } finally { sem.release(); }
 ```
 
 ```csharp
@@ -420,7 +466,7 @@ public class TenantBulkhead
 
     public async Task<T> HandleAsync<T>(string tenant, Func<Task<T>> work)
     {
-        var sem = _sems.GetOrAdd(tenant, _ => new SemaphoreSlim(20));  // 20 / tenant
+        var sem = _sems.GetOrAdd(tenant, _ => new SemaphoreSlim(5));   // 5 / tenant
         await sem.WaitAsync();               // blocks only this tenant when full
         try { return await work(); }
         finally { sem.Release(); }
@@ -435,7 +481,7 @@ import asyncio
 _sems: dict[str, asyncio.Semaphore] = {}
 
 def _tenant_sem(tenant: str) -> asyncio.Semaphore:
-    return _sems.setdefault(tenant, asyncio.Semaphore(20))   # 20 concurrent / tenant
+    return _sems.setdefault(tenant, asyncio.Semaphore(5))    # 5 concurrent / tenant
 
 async def handle(tenant: str, work):
     async with _tenant_sem(tenant):        # blocks only this tenant when full
@@ -443,22 +489,28 @@ async def handle(tenant: str, work):
 ```
 
 ```cpp
-// Per-tenant bulkhead with a counting semaphore; A's storm can't drain B's
-std::unordered_map<std::string, std::counting_semaphore<20>> bulkheads_;
-std::mutex mu_;
-
-std::counting_semaphore<20>& for_tenant(const std::string& tenant) {
-  std::lock_guard lk{mu_};
-  auto [it, _] = bulkheads_.try_emplace(tenant, 20);   // 20 concurrent / tenant
-  return it->second;
-}
-
-template <typename F>
-auto handle(const std::string& tenant, F&& work) {
-  auto& sem = for_tenant(tenant);
-  sem.acquire();                                        // blocks only this tenant
-  auto guard = scope_exit([&] { sem.release(); });
-  return work();
+// main.cpp (excerpt), examples/12-security/cpp: one lock-free counter per tenant
+struct TenantBulkhead {
+    static constexpr int CAPACITY = 5;                        // 5 concurrent per tenant
+    std::atomic<int> active{0};
+    bool try_acquire() {
+        int current = active.load();
+        while (current < CAPACITY) {
+            if (active.compare_exchange_weak(current, current + 1)) return true;
+        }
+        return false;                                         // full: shed, don't queue
+    }
+    void release() { active.fetch_sub(1); }
+};
+// POST /orders: A's storm can't drain B's capacity
+auto& bulkhead = bulkhead_manager.get_or_create(tenant);     // map + mutex, one per tenant
+if (!bulkhead.try_acquire()) {
+    Json::Value error;
+    error["detail"] = "tenant capacity exceeded";
+    auto resp = HttpResponse::newHttpJsonResponse(error);
+    resp->setStatusCode(k429TooManyRequests);
+    callback(resp);
+    return;
 }
 ```
 
@@ -469,7 +521,7 @@ var (
 )
 
 func tenantSem(tenant string) chan struct{} {
-	v, _ := bulkheads.LoadOrStore(tenant, make(chan struct{}, 20)) // 20 / tenant
+	v, _ := bulkheads.LoadOrStore(tenant, make(chan struct{}, 5))  // 5 / tenant
 	return v.(chan struct{})
 }
 
@@ -505,102 +557,142 @@ security-angled cousin of the large-payload handling in the failure-modes append
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-// producer: store the body, publish only a reference
-String key = "payloads/" + orderId;
-store.put(key, largePayload, true);                   // encrypted at rest, ACL'd
-kafkaTemplate.send("order.documents", Map.of(         // claim only — small, routable
-    "order_id", orderId,
-    "uri",      "s3://vault/" + key,
-    "token",    mintScopedToken(key, 900)));           // time-bound, revocable
-
+// claim-check sketch: store is any encrypted object store; the ticket: Example 12's valet key
+@Service
+public class ClaimPublisher {
+    private final ObjectStore store;                           // any encrypted object store
+    private final KafkaTemplate<String, Map<String, Object>> kafka;
+    private final ValetKeyService valet;                       // examples/12-security
+    // constructor injection omitted
+    public void publish(String orderId, byte[] body) {
+        String key = "payloads/" + orderId;
+        store.put(key, body, true);                            // encrypted at rest, ACL'd
+        Map<String, Object> claim = new LinkedHashMap<>(valet.mint(key, "GET"));
+        claim.put("order_id", orderId);
+        claim.put("uri", "https://objects.internal/" + key);
+        kafka.send("order.documents", orderId, claim);         // only the claim on the topic
+    }
+}
 // consumer: read the claim, fetch the body out of band
-@KafkaListener(topics = "order.documents")
-void onClaim(Map<String, String> claim) {
-    byte[] body = store.get(claim.get("uri"), claim.get("token"));  // PII never on topic
+@KafkaListener(topics = "order.documents", groupId = "documents")
+public void onClaim(Map<String, Object> claim) {
+    byte[] body = store.get((String) claim.get("uri"), (String) claim.get("token"));
+    handle(body);                                              // PII never touched the topic
 }
 ```
 
 ```java
-// producer: store the body, publish only a reference
-String key = "payloads/" + orderId;
-store.put(key, largePayload, true);                   // encrypted at rest, ACL'd
-emitter.send(Message.of(Map.of(                       // claim only — small, routable
-    "order_id", orderId,
-    "uri",      "s3://vault/" + key,
-    "token",    mintScopedToken(key, 900))));          // time-bound, revocable
-
-// consumer: read the claim, fetch the body out of band
-@Incoming("order-documents")
-void onClaim(JsonObject claim) {
-    byte[] body = store.get(claim.getString("uri"), claim.getString("token"));
+// claim-check sketch: store is any encrypted object store; the ticket: Example 12's valet key
+@ApplicationScoped
+public class ClaimPublisher {
+    @Inject ObjectStore store;                                 // any encrypted object store
+    @Inject ValetKeyService valet;                             // examples/12-security
+    @Inject @Channel("documents-out") Emitter<JsonObject> claims;   // topic order.documents
+    public void publish(String orderId, byte[] body) {
+        String key = "payloads/" + orderId;
+        store.put(key, body, true);                            // encrypted at rest, ACL'd
+        JsonObject claim = new JsonObject(valet.mint(key, "GET"))
+            .put("order_id", orderId)
+            .put("uri", "https://objects.internal/" + key);
+        claims.send(claim);                                    // only the claim on the topic
+    }
+}
+@ApplicationScoped
+public class ClaimConsumer {
+    @Inject ObjectStore store;
+    @Incoming("documents-in")                                  // topic order.documents
+    public void onClaim(JsonObject claim) {
+        byte[] body = store.get(claim.getString("uri"), claim.getString("token"));
+        handle(body);                                          // PII never touched the topic
+    }
 }
 ```
 
 ```csharp
-// producer: store the body, publish only a reference
+// claim-check sketch: store is any encrypted object store; the ticket: Example 12's valet key
 var key = $"payloads/{orderId}";
 await store.PutAsync(key, largePayload, encrypt: true);   // encrypted at rest, ACL'd
+var expires = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + 900;
+var token = ComputeHmac(valetSecret, $"{key}:GET:{expires}");   // GET only, 15 minutes
 await producer.ProduceAsync("order.documents",
-    new Message<Null, string> {% raw %}{ Value = JsonSerializer.Serialize(new {
+    new Message<Null, string> { Value = JsonSerializer.Serialize(new {
         order_id = orderId,
-        uri      = $"s3://vault/{key}",
-        token    = MintScopedToken(key, ttlSeconds: 900),
-    }) }{% endraw %});                                             // claim only — small, routable
-
+        uri = $"https://objects.internal/{key}",
+        resource = key, operation = "GET", expires, token,
+    }) });                                             // claim only: small, routable
 // consumer: read the claim, fetch the body out of band
+var claim = JsonSerializer.Deserialize<Claim>(cr.Message.Value)!;
 var body = await store.GetAsync(claim.Uri, claim.Token);  // PII never touched the topic
+consumer.Commit(cr);
 ```
 
 ```python
-# producer: store the body, publish only a reference
-key = f"payloads/{order_id}"
-store.put(key, large_payload, encrypt=True)            # encrypted at rest, ACL'd
-await producer.send("order.documents", {               # claim only — small, routable
-    "order_id": order_id,
-    "uri": f"s3://vault/{key}",
-    "token": mint_scoped_token(key, ttl_seconds=900),  # time-bound, revocable
-})
+# claim-check sketch: store is any encrypted object store; the ticket: Example 12's valet key
+async def publish_with_claim(producer: AIOKafkaProducer, order_id: str, body: bytes):
+    key = f"payloads/{order_id}"
+    await store.put(key, body, encrypt=True)                # encrypted at rest, ACL'd
+    claim = {
+        "order_id": order_id,
+        "uri": f"https://objects.internal/{key}",
+        **_mint_valet(key, "GET", ttl=900),                  # resource, op, expires, token
+    }
+    await producer.send_and_wait(                           # only the claim goes on the topic
+        "order.documents", json.dumps(claim).encode(), key=order_id.encode())
 
 # consumer: read the claim, fetch the body out of band
 async for msg in consumer:
-    body = store.get(msg["uri"], token=msg["token"])   # PII never touched the topic
+    claim = json.loads(msg.value)
+    body = await store.get(claim["uri"], token=claim["token"])   # the store checks the ticket
+    await handle(body)                                      # PII never touched the topic
+    await consumer.commit()                                 # after the side effect
 ```
 
 ```cpp
-// producer: store the body, publish only a reference
-auto key = "payloads/" + order_id;
-store.put(key, large_payload, /*encrypt=*/true);       // encrypted at rest, ACL'd
-nlohmann::json claim = {
-    {"order_id", order_id},
-    {"uri",      "s3://vault/" + key},
-    {"token",    mint_scoped_token(key, 900)}};        // time-bound, revocable
-producer.produce("order.documents", claim.dump());     // claim only — small, routable
-
-// consumer: read the claim, fetch the body out of band
-for (auto& msg : consumer.poll(100ms)) {
-    auto c = nlohmann::json::parse(msg.value());
-    auto body = store.get(c["uri"], c["token"]);       // PII never touched the topic
+{% raw %}
+// claim-check sketch: store is any encrypted object store; the ticket: Example 12's valet key
+void publish_with_claim(const std::string& order_id, const std::string& body) {
+  const auto key = "payloads/" + order_id;
+  store_.put(key, body, /*encrypt=*/true);                     // 1. store: encrypted, ACL'd
+  auto ticket = cndp::valet::mint(VALET_SECRET, key, "GET", std::chrono::minutes(15));
+  auto claim = nlohmann::json{{"order_id", order_id},
+                              {"uri", "https://objects.internal/" + key},
+                              {"token", ticket.token}, {"expires", ticket.expires}}.dump();
+  producer_->produce("order.documents", RdKafka::Topic::PARTITION_UA,
+                     RdKafka::Producer::RK_MSG_COPY, claim.data(), claim.size(),
+                     order_id.data(), order_id.size(), 0, nullptr);   // 2. claim only
 }
+// Consumer: consume the claim, fetch the payload, then handle
+std::unique_ptr<RdKafka::Message> msg(consumer_->consume(100));
+if (msg->err() == RdKafka::ERR_NO_ERROR) {
+  auto claim = nlohmann::json::parse(payload_of(*msg));
+  auto body = store_.get(claim["uri"].get<std::string>(),
+                         claim["token"].get<std::string>());     // the store checks the ticket
+  handle(body);                                                // PII never touched the topic
+  consumer_->commitSync(msg.get());                            // after handle
+}
+{% endraw %}
 ```
 
 ```go
-// producer: store the body, publish only a reference
-key := "payloads/" + orderID
-store.Put(ctx, key, largePayload, true)                // encrypted at rest, ACL'd
-claim, _ := json.Marshal(map[string]string{
-	"order_id": orderID,
-	"uri":      "s3://vault/" + key,
-	"token":    mintScopedToken(key, 900),              // time-bound, revocable
-})
-client.Produce(ctx, &kgo.Record{Topic: "order.documents", Value: claim}, nil)
-
-// consumer: read the claim, fetch the body out of band
-fetches := client.PollFetches(ctx)
-fetches.EachRecord(func(r *kgo.Record) {
+// claim-check sketch: store is any encrypted object store; the token is the valet-key JWT
+func publishWithClaim(ctx context.Context, cl *kgo.Client, orderID string, body []byte) error {
+	key := "payloads/" + orderID
+	if err := store.Put(ctx, key, body, true); err != nil { return err } // encrypted, ACL'd
+	claim, _ := json.Marshal(map[string]any{
+		"order_id": orderID,
+		"uri":      "https://objects.internal/" + key,
+		"token":    mintValet(key, "GET")["token"],          // GET only, five minutes
+	})
+	return cl.ProduceSync(ctx,                               // only the claim goes on the topic
+		&kgo.Record{Topic: "order.documents", Key: []byte(orderID), Value: claim}).FirstErr()
+}
+func onClaim(ctx context.Context, r *kgo.Record) error {
 	var c Claim
-	json.Unmarshal(r.Value, &c)
-	body := store.Get(ctx, c.URI, c.Token)             // PII never touched the topic
-})
+	if err := json.Unmarshal(r.Value, &c); err != nil { return err }
+	body, err := store.Get(ctx, c.URI, c.Token)              // the store verifies the ticket
+	if err != nil { return err }
+	return handle(ctx, body)                                 // PII never touched the topic
+}
 ```
 
 ## Choosing the right pattern

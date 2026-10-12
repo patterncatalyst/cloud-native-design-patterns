@@ -724,13 +724,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "break it: backoff + jitter, a retry budget (cap % of live traffic), retry at exactly ONE layer, and a circuit breaker",
+   "text": "break it: backoff + jitter, a retry budget (cap % of live traffic), retry at one layer only, and a circuit breaker",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "break it: backoff + jitter, a retry budget (cap % of live traffic), retry at exactly ONE layer, and a circuit breaker",
+   "originalText": "break it: backoff + jitter, a retry budget (cap % of live traffic), retry at one layer only, and a circuit breaker",
    "lineHeight": 1.25,
    "baseline": 11
   }

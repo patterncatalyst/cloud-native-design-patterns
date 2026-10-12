@@ -230,15 +230,24 @@ async def compensate(saga_id: str):
 ```
 
 ```cpp
-// Compensations are a separate boost::sml branch in OrderSaga's table:
-//   "comp_stock"_s + event<StockReleased>   = "comp_pay"_s,
-//   "comp_pay"_s   + event<PaymentRefunded> = X,          // done
-// The same advance() loop drives forward steps and compensations;
-// invoke_next() dispatches on the current state name, newest-first.
-Task<> compensate(sml::sm<OrderSaga>& sm, Saga& s) {
-  for (auto& step : reversed(s.completed_steps()))         // newest first
-    co_await invoke(inverse_of(step), s.context);          // semantic inverse
-  s.status = "COMPENSATED";
+// main.cpp (excerpt): COMPENSATING undoes the completed steps, newest first
+if (status == "COMPENSATING") {
+  for (int i : cndp::saga::compensation_order(progress.step_index)) {  // n-1 .. 0
+    auto& step = g_steps[i];             // charge_payment -> refund_payment, ...
+    if (!logStep(db.conn, sagaId, step.compensationName, "compensate",
+                 step.compensate(context))) { abandon(); return; }
+  }
+  sm.process_event(cndp::saga::Compensated{});
+  setState(db.conn, sagaId, cndp::saga::status_of(sm), progress.step_index, nullptr);
+  exec(db.conn, "COMMIT");                  // one transaction for the unwind
+}
+
+// A forward step that throws is logged, then StepFailed moves the saga
+// from RUNNING to COMPENSATING; the next advance() runs the block.
+catch (const std::exception& e) {
+  logStep(db.conn, sagaId, step.name, "failed", failResult);
+  sm.process_event(cndp::saga::StepFailed{});
+  setState(db.conn, sagaId, cndp::saga::status_of(sm), progress.step_index, nullptr);
 }
 ```
 

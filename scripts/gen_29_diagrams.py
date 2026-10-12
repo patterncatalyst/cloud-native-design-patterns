@@ -141,7 +141,7 @@ g.emit("29-container-layers", 880, 460,
         {"x": 30, "y": 140, "w": 360, "h": 50, "style": "box",
          "lines": ["COPY source", "NuGet package cache is a BuildKit cache mount"]},
         {"x": 30, "y": 210, "w": 360, "h": 50, "style": "box",
-         "lines": ["dotnet publish -c Release", "restore from the mount, compile C# → CIL"]},
+         "lines": ["dotnet publish -c Release", "restore, then compile C# → CIL"]},
         {"x": 30, "y": 290, "w": 170, "h": 55, "style": "ink",
          "lines": ["/app output", "*.dll + deps", "~30–80 MB"]},
         # Trimming note
@@ -173,8 +173,8 @@ g.emit("29-container-layers", 880, 460,
         {"x1": 210, "y1": 190, "x2": 210, "y2": 210, "label": "step 2"},
         {"x1": 210, "y1": 260, "x2": 115, "y2": 290},
         # Copy to runtime
-        {"x1": 200, "y1": 317, "x2": 450, "y2": 165, "amber": True,
-         "label": "COPY --from=build"},
+        # unlabelled: the target box names the step, and a mid-line label sat on the publish box
+        {"x1": 200, "y1": 317, "x2": 450, "y2": 165, "amber": True},
         # Runtime flow
         {"x1": 650, "y1": 82, "x2": 670, "y2": 82},
         {"x1": 650, "y1": 190, "x2": 650, "y2": 210},

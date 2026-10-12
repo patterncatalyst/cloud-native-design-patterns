@@ -76,7 +76,7 @@ attributes like plan and region) that the rules act on.
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-// build.gradle: dev.openfeature:sdk, dev.openfeature.contrib.providers:flagd
+// pom.xml: dev.openfeature:sdk, dev.openfeature.contrib.providers:flagd
 @Configuration
 public class FeatureFlags {
     @Bean
@@ -106,21 +106,22 @@ public class CheckoutController {
 ```
 
 ```java
-// pom.xml: quarkus-openfeature + the flagd provider
-// application.properties:
-//   quarkus.openfeature.flagd.host=flagd
-//   quarkus.openfeature.flagd.port=8013
+// OpenFeature SDK 1.23.0 + flagd provider 0.14.2 (as examples/27-feature-flags)
+// startup: register the provider once (flagd.host / flagd.port from config)
+void onStart(@Observes StartupEvent ev) {
+  OpenFeatureAPI.getInstance().setProvider(new FlagdProvider(
+      FlagdOptions.builder().host(flagdHost).port(flagdPort).build()));
+}
 @Path("/checkout")
 public class CheckoutResource {
-    @Inject Client flags;                          // OpenFeature client, CDI-provided
-
-    @POST
-    public Receipt checkout(Cart cart, @HeaderParam("X-User") String userId) {
-        EvaluationContext ctx = new MutableContext(userId)
-            .add("plan", cart.plan()).add("region", cart.region());
-        boolean useNew = flags.getBooleanValue("new-checkout", false, ctx);  // default off
-        return useNew ? newCheckout(cart) : legacyCheckout(cart);
-    }
+  @POST
+  public Receipt checkout(Cart cart, @HeaderParam("X-User") String user) {
+    Client flags = OpenFeatureAPI.getInstance().getClient();
+    var ctx = new MutableContext(user)           // targeting key
+        .add("plan", cart.plan()).add("region", cart.region());
+    boolean useNew = flags.getBooleanValue("new-checkout", false, ctx);
+    return useNew ? newCheckout(cart) : legacyCheckout(cart);
+  }
 }
 ```
 
@@ -166,31 +167,34 @@ async def checkout(cart: Cart, x_user: str = Header()):
 ```
 
 ```cpp
-{% raw %}// OpenFeature C++ SDK + flagd. If the SDK is unavailable, call flagd's gRPC
-// ResolveBoolean directly via grpc++ — same evaluation, more boilerplate.
-#include <openfeature/openfeature.h>
-using namespace openfeature;
-
-// once, at startup
-getApi().setProvider(std::make_unique<FlagdProvider>(
-    FlagdOptions{.host = "flagd", .port = 8013}));
-auto flags = getApi().getClient();
-
-Task<> Checkout::post(HttpRequestPtr req, auto cb) {
-  auto cart = req->bodyJson();
-  EvaluationContext ctx{ req->getHeader("X-User"),          // targeting key
-                         {{"plan", cart["plan"]}, {"region", cart["region"]}} };
-  bool use_new = flags->getBooleanValue("new-checkout", false, ctx);  // default off
-  co_await (use_new ? new_checkout(cart) : legacy_checkout(cart));
-  cb(json_response({{"ok", true}}));
-}{% endraw %}
+// flag-service (excerpt): flagd's gRPC ResolveBoolean, called with grpc++
+bool FlagdClient::evaluateBoolean(const std::string& flagKey, bool defaultValue,
+                                  const std::string& targetingKey,
+                                  const std::string& plan) {
+  flagd::evaluation::v1::ResolveBooleanRequest request;
+  request.set_flag_key(flagKey);
+  auto* fields = request.mutable_context()->mutable_fields();
+  (*fields)["targetingKey"].set_string_value(targetingKey);   // sticky bucketing
+  if (!plan.empty()) (*fields)["plan"].set_string_value(plan);
+  flagd::evaluation::v1::ResolveBooleanResponse response;
+  grpc::ClientContext ctx;
+  ctx.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(800));
+  auto status = grpc::internal::BlockingUnaryCall(
+      channel_.get(), method_, &ctx, request, &response);
+  return status.ok() ? response.value() : defaultValue;      // flagd down: default
+}
+// POST /checkout
+bool useNew = flagdClient->evaluateBoolean("new-checkout", false, user, plan);
 ```
 
 ```go
 // OpenFeature Go SDK + flagd
 func init() { // once, at startup
-	_ = openfeature.SetProviderAndWait(
-		flagd.NewProvider(flagd.WithHost("flagd"), flagd.WithPort(8013)))
+	provider, err := flagd.NewProvider(flagd.WithHost("flagd"), flagd.WithPort(8013))
+	if err != nil {
+		log.Fatal(err)
+	}
+	_ = openfeature.SetProviderAndWait(provider)
 }
 
 var flags = openfeature.NewClient("checkout")
@@ -223,6 +227,7 @@ and a `fractional` operator for percentage rollouts.
 
 ```json
 {
+  "$schema": "https://flagd.dev/schema/v0/flags.json",
   "flags": {
     "new-checkout": {
       "state": "ENABLED",
@@ -311,11 +316,14 @@ async def recommend(user_id: str) -> Recommendations:
 ```
 
 ```cpp
-Task<Recommendations> recommend(const std::string& user_id) {
-  // default true → fail open: only an explicit kill disables it
-  if (!flags->getBooleanValue("recommendations-enabled", true, ctx(user_id)))
-    co_return Recommendations::empty();          // serve the page without it
-  co_return co_await recs_.fetch(user_id);       // pairs with a circuit breaker
+// ops kill switch: default true (fail open), on unless an operator turns it off
+bool enabled = flagdClient->evaluateBoolean("recommendations-enabled", true, user);
+if (!enabled) {
+  response["recommendations"] = Json::Value(Json::arrayValue);  // page still renders
+  response["reason"] = "killed";
+} else {
+  response["recommendations"] = live_recommendations(user);  // with a circuit breaker
+  response["reason"] = "live";
 }
 ```
 

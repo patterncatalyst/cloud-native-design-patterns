@@ -102,7 +102,7 @@ public class OrderService {
     @Inject @GrpcClient("inventory") Inventory inventory;
 
     @WithSpan("reserve_stock")               // custom span on this method
-    public ReserveReply reserve(String sku, int qty) {
+    public Uni<ReserveReply> reserve(String sku, int qty) {
         return inventory.reserveStock(req(sku, qty));
     }
     // trace_id flows: REST -> gRPC -> Kafka -> consumer
@@ -116,15 +116,14 @@ builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("order-service"))
     .WithTracing(t => t
         .AddAspNetCoreInstrumentation()          // every HTTP request → span
-        .AddHttpClientInstrumentation()          // outbound HttpClient → span
-        .AddGrpcClientInstrumentation()          // gRPC stub calls → span
-        .AddEntityFrameworkCoreInstrumentation() // EF Core queries → span
-        .AddSource("OrderService")               // your custom spans
-        .AddOtlpExporter(o => o.Endpoint = new Uri("http://otel-collector:4317")));
+        // outbound HttpClient, gRPC client and EF Core spans come from their own
+        // instrumentation packages when the service uses those clients
+        .AddSource("order-service")              // your custom spans
+        .AddOtlpExporter());   // endpoint from OTEL_EXPORTER_OTLP_ENDPOINT
 
 // custom business span
-private static readonly ActivitySource Activity = new("OrderService");
-using var span = Activity.StartActivity("reserve_stock");
+var activitySource = new ActivitySource("order-service");
+using var span = activitySource.StartActivity("reserve-stock");
 await inventory.ReserveStockAsync(sku, qty);
 // trace_id flows: REST -> gRPC -> Kafka -> consumer
 ```
@@ -148,13 +147,13 @@ async def place_order(body: OrderIn):
 
 ```cpp
 // otel_init.cc — initialise once in main(), before serving traffic
-#include <opentelemetry/exporters/otlp/otlp_grpc_exporter_factory.h>
+#include <opentelemetry/exporters/otlp/otlp_http_exporter_factory.h>
 #include <opentelemetry/sdk/trace/batch_span_processor_factory.h>
 #include <opentelemetry/sdk/trace/tracer_provider_factory.h>
 namespace otel = opentelemetry;
 
 void init_tracing() {
-  auto exporter  = otel::exporter::otlp::OtlpGrpcExporterFactory::Create({});
+  auto exporter  = otel::exporter::otlp::OtlpHttpExporterFactory::Create({});
   auto processor = otel::sdk::trace::BatchSpanProcessorFactory::Create(  // BATCH, not Simple
       std::move(exporter), {});
   otel::trace::Provider::SetTracerProvider(
@@ -185,7 +184,7 @@ func main() {
 var tracer = otel.Tracer("order-service")
 
 func placeOrder(w http.ResponseWriter, r *http.Request) {
-	ctx, span := tracer.Start(r.Context(), "reserve_stock") // custom span
+	ctx, span := tracer.Start(r.Context(), "reserve-stock") // custom span
 	defer span.End()
 	inventory.ReserveStock(ctx, body.SKU, body.Quantity)
 	// trace_id flows: REST -> gRPC -> Kafka -> consumer

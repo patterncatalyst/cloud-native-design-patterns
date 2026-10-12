@@ -228,76 +228,66 @@ async def place_order(body: OrderIn, uc: PlaceOrder = Depends(build_uc)):
 ```
 
 ```cpp
-// domain/ports.hpp — the domain declares the interfaces it needs.
-struct OrderRepository {                       // outbound port
-  virtual Task<> save(const Order&) = 0;
+// domain/ports.hpp — the domain declares the interfaces it needs (no framework)
+struct OrderRepository {                                   // outbound port
   virtual ~OrderRepository() = default;
+  virtual void save(const Order& order) = 0;
+  virtual std::optional<Order> find_by_id(const std::string& id) = 0;
 };
-struct EventPublisher {                        // outbound port
-  virtual Task<> publish(const DomainEvent&) = 0;
+struct EventPublisher {                                    // outbound port
   virtual ~EventPublisher() = default;
+  virtual void publish(const OrderPlaced& event) = 0;
 };
-
-// domain/place_order.hpp — pure logic: no framework, no I/O
-class PlaceOrder {
+// domain/service.hpp — the use case: pure logic, depends only on ports
+class PlaceOrderUseCase {
  public:
-  PlaceOrder(OrderRepository& repo, EventPublisher& events)
-      : repo_(repo), events_(events) {}
-  Task<Order> operator()(PlaceOrderCmd cmd) {
-    Order o = Order::create(cmd);              // aggregate invariants
-    co_await repo_.save(o);
-    co_await events_.publish(OrderPlaced{o.id});
-    co_return o;
+  PlaceOrderUseCase(OrderRepository& repo, EventPublisher& publisher)
+      : repo_(repo), publisher_(publisher) {}
+  Order execute(const PlaceOrderCmd& cmd) {
+    if (cmd.quantity <= 0) throw std::invalid_argument("quantity must be positive");
+    Order order{generate_uuid(), cmd.sku, cmd.quantity, "placed"};  // aggregate
+    repo_.save(order);
+    publisher_.publish(OrderPlaced{order.id, order.sku, order.quantity});
+    return order;
   }
- private:
-  OrderRepository& repo_;
-  EventPublisher&  events_;
-};
-
-// adapters/rest.cpp — driving adapter; gRPC/GraphQL look the same
-Task<> Orders::place(HttpRequestPtr req, auto cb) {
-  Order o = co_await place_order_(parse<OrderIn>(req).to_cmd());
-  cb(HttpResponse::newHttpJsonResponse(to_json(o)));
-}
+ private: OrderRepository& repo_; EventPublisher& publisher_;
+};  // adapters/: rest_adapter.cpp (Drogon), pg_repository.hpp (libpq), log_publisher
 ```
 
 ```go
 // domain/ports.go — the domain declares the small interfaces it needs (ports)
-type OrderRepository interface { // outbound port
-	Save(ctx context.Context, o Order) error
+type OrderRepository interface { // outbound port (plus FindByID and FindAll)
+	Save(ctx context.Context, order *Order) error
 }
 type EventPublisher interface { // outbound port
-	Publish(ctx context.Context, e DomainEvent) error
+	Publish(event OrderPlaced)
 }
 
-// domain/place_order.go — pure application logic: no framework, no I/O
+// domain/service.go — pure application logic: no framework, no I/O
 type PlaceOrder struct {
-	repo   OrderRepository
-	events EventPublisher
+	repo OrderRepository
+	pub  EventPublisher
 }
 
-func (uc PlaceOrder) Do(ctx context.Context, cmd PlaceOrderCmd) (Order, error) {
-	o, err := NewOrder(cmd) // aggregate enforces invariants
-	if err != nil {
-		return Order{}, err
+func (s *PlaceOrder) Execute(ctx context.Context, cmd PlaceOrderCmd) (*Order, error) {
+	if cmd.SKU == "" || cmd.Quantity <= 0 {
+		return nil, fmt.Errorf("invalid order: sku and quantity > 0 required")
 	}
-	if err := uc.repo.Save(ctx, o); err != nil {
-		return Order{}, err
+	order := &Order{ID: newUUID(), SKU: cmd.SKU, Quantity: cmd.Quantity, Status: "placed"}
+	if err := s.repo.Save(ctx, order); err != nil {
+		return nil, err
 	}
-	return o, uc.events.Publish(ctx, OrderPlaced{o.ID})
+	s.pub.Publish(OrderPlaced{OrderID: order.ID, SKU: order.SKU, Quantity: order.Quantity})
+	return order, nil
 }
 
-// adapters/rest.go — a driving adapter; gRPC/GraphQL look the same
-func (s *Server) place(w http.ResponseWriter, r *http.Request) {
-	var in OrderIn
-	_ = json.NewDecoder(r.Body).Decode(&in)
-	o, err := s.uc.Do(r.Context(), in.toCmd()) // protocol -> domain, nothing more
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	writeJSON(w, http.StatusCreated, o)
+// cmd/server/main.go — a driving adapter; the CLI calls Execute the same way
+order, err := placeOrder.Execute(r.Context(), domain.PlaceOrderCmd{SKU: in.SKU, Quantity: in.Quantity})
+if err != nil {
+	http.Error(w, err.Error(), http.StatusBadRequest) // protocol -> domain, nothing more
+	return
 }
+writeJSON(w, http.StatusCreated, order)
 ```
 
 Read the three blocks the same way in every language. The **ports** are plain

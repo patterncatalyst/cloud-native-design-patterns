@@ -150,7 +150,7 @@ public class DomainExceptionHandler : IExceptionHandler
         };
         ctx.Response.StatusCode  = status;
         ctx.Response.ContentType = "application/problem+json";    // RFC 9457
-        await ctx.Response.WriteAsJsonAsync(problem, ct);
+        await ctx.Response.WriteAsJsonAsync(problem, (JsonSerializerOptions?)null, "application/problem+json", ct);
         return true;
     }
 }

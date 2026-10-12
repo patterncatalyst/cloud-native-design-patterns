@@ -60,11 +60,11 @@ public class OrderSocket {
 ```csharp
 // raw ASP.NET Core WebSockets — no SignalR, verify.sh can test with wscat.
 app.UseWebSockets();
-app.Map("/ws/{userId}", async (HttpContext ctx, string userId) =>
+app.Map("/ws/{clientId}", async (HttpContext ctx, string clientId) =>
 {
     if (!ctx.WebSockets.IsWebSocketRequest) { ctx.Response.StatusCode = 400; return; }
     var ws = await ctx.WebSockets.AcceptWebSocketAsync();
-    clients[userId] = ws;                               // per-pod state
+    clients[clientId] = ws;                             // per-pod state
     var buf = new byte[4096];
     while (ws.State == WebSocketState.Open)
     {
@@ -73,7 +73,7 @@ app.Map("/ws/{userId}", async (HttpContext ctx, string userId) =>
         var msg = Encoding.UTF8.GetString(buf, 0, result.Count);
         await Broadcast(msg);                           // fan-out to this pod's clients
     }
-    clients.Remove(userId, out _);
+    clients.TryRemove(clientId, out _);
 });
 ```
 
@@ -516,9 +516,8 @@ available). It provides:
   client-side resume logic needed.
 - **Connection groups** — server-side `Groups.AddToGroupAsync("tenant-A", connectionId)`
   replaces the per-pod registry + backplane fan-out with a single API call.
-- **Managed backplane** — `AddStackExchangeRedis()` wires up a Redis backplane for
-  scale-out, or **Azure SignalR Service** offloads the persistent connections entirely
-  to a managed endpoint.
+- **Backplane** — `AddStackExchangeRedis()` wires up a Redis backplane for
+  scale-out.
 
 **When SignalR is the right choice**: .NET-only teams where every producer and consumer
 is C#; projects that need automatic fallback transports; teams that want connection
