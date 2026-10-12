@@ -13,8 +13,11 @@ handling, readiness flip, and in-flight request draining.
 ## Key implementation details
 
 1. **SIGTERM handler**: Uses `std::signal(SIGTERM, handler)` with `std::atomic<bool>
-   g_shutting_down`. The handler sets the flag and logs "SIGTERM received". Drogon
-   continues running so readyz can respond with 503.
+   g_shutting_down`. The handler is async-signal-safe: it only stores to the lock-free
+   atomic. A watcher thread observes the flag, logs "SIGTERM received", keeps serving for
+   `DRAIN_DELAY_SECONDS` (default 5) so endpoints update and readyz answers 503, waits for
+   in-flight requests to reach zero (20 s bound) and calls `app().quit()`. One SIGTERM drives
+   the whole sequence.
 
 2. **In-flight tracking**: `std::atomic<int> g_in_flight` incremented at handler entry,
    decremented via RAII guard (`InFlightGuard`).
@@ -26,8 +29,7 @@ handling, readiness flip, and in-flight request draining.
 
 5. **POST /orders**: Parses JSON body, generates UUID, inserts into DB, returns 201.
 
-6. **Graceful drain**: After `app().run()` returns, waits for `g_in_flight` to reach zero
-   before exiting.
+6. **Graceful drain**: After `app().run()` returns, closes the connection pool and exits 0.
 
 ## Running
 
@@ -51,9 +53,11 @@ The `verify.sh` script checks:
 
 1. Health and readiness endpoints
 2. Order creation (POST /orders)
-3. SIGTERM → readyz flips to 503, logs show "SIGTERM received"
+3. One SIGTERM → readyz flips to 503, logs show "SIGTERM received"
 4. Debug state shows `shutting_down:true`
-5. Service restart → recovery (readyz 200, orders persist)
+5. The container exits by itself with code 0 inside the 30 s grace period
+6. Service restart → recovery (readyz 200, orders persist)
+7. `docker stop -t 30` → exit code 0 before the timeout
 
 ## Container naming
 

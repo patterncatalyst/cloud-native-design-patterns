@@ -24,17 +24,17 @@ cd .. && bash verify.sh
 
 | Path | Description |
 |------|-------------|
-| `OrderService/` | Program.cs — IHostApplicationLifetime.ApplicationStopping callback flips readiness, graceful drain via HostOptions.ShutdownTimeout |
+| `OrderService/` | Program.cs — a SIGTERM registration flips readiness, waits the drain delay, then calls StopApplication; graceful drain via HostOptions.ShutdownTimeout |
 
 ## Implementation notes
 
-Uses `IHostApplicationLifetime.ApplicationStopping` to hook SIGTERM. `HostOptions.ShutdownTimeout` controls drain window. Readiness endpoint returns 503 during drain.
+A `PosixSignalRegistration` for SIGTERM (with `ManualLifetime` replacing `ConsoleLifetime`) flips readiness, waits `DRAIN_DELAY_SECONDS` (default 5), then calls `StopApplication()`: Kestrel stops accepting and finishes in-flight requests within `HostOptions.ShutdownTimeout` (20 s), the data source is disposed and the process exits 0. One SIGTERM, no second signal.
 
 ## Environment variables
 
 Key variables (set by compose.yaml, override for local dev):
 
-`DATABASE_URL`
+`ConnectionStrings__Default`, `DRAIN_DELAY_SECONDS`
 
 ## Local development (without containers)
 

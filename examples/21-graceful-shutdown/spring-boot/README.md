@@ -28,13 +28,13 @@ cd .. && bash verify.sh
 
 ## Implementation notes
 
-Spring Boot's built-in graceful shutdown handles SIGTERM: stops accepting new connections, drains in-flight requests up to the configured timeout, then closes the ApplicationContext.
+A `sun.misc.Signal` handler registered before Spring starts takes the single SIGTERM: it flips readiness, waits `DRAIN_DELAY_SECONDS` (default 5) while endpoints update, then calls `System.exit(0)`. Spring's shutdown hook and built-in graceful shutdown stop accepting new connections, drain in-flight requests up to `spring.lifecycle.timeout-per-shutdown-phase` (20 s) and close the ApplicationContext. The process exits 0.
 
 ## Environment variables
 
 Key variables (set by compose.yaml, override for local dev):
 
-`spring.datasource.url, server.shutdown=graceful`
+`spring.datasource.url, server.shutdown=graceful, DRAIN_DELAY_SECONDS`
 
 ## Local development (without containers)
 
