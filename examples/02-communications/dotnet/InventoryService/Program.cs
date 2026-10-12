@@ -11,19 +11,18 @@ var app = builder.Build();
 app.MapGrpcService<InventoryImpl>();
 app.Run();
 
-public class InventoryImpl : Inventory.InventoryBase
+public class InventoryImpl(IConfiguration config) : Inventory.InventoryBase
 {
     private static readonly Dictionary<string, int> Stock = new();
     private static readonly object Lock = new();
-    private static readonly int InitialStock = int.Parse(
-        Environment.GetEnvironmentVariable("INITIAL_STOCK") ?? "100");
+    private readonly int _initialStock = config.GetValue("INITIAL_STOCK", 100);
 
     public override Task<ReserveReply> ReserveStock(ReserveRequest request, ServerCallContext context)
     {
         lock (Lock)
         {
             if (!Stock.ContainsKey(request.Sku))
-                Stock[request.Sku] = InitialStock;
+                Stock[request.Sku] = _initialStock;
 
             if (Stock[request.Sku] >= request.Quantity)
             {
