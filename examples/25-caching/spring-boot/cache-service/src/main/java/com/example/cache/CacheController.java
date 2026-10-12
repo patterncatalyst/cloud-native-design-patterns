@@ -2,12 +2,17 @@ package com.example.cache;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,32 +20,31 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
 @RestController
 public class CacheController {
 
-    private final JdbcClient jdbc;
+    private static final Logger log = LoggerFactory.getLogger(CacheController.class);
+
+    private final ProductService products;
+    private final EventRepository events;
+    private final MetricRepository metrics;
     private final SafeRedis cache;
+    private final Cache readThroughCache;
     private final JsonMapper mapper;
+    private final long ttl;
 
-    @Value("${cache-service.ttl-seconds:60}")
-    private long ttl;
-
-    public CacheController(JdbcClient jdbc, SafeRedis cache, JsonMapper mapper) {
-        this.jdbc = jdbc;
+    public CacheController(ProductService products, EventRepository events, MetricRepository metrics,
+                           SafeRedis cache, CacheManager cacheManager, JsonMapper mapper,
+                           CacheServiceProperties properties) {
+        this.products = products;
+        this.events = events;
+        this.metrics = metrics;
         this.cache = cache;
+        this.readThroughCache = cacheManager.getCache(ReadThroughCacheConfig.PRODUCTS);
         this.mapper = mapper;
-    }
-
-    // -----------------------------------------------------------------------
-    // Health
-    // -----------------------------------------------------------------------
-
-    @GetMapping("/healthz")
-    public Map<String, Object> healthz() {
-        return Map.of("status", "ok");
+        this.ttl = properties.ttlSeconds();
     }
 
     @GetMapping("/cache-keys")
@@ -57,63 +61,51 @@ public class CacheController {
     // -----------------------------------------------------------------------
 
     @GetMapping("/cache-aside/products/{pid}")
-    public ResponseEntity<Map<String, Object>> cacheAsideGet(@PathVariable String pid) {
-        String key = "ca:product:" + pid;
-
-        String cached = cache.get(key);
-        if (cached != null) {
-            Map<String, Object> result = parseJson(cached);
-            result.put("source", "cache");
-            return ResponseEntity.ok(result);
-        }
-
-        Map<String, Object> row = findProduct(pid);
-        if (row == null) {
-            return ResponseEntity.notFound().build();
-        }
-        cache.setex(key, toJson(row), ttl);
-        row.put("source", "db");
-        return ResponseEntity.ok(row);
+    public ResponseEntity<ProductResponse> cacheAsideGet(@PathVariable String pid) {
+        return productFromCacheOrDb("ca:product:" + pid, pid);
     }
 
     @PutMapping("/cache-aside/products/{pid}")
-    public ResponseEntity<Map<String, Object>> cacheAsideUpdate(
-            @PathVariable String pid, @RequestBody Map<String, Object> body) {
-        jdbc.sql("UPDATE products SET name = ?, price_cents = ? WHERE id = ?")
-                .param(body.get("name").toString())
-                .param(((Number) body.get("price_cents")).intValue())
-                .param(pid)
-                .update();
+    public Map<String, Object> cacheAsideUpdate(@PathVariable String pid, @RequestBody ProductUpdate body) {
+        products.update(pid, body);
         cache.delete("ca:product:" + pid);
-        return ResponseEntity.ok(Map.of(
-                "ok", true,
-                "pattern", "cache-aside",
-                "action", "invalidated"));
+        return Map.of("ok", true, "pattern", "cache-aside", "action", "invalidated");
     }
 
     // -----------------------------------------------------------------------
-    // 2. Read-through
+    // 2. Read-through: Spring's Cache.get(key, loader) owns the miss handling
     // -----------------------------------------------------------------------
 
     @GetMapping("/read-through/products/{pid}")
-    public ResponseEntity<Map<String, Object>> readThroughGet(@PathVariable String pid) {
-        String key = "rt:product:" + pid;
-
-        // The read-through abstraction: check cache first, populate on miss
-        String cached = cache.get(key);
-        if (cached != null) {
-            Map<String, Object> result = parseJson(cached);
-            result.put("source", "cache");
-            return ResponseEntity.ok(result);
+    public ResponseEntity<ProductResponse> readThroughGet(@PathVariable String pid) {
+        var loaded = new AtomicBoolean();
+        ProductView product;
+        try {
+            product = readThroughCache.get(pid, () -> {
+                loaded.set(true);
+                return products.find(pid).orElseThrow(() -> new UnknownProduct(pid));
+            });
+        } catch (Cache.ValueRetrievalException e) {
+            if (e.getCause() instanceof UnknownProduct) {
+                return ResponseEntity.notFound().build();
+            }
+            throw e;
+        } catch (DataAccessException e) {
+            // Redis is down: answer from the database
+            log.warn("read-through cache unavailable for product={}: {}", pid, e.getMessage());
+            loaded.set(true);
+            product = products.find(pid).orElse(null);
+            if (product == null) {
+                return ResponseEntity.notFound().build();
+            }
         }
+        return ResponseEntity.ok(product.from(loaded.get() ? "db" : "cache"));
+    }
 
-        Map<String, Object> row = findProduct(pid);
-        if (row == null) {
-            return ResponseEntity.notFound().build();
+    private static final class UnknownProduct extends RuntimeException {
+        UnknownProduct(String pid) {
+            super("no product " + pid);
         }
-        cache.setex(key, toJson(row), ttl);
-        row.put("source", "db");
-        return ResponseEntity.ok(row);
     }
 
     // -----------------------------------------------------------------------
@@ -121,43 +113,15 @@ public class CacheController {
     // -----------------------------------------------------------------------
 
     @GetMapping("/write-through/products/{pid}")
-    public ResponseEntity<Map<String, Object>> writeThroughGet(@PathVariable String pid) {
-        String key = "wt:product:" + pid;
-
-        String cached = cache.get(key);
-        if (cached != null) {
-            Map<String, Object> result = parseJson(cached);
-            result.put("source", "cache");
-            return ResponseEntity.ok(result);
-        }
-
-        Map<String, Object> row = findProduct(pid);
-        if (row == null) {
-            return ResponseEntity.notFound().build();
-        }
-        cache.setex(key, toJson(row), ttl);
-        row.put("source", "db");
-        return ResponseEntity.ok(row);
+    public ResponseEntity<ProductResponse> writeThroughGet(@PathVariable String pid) {
+        return productFromCacheOrDb("wt:product:" + pid, pid);
     }
 
     @PutMapping("/write-through/products/{pid}")
-    public ResponseEntity<Map<String, Object>> writeThroughUpdate(
-            @PathVariable String pid, @RequestBody Map<String, Object> body) {
-        jdbc.sql("UPDATE products SET name = ?, price_cents = ? WHERE id = ?")
-                .param(body.get("name").toString())
-                .param(((Number) body.get("price_cents")).intValue())
-                .param(pid)
-                .update();
-
-        // Write-through: update DB then immediately populate cache
-        Map<String, Object> row = findProduct(pid);
-        if (row != null) {
-            cache.setex("wt:product:" + pid, toJson(row), ttl);
-        }
-        return ResponseEntity.ok(Map.of(
-                "ok", true,
-                "pattern", "write-through",
-                "action", "set"));
+    public Map<String, Object> writeThroughUpdate(@PathVariable String pid, @RequestBody ProductUpdate body) {
+        // Write-through: update the database, then immediately populate the cache
+        products.update(pid, body).ifPresent(p -> cache.setex("wt:product:" + pid, toJson(p), ttl));
+        return Map.of("ok", true, "pattern", "write-through", "action", "set");
     }
 
     // -----------------------------------------------------------------------
@@ -165,55 +129,27 @@ public class CacheController {
     // -----------------------------------------------------------------------
 
     @PostMapping("/write-around/events")
-    public ResponseEntity<Map<String, Object>> writeAroundCreate(@RequestBody Map<String, Object> body) {
-        String id = body.get("id").toString();
-        String type = body.get("type").toString();
-        Object payload = body.get("payload");
-        String payloadJson = (payload == null) ? "{}" : toJson(payload);
-
-        jdbc.sql("INSERT INTO events (id, type, payload) VALUES (?, ?, ?::jsonb)")
-                .param(id)
-                .param(type)
-                .param(payloadJson)
-                .update();
-
-        // Write-around: DB only, no cache write
-        return ResponseEntity.ok(Map.of(
-                "ok", true,
-                "pattern", "write-around",
-                "action", "db-only"));
+    public Map<String, Object> writeAroundCreate(@RequestBody EventView body) {
+        // Write-around: database only, no cache write
+        events.save(new EventRecord(body.id(), body.type(), body.payload() == null ? Map.of() : body.payload()));
+        return Map.of("ok", true, "pattern", "write-around", "action", "db-only");
     }
 
     @GetMapping("/write-around/events/{eid}")
-    public ResponseEntity<Map<String, Object>> writeAroundGet(@PathVariable String eid) {
+    public ResponseEntity<EventResponse> writeAroundGet(@PathVariable String eid) {
         String key = "wa:event:" + eid;
 
         String cached = cache.get(key);
         if (cached != null) {
-            Map<String, Object> result = parseJson(cached);
-            result.put("source", "cache");
-            return ResponseEntity.ok(result);
+            return ResponseEntity.ok(mapper.readValue(cached, EventView.class).from("cache"));
         }
 
-        var optRow = jdbc.sql("SELECT id, type, payload FROM events WHERE id = ?")
-                .param(eid)
-                .query((rs, rowNum) -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("id", rs.getString("id"));
-                    m.put("type", rs.getString("type"));
-                    m.put("payload", parseJson(rs.getString("payload")));
-                    return m;
-                })
-                .optional();
-
-        if (optRow.isEmpty()) {
+        Optional<EventView> event = events.findById(eid).map(EventRecord::toView);
+        if (event.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-
-        Map<String, Object> data = optRow.get();
-        cache.setex(key, toJson(data), ttl);
-        data.put("source", "db");
-        return ResponseEntity.ok(data);
+        cache.setex(key, toJson(event.get()), ttl);
+        return ResponseEntity.ok(event.get().from("db"));
     }
 
     // -----------------------------------------------------------------------
@@ -252,32 +188,22 @@ public class CacheController {
             return ResponseEntity.ok(result);
         }
 
-        var optRow = jdbc.sql("SELECT id, payload FROM metrics WHERE id = ?")
-                .param(mid)
-                .query((rs, rowNum) -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("source", "db");
-                    m.put("id", rs.getString("id"));
-                    m.put("payload", parseJson(rs.getString("payload")));
-                    return m;
+        return metrics.findById(mid)
+                .map(m -> {
+                    Map<String, Object> result = new LinkedHashMap<>();
+                    result.put("source", "db");
+                    result.put("id", m.getId());
+                    result.put("payload", m.getPayload());
+                    return ResponseEntity.ok(result);
                 })
-                .optional();
-
-        if (optRow.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok(optRow.get());
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/write-back/flush-status")
     public Map<String, Object> writeBackFlushStatus() {
-        Long dirtyCount = cache.scard("metric:dirty");
-        Long dbCount = jdbc.sql("SELECT count(*) FROM metrics")
-                .query(Long.class)
-                .single();
         return Map.of(
-                "dirty_keys", dirtyCount,
-                "persisted_rows", dbCount);
+                "dirty_keys", cache.scard("metric:dirty"),
+                "persisted_rows", metrics.count());
     }
 
     // -----------------------------------------------------------------------
@@ -285,60 +211,32 @@ public class CacheController {
     // -----------------------------------------------------------------------
 
     @GetMapping("/refresh-ahead/products/{pid}")
-    public ResponseEntity<Map<String, Object>> refreshAheadGet(@PathVariable String pid) {
-        String key = "ra:product:" + pid;
-
+    public ResponseEntity<ProductResponse> refreshAheadGet(@PathVariable String pid) {
         // Track this product as hot
         cache.zadd("product:hot", pid, System.currentTimeMillis() / 1000.0);
-
-        String cached = cache.get(key);
-        if (cached != null) {
-            Map<String, Object> result = parseJson(cached);
-            result.put("source", "cache");
-            return ResponseEntity.ok(result);
-        }
-
-        Map<String, Object> row = findProduct(pid);
-        if (row == null) {
-            return ResponseEntity.notFound().build();
-        }
-        cache.setex(key, toJson(row), ttl);
-        row.put("source", "db");
-        return ResponseEntity.ok(row);
+        return productFromCacheOrDb("ra:product:" + pid, pid);
     }
 
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
 
-    private Map<String, Object> findProduct(String pid) {
-        return jdbc.sql("SELECT id, name, price_cents FROM products WHERE id = ?")
-                .param(pid)
-                .query((rs, rowNum) -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("id", rs.getString("id"));
-                    m.put("name", rs.getString("name"));
-                    m.put("price_cents", rs.getInt("price_cents"));
-                    return m;
-                })
-                .optional()
-                .orElse(null);
+    /** Cache-aside read shared by the strategies that keep explicit Redis calls. */
+    private ResponseEntity<ProductResponse> productFromCacheOrDb(String key, String pid) {
+        String cached = cache.get(key);
+        if (cached != null) {
+            return ResponseEntity.ok(mapper.readValue(cached, ProductView.class).from("cache"));
+        }
+
+        Optional<ProductView> product = products.find(pid);
+        if (product.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        cache.setex(key, toJson(product.get()), ttl);
+        return ResponseEntity.ok(product.get().from("db"));
     }
 
     private String toJson(Object obj) {
-        try {
-            return mapper.writeValueAsString(obj);
-        } catch (JacksonException e) {
-            throw new RuntimeException("JSON serialization failed", e);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> parseJson(String json) {
-        try {
-            return new LinkedHashMap<>(mapper.readValue(json, Map.class));
-        } catch (JacksonException e) {
-            throw new RuntimeException("JSON deserialization failed", e);
-        }
+        return mapper.writeValueAsString(obj);
     }
 }
