@@ -65,9 +65,18 @@ Example 05 also runs on minikube (`examples/05-event-driven/k8s/`, Appendix R): 
 (docker driver, containerd, Kubernetes v1.36.5), NodePorts 30080 and 30300 published on 127.0.0.1 at
 creation, Strimzi 1.2.0 for Kafka, kustomize manifests, `RUNTIME=kubernetes ./verify.sh`. Always pass
 `--keep-context` to `minikube start` (setup-profile.sh also restores the prior current-context, because minikube's restart path overrides the flag) and `--context cndp-k8s` to kubectl; never use port-forward,
-`minikube tunnel` or `minikube service`. OpenShift Local (Appendix S) is added later in
-the modernization plan. Prometheus/Mimir is published on host port 19090 (Cockpit holds 9090
-on Fedora/RHEL). Each example must run standalone.
+`minikube tunnel` or `minikube service`. Prometheus/Mimir is published on host port 19090 (Cockpit holds 9090
+on Fedora/RHEL). Each example must run standalone. Example 05 also runs on OpenShift Local
+(`examples/05-event-driven/openshift/`, Appendix S; Spring Boot, Quarkus, .NET, Python, Go): crc 2.64.0 sized
+12 vCPU / 32768 MiB, AMQ Streams from OLM (pinned `startingCSV`, `installPlanApproval: Manual`, only that
+InstallPlan approved), Kafka 4.2.0, `restricted-v2` pods with no fixed UID, Red Hat `rhel10/postgresql-18`,
+edge-TLS Routes verified with the ingress CA, `RUNTIME=kubernetes KUBECTL=oc ./verify.sh`. OpenShift rules:
+call `oc --context crc-admin` on every command and never `oc config use-context` (`setup-crc.sh` restores the
+recorded current-context, including "none"); never print or store the kubeadmin password, a token or the pull
+secret; images go to the internal registry with `skopeo copy` and a `builder` token held in a shell variable and
+passed through a process-substitution authfile (no `skopeo login`, no `--dest-creds`, no token in a file or an
+argument list); never `curl -k` or port-forward; CRC is stopped after use, never deleted, and `teardown.sh`
+removes only the CRDs our CSV owns or that carry OLM's `operators.coreos.com/amq-streams.cndp-amq-streams` label (and only with no foreign Kafka items), plus OLM's `Operator` object for that package; it reports foreign items and never removes them.
 
 ## Running-example domain
 

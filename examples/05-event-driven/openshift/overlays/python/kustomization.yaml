@@ -1,0 +1,19 @@
+# The python overlay from ../k8s, with the OpenShift component and images from the internal
+# registry. build-push-images.sh pushes localhost/cndp-05/python-<svc>:v1 to that registry.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: cndp-05
+resources:
+  - ../../../k8s/overlays/python
+components:
+  - ../../components/openshift
+images:
+  - name: localhost/cndp-05/python-order-service
+    newName: image-registry.openshift-image-registry.svc:5000/cndp-05/python-order-service
+    newTag: v1
+  - name: localhost/cndp-05/python-shipping-consumer
+    newName: image-registry.openshift-image-registry.svc:5000/cndp-05/python-shipping-consumer
+    newTag: v1
+  - name: localhost/cndp-05/python-notification-consumer
+    newName: image-registry.openshift-image-registry.svc:5000/cndp-05/python-notification-consumer
+    newTag: v1

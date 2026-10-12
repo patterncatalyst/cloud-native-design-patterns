@@ -498,17 +498,18 @@ jobs:
           done < <(jq -r '.[]' <<<"$FILES")
           exit "$failed"
 
-  # Kubernetes manifests: render the infrastructure and every language overlay, validate
-  # against the 1.36.5 schemas (and the Strimzi CRDs), and assert the conventions the
-  # minikube run relies on. No cluster is needed.
+  # Kubernetes and OpenShift manifests: render the infrastructure and every language overlay, validate
+  # against the Kubernetes schemas (and the Strimzi, OLM and OpenShift ones), and assert the conventions
+  # the minikube (k8s/) and OpenShift Local (openshift/) runs rely on. No cluster is needed.
+  # The selector picks examples/<NN>/k8s and examples/<NN>/openshift; a k8s/ change picks both.
   k8s:
-    name: Kubernetes manifests
+    name: Kubernetes and OpenShift manifests
     needs: changes
     if: needs.changes.outputs.k8s != '[]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      # The runner's kubectl is not pinned; install the version the cluster runs.
+      # The runner's kubectl is not pinned; install the version the minikube cluster runs.
       - name: Install kubectl v1.36.5 and kubeconform v0.8.0
         env:
           KUBECTL_SHA256: 33bc88a24c3b09cf55bfd59e6ca977881b61fc3f25ab65bc80c65b430248648e
@@ -526,32 +527,70 @@ jobs:
       - name: Render, validate and assert
         env:
           DIRS: ${{ needs.changes.outputs.k8s }}
-          # datreeio/CRDs-catalog pinned to a commit; it carries the Strimzi schemas.
+          # OpenShift 4.22 runs Kubernetes 1.35. To confirm against `oc version` in the live run.
+          OCP_KUBE_VERSION: 1.35.6
+          # datreeio/CRDs-catalog pinned to a commit; it carries the Strimzi and OLM schemas and, under
+          # openshift/v4.15-strict, the Route and ImageStream ones (a different file name layout).
           CRDS: https://raw.githubusercontent.com/datreeio/CRDs-catalog/63669a570e231d4f1f8396d229a1de512bcf0a34/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json
+          OCP_CRDS: https://raw.githubusercontent.com/datreeio/CRDs-catalog/63669a570e231d4f1f8396d229a1de512bcf0a34/openshift/v4.15-strict/{{.ResourceKind}}_{{.Group}}_{{.ResourceAPIVersion}}.json
         run: |
           failed=0
           while IFS= read -r dir; do
             [ -d "$dir" ] || { echo "::error::$dir not found"; failed=1; continue; }
             kubeconform -v
-            kubeconform -strict -summary -kubernetes-version 1.36.5 -schema-location default -schema-location "$CRDS" "$dir/namespace.yaml" || failed=1
-            targets=("$dir/infra")
+            flavor="$(basename "$dir")"
+            if [ "$flavor" = openshift ]; then
+              kver="$OCP_KUBE_VERSION"
+              targets=("$dir/operators" "$dir/infra")
+              # Exactly the five languages that run on OpenShift Local (no C++), none of them extra.
+              langs="$(for o in "$dir"/overlays/*/; do basename "$o"; done | sort | tr '\n' ' ')"
+              [ "$langs" = "dotnet go python quarkus spring-boot " ] || { echo "::error::$dir/overlays must be dotnet go python quarkus spring-boot, found: $langs"; failed=1; }
+              # Credentials and cluster access: no token or password handling the plan forbids, in code (comments excluded).
+              if grep -rhvE '^\s*#' "$dir"/*.sh | grep -nE 'use-context|oc adm policy|port-forward|skopeo login|--dest-creds|--dest-registry-token|--tls-verify=false|--insecure|curl[^|]* -k |crc delete'; then
+                echo "::error::$dir scripts use a forbidden command"; failed=1
+              fi
+            else
+              kver=1.36.5
+              kubeconform -strict -summary -kubernetes-version "$kver" -schema-location default -schema-location "$CRDS" "$dir/namespace.yaml" || failed=1
+              targets=("$dir/infra")
+            fi
             for o in "$dir"/overlays/*/; do targets+=("${o%/}"); done
             for t in "${targets[@]}"; do
               echo "::group::$t"
-              # infra reads the shared schema from ../../db/init, outside its directory.
+              # infra reads the shared schema from ../../db/init and openshift/infra the k8s files, outside its directory.
               kubectl kustomize --load-restrictor LoadRestrictionsNone "$t" > "$RUNNER_TEMP/render.yaml" || { echo "::error::render failed: $t"; failed=1; echo "::endgroup::"; continue; }
-              kubeconform -strict -summary -kubernetes-version 1.36.5 -schema-location default -schema-location "$CRDS" "$RUNNER_TEMP/render.yaml" || { echo "::error::kubeconform failed: $t"; failed=1; }
+              kubeconform -strict -summary -kubernetes-version "$kver" -schema-location default -schema-location "$CRDS" -schema-location "$OCP_CRDS" "$RUNNER_TEMP/render.yaml" || { echo "::error::kubeconform failed: $t"; failed=1; }
               if grep -nE 'image: .*:latest|:latest$' "$RUNNER_TEMP/render.yaml"; then echo "::error::$t uses :latest"; failed=1; fi
-              case "$t" in
-                */overlays/*)
-                  lang="$(basename "$t")"
-                  [ "$(grep -cE "image: localhost/cndp-05/${lang}-[a-z-]+:v1$" "$RUNNER_TEMP/render.yaml")" -eq 3 ] || { echo "::error::$t must use 3 images localhost/cndp-05/${lang}-<svc>:v1"; failed=1; }
-                  [ "$(grep -c 'imagePullPolicy: Never' "$RUNNER_TEMP/render.yaml")" -eq 3 ] || { echo "::error::$t must set imagePullPolicy: Never on 3 containers"; failed=1; }
-                  grep -q 'nodePort: 30080' "$RUNNER_TEMP/render.yaml" || { echo "::error::$t lacks nodePort 30080"; failed=1; } ;;
-                */infra)
-                  grep -q 'nodePort: 30300' "$RUNNER_TEMP/render.yaml" || { echo "::error::$t lacks nodePort 30300"; failed=1; }
-                  grep -vE 'image: (docker.io|quay.io)/' <(grep -E '^\s+image: ' "$RUNNER_TEMP/render.yaml") && { echo "::error::$t has an image that is not fully qualified"; failed=1; } ;;
-              esac
+              if [ "$flavor" = openshift ]; then
+                if grep -nE 'nodePort|runAsUser|fsGroup|anyuid' "$RUNNER_TEMP/render.yaml"; then echo "::error::$t has a nodePort, a fixed UID or group, or anyuid"; failed=1; fi
+                case "$t" in
+                  */operators)
+                    grep -q 'installPlanApproval: Manual' "$RUNNER_TEMP/render.yaml" || { echo "::error::$t Subscription must use installPlanApproval: Manual"; failed=1; }
+                    grep -qE 'startingCSV: amqstreams\.v[0-9.]+-[0-9]+' "$RUNNER_TEMP/render.yaml" || { echo "::error::$t Subscription must pin startingCSV"; failed=1; }
+                    grep -q 'targetNamespaces' "$RUNNER_TEMP/render.yaml" && { echo "::error::$t OperatorGroup must be AllNamespaces"; failed=1; } ;;
+                  */overlays/*)
+                    lang="$(basename "$t")"
+                    reg=image-registry.openshift-image-registry.svc:5000/cndp-05
+                    [ "$(grep -cE "image: ${reg}/${lang}-[a-z-]+:v1$" "$RUNNER_TEMP/render.yaml")" -eq 3 ] || { echo "::error::$t must use 3 images ${reg}/${lang}-<svc>:v1"; failed=1; }
+                    [ "$(grep -c 'imagePullPolicy: Always' "$RUNNER_TEMP/render.yaml")" -eq 3 ] || { echo "::error::$t must set imagePullPolicy: Always on 3 containers"; failed=1; }
+                    if ! { grep -q 'kind: Route' "$RUNNER_TEMP/render.yaml" && grep -q 'termination: edge' "$RUNNER_TEMP/render.yaml" && grep -q 'insecureEdgeTerminationPolicy: Redirect' "$RUNNER_TEMP/render.yaml"; }; then echo "::error::$t lacks the edge Route with Redirect"; failed=1; fi ;;
+                  */infra)
+                    if ! { grep -q 'kind: Route' "$RUNNER_TEMP/render.yaml" && grep -q 'insecureEdgeTerminationPolicy: Redirect' "$RUNNER_TEMP/render.yaml"; }; then echo "::error::$t lacks the Grafana Route"; failed=1; fi
+                    grep -q 'version: 4.2.0' "$RUNNER_TEMP/render.yaml" || { echo "::error::$t Kafka must run version 4.2.0 (the AMQ Streams bundle)"; failed=1; }
+                    grep -vE 'image: (docker.io|quay.io|registry.redhat.io)/' <(grep -E '^\s+image: ' "$RUNNER_TEMP/render.yaml") && { echo "::error::$t has an image that is not fully qualified"; failed=1; } ;;
+                esac
+              else
+                case "$t" in
+                  */overlays/*)
+                    lang="$(basename "$t")"
+                    [ "$(grep -cE "image: localhost/cndp-05/${lang}-[a-z-]+:v1$" "$RUNNER_TEMP/render.yaml")" -eq 3 ] || { echo "::error::$t must use 3 images localhost/cndp-05/${lang}-<svc>:v1"; failed=1; }
+                    [ "$(grep -c 'imagePullPolicy: Never' "$RUNNER_TEMP/render.yaml")" -eq 3 ] || { echo "::error::$t must set imagePullPolicy: Never on 3 containers"; failed=1; }
+                    grep -q 'nodePort: 30080' "$RUNNER_TEMP/render.yaml" || { echo "::error::$t lacks nodePort 30080"; failed=1; } ;;
+                  */infra)
+                    grep -q 'nodePort: 30300' "$RUNNER_TEMP/render.yaml" || { echo "::error::$t lacks nodePort 30300"; failed=1; }
+                    grep -vE 'image: (docker.io|quay.io)/' <(grep -E '^\s+image: ' "$RUNNER_TEMP/render.yaml") && { echo "::error::$t has an image that is not fully qualified"; failed=1; } ;;
+                esac
+              fi
               echo "::endgroup::"
             done
           done < <(jq -r '.[]' <<<"$DIRS")

@@ -1,0 +1,109 @@
+# Postgres 18 from the Red Hat sclorg image (rhel10/postgresql-18). Same demo
+# credentials and the same Service name as compose and minikube. The schema is the
+# shared ../../db/init/*.sql, applied by a postgresql-start hook as appuser.
+apiVersion: v1
+kind: Service
+metadata:
+  name: cndp-postgres-rw
+spec:
+  selector:
+    app.kubernetes.io/name: cndp-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cndp-postgres
+spec:
+  serviceName: cndp-postgres-rw
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cndp-postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cndp-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: registry.redhat.io/rhel10/postgresql-18:10.2-1791491063
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: POSTGRESQL_DATABASE
+              value: appdb
+            - name: POSTGRESQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: cndp-postgres-app
+                  key: username
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cndp-postgres-app
+                  key: password
+          ports:
+            - name: postgres
+              containerPort: 5432
+          startupProbe:
+            exec:
+              command: ["pg_isready", "-U", "appuser", "-d", "appdb"]
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "appuser", "-d", "appdb"]
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 12
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/pgsql/data
+            - name: schema
+              mountPath: /opt/app-root/schema
+              readOnly: true
+            - name: hooks
+              mountPath: /opt/app-root/src/postgresql-start
+              readOnly: true
+            - name: config
+              mountPath: /opt/app-root/src/postgresql-cfg
+              readOnly: true
+      volumes:
+        - name: schema
+          configMap:
+            name: postgres-init
+        - name: hooks
+          configMap:
+            name: postgres-openshift
+            items:
+              - key: 10-cndp-schema.sh
+                path: 10-cndp-schema.sh
+        - name: config
+          configMap:
+            name: postgres-openshift
+            items:
+              - key: cndp.conf
+                path: cndp.conf
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

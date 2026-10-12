@@ -75,7 +75,8 @@ docker run --rm hello-world
 
 The examples run on `docker compose` and need no cluster. Appendix R runs Example 05 on
 minikube; install these tools when you reach it. minikube uses the Docker driver on the same
-Docker Engine as compose, with the `default` Docker context.
+Docker Engine as compose, with the `default` Docker context. Appendix S runs the same example on
+OpenShift Local; its tools are in the last subsection.
 
 ### minikube
 
@@ -116,12 +117,50 @@ tar -xzf "helm-v${HELM_VERSION}-linux-amd64.tar.gz" linux-amd64/helm
 sudo install linux-amd64/helm /usr/local/bin/helm
 ```
 
+### OpenShift Local (Appendix S)
+
+OpenShift Local (CRC) runs OpenShift 4.22 in a virtual machine on Fedora or RHEL, so the host
+needs KVM. Pinned to crc 2.64.0, with the archive checked against the SHA-256 file Red Hat
+publishes. Run one cluster at a time: stop minikube before `crc start`.
+
+```bash
+CRC_VERSION=2.64.0
+mkdir -p ~/.local/bin && cd "$(mktemp -d)"
+base="https://mirror.openshift.com/pub/openshift-v4/clients/crc/${CRC_VERSION}"
+curl -fsSLO "${base}/crc-linux-amd64.tar.xz"
+curl -fsSL "${base}/sha256sum.txt" | grep ' crc-linux-amd64.tar.xz$' | sha256sum -c -
+tar -xJf crc-linux-amd64.tar.xz --strip-components=1 --wildcards '*/crc'
+install crc ~/.local/bin/crc
+sudo dnf install -y skopeo jq
+crc setup
+```
+
+`crc setup` also makes `api.crc.testing` and `*.apps-crc.testing` resolve on the host, which is
+what lets the Routes work without tunnels. `oc` comes with CRC: `eval "$(crc oc-env)"`.
+
+Download your pull secret from the Red Hat Hybrid Cloud Console (a free Red Hat account is
+enough) to a file, and give crc its path once. The scripts never open the file, and nothing in
+this book prints it:
+
+```bash
+crc config set pull-secret-file ~/Downloads/pull-secret.txt
+crc config set cpus 12
+crc config set memory 32768
+crc config set disk-size 80
+```
+
+Sizing takes effect only while CRC is stopped. The scripts check it and never change it. They
+use the `crc-admin` kubeconfig context that `crc start` writes, so no password is needed. If you
+want the web console login, run `crc console --credentials` yourself.
+
 Verify:
 
 ```bash
 minikube version
 kubectl version --client
 helm version --short
+crc version
+skopeo --version
 ```
 
 ---
@@ -248,6 +287,7 @@ container.
 |-------|--------|------|-----|
 | Docker compose examples | ~2-4 GB | ~3 GB for images | 2+ cores |
 | Minikube, Example 05 (optional) | 8 GB for the node | 40 GB (profile disk) | 4+ cores |
+| OpenShift Local, Example 05 (optional) | 32 GB for the VM (32768 MiB) | 80 GB (VM disk) | 12 vCPU |
 
 The LGTM observability stack (Grafana, Loki, Tempo, Mimir) is the heaviest
 shared component at ~1.5 GB.
@@ -277,7 +317,7 @@ for cmd in curl jq git python3 conftest newman; do
   printf "  %-10s %s\n" "$cmd" "$(command -v $cmd >/dev/null && echo 'ok' || echo 'MISSING')"
 done
 printf "\nOptional:\n"
-for cmd in minikube kubectl helm hey ghz; do
+for cmd in minikube kubectl helm crc skopeo hey ghz; do
   printf "  %-10s %s\n" "$cmd" "$(command -v $cmd >/dev/null && echo 'ok' || echo 'not installed')"
 done
 ```

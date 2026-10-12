@@ -1,0 +1,44 @@
+# otel-lgtm under restricted-v2 (arbitrary UID in group 0). Running the image read-only as such a
+# UID showed that these are the only paths it writes:
+#   /data         Loki, Tempo, Prometheus, Pyroscope and Grafana state
+#   /tmp          readiness marker
+#   /var/tempo    Tempo live-store shutdown marker
+# GF_PLUGINS_PREINSTALL_DISABLED stops Grafana from replacing its bundled data source
+# plugins at startup: that update needs a writable /otel-lgtm tree and would otherwise
+# leave the Loki, Tempo and Prometheus data sources unregistered.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lgtm
+spec:
+  template:
+    spec:
+      containers:
+        - name: lgtm
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: GF_PLUGINS_PREINSTALL_DISABLED
+              value: "true"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+            - name: tempo-run
+              mountPath: /var/tempo
+      volumes:
+        - name: data
+          emptyDir:
+            sizeLimit: 4Gi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+        - name: tempo-run
+          emptyDir:
+            sizeLimit: 64Mi
