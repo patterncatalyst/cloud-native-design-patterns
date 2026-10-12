@@ -17,7 +17,7 @@ rhyme, so we end with those.
 Ordered coarse to fine:
 
 - **URI path** (`/v2/orders`) — visible and trivial to route, but couples the
-  version to the URL and arguably breaks REST's idea that a URL identifies a
+  version to the URL and breaks REST's idea that a URL identifies a
   *resource*, not a representation. Common precisely because it's obvious.
 - **Query parameter** (`?version=2`) — easy to default, but muddies caches (the
   same URL now returns different shapes).
@@ -43,7 +43,7 @@ Content-Type: application/vnd.acme.order.v2+json
 ## Which REST scheme to start with — and what it costs HATEOAS and security
 
 For a new public or partner API, **start with URI-path versioning** (`/v1/orders`).
-It is the least elegant of the four but the most operable: trivially routable,
+It is the least elegant of the four but the most operable: routable,
 visible in logs and dashboards, cacheable without surprises, and impossible for a
 client to get wrong. Reach for **media-type versioning** when you specifically need
 the URL to stay stable — which, as it happens, is exactly what HATEOAS needs.
@@ -58,7 +58,7 @@ travels with those links:
 - **URI-path** works too, but every emitted link must already carry the version
   (`/v2/orders/A-1001/items`); a client that follows links stays pinned to one
   version, which is fine until you want it to move.
-- **Query-param** and **custom-header** versioning quietly break link-following: the
+- **Query-param** and **custom-header** versioning break link-following: the
   version lives outside the URL, so a naively followed link drops it.
 
 **Impact on security.** Each live version is attack surface you must keep patched —
@@ -230,7 +230,7 @@ thing to separate is the two roles a Kafka message plays, which are easy to conf
 
 The default that keeps consumers working is **one topic with a BACKWARD-compatible,
 evolving schema**: add fields, never renumber or repurpose them, and old consumers
-ignore what they don't know while new consumers read the additions. Only a genuine
+ignore what they don't know while new consumers read the additions. Only a
 breaking change earns a new major — and then you run two topics (or two schema
 majors) side by side, dual-write through the migration, and retire the old once
 consumers have moved.
@@ -317,7 +317,7 @@ The protocol-specific rules are all faces of four ideas:
   *add*.
 - **Make compatibility mechanical** — the registry's `BACKWARD`/`FORWARD`/`FULL`
   rules checked in CI, never a reviewer remembering.
-- **Never break silently** — deprecate with a reason, a replacement, and a sunset
+- **Never break without notice** — deprecate with a reason, a replacement, and a sunset
   date, and measure who's still on the old version.
 - **Run old and new side by side** until consumers have migrated, then retire.
 

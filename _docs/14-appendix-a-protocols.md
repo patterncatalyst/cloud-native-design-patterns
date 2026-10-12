@@ -4,16 +4,16 @@ marker: "A"
 label: "Appendix A"
 order: 14
 part: "Deep-dive appendices"
-description: "The deep dive behind 'pick the protocol' — REST, gRPC, and GraphQL compared on three axes: the mental model each imposes, how each handles fetching and round trips, and what actually travels on the wire."
+description: "The deep dive behind 'pick the protocol' — REST, gRPC, and GraphQL compared on three axes: the mental model each imposes, how each handles fetching and round trips, and what travels on the wire."
 duration: 26 minutes
 ---
 
 This is the deep dive behind the protocol choice in **Communications**. The same
 `place_order` intent takes three shapes, and the way to choose between them is to
 compare the three on three axes: the **mental model** each imposes, how each
-handles **fetching and round trips**, and what actually **travels on the wire**.
+handles **fetching and round trips**, and what **travels on the wire**.
 
-## Three paradigms, three mental models
+## Three paradigms and their mental models
 
 Start with the mental model, because it drives everything else:
 
@@ -26,7 +26,7 @@ Start with the mental model, because it drives everything else:
 
 {% include excalidraw.html
    file="14-three-paradigms"
-   alt="Three columns for the same place_order intent. REST as resources: nouns plus HTTP verbs, POST to orders, GET an order by id, state transfer, server defines payload — resource-oriented. gRPC as procedures: typed method calls like Order.Place and Inventory.Reserve, behaviour not state, contract is the proto — RPC-oriented. GraphQL as a graph: one typed schema, the client picks fields and traverses relationships, contract is the SDL — query-oriented."
+   alt="Three columns for the same place_order intent. REST as resources: nouns plus HTTP verbs, POST to orders, GET an order by id, state transfer, server defines payload (resource-oriented). gRPC as procedures: typed method calls like Order.Place and Inventory.Reserve, behaviour not state, contract is the proto (RPC-oriented). GraphQL as a graph: one typed schema, the client picks fields and traverses relationships, contract is the SDL (query-oriented)."
    caption="Figure A.1 — One intent, three mental models: resources, procedures, and a typed graph" %}
 
 ## The three axes, side by side
@@ -50,7 +50,7 @@ typed binary call.
 
 The third axis is what literally travels between processes, and it is the one that
 decides reach and caching. REST rides ordinary HTTP, so browsers and shared caches
-handle it for free; gRPC trades that reach for HTTP/2 streaming and a compact binary
+handle it natively; gRPC trades that reach for HTTP/2 streaming and a compact binary
 encoding; GraphQL keeps HTTP reach but moves caching up into the application.
 
 {% include excalidraw.html
@@ -259,14 +259,14 @@ markedly cheaper than JSON over HTTP/1.1.
 | **Persistent channels** | one long-lived (TLS) connection, reused | no per-call handshake cost |
 | **Generated stubs** | (de)serialisation is compiled, not reflective | less CPU per call than runtime JSON mapping |
 
-Two honest caveats. The win is largest exactly where you'd expect it — chatty,
+Two caveats. The win is largest where you'd expect it — chatty,
 internal, east-west paths — and shrinks for occasional, large-payload calls where
 the body dominates. And none of it reaches a browser directly: a browser needs
 `grpc-web` and a proxy, which is why the public edge usually stays REST or GraphQL.
 
 ## Choosing between them in practice
 
-Said plainly:
+In short:
 
 - **Public, partner-facing, browser or third-party clients, caching matters →
   REST.**
@@ -278,7 +278,7 @@ Said plainly:
 
 The closing point ties back to the whole book: forcing one protocol everywhere —
 "we're a gRPC shop," "everything is GraphQL" — is *itself* an anti-pattern. Each
-protocol earns its place on a specific axis; a healthy system uses all of them
+protocol fits a specific axis; a healthy system uses all of them
 where they fit.
 
 ## Common mistakes with each

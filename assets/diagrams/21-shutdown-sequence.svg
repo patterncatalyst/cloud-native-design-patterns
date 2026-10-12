@@ -31,6 +31,6 @@
 <text x="164.0" y="180.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">triggers</text>
 <text x="164.0" y="180.0" font-size="11" fill="#555" text-anchor="middle">triggers</text>
 <text x="450" y="180" font-size="11" fill="#8a4b06" text-anchor="middle">readiness DOWN + preStop keep new traffic off the dying pod during the async-removal race</text>
-<text x="450" y="330" font-size="11" fill="#2f6db5" text-anchor="middle">liveness must stay UP throughout — or the kubelet restarts a pod that is intentionally draining</text>
+<text x="450" y="330" font-size="11" fill="#2f6db5" text-anchor="middle">liveness must stay UP throughout — or the kubelet restarts a pod that is draining</text>
 <text x="860" y="330" font-size="10" fill="#888888" text-anchor="end">time →</text>
 </svg>

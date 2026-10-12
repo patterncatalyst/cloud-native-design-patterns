@@ -38,7 +38,7 @@ only want to pay it where the coupling across that distance is weak.
 the more likely a change in one forces a change in the other. **Distance** is how far
 apart they sit — same method, class, module, service, or system — and it sets the cost
 of any change that has to cross the boundary. **Volatility** is how often the coupled
-thing actually changes; it is the dimension you cannot observe directly, but the DDD
+thing changes; it is the dimension you cannot observe directly, but the DDD
 appendix already gave the tool to predict it — a subdomain's type tells you its
 change-rate, with core subdomains volatile and generic ones stable.
 
@@ -79,7 +79,7 @@ across that distance is how the distributed monolith forms.
 
 {% include excalidraw.html
    file="20-strength-ladder"
-   alt="Integration strength as a four-rung ladder, worst to best, each with its example in our system. Intrusive coupling reaches into another's private internals — a shared database or scraping internals. Functional coupling shares business logic and rules — duplicated or co-owned domain logic. Model coupling shares a data model or DTOs — a shared library of types. Contract coupling integrates via an explicit, stable contract — REST, gRPC, or GraphQL plus a registry schema. Across services, aim for contract coupling."
+   alt="Integration strength as a four-rung ladder, worst to best, each with its example in our system. Intrusive coupling reaches into another's private internals, such as a shared database or scraping internals. Functional coupling shares business logic and rules, such as duplicated or co-owned domain logic. Model coupling shares a data model or DTOs, such as a shared library of types. Contract coupling integrates via an explicit, stable contract: REST, gRPC, or GraphQL plus a registry schema. Across services, aim for contract coupling."
    caption="Figure G.2 — The integration-strength ladder; across services, aim for the bottom rung — contract coupling" %}
 
 ## Strength × distance, and volatility as the trigger
@@ -90,11 +90,11 @@ quadrants — only one of which is dangerous.
 {% include excalidraw.html
    file="20-coupling-quadrant"
    alt="A two-by-two of integration strength (vertical) against distance (horizontal). Strong and close is a cohesive module (healthy); strong and distant is the distributed monolith (the trap); weak and close is needless indirection; weak and distant is healthy microservices. A note states that volatility is the trigger — even the trap quadrant is harmless on code that never changes."
-   caption="Figure G.3 — Balance means having strength or distance, not both; volatility decides whether an imbalance actually bites" %}
+   caption="Figure G.3 — Balance means having strength or distance, not both; volatility decides whether an imbalance bites" %}
 
 The two healthy quadrants are a cohesive module (strong, close) and contract-integrated
 services (weak, distant). The bottom-left, weak-and-close, is merely needless
-indirection — you have split things that could simply be merged. The top-right,
+indirection — you have split things that could be merged. The top-right,
 strong-and-distant, is the distributed monolith, where one change ripples across
 services and teams.
 
@@ -140,7 +140,7 @@ renumber a field.
    alt="Connascence in two families, each weaker at the top and stronger at the bottom. Static connascence, visible in the code: Name (agree on an identifier), Type (agree on a type or shape), Meaning (a shared convention or magic value), Position (the same order of arguments or fields), Algorithm (the same algorithm on both sides). Dynamic connascence, only at runtime: Execution order (A must run before B), Timing (race-sensitive), Value (values must stay in agreement), Identity (the same instance or entity). The rule: the stronger the connascence between two parts, the more local they must stay."
    caption="Figure G.4 — Connascence: static and dynamic forms, weakest to strongest — keep stronger forms more local" %}
 
-The **afferent / efferent** entry is the one you can actually measure. Afferent
+The **afferent / efferent** entry is the one you can measure. Afferent
 coupling (Ca) counts who depends on a module; efferent (Ce) counts what it depends on.
 Their ratio gives an *instability* score, `I = Ce / (Ca + Ce)`, running from 0 (nothing
 depends outward — maximally stable) to 1 (depends on everything, depended on by nothing
@@ -158,7 +158,7 @@ to a domain you don't yet understand, where the boundaries themselves are still 
 
 {% include excalidraw.html
    file="20-cynefin-coupling"
-   alt="The four Cynefin domains, each with its coupling posture. Complex (probe, sense, respond): keep coupling loose and reversible — favour events and contracts, and don't split prematurely. Complicated (sense, analyse, respond): design boundaries deliberately with DDD context mapping and invest in the right contracts. Chaotic (act, sense, respond): stabilise first with strong, local coupling, even a monolith, then refactor as it clarifies. Clear (sense, categorise, respond): standardise on contract coupling and codify the known-good with registry-checked schemas."
+   alt="The four Cynefin domains, each with its coupling posture. Complex (probe, sense, respond): keep coupling loose and reversible — favour events and contracts, and don't split prematurely. Complicated (sense, analyse, respond): design boundaries with DDD context mapping and invest in the right contracts. Chaotic (act, sense, respond): stabilise first with strong, local coupling, even a monolith, then refactor as it clarifies. Clear (sense, categorise, respond): standardise on contract coupling and codify the known-good with registry-checked schemas."
    caption="Figure G.5 — Cynefin and coupling: match the posture to how well you understand the domain" %}
 
 The throughline with the rest of the appendix: in a **complex** domain you keep
@@ -239,5 +239,5 @@ it alone — which is the appendix's real lesson: looser is not automatically be
 *Verification status: unverified — this is a conceptual appendix with no runnable
 example; its claims are model-level (Khononov's *Balancing Coupling*) rather than code
 that executes. There is no `examples/` runner for it; verification here means a design
-review confirms the three-dimension scoring matches how changes actually propagate in a
+review confirms the three-dimension scoring matches how changes propagate in a
 real system.*

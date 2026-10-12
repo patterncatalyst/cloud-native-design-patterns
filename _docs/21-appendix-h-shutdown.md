@@ -12,7 +12,7 @@ This appendix is the operational flip side of factor IX, disposability, from the
 Cloud-Native Principles chapter. Pods are cattle: every deploy, scale-down, autoscale
 event, or reschedule kills and replaces them, often many times a day. An ungraceful
 exit drops in-flight requests, abandons unacked messages, and leaves work half-done —
-the scatter of `5xx` blips users actually notice during an otherwise-healthy rolling
+the scatter of `5xx` blips users notice during an otherwise-healthy rolling
 deploy. Graceful shutdown is not a single setting; it is a short protocol the app and
 the platform perform together, on a clock: stop taking new work, finish what you
 accepted, drain consumers and sockets, then exit before the grace period runs out.
@@ -48,7 +48,7 @@ The pod's side of the contract is five rules:
 - There is a **race** — endpoint removal is asynchronous — so a short `preStop` sleep
   covers the lag while the rest of the cluster stops routing to you.
 - **Liveness must stay UP** during the drain, or the kubelet restarts a pod that is
-  deliberately winding down. This is the distinction people get backwards: you *want*
+  winding down. This is the distinction people get backwards: you *want*
   readiness to fail, but you must *not* let liveness fail.
 - Size the grace period **larger than your longest acceptable in-flight operation** —
   too short cuts work off mid-flight, too long stalls every deploy.
@@ -288,7 +288,7 @@ spec:
 
 `terminationGracePeriodSeconds` is the total budget, and it must exceed `preStop` plus
 your worst-case drain plus a buffer. The readiness probe's `periodSeconds × failureThreshold`
-sets how fast Kubernetes actually stops routing after you report `DOWN` — roughly ten
+sets how fast Kubernetes stops routing after you report `DOWN` — roughly ten
 seconds here — which your `preStop` sleep should cover. Liveness points at a *separate*
 `/livez` that stays up throughout the drain, so the kubelet does not restart a pod that is
 cleanly winding down. The `preStop` sleep looks crude, but it is the pragmatic fix for the
@@ -306,7 +306,7 @@ it reconnect to another pod, exactly what the WebSockets appendix's reconnection
 enables. Jobs and schedulers stop starting new work and checkpoint so they resume after
 restart. And the philosophical anchor of the whole appendix: you *cannot* guarantee a
 graceful exit, because the kubelet will sometimes `SIGKILL` you — so idempotency is what
-actually makes the system safe, and graceful shutdown just makes the unsafe window rare.
+makes the system safe, and graceful shutdown just makes the unsafe window rare.
 
 ## Graceful shutdown checklist
 
@@ -336,8 +336,8 @@ resets timed to the restart, walk the protocol backwards — the usual culprit i
 not flipping early enough, or a `preStop`/grace-period that is shorter than the real drain.
 For the Kafka path, restart a consumer pod mid-stream and confirm from the broker that the
 group rebalanced quickly and offsets advanced — no long stall, no large redelivery spike.
-A clean rollout under live load, not a green integration test, is graceful shutdown actually
-working.
+A clean rollout under live load, not a green integration test, is evidence that graceful shutdown
+works.
 
 ---
 *Verification status: verified — [`examples/21-graceful-shutdown/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/21-graceful-shutdown/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-10)

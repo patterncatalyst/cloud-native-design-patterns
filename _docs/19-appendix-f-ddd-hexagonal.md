@@ -8,7 +8,7 @@ description: "Where service boundaries and API contracts come from — strategic
 duration: 22 minutes
 ---
 
-The rest of this book assumes the boundaries are already drawn: that each service
+The other chapters assume the boundaries are already drawn: that each service
 owns a coherent slice of the business, and that its API says the right things. This
 appendix is where those assumptions come from. Domain-Driven Design supplies the
 *strategic* tools to place a boundary and the *tactical* tools to model what lives
@@ -35,7 +35,7 @@ dominate outcomes far more than protocol polish does.
 
 Classify the business by **value and rate of change**. A *core* subdomain is the
 competitive edge — complex, volatile, where the strongest people belong. A
-*supporting* subdomain is necessary but not differentiating, so build it simply. A
+*supporting* subdomain is necessary but not differentiating, so keep its design simple. A
 *generic* subdomain is a solved problem you adopt or buy rather than invent — auth,
 notifications. In the running system, order and pricing are core; inventory and
 shipping are supporting; auth and notification are generic. The classification is not
@@ -57,13 +57,13 @@ context end to end.
 
 {% include excalidraw.html
    file="19-strategic-ddd"
-   alt="Strategic DDD classifies the business into three kinds of subdomain by value and rate of change. Core: your competitive edge, complex and volatile, your best people — order and pricing. Supporting: necessary but not a differentiator, built simply — inventory and shipping. Generic: a solved problem you buy or adopt off the shelf — auth and notification. Each subdomain becomes one or more bounded contexts, a model boundary with its own ubiquitous language, and the API is that boundary: one context's order is not another's, and the contract translates between models rather than sharing internals."
+   alt="Strategic DDD classifies the business into three kinds of subdomain by value and rate of change. Core: your competitive edge, complex and volatile, your best people (order and pricing). Supporting: necessary but not a differentiator, kept simple (inventory and shipping). Generic: a solved problem you buy or adopt off the shelf (auth and notification). Each subdomain becomes one or more bounded contexts, a model boundary with its own ubiquitous language, and the API is that boundary: one context's order is not another's, and the contract translates between models rather than sharing internals."
    caption="Figure F.1 — Subdomains classified by value and volatility; each becomes a bounded context whose API is the boundary" %}
 
 ## Context mapping — how contexts integrate
 
 Context mapping catalogues the ways two contexts relate, and three of those patterns
-are the ones an API actually implements:
+are the ones an API implements:
 
 - An **Open-Host Service** is a context that, because many others integrate with it,
   publishes a stable, documented API as its public protocol — that is your REST,
@@ -80,7 +80,7 @@ upstream is clean and stable, and the wrong one when it is messy or volatile —
 an ACL localises the blast radius of their changes to a single translation layer. The
 remaining map entries are trade-offs you choose rarely: a Shared Kernel means two
 contexts share a model and therefore change in lockstep (high coupling, use sparingly);
-a Partnership means they co-evolve deliberately; Separate Ways means do not integrate
+a Partnership means they co-evolve in coordination; Separate Ways means do not integrate
 at all. The payoff of this section is recognition: the registry-backed contract you
 already have is a Published Language, and the gateway or consumer-edge translation you
 already do is an Anticorruption Layer — now they have names and a theory behind them.
@@ -88,7 +88,7 @@ already do is an Anticorruption Layer — now they have names and a theory behin
 {% include excalidraw.html
    file="19-context-mapping"
    alt="The eight context-mapping patterns for how two bounded contexts integrate. The three API-relevant ones are starred: Open-Host Service, publish a stable API for all comers; Published Language, a shared schema in OpenAPI, proto, or Avro; and Anticorruption Layer, translate a foreign model at your edge. The others are Conformist, accept the upstream model as-is; Customer and Supplier, upstream serves a negotiated downstream; Shared Kernel, share a model with high coupling used sparingly; Partnership, two contexts evolve together; and Separate Ways, don't integrate at all."
-   caption="Figure F.2 — The context-mapping patterns; the starred three are the ones an API actually implements" %}
+   caption="Figure F.2 — The context-mapping patterns; the starred three are the ones an API implements" %}
 
 ## Hexagonal architecture — protocols are adapters
 
@@ -104,7 +104,7 @@ points inward: adapters depend on the domain, never the reverse.
 
 {% include excalidraw.html
    file="19-hexagonal-ports"
-   alt="A central domain core that depends on nothing, declaring ports. On the left, three driving adapters — REST, gRPC, GraphQL — call inward through an inbound port. On the right, two driven adapters — a Postgres repository and a Kafka publisher — implement outbound ports. All dependency arrows point inward toward the core."
+   alt="A central domain core that depends on nothing, declaring ports. On the left, three driving adapters (REST, gRPC, GraphQL) call inward through an inbound port. On the right, two driven adapters (a Postgres repository and a Kafka publisher) implement outbound ports. All dependency arrows point inward toward the core."
    caption="Figure F.3 — The domain core is isolated; the four protocols are interchangeable adapters around it" %}
 
 The consequence is the one this book cares about: the four protocols are
@@ -361,7 +361,7 @@ domain types and the ports it declares. Then prove replaceability by constructio
 a second driving adapter (a gRPC endpoint, or a Kafka consumer) that calls the *same*
 `PlaceOrder` use case, and confirm the domain files do not change in that diff — only a
 new adapter file appears. A clean domain import list plus a no-domain-change diff when
-you bolt on a protocol is hexagonal architecture actually holding.
+you bolt on a protocol is hexagonal architecture holding.
 
 ---
 *Verification status: verified — [`examples/19-ddd-hexagonal/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/19-ddd-hexagonal/) passes 17/17 checks in each of the six languages on Docker Engine (2026-10-10)

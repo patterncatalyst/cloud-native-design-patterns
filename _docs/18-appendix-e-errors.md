@@ -10,8 +10,8 @@ duration: 24 minutes
 
 Cloud-native systems rarely fall apart on the happy path; they fall apart on the
 error path, because that path gets the least design attention and the least
-testing. This appendix fixes the error path the same way the rest of the book
-fixes everything else: **agree one contract, then encode it consistently.** Pick a
+testing. This appendix fixes the error path with the principle the book applies
+throughout: **agree one contract, then encode it consistently.** Pick a
 single error model — a stable machine code, a safe human message, a correlation id,
 a retryable flag, and structured field details — and map *that same model* onto each
 protocol the system speaks: REST, gRPC, Kafka, and GraphQL. We close on the failure
@@ -59,8 +59,8 @@ The **HTTP status class is the category**, and it is what drives client behaviou
 
 The discipline that makes this maintainable is **one mapping seam**: domain code
 raises a typed exception, and exactly one place turns it into the wire format, so
-ad-hoc error JSON never spreads across endpoints. Notice what every version here
-deliberately omits — no stack trace, no exception class name, no SQL. The status
+ad-hoc error JSON never spreads across endpoints. Every version here
+omits internals — no stack trace, no exception class name, no SQL — so nothing about the implementation leaks. The status
 matches the category (`409`, a conflict the client can act on), and the body carries
 the code and the trace id for correlation.
 
