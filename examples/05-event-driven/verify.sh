@@ -95,7 +95,7 @@ printf '==> Verifying Example 05: Event-Driven Architecture\n\n'
 # --- order-service is up ---
 check "order-service healthz" \
     "curl $CURL_OPTS -sf $BASE/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 # --- Place an order ---
 ORDER_JSON=$(curl $CURL_OPTS -sf -X POST -H 'Content-Type: application/json' \

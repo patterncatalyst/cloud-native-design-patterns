@@ -56,7 +56,7 @@ printf '==> Verifying Example 25: Caching Patterns\n\n'
 # --- healthz ---
 check "healthz returns ok" \
     "curl $CURL_OPTS -sf $BASE/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 # ===================================================================
 # 1. Cache-aside

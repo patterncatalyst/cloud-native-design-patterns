@@ -50,7 +50,7 @@ printf -- '--- 1. Envoy weighted routing ---\n'
 
 check "envoy healthz proxied to backend" \
     "curl $CURL_OPTS -sf $ENVOY/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 V1_COUNT=0
 V2_COUNT=0
@@ -122,7 +122,7 @@ printf '\n--- 3. In-app rule-driven routing ---\n'
 
 check "router healthz" \
     "curl $CURL_OPTS -sf $ROUTER/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 check "VIP order (amount >= 1000) → orders.priority" \
     "curl $CURL_OPTS -sf -X POST $ROUTER/orders -H 'Content-Type: application/json' -d '{\"sku\":\"diamond\",\"quantity\":1,\"amount\":2500}'" \

@@ -44,7 +44,7 @@ printf '==> Verifying Example 28: Newman API Testing\n\n'
 # --- Service healthy ---
 check "healthz returns ok" \
     "curl $CURL_OPTS -sf $BASE/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 # ===================================================================
 # 1. Newman collection run (green path)

@@ -56,7 +56,7 @@ printf '==> Verifying Example 17: Saga State & Compensation\n\n'
 # --- Service is up ---
 check "saga-orchestrator healthz" \
     "curl $CURL_OPTS -sf $BASE/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 # --- Happy path: all steps succeed ---
 printf '  \xe2\x86\x92 testing happy path (all steps succeed)...\n'

@@ -62,7 +62,7 @@ for _ in $(seq 1 30); do
 done
 check "order-service healthz" \
     "curl $CURL_OPTS -sf $BASE/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 # warmup: give gRPC channel time to connect to inventory
 for _ in 1 2 3 4 5; do

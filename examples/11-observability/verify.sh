@@ -57,7 +57,7 @@ printf '==> Verifying Example 11: Observability\n\n'
 # --- Services are up ---
 check "order-service healthz" \
     "curl $CURL_OPTS -sf $BASE/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 # --- Place an order (flows through REST → gRPC → Kafka → consumer) ---
 printf '  \xe2\x86\x92 placing an order and waiting for traces to flush...\n'
