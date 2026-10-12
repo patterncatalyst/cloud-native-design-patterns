@@ -5,7 +5,7 @@ DB-backed saga orchestrator — three steps forward, reverse-order compensation 
 ## Framework & libraries
 
 - **Framework**: ASP.NET Core (.NET 10.0.12) minimal API
-- **Libraries**: Npgsql, Npgsql.OpenTelemetry, OTel
+- **Libraries**: EF Core with Npgsql, Npgsql.OpenTelemetry, OTel
 - **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520 (runtime), built with ubi9/dotnet-100:9.8-1791421718; runs as UID 1001
 
 ## Run
@@ -24,11 +24,11 @@ cd .. && bash verify.sh
 
 | Path | Description |
 |------|-------------|
-| `SagaOrchestrator/` | Program.cs — minimal API with saga advance/compensate logic, Npgsql transactions with SELECT FOR UPDATE |
+| `SagaOrchestrator/` | Program.cs — minimal API; SagaEngine.cs — advance/compensate logic; SagaContext.cs — EF Core mapping |
 
 ## Implementation notes
 
-All logic in one `Program.cs`. Uses `NpgsqlTransaction` with `FOR UPDATE` row locking. Saga steps and compensation are method calls within a transaction.
+`SagaEngine` loads the saga with `FromSql(... FOR UPDATE)` inside an EF Core transaction, so concurrent advances of one saga serialize on the row lock. Saga steps and compensation are method calls within that transaction.
 
 ## Environment variables
 

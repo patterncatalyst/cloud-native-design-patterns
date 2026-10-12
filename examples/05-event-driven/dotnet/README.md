@@ -5,7 +5,7 @@ Kafka fan-out — order.placed events consumed independently by shipping and not
 ## Framework & libraries
 
 - **Framework**: ASP.NET Core (.NET 10.0.12) minimal API + BackgroundService consumers
-- **Libraries**: Confluent.Kafka 2.16.0, Npgsql, OTel
+- **Libraries**: Confluent.Kafka 2.16.0, EF Core with Npgsql, OTel
 - **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520 (runtime), built with ubi9/dotnet-100:9.8-1791421718; runs as UID 1001
 
 ## Run
@@ -25,8 +25,8 @@ cd .. && bash verify.sh
 | Path | Description |
 |------|-------------|
 | `OrderService/` | Program.cs — REST API + Kafka producer (ProducerBuilder) |
-| `ShippingConsumer/` | Program.cs — BackgroundService with ConsumerBuilder, manual commit after DB write |
-| `NotificationConsumer/` | Program.cs — BackgroundService with ConsumerBuilder, manual commit after DB write |
+| `ShippingConsumer/` | Program.cs and ShipmentWorker.cs — a BackgroundService with ConsumerBuilder, an existence check plus the unique index on order_id, manual commit after the DB write |
+| `NotificationConsumer/` | Program.cs and NotificationWorker.cs — the same idempotent consumer for notifications |
 
 ## Implementation notes
 

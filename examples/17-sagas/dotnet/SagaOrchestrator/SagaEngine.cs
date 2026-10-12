@@ -166,7 +166,7 @@ public sealed partial class SagaEngine(
     [LoggerMessage(Level = LogLevel.Information, Message = "cancelled shipping {ShipmentId}")]
     private partial void LogCancelled(string? shipmentId);
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "step {Step} failed: {Error} — starting compensation")]
+    [LoggerMessage(Level = LogLevel.Error, Message = "step {Step} failed: {Error}, starting compensation")]
     private partial void LogStepFailed(string step, string error);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "saga {SagaId} fully compensated")]

@@ -26,7 +26,7 @@ public sealed class DrainService(ShutdownState state, IConfiguration config, ILo
     {
         state.MarkShuttingDown();
         var delay = TimeSpan.FromSeconds(config.GetValue("DRAIN_DELAY_SECONDS", 5));
-        logger.LogInformation("SIGTERM received — readiness flipped, draining in-flight requests");
+        logger.LogInformation("SIGTERM received, readiness flipped, draining in-flight requests");
         logger.LogInformation("waiting {Delay}s for endpoints to update", delay.TotalSeconds);
         try
         {
