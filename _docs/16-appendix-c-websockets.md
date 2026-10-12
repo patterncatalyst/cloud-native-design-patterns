@@ -8,8 +8,8 @@ description: "The protocol we left out of the main interaction styles, because i
 duration: 28 minutes
 ---
 
-WebSockets were deliberately left out of the main interaction-styles discussion
-because they behave so differently on Kubernetes. A WebSocket is long-lived,
+WebSockets get their own appendix instead of a place in the main interaction-styles
+discussion because they behave so differently on Kubernetes. A WebSocket is long-lived,
 stateful, and **pinned to a pod** — the opposite of the disposable, stateless
 request the platform is built around.
 
@@ -162,7 +162,7 @@ pod that doesn't happen to hold X's socket.
 The fix keeps the part that's fine — each pod still owns only its own sockets — and
 adds a shared **backplane** that every pod subscribes and publishes to: **Redis
 pub/sub** for low latency, or a **Kafka topic** when you want durability and replay.
-To send to user X, any pod publishes to the backplane; the pod that actually holds
+To send to user X, any pod publishes to the backplane; the pod that holds
 X's socket is subscribed, receives it, and writes it down the wire. No pod needs to
 know where any client lives.
 
@@ -436,7 +436,7 @@ the missed range. The user sees a brief reconnect, not a lost stream.
    caption="Figure C.5 — Failover without interruption: reconnect lands on a live pod, which replays the gap from the backplane" %}
 
 The one requirement is that the missed range be *reconstructable* from somewhere the
-new pod can reach. A Kafka backplane with retention gives this for free — the new pod
+new pod can reach. A Kafka backplane with retention provides this directly — the new pod
 seeks to `seq + 1` and replays. With Redis pub/sub, which has no history, pair it with
 a short server-side ring buffer (or a Redis stream) keyed by sequence so the gap can
 be re-sent. Either way the contract is at-least-once, deduplicated by `seq`.
@@ -456,7 +456,7 @@ so performance work is mostly about keeping the *per-message* cost low and the
 | **Tuned heartbeats** | ping often enough to detect a dead link in seconds, rarely enough not to wake every idle connection constantly |
 | **Per-pod connection caps** | memory-per-connection × cap sizes the pod; scale and trigger on connection count, not CPU |
 
-The throughline with the rest of this appendix: most of these are the same levers
+The throughline of the WebSocket patterns: most of these are the same levers
 that make the system *scale* — bounded buffers and connection caps are what let the
 HPA reason about a pod, and binary framing is what keeps the backplane cheap.
 
@@ -467,7 +467,7 @@ like. The idea is simple: each connection gets a fixed-size outbound queue. When
 queue is full — because the client is reading slower than you are writing — you either
 **drop the message** (acceptable for live-updating dashboards where the next update
 replaces the stale one) or **disconnect the client** (preferable when every message
-must be delivered and the client is genuinely stuck):
+must be delivered and the client is stuck):
 
 ```csharp
 // bounded send buffer — drop or disconnect when the client can't keep up
@@ -502,7 +502,7 @@ unbounded buffer until the pod OOMs.
 
 Everything in this appendix uses raw WebSockets — direct `ws.SendAsync` or
 `c.Write`, manual heartbeats, hand-built backplanes, explicit sequence tracking.
-This is deliberate: raw sockets are cross-language, and the patterns (backplane,
+The appendix stays on raw sockets because they are cross-language, and the patterns (backplane,
 resume, binary framing) are universal.
 
 **SignalR** is ASP.NET Core's real-time abstraction that sits *on top of* WebSockets
@@ -549,7 +549,7 @@ SignalR**.
 
 ### Cross-check it yourself
 
-Make the backplane earn its place. Connect a client to `ws-pod-1`, then send it a
+Prove the backplane carries messages between pods. Connect a client to `ws-pod-1`, then send it a
 message *from* `ws-pod-2`: with the backplane wired up it arrives; rip the backplane
 out and it vanishes, because no other pod can reach that socket. Then scale the
 Deployment down by one and confirm the dropped clients reconnect with backoff and

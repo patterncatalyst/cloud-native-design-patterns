@@ -31,7 +31,7 @@ The verify.sh script ensures the domain layer has **zero framework imports**:
 - No `#include <libpq-fe.h>`
 - No `#include <spdlog/...>`
 
-The domain layer depends ONLY on its own types and standard C++. Adapters
+The domain layer depends only on its own types and standard C++. Adapters
 implement the ports (interfaces) defined by the domain.
 
 ## Running

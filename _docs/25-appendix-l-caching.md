@@ -8,11 +8,11 @@ description: "Six standard caching patterns — cache-aside, read-through, write
 duration: 24 minutes
 ---
 
-Caching is the highest-leverage performance tool you have and the easiest to get subtly
-wrong. The six patterns in this appendix all use the same pieces — an application, a cache
+Caching is one of the cheapest big performance wins, and the easiest to get
+subtly wrong. The six patterns in this appendix all use the same pieces — an application, a cache
 (Redis here), and a database — and differ in exactly two things: *who does the work* and
 *what consistency story you get*. The discipline is to pick the pattern that matches the
-consistency you actually need and the read/write profile you actually have, not the one
+consistency you need and the read/write profile you have, not the one
 that sounds best. Every pattern here also adds an invalidation story and a failure-mode
 story, so the appendix ends on the anti-patterns and a decision guide for mixing them.
 
@@ -624,7 +624,7 @@ func (s *Server) updateProduct(w http.ResponseWriter, r *http.Request) {
 When data is written far more often than it is read — audit logs, event records, telemetry — caching
 every write is wasteful, because most entries expire before anyone reads them. Write-around writes
 the database and leaves the cache alone; the next reader pays the miss and populates it. The cache
-then holds only things actually being read, with no pollution by write-only data. The cost is that
+then holds only things being read, with no pollution by write-only data. The cost is that
 the first read after every write is slow, so you pair write-around on the write side with cache-aside
 or read-through on the read side. It is the right pattern for any append-heavy or mostly-written
 workload.
@@ -804,7 +804,7 @@ equals cache latency (microseconds), which is enormous throughput on write-heavy
 is durability: a cache crash before the flusher catches up loses unflushed writes, so the cache must
 be configured for persistence (Redis AOF or RDB) and you must have thought about what "lost the last
 few seconds of writes" means for the business. Reserve it for cases where write throughput is the
-constraint *and* eventual durability is genuinely acceptable — real-time game state, telemetry with a
+constraint *and* eventual durability is acceptable — real-time game state, telemetry with a
 downstream aggregator, write-heavy buffering ahead of a slower store.
 
 {% include excalidraw.html
@@ -1320,15 +1320,15 @@ func (s *Server) refresher(ctx context.Context) {
 }
 ```
 
-## When NOT to cache, and what to watch for
+## When not to cache, and what to watch for
 
-Caching is a complexity tax, only worth paying when reads genuinely hurt — the cheapest cache is no
+Caching is a complexity tax, only worth paying when reads hurt — the cheapest cache is no
 cache, so if reads are already fast, don't add one. The failure modes to design against:
 
 - **Don't cache rarely-read data.** Caching write-once-read-never data thrashes the cache and gains
   nothing. Profile read patterns first.
-- **Don't cache without a TTL.** An unbounded cache grows until it evicts at random — the worst kind of
-  failure, because it is unpredictable. Always set an explicit TTL or a `maxmemory-policy`
+- **Don't cache without a TTL.** An unbounded cache grows until it evicts at random, a failure that is
+  hard to diagnose because it is unpredictable. Always set an explicit TTL or a `maxmemory-policy`
   (`allkeys-lru` is the typical default); an unbounded Redis with no eviction policy will OOM-kill
   itself.
 - **Avoid cache stampedes (thundering herd).** When a hot key expires and many concurrent readers all
@@ -1353,11 +1353,11 @@ extreme-write-throughput pattern, valid only when eventual durability is accepta
 configured for persistence. **Refresh-ahead** is the hot-key pattern, eliminating user-visible misses on
 a small identified hot set at the cost of extra DB load on it. Most production systems run cache-aside
 for the bulk of traffic, layer refresh-ahead on the hot keys they have identified, and use write-through
-only where stale reads are genuinely forbidden — a mix, not a single rule.
+only where stale reads are forbidden — a mix, not a single rule.
 
 ### Cross-check it yourself
 
-Prove the two properties that matter: the cache actually offloads the database, and a cache outage
+Prove the two properties that matter: the cache offloads the database, and a cache outage
 degrades rather than breaks. Put read load on the cache-aside endpoint with `hey` and watch the
 database's query counter (Postgres `pg_stat_statements`, or the query log): after the first miss per
 key the DB call count should flatten while throughput climbs, and p99 should drop sharply — that is the

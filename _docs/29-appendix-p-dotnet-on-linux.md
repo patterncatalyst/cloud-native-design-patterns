@@ -46,7 +46,7 @@ runtime, the BCL, and the ASP.NET Core framework that sits on top. When it says 
 means the language syntax. A `.csproj` file targets a .NET version (`net10.0`), not a C#
 version, because the platform version determines what APIs are available.
 
-## CIL: what `dotnet build` actually produces
+## CIL: what `dotnet build` produces
 
 When Roslyn compiles a C# source file, the output is not x86 machine code. It is
 **Common Intermediate Language** (CIL, historically called MSIL or just IL) — a

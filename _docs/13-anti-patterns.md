@@ -9,7 +9,7 @@ duration: 16 minutes
 Here is the most useful framing in the book, and the one to remember for code
 review: **nearly every cloud-native failure is coupling sneaking back in.** You did
 the work to separate things into services with contracts and events. Entropy and
-deadlines pull them quietly back together. This closing chapter names the specific
+deadlines pull them back together. This closing chapter names the specific
 ways that happens and gives you heuristics to catch them.
 
 ## How cloud-native API systems go wrong
@@ -19,7 +19,7 @@ exactly the coupling the architecture worked to remove:
 
 {% include excalidraw.html
    file="13-antipatterns-grid"
-   alt="A grid of nine anti-patterns, each re-coupling what the architecture worked to separate: distributed monolith (services deploy together), shared database (two services one schema), chatty N+1 APIs (a screen makes 40 calls), sync call chains (A to B to C to D, availability multiplies down), no contract or registry (breaking changes ship silently), smart pipes and dumb endpoints (business logic creeps into the gateway), missing observability (debugging by guesswork), retry storms with no backoff (retries amplify an incident into an outage), and leaky internal models (DB rows exposed as the public API)."
+   alt="A grid of nine anti-patterns, each re-coupling what the architecture worked to separate: distributed monolith (services deploy together), shared database (two services one schema), chatty N+1 APIs (a screen makes 40 calls), sync call chains (A to B to C to D, availability multiplies down), no contract or registry (breaking changes go unflagged), smart pipes and dumb endpoints (business logic creeps into the gateway), missing observability (debugging by guesswork), retry storms with no backoff (retries amplify an incident into an outage), and leaky internal models (DB rows exposed as the public API)."
    caption="Figure 13.1 — The recurring anti-patterns; each one re-couples what the platform worked to separate" %}
 
 - **Distributed monolith** — services that must be deployed together. You paid all
@@ -75,7 +75,7 @@ If you remember nothing else:
 
 ## The shoulders this stands on
 
-The slides and these references are enough to actually build the system, not just
+The slides and these references are enough to build the system, not just
 talk about it:
 
 - Sam Newman, *Building Microservices* (2nd ed.) — service boundaries and

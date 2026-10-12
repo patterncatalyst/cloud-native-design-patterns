@@ -4,7 +4,7 @@ marker: "M"
 label: "Appendix M"
 order: 26
 part: "Deep-dive appendices"
-description: "The synthesis appendix — a taxonomy of how distributed systems actually fail (partition, split-brain, partial, gray, amplification, cascading) and the defensive toolkit mapped to each: timeouts and deadlines, retry with backoff and jitter, circuit breakers, bulkheads, load shedding, quorum, and the mesh."
+description: "The synthesis appendix — a taxonomy of how distributed systems fail (partition, split-brain, partial, gray, amplification, cascading) and the defensive toolkit mapped to each: timeouts and deadlines, retry with backoff and jitter, circuit breakers, bulkheads, load shedding, quorum, and the mesh."
 duration: 24 minutes
 ---
 
@@ -29,12 +29,12 @@ errors). Everything that follows comes from accepting this and designing to boun
 
 ## A taxonomy of failure modes
 
-The failures sort into three families, and the rest of the appendix is the toolkit that sits
+The failures sort into three families, and the defensive toolkit sits
 underneath them.
 
 {% include excalidraw.html
    file="25-failure-taxonomy"
-   alt="Three families feed into a distributed system: NETWORK (partition, split-brain — alive but cannot talk), COMPONENT (partial, gray failure — some fail, some lie), and LOAD (amplification, cascading — a failure feeds on itself). Below sits the defensive toolkit: timeouts, retries, circuit breakers, bulkheads, load shedding, fallback, quorum, Istio, graceful shutdown, observability."
+   alt="Three families feed into a distributed system: NETWORK (partition, split-brain: alive but cannot talk), COMPONENT (partial, gray failure: some fail, some lie), and LOAD (amplification, cascading: a failure feeds on itself). The defensive toolkit answers them: timeouts, retries, circuit breakers, bulkheads, load shedding, fallback, quorum, Istio, graceful shutdown, observability."
    caption="Figure M.1 — Three families of distributed failure, over the defensive toolkit that addresses them" %}
 
 **Network** failures are partition and split-brain — nodes are alive but cannot talk.
@@ -157,9 +157,8 @@ edge before it enters the system.
 
 ## The defensive toolkit
 
-The rest of the appendix is the toolkit, and the thing to hold onto is that **no pattern is
-sufficient alone** — several interact, and production resilience is their deliberate
-composition. Retry without a circuit breaker amplifies; a circuit breaker without a fallback
+**No pattern in the toolkit is sufficient alone** — several interact, and production
+resilience is their composition. Retry without a circuit breaker amplifies; a circuit breaker without a fallback
 just fails faster; a bulkhead without a timeout still lets threads block within its pool. The
 patterns here each get a diagram and per-language code; the platform-level pieces (Istio,
 shutdown, observability) sit underneath the application-level ones.
@@ -622,7 +621,7 @@ must be combined. The mesh provides bulkheading at the connection-pool level, co
 ## Load shedding and graceful degradation
 
 Two related patterns engineers tend to skip. **Load shedding** feels like giving up —
-deliberately rejecting requests — but it is the difference between degrading and collapsing. The
+choosing to reject requests — but it is the difference between degrading and collapsing. The
 arithmetic is simple: at 120% of capacity, accepting everything makes *everything* slow and
 timing out (0% goodput); shedding the excess 20% means the 80% you accept is served well. Shed
 by priority (drop health-check-style or low-value traffic first, protect revenue-critical paths),
@@ -742,7 +741,7 @@ trips and the caller returns its fallback fast. **Deadline propagation:** issue 
 small deadline header to a chain of two services and confirm from the logs that the *second* hop
 refuses to start work when the remaining budget has fallen under its minimum, rather than running a query
 whose result will be discarded. A breaker that flattens downstream load under failure, and a
-deadline that stops doomed work early, are the two load-bearing behaviours of everything here.
+deadline that stops doomed work early, are the two behaviours everything here depends on.
 
 This appendix touches difficult operational territory; if you are diagnosing a live incident, the
 Google SRE cascading-failures chapter is the fastest way to a shared vocabulary with your team.

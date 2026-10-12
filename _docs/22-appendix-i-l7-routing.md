@@ -15,7 +15,7 @@ crossing the network, both north/south (clients into the system) and east/west (
 to service). The chapter walks what each layer can see and decide, shows real config for
 the mesh, covers TLS, sticky sessions, traffic steering, and the latency budget, then
 goes *inside* the service for rule-driven routing, and finally circles back to east/west,
-where most of the decisions actually happen.
+where most of the decisions happen.
 
 ## L4 versus L7 — what each layer can decide on
 
@@ -24,7 +24,7 @@ a backend and hash-balance, but it cannot read URLs, headers, cookies, methods, 
 metadata. A Layer-7 router sees the whole *conversation*: host, path, headers, cookies,
 JWT claims, query parameters, the HTTP method, and the gRPC `service.method` pair. That
 full envelope is the menu of inputs every routing decision in this appendix draws on. The
-one nuance worth holding onto is TLS: an L4 balancer can route by SNI *without* terminating
+one nuance is TLS: an L4 balancer can route by SNI *without* terminating
 TLS (cheap, opaque), while an L7 router typically terminates TLS so it can read everything
 else (richer, slightly slower).
 
@@ -36,11 +36,11 @@ else (richer, slightly slower).
 ## The four-layer stack
 
 L7 routing lives in four layers, and each is the right home for a *different kind* of
-decision. A request is really a chain of independent L7 decisions across them.
+decision. A request is a chain of independent L7 decisions across them.
 
 {% include excalidraw.html
    file="22-l7-layers"
-   alt="North/south: a client passes through edge/ingress (TLS, host/path), then the API gateway (auth, rate limit), then a mesh sidecar (mTLS, retries), then the service (in-app rules). East/west: service A and service B talk through mesh sidecars that add mTLS, outlier detection, and locality routing. Each layer makes a different kind of decision and emits a trace span."
+   alt="North/south: a client passes through edge/ingress (TLS, host/path), then the API gateway (auth, rate limit), then a mesh sidecar (mTLS, retries), then the service (in-app rules). East/west: service A and service B talk through mesh sidecars that add mTLS, outlier detection, and locality routing. Each layer makes a distinct decision and emits a trace span."
    caption="Figure I.2 — L7 routing is a four-layer stack; the mesh applies the same routing to every internal call, not just at the edge" %}
 
 The **edge / ingress** layer (HAProxy, Nginx, Envoy, Traefik) is where TLS terminates and
@@ -50,13 +50,13 @@ transformation. The **service mesh** (Istio with Envoy sidecars, or Linkerd) gov
 east/west traffic, giving every internal call mTLS, retries, outlier detection, and
 locality-aware load balancing. And when a decision depends on business rules the platform
 cannot know, routing pushes into the **app** itself. Each box can refuse, transform, or
-branch the request, and each emits a trace span — so the journey from the Observability
+branch the request, and each emits a trace span — so the path from the Observability
 chapter, viewed through the L7 lens, is observable end to end.
 
 {% include excalidraw.html
    file="22-l7-journey"
-   alt="A request's L7 journey across five components: Client (request), Edge LB (TLS, host and path), API Gateway (auth, rate-limit), Mesh sidecar (mTLS, retry, locality), and the Service (in-app routing). Each box can refuse, transform, or branch the request and emits a trace span for the next layer."
-   caption="Figure I.3 — A request's journey: Client → Edge LB → API Gateway → Mesh sidecar → Service, each making its own L7 decision" %}
+   alt="A request's L7 path across five components: Client (request), Edge LB (TLS, host and path), API Gateway (auth, rate-limit), Mesh sidecar (mTLS, retry, locality), and the Service (in-app routing). Each box can refuse, transform, or branch the request and emits a trace span for the next layer."
+   caption="Figure I.3 — A request's path: Client → Edge LB → API Gateway → Mesh sidecar → Service, each making its own L7 decision" %}
 
 ## Content-based routing
 
@@ -112,7 +112,7 @@ one pod: the balancer sets a cookie and routes subsequent requests back to the s
 but that ties the session to one pod's lifetime, so a restart loses it. **IP-hash** needs
 no cookie but is fragile behind NAT and mobile networks, where many users share an address
 and load skews. The real cost is that stickiness fights elastic scaling, fast restarts, and
-graceful shutdown — the entire cloud-native delivery model. Treat it as a deliberate choice
+graceful shutdown — the entire cloud-native delivery model. Treat it as a choice made
 for a known constraint, never a default, and prefer to externalise state (Redis for session
 data, JWT claims for identity, the backplane from the WebSockets appendix for fan-out) so
 the balancer can return to no-affinity.
@@ -587,7 +587,7 @@ TLS termination is sub-2ms, path/header routing sub-1ms, JWT validation a few ms
 more, each mesh sidecar about a millisecond, a rate-limit Redis lookup a couple of ms. Body
 inspection is the outlier at roughly 5–50ms depending on size. The working heuristic is to
 stay under about 10ms of total L7 on hot paths — and with four layers (edge, gateway, sidecar
-out, sidecar in) that means every layer must earn its place. The common pitfalls follow from
+out, sidecar in) that means every layer must justify its latency. The common pitfalls follow from
 this: too many hops nobody measured until p99 spiked; expensive regex matches; sticky sessions
 fighting the platform; body inspection blowing the budget; per-request auth lookups cascading
 under load; and timeout misalignment, which is the gateway-to-mesh-to-service version of the
@@ -596,8 +596,8 @@ timeouts top-down, and give the deepest layer the strictest budget.
 
 {% include excalidraw.html
    file="22-hop-cost"
-   alt="A latency budget per L7 stage: TLS termination 0.5 to 2 ms, L7 path/header routing under 1 ms, Auth/JWT validation 1 to 5 ms, WAF inspection 2 to 5 ms, mesh sidecar 0.5 to 2 ms per hop, rate-limit Redis lookup 1 to 3 ms, body/payload inspection 5 to 50 ms, and in-app rule eval under 1 ms cached. The rule of thumb is to stay under about 10 ms of total L7 on hot paths, so every hop must earn its place."
-   caption="Figure I.7 — Each L7 stage adds latency; stay under ~10 ms of total L7 on hot paths, so every hop must earn its place" %}
+   alt="A latency budget per L7 stage: TLS termination 0.5 to 2 ms, L7 path/header routing under 1 ms, Auth/JWT validation 1 to 5 ms, WAF inspection 2 to 5 ms, mesh sidecar 0.5 to 2 ms per hop, rate-limit Redis lookup 1 to 3 ms, body/payload inspection 5 to 50 ms, and in-app rule eval under 1 ms cached. The rule of thumb is to stay under about 10 ms of total L7 on hot paths, so every hop must pay for itself."
+   caption="Figure I.7 — Each L7 stage adds latency; stay under ~10 ms of total L7 on hot paths, so every hop must pay for itself" %}
 
 ## East / west — L7 between services
 
@@ -644,7 +644,7 @@ spec:
 ```
 
 That last block is a canary release of a backend service no external client knows exists —
-something you simply cannot do through an edge load balancer. gRPC east/west has a few sharp
+something you cannot do through an edge load balancer. gRPC east/west has a few sharp
 edges worth naming: route on the gRPC URI prefix for per-method canaries; prefer least-request
 load balancing over round-robin, because gRPC connections are long-lived and round-robining
 connections (rather than requests) can starve backends; be careful retrying streaming RPCs,
@@ -677,7 +677,7 @@ from the broker that the VIP order landed on `orders.priority` (and triggered th
 HTTP call) while the ordinary one fell through to `orders.default` — then change only the
 ruleset, not the dispatcher, and confirm the routing changes without a redeploy. Weights that
 track the config and a ruleset that can move routing without a code change are the two halves of
-this appendix actually working.
+this appendix working.
 
 ---
 *Verification status: verified — [`examples/22-l7-routing/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/22-l7-routing/) passes 15/15 checks in each of the six languages on Docker Engine (2026-10-10)

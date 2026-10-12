@@ -28,6 +28,16 @@ jobs:
       - name: Validate site content
         run: python scripts/validate_site.py
 
+      # Professional voice: no ban-tier phrase on any reader-facing page, README or
+      # diagram label. The scanner is vendored from lgtm-skills (scripts/voice/README.md);
+      # the scope lives in scripts/voice-scan.sh.
+      - name: Voice scan (ban tier)
+        run: bash scripts/voice-scan.sh
+
+      # Always passes: logs the all-tier totals, so a review can compare them with a local run.
+      - name: Voice scan totals (all tiers)
+        run: bash scripts/voice-scan.sh --all-tiers-summary
+
   # The one check branch protection requires: passes when every job above
   # succeeded or was skipped.
   content-ok:

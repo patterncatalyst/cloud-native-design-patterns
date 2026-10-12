@@ -30,7 +30,7 @@ Read each as a behaviour you design toward, not a product you install:
 - **Automatable** — declarative config, GitOps, self-healing.
 - **Loosely coupled** — contracts not calls, async where it fits.
 
-These six are the rubric for the rest of the book. Hold each design decision up
+These six are the rubric for every pattern in this book. Hold each design decision up
 to them.
 
 ## Lean on the platform
@@ -49,7 +49,7 @@ Design-first is the cultural prerequisite for everything that follows. The
 contract — OpenAPI, `.proto`, AsyncAPI — is agreed and registered *before* code
 is written, owned by the producing domain, and gated in CI. Consumers code
 against the contract and its generated stubs, never against your database. That
-is what actually delivers independent deployability: the contract *is* the
+is what delivers independent deployability: the contract *is* the
 service boundary. Skip it and you get distributed coupling — the worst of both
 worlds.
 
@@ -66,7 +66,7 @@ Here are all twelve, one line each.
 
 The useful way to read it today is not to recite all twelve, but to split them by
 **who owns each one** — the few you still write, versus the many the platform now
-provides for free.
+provides built in.
 
 {% include excalidraw.html
    file="01-twelve-factor-ownership"
@@ -100,7 +100,7 @@ group is treated in depth — most of the twelve are now adopted, not authored.
 
 ## A twelve-factor service, ready for the platform
 
-Two factors dominate the code you actually write: **config from the environment**
+Two factors dominate the code you write: **config from the environment**
 (factor III) and **health and readiness probes** the platform calls. Here it is
 in each stack — pick your tab.
 

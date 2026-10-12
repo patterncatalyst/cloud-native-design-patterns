@@ -44,5 +44,5 @@
 <path d="M915,300 L985,195" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <text x="956.0" y="261.5" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">queries</text>
 <text x="956.0" y="261.5" font-size="11" fill="#555" text-anchor="middle">queries</text>
-<text x="570" y="392" font-size="12" fill="#8a4b06" text-anchor="middle">write side optimises for invariants; read side for query patterns — eventually consistent, a small lag between them. Use only when the shapes genuinely differ.</text>
+<text x="570" y="392" font-size="12" fill="#8a4b06" text-anchor="middle">write side optimises for invariants; read side for query patterns — eventually consistent, a small lag between them. Use only when the shapes differ.</text>
 </svg>

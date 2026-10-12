@@ -8,7 +8,7 @@ duration: 14 minutes
 
 A contract that is enforced but undiscoverable is half useless. If a consumer
 can't find your API and decide whether to trust it, they'll build their own or
-screen-scrape yours — and the boundary you worked to establish quietly erodes.
+screen-scrape yours — and the boundary you worked to establish erodes.
 Metadata is the **discovery and trust plane**: a searchable catalog of every API,
 topic, and table, with ownership, lineage, and quality signals attached.
 
@@ -218,7 +218,7 @@ The throughline of the last two chapters: a contract is only as good as your
 ability to **find it, trust it, and know who owns it.** The registry makes the
 contract authoritative; the catalog makes it discoverable and accountable.
 Together they turn "we have contracts somewhere" into a platform people can
-actually build on.
+build on.
 
 ### Cross-check it yourself
 
