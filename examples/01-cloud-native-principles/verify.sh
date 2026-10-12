@@ -57,7 +57,7 @@ check "root confirms config source is environment" \
 # Liveness probe
 check "liveness probe returns ok" \
     "curl $CURL_OPTS -sf $BASE/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 # Readiness probe (DB is up)
 check "readiness probe returns 200 when DB is up" \
@@ -66,7 +66,7 @@ check "readiness probe returns 200 when DB is up" \
 
 check "readiness probe returns ready when DB is up" \
     "curl $CURL_OPTS -sf $BASE/readyz" \
-    '"status":"ready"'
+    '"status": *"\(ready\|UP\)"'
 
 # CRUD — create and list
 check "create order returns id" \
@@ -88,7 +88,7 @@ check "readiness returns 503 when DB is stopped" \
 
 check "readiness body reports down when DB is stopped" \
     "curl $CURL_OPTS -s $BASE/readyz" \
-    '"status":"down"'
+    '"status": *"\(down\|DOWN\)"'
 
 check "liveness still returns 200 when DB is stopped" \
     "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' $BASE/healthz" \
@@ -96,7 +96,7 @@ check "liveness still returns 200 when DB is stopped" \
 
 check "liveness still returns ok when DB is stopped" \
     "curl $CURL_OPTS -sf $BASE/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 # Restart DB
 printf '  → restarting postgres...\n'
@@ -104,8 +104,8 @@ ctr_start cndp-postgres >/dev/null 2>&1
 sleep 5
 
 check "readiness recovers after DB restart" \
-    "curl $CURL_OPTS -sf $BASE/readyz" \
-    '"status":"ready"'
+    "curl $CURL_OPTS -sf $BASE/readyz | tr -d ' \\n'" \
+    '^{"status":"\(ready\|UP\)"\|"status":"\(ready\|UP\)"}$'
 
 printf '\n==> Results: %d passed, %d failed\n' "$PASS" "$FAIL"
 [[ $FAIL -eq 0 ]] && printf '==> PASS\n' || { printf '==> FAIL\n'; exit 1; }

@@ -40,10 +40,10 @@ Key variables (set by compose.yaml, override for local dev):
 
 ## Local development (without containers)
 
-Requires pip install -r requirements.txt.
+Requires [uv](https://docs.astral.sh/uv/) and Python 3.14. In the service directory, `uv sync` installs the locked dependencies.
 
 ```bash
-opentelemetry-instrument uvicorn main:app --port 8080
+uv run opentelemetry-instrument uvicorn main:app --port 8080
 ```
 
 Requires a running Postgres (and Kafka/Redis if the example uses them) —

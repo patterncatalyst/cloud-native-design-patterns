@@ -39,10 +39,16 @@ Key variables (set by compose.yaml, override for local dev):
 
 ## Local development (without containers)
 
-Requires pip install -r requirements.txt && python -m grpc_tools.protoc ....
+Requires [uv](https://docs.astral.sh/uv/) and Python 3.14. In a service directory, `uv sync` installs the locked dependencies, then generate the gRPC stubs:
 
 ```bash
-uvicorn main:app --reload --port 8080
+uv run python -m grpc_tools.protoc -I../proto --python_out=. --grpc_python_out=. ../proto/inventory.proto
+```
+
+Run the service:
+
+```bash
+uv run uvicorn main:app --reload --port 8080
 ```
 
 Requires a running Postgres (and Kafka/Redis if the example uses them) —

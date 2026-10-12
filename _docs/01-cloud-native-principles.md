@@ -178,7 +178,7 @@ app.MapGet("/readyz", async (NpgsqlDataSource db) =>          // readiness: SELE
 ```
 
 ```python
-# main.py (excerpt); requirements.txt pins every package with ==
+# main.py (excerpt); pyproject.toml pins every direct dependency with ==, uv.lock the rest
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pydantic_settings import BaseSettings

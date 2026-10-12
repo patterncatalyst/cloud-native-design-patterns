@@ -50,7 +50,7 @@ printf -- '--- 1. Content-based routing ---\n'
 
 check "router healthz" \
     "curl $CURL_OPTS -sf $ROUTER/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 check "tenant=acme routes to new-service" \
     "curl $CURL_OPTS -sf -X POST $ROUTER/orders -H 'Content-Type: application/json' -d '{\"sku\":\"w\",\"quantity\":1,\"tenant\":\"acme\"}'" \
@@ -100,7 +100,7 @@ printf '\n--- 3. Decorating collaborator (cache) ---\n'
 
 check "decorator healthz" \
     "curl $CURL_OPTS -sf $DECORATOR/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 # Create an order through the decorator
 DEC_ORDER=$(curl $CURL_OPTS -sf -X POST "$DECORATOR/orders" \

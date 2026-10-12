@@ -1,5 +1,4 @@
 import logging
-import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -8,11 +7,17 @@ from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings
 
 log = logging.getLogger("order-service")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgres://appuser:apppass@postgres:5432/appdb")
+
+class Settings(BaseSettings):
+    database_url: str = "postgres://appuser:apppass@postgres:5432/appdb"
+
+
+settings = Settings()
 
 pool: asyncpg.Pool
 
@@ -25,7 +30,7 @@ class OrderIn(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global pool
-    pool = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=10)
+    pool = await asyncpg.create_pool(settings.database_url, min_size=2, max_size=10)
     yield
     await pool.close()
 

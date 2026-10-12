@@ -1,5 +1,4 @@
 import logging
-import os
 import uuid
 from contextlib import asynccontextmanager
 
@@ -14,6 +13,7 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings
 
 import inventory_pb2
 import inventory_pb2_grpc
@@ -21,12 +21,17 @@ import inventory_pb2_grpc
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("order")
 
-INVENTORY_ADDR = os.getenv("INVENTORY_ADDR", "inventory:50051")
-OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://lgtm:4318")
+
+class Settings(BaseSettings):
+    inventory_addr: str = "inventory:50051"
+    otel_endpoint: str = Field("http://lgtm:4318", validation_alias="OTEL_EXPORTER_OTLP_ENDPOINT")
+
+
+settings = Settings()
 
 resource = Resource.create({"service.name": "order-service"})
 provider = TracerProvider(resource=resource)
-provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{OTEL_ENDPOINT}/v1/traces")))
+provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{settings.otel_endpoint}/v1/traces")))
 trace.set_tracer_provider(provider)
 tracer = trace.get_tracer("order-service")
 
@@ -93,7 +98,7 @@ async def place_order(body: OrderIn):
     order_id = str(uuid.uuid4())
 
     try:
-        async with grpc.aio.insecure_channel(INVENTORY_ADDR) as channel:
+        async with grpc.aio.insecure_channel(settings.inventory_addr) as channel:
             stub = inventory_pb2_grpc.InventoryServiceStub(channel)
             resp = await stub.ReserveStock(
                 inventory_pb2.ReserveRequest(sku=body.sku, quantity=body.quantity)

@@ -1,17 +1,22 @@
 import asyncio
 import logging
-import os
 import random
 import time
 from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI, Query
+from pydantic_settings import BaseSettings
 
 log = logging.getLogger("edge")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
-BACKEND = os.getenv("BACKEND_URL", "http://backend:8081")
+
+class Settings(BaseSettings):
+    backend_url: str = "http://backend:8081"
+
+
+settings = Settings()
 
 
 # ---------------------------------------------------------------------------
@@ -108,7 +113,7 @@ async def no_timeout():
     start = time.monotonic()
     try:
         async with httpx.AsyncClient() as client:
-            r = await client.get(f"{BACKEND}/process", timeout=None)
+            r = await client.get(f"{settings.backend_url}/process", timeout=None)
             elapsed = time.monotonic() - start
             return {"status": r.status_code, "elapsed_s": round(elapsed, 2), "body": r.json()}
     except Exception as e:
@@ -124,7 +129,7 @@ async def with_timeout():
     start = time.monotonic()
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(2.0, connect=0.5)) as client:
-            r = await client.get(f"{BACKEND}/process")
+            r = await client.get(f"{settings.backend_url}/process")
             elapsed = time.monotonic() - start
             return {"status": r.status_code, "elapsed_s": round(elapsed, 2), "body": r.json()}
     except httpx.TimeoutException:
@@ -146,7 +151,7 @@ async def with_retry():
         for attempt in range(1, 4):
             attempts = attempt
             try:
-                r = await client.get(f"{BACKEND}/process")
+                r = await client.get(f"{settings.backend_url}/process")
                 if r.status_code < 500:
                     elapsed = time.monotonic() - start
                     return {
@@ -188,7 +193,7 @@ async def with_breaker():
 
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(2.0, connect=0.5)) as client:
-            r = await client.get(f"{BACKEND}/process")
+            r = await client.get(f"{settings.backend_url}/process")
             if r.status_code >= 500:
                 breaker.record_failure()
                 return {
@@ -228,7 +233,7 @@ async def with_deadline(budget_ms: int = Query(default=1000)):
         timeout_s = remaining / 1000.0
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_s, connect=0.5)) as client:
             r = await client.get(
-                f"{BACKEND}/process",
+                f"{settings.backend_url}/process",
                 headers={"X-Deadline-Ms": str(remaining)},
             )
             elapsed = time.monotonic() - start
@@ -269,7 +274,7 @@ async def with_bulkhead():
     bulkhead_active += 1
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(2.0, connect=0.5)) as client:
-            r = await client.get(f"{BACKEND}/process")
+            r = await client.get(f"{settings.backend_url}/process")
             return {"status": r.status_code, "body": r.json(), "active_slots": bulkhead_active}
     except httpx.TimeoutException:
         return {"error": "timeout", "active_slots": bulkhead_active}

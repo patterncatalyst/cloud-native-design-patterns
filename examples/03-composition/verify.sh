@@ -56,7 +56,7 @@ printf '==> Verifying Example 03: Composition\n\n'
 # --- Gateway healthcheck ---
 check "gateway healthz returns ok" \
     "curl $CURL_OPTS -sf $BASE/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 # --- REST backend reachable ---
 check "order-api returns seeded orders" \

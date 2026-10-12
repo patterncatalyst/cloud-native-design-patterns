@@ -1,20 +1,26 @@
 import asyncio
 import json
 import logging
-import os
 from contextlib import asynccontextmanager
 
 import httpx
 import redis.asyncio as aioredis
 from aiokafka import AIOKafkaProducer
 from fastapi import FastAPI
+from pydantic_settings import BaseSettings
 
 logger = logging.getLogger("decorator")
 logging.basicConfig(level=logging.INFO)
 
-LEGACY_URL = os.environ.get("LEGACY_URL", "http://legacy:8080")
-REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379")
-KAFKA_BOOTSTRAP = os.environ.get("KAFKA_BOOTSTRAP", "kafka:9094")
+
+class Settings(BaseSettings):
+    legacy_url: str = "http://legacy:8080"
+    redis_url: str = "redis://redis:6379"
+    kafka_bootstrap: str = "kafka:9094"
+
+
+settings = Settings()
+
 CACHE_TTL = 60
 
 client = httpx.AsyncClient(timeout=5.0)
@@ -26,8 +32,8 @@ published_events: list[dict] = []
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global redis_client, producer
-    redis_client = aioredis.from_url(REDIS_URL)
-    producer = AIOKafkaProducer(bootstrap_servers=KAFKA_BOOTSTRAP)
+    redis_client = aioredis.from_url(settings.redis_url)
+    producer = AIOKafkaProducer(bootstrap_servers=settings.kafka_bootstrap)
     for attempt in range(30):
         try:
             await producer.start()
@@ -59,7 +65,7 @@ async def get_order(order_id: str):
     except Exception:
         pass
 
-    r = await client.get(f"{LEGACY_URL}/orders/{order_id}")
+    r = await client.get(f"{settings.legacy_url}/orders/{order_id}")
     data = r.json()
     logger.info("CACHE_MISS order_id=%s", order_id)
     try:
@@ -71,7 +77,7 @@ async def get_order(order_id: str):
 
 @app.post("/orders", status_code=201)
 async def create_order(body: dict):
-    r = await client.post(f"{LEGACY_URL}/orders", json=body)
+    r = await client.post(f"{settings.legacy_url}/orders", json=body)
     data = r.json()
 
     event = {"event": "order.placed", "order_id": data.get("id"), **body}

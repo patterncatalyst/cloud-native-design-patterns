@@ -1,8 +1,20 @@
+# Build stage: uv installs the locked runtime dependencies into a self-contained venv. The venv is built at
+# the path the runtime stage uses, because a venv is not relocatable.
+FROM registry.access.redhat.com/ubi10/python-314-minimal:10.2-1791464217 AS build
+USER 0
+WORKDIR /opt/app-root/src
+RUN pip install --no-cache-dir uv==0.13.0
+ENV UV_PYTHON_DOWNLOADS=never UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1 UV_CACHE_DIR=/uv-cache
+COPY pyproject.toml uv.lock ./
+RUN --mount=type=cache,target=/uv-cache \
+    uv sync --locked --no-dev
+
+# Runtime stage: the venv and the service code only; no uv, no build tools.
 FROM registry.access.redhat.com/ubi10/python-314-minimal:10.2-1791464217
-USER 1001
-COPY --chown=1001:0 --chmod=g=u requirements.txt .
-RUN --mount=type=cache,target=/opt/app-root/src/.cache/pip,uid=1001 \
-    PIP_NO_CACHE_DIR= PIP_DISABLE_PIP_VERSION_CHECK=1 pip install -r requirements.txt
+WORKDIR /opt/app-root/src
+COPY --from=build --chown=1001:0 --chmod=g=u /opt/app-root/src/.venv /opt/app-root/src/.venv
 COPY --chown=1001:0 --chmod=g=u main.py .
+ENV PATH="/opt/app-root/src/.venv/bin:$PATH"
 EXPOSE 8080
+USER 1001
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

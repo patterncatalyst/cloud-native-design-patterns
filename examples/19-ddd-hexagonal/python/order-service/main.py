@@ -1,10 +1,10 @@
 import logging
-import os
 from contextlib import asynccontextmanager
 
 import asyncpg
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+from pydantic_settings import BaseSettings
 from starlette.responses import JSONResponse
 
 from adapters.log_publisher import LogEventPublisher
@@ -15,9 +15,16 @@ from domain.service import PlaceOrder
 logging.basicConfig(level=logging.INFO)
 
 
+class Settings(BaseSettings):
+    database_url: str = "postgres://appuser:apppass@localhost:5432/appdb"
+
+
+settings = Settings()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    dsn = os.environ.get("DATABASE_URL", "postgres://appuser:apppass@localhost:5432/appdb")
+    dsn = settings.database_url
     app.state.pool = await asyncpg.create_pool(dsn)
     repo = PostgresOrderRepository(app.state.pool)
     publisher = LogEventPublisher()

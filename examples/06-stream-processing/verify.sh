@@ -56,7 +56,7 @@ printf '==> Verifying Example 06: Stream Processing\n\n'
 # --- order-service is up ---
 check "order-service healthz" \
     "curl $CURL_OPTS -sf $BASE/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 # --- Place orders for two merchants ---
 for i in 1 2 3; do

@@ -57,7 +57,7 @@ printf '==> Verifying Example 04: Data (Transactional Outbox + CDC)\n\n'
 # --- Order service is up ---
 check "order-service healthz" \
     "curl $CURL_OPTS -sf $BASE/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 # --- Register Debezium connector ---
 printf '  \xe2\x86\x92 waiting for Kafka Connect to be ready...\n'

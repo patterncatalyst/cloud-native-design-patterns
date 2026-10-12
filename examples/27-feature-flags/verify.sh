@@ -64,7 +64,7 @@ sleep 3
 # --- Service healthy ---
 check "healthz returns ok" \
     "curl $CURL_OPTS -sf $BASE/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 # ===================================================================
 # 1. Release flag — new-checkout

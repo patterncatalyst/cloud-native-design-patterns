@@ -1,15 +1,20 @@
 import asyncio
 import hashlib
 import hmac
-import os
 import time
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, Field
 from starlette.responses import JSONResponse
+from pydantic_settings import BaseSettings
 
-VALET_SECRET = os.environ.get("VALET_SECRET", "demo-secret-do-not-use-in-prod")
+
+class Settings(BaseSettings):
+    valet_secret: str = "demo-secret-do-not-use-in-prod"
+
+
+settings = Settings()
 
 app = FastAPI()
 
@@ -56,7 +61,7 @@ def _tenant_sem(tenant: str) -> asyncio.Semaphore:
 def _mint_valet(resource: str, operation: str, ttl: int = 300) -> dict:
     expires = int(time.time()) + ttl
     payload = f"{resource}:{operation}:{expires}"
-    sig = hmac.new(VALET_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    sig = hmac.new(settings.valet_secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
     return {"resource": resource, "operation": operation, "expires": expires, "token": sig}
 
 
@@ -65,7 +70,7 @@ def _verify_valet(resource: str, operation: str, expires: int, token: str) -> bo
         return False
     payload = f"{resource}:{operation}:{expires}"
     expected = hmac.new(
-        VALET_SECRET.encode(), payload.encode(), hashlib.sha256
+        settings.valet_secret.encode(), payload.encode(), hashlib.sha256
     ).hexdigest()
     return hmac.compare_digest(token, expected)
 

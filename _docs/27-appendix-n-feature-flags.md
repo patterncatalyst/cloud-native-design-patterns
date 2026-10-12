@@ -149,7 +149,7 @@ public class CheckoutController : ControllerBase
 ```
 
 ```python
-# pip install openfeature-sdk openfeature-provider-flagd
+# uv add openfeature-sdk openfeature-provider-flagd
 from openfeature import api
 from openfeature.contrib.provider.flagd import FlagdProvider
 from openfeature.evaluation_context import EvaluationContext
