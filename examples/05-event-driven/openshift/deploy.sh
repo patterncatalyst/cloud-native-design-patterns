@@ -53,7 +53,7 @@ done
 host="$(ocn get route order-service -o jsonpath='{.spec.host}')"
 step "Polling https://$host/healthz"
 for _ in $(seq 1 60); do
-    if curl -sf --cacert "$INGRESS_CA" "https://$host/healthz" | grep -q '"status":"ok"'; then
+    if curl -sf --cacert "$INGRESS_CA" "https://$host/healthz" | grep -q '"status": *"\(ok\|UP\)"'; then
         ok "order-service is healthy through the Route"
         exit 0
     fi
