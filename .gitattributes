@@ -1,3 +1,5 @@
+# DECISIVE: GitHub excludes examples/ from language stats by default; re-include it.
+examples/** linguist-vendored=false linguist-generated=false linguist-documentation=false
 # ==============================================================================
 # 1. FORCE EXPLICIT LANGUAGE CLASSIFICATION
 # Use this if GitHub misidentifies certain file types.
