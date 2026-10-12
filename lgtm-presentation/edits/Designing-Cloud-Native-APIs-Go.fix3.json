@@ -1,0 +1,191 @@
+{
+ "ops": [
+  {
+   "op": "set_code",
+   "sldId": 269,
+   "lines": [
+    "// main.go (excerpt), examples/01-cloud-native-principles/go: config from env, two probes",
+    "func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {",
+    "   w.Header().Set(\"Content-Type\", \"application/json\")",
+    "   json.NewEncoder(w).Encode(HealthResponse{Status: \"ok\"}) // liveness: the process is up",
+    "}",
+    "func (s *Server) handleReadyz(w http.ResponseWriter, r *http.Request) {",
+    "   ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)",
+    "   defer cancel()",
+    "   w.Header().Set(\"Content-Type\", \"application/json\")",
+    "   if err := s.pool.Ping(ctx); err != nil { // readiness: the database answers",
+    "      w.WriteHeader(http.StatusServiceUnavailable) // 503: out of rotation, not restarted",
+    "      json.NewEncoder(w).Encode(ReadinessResponse{Status: \"down\",",
+    "         Checks: map[string]string{\"database\": \"unreachable\"}})",
+    "      return",
+    "   }",
+    "   json.NewEncoder(w).Encode(ReadinessResponse{Status: \"ready\",",
+    "      Checks: map[string]string{\"database\": \"ok\"}})",
+    "}",
+    "// main(): SERVICE_VERSION and DATABASE_URL come from the environment (factor III); the mux",
+    "// serves /, /healthz, /readyz and /orders on :8080 (factor VII, port binding)"
+   ],
+   "cat": "code",
+   "_slide": 14,
+   "_why": "examples/01: hand-written /healthz and /readyz; readiness answers 503 when the database is down",
+   "_src": "align"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 269,
+   "cat": "notes",
+   "_slide": 14,
+   "_why": "notes follow the code",
+   "_src": "align",
+   "paragraphs": [
+    "Walk the code from Example 01: configuration comes from the environment with os.Getenv (factor III), never from a baked-in file: SERVICE_VERSION names the version the image reports, and DATABASE_URL points the pgx pool at Postgres. The router is the standard library's ServeMux, so there is no router dependency.",
+    "The two probes are the contract with Kubernetes: /healthz is liveness (is the process up? if not, restart it) and never checks a dependency; /readyz is readiness (can it serve?): it pings the database with a two-second timeout and, when that fails, answers 503 with status down, which takes the pod out of rotation without killing it. The probe reads the status code, not the body: Kubernetes treats any answer from 200 to 399 as ready. Getting liveness and readiness wrong is a common cause of cascading restarts, so stress the distinction."
+   ]
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    419
+   ],
+   "find": "signal.NotifyContext catches SIGTERM; readiness fails first so the Service stops routing, then Server.Shutdown drains within a 15-second budget.",
+   "repl": "One SIGTERM: readiness fails first, the service keeps serving for DRAIN_DELAY_SECONDS, then Server.Shutdown drains within 20 seconds.",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 164,
+   "_why": "examples/21 go: drain delay and a 20 s shutdown budget (9676f32)",
+   "_src": "align"
+  },
+  {
+   "op": "set_code",
+   "sldId": 419,
+   "lines": [
+    "// main.go (excerpt), examples/21-graceful-shutdown/go: one SIGTERM drives the drain",
+    "const shutdownTimeout = 20 * time.Second // drain delay + this stays under the 30s grace",
+    "func main() {",
+    "   // ... pgx pool, s := &server{pool: pool}; GET /readyz answers 503 once s.shuttingDown",
+    "   httpServer := &http.Server{Addr: \":8080\", Handler: mux}",
+    "   ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)",
+    "   defer stop()",
+    "   go httpServer.ListenAndServe()",
+    "   <-ctx.Done()               // 1. the single SIGTERM",
+    "   stop()                     //    a later signal terminates at once",
+    "   s.shuttingDown.Store(true) //    readiness fails first, the server keeps serving",
+    "   time.Sleep(drainDelay())   // 2. DRAIN_DELAY_SECONDS (5s): endpoints update",
+    "   shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)",
+    "   defer cancel()             // 3. stop accepting, finish in-flight requests",
+    "   if err := httpServer.Shutdown(shutdownCtx); err != nil {",
+    "      slog.Error(\"shutdown incomplete\", \"err\", err, \"in_flight\", s.inFlight.Load())",
+    "   }",
+    "}                             // 4. deferred pool.Close(), exit 0"
+   ],
+   "cat": "code",
+   "_slide": 164,
+   "_why": "examples/21: one SIGTERM -> readiness 503 -> DRAIN_DELAY_SECONDS -> stop accepting -> in-flight drain within 20 s -> cleanup -> exit 0",
+   "_src": "align"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 419,
+   "cat": "notes",
+   "_slide": 164,
+   "_why": "notes follow the code",
+   "_src": "align",
+   "paragraphs": [
+    "Four steps, all started by one SIGTERM, the only signal Kubernetes sends before SIGKILL. (1) signal.NotifyContext turns SIGTERM into a cancelled context; main calls stop() so that a later signal terminates at once, and flips the atomic.Bool behind /readyz, so readiness answers 503 and the Service stops sending new traffic. (2) The service keeps serving for DRAIN_DELAY_SECONDS (5 s in Example 21; it plays the part of a preStop sleep) while the endpoint removal propagates.",
+    "(3) http.Server.Shutdown stops accepting connections and waits for in-flight requests, bounded by a 20-second context so a stuck request cannot hang the rollout; delay plus drain stays inside the 30-second grace period. (4) The deferred pool.Close() runs and the process exits 0; a service with a franz-go client closes it here, which commits offsets and leaves the consumer group. Pair it with the preStop hook and the grace period on the Kubernetes side."
+   ]
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    476
+   ],
+   "find": "The dirty set is the key idea — it tells the flusher what to drain. Failed batches go back on the set for retry.",
+   "repl": "A write answers 202 Accepted. A failed flush re-queues its ids with backoff; after five attempts an id is parked on metric:failed.",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 221,
+   "_why": "examples/25: 202 and bounded retry (ebca295)",
+   "_src": "align"
+  },
+  {
+   "op": "set_code",
+   "sldId": 476,
+   "lines": [
+    "// main.go (excerpt), examples/25-caching/go: write-back",
+    "func handleWriteBackPut(w http.ResponseWriter, r *http.Request) {",
+    "   key := \"metric:\" + r.PathValue(\"id\")       // body decoded into parsed, id added: data",
+    "   safeSet(r.Context(), key, string(data), 0) // 1. cache only, no TTL",
+    "   rdb.SAdd(r.Context(), \"metric:dirty\", key) //    mark for flush",
+    "   writeJSON(w, 202, parsed)                  // 202: queued, not yet durable",
+    "}",
+    "func flusher(ctx context.Context) {           // 2. drain the dirty set to the DB",
+    "   failures := 0",
+    "   for {",
+    "      wait := flushPeriod                     // 1s, doubling to 8s after failures",
+    "      if failures > 0 { wait = min(flushPeriod<<failures, maxFlushBackoff) }",
+    "      select { case <-ctx.Done(): return; case <-time.After(wait): }",
+    "      members, err := rdb.SPopN(ctx, \"metric:dirty\", flushBatch).Result()",
+    "      // ... skip on err or none; upsert each key (ON CONFLICT (id) DO UPDATE); collect failed",
+    "      if len(failed) == 0 { failures = 0; continue }",
+    "      failures++",
+    "      requeue(ctx, failed) // 3. HINCRBY metric:attempts; dirty again, metric:failed at 5",
+    "   }",
+    "}"
+   ],
+   "cat": "code",
+   "_slide": 221,
+   "_why": "examples/25: /write-back/metrics/{id} answers 202; upsert; bounded retry (metric:attempts, metric:failed, backoff)",
+   "_src": "align"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 476,
+   "cat": "notes",
+   "_slide": 221,
+   "_why": "notes follow the code",
+   "_src": "align",
+   "text": "Write-back has more moving parts than the other patterns; the slide shows the shape of Example 25. (1) PUT /write-back/metrics/{id} stores the metric in Redis with no TTL, adds the key to a 'dirty set', which tells the flusher which keys still have to reach the database, and answers 202 Accepted: the value is queued, not yet durable. (2) The flusher runs as a background goroutine: it SPOPs up to flushBatch dirty keys and upserts each one (ON CONFLICT (id) DO UPDATE), so a key flushed twice stays one row. SPOP is atomic, so two flusher instances each get a distinct subset of keys and the flusher scales out. (3) A key whose upsert fails is re-queued: HIncrBy counts its attempts in metric:attempts and it goes back on the dirty set, or, after five attempts, onto metric:failed with its value still in the cache and the failure in the log. The wait between cycles doubles after each failed one, from one second to at most eight. Caveats: this is only safe with Redis persistence (AOF, appendonly yes); without it a Redis crash loses unflushed writes. For data that must not be lost, use write-through. For high-throughput telemetry where losing the last second is acceptable, write-back is what lets the service scale."
+  },
+  {
+   "op": "set_code",
+   "sldId": 500,
+   "lines": [
+    "// main.go (excerpt), examples/21-graceful-shutdown/go: shutdown is a failure mode",
+    "func (s *server) readyz(w http.ResponseWriter, r *http.Request) {",
+    "   if s.shuttingDown.Load() {            // liveness (/healthz) stays 200",
+    "      w.WriteHeader(http.StatusServiceUnavailable)",
+    "      json.NewEncoder(w).Encode(map[string]any{\"ready\": false, \"reason\": \"shutting down\"})",
+    "      return",
+    "   }",
+    "   // ... ping the pool: 503 \"db unreachable\", else {\"ready\": true}",
+    "}",
+    "func main() {",
+    "   // ... pool, mux, httpServer; ctx, stop := signal.NotifyContext(..., SIGTERM, SIGINT)",
+    "   <-ctx.Done()                          // SIGTERM: terminationGracePeriod has started",
+    "   stop()",
+    "   s.shuttingDown.Store(true)            // 1. readiness starts failing",
+    "   time.Sleep(drainDelay())              // 2. let the LB stop routing to us (5s)",
+    "   shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)",
+    "   defer cancel()",
+    "   httpServer.Shutdown(shutdownCtx)      // 3. finish in-flight work (20s budget)",
+    "}                                        // 4. deferred pool.Close(), exit 0"
+   ],
+   "cat": "code",
+   "_slide": 245,
+   "_why": "Appendix M recap follows examples/21 (one SIGTERM, drain delay, 20 s drain)",
+   "_src": "align"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 500,
+   "cat": "notes",
+   "_slide": 245,
+   "_why": "notes follow the code",
+   "_src": "align",
+   "text": "The shutdown sequence that prevents dropped requests during a rolling deploy, from Example 21. One SIGTERM cancels the signal context: (1) the shuttingDown flag flips so /readyz returns 503 and Kubernetes stops sending new traffic, while /healthz stays 200; (2) the service keeps serving for DRAIN_DELAY_SECONDS so the load balancer's removal propagates; (3) Server.Shutdown stops accepting and finishes in-flight requests within a 20-second budget; (4) the deferred pool close runs and the process exits 0. The ordering matters: stop taking new work before draining existing work, and close pools last. This is the application half; Appendix H covers the Kubernetes half (preStop hook, terminationGracePeriodSeconds). Together they give zero-downtime rollouts."
+  }
+ ]
+}

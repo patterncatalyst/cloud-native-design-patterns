@@ -1,0 +1,362 @@
+{
+ "ops": [
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "Kafka is the substrate — a partitioned",
+   "repl": "Kafka is the substrate: a partitioned",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup (6 per paragraph)",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "Pulsar is also substrate — same broad category",
+   "repl": "Pulsar is also substrate, in the same broad category",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "Flink is compute — not a transport layer at all, but",
+   "repl": "Flink is compute: not a transport layer, but",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "NiFi is movement — a visual",
+   "repl": "NiFi is movement: a visual",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "They complement — pick by",
+   "repl": "They complement each other; pick by",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "This is the slide the user specifically asked for: distinguish auto-injection from auto-instrumentation from manual instrumentation — three things people conflate.",
+   "repl": "Auto-injection, auto-instrumentation and manual instrumentation are three things people conflate.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): leaked authoring request; em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "wrap known frameworks — your HTTP handler",
+   "repl": "wrap known frameworks: your HTTP handler",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "a Kubernetes-level mechanism — the OpenTelemetry Operator",
+   "repl": "a Kubernetes-level mechanism; the OpenTelemetry Operator",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "Python — ",
+   "repl": "Python: ",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "Java/Quarkus — ",
+   "repl": "Java/Quarkus: ",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "Go — no language agent",
+   "repl": "Go: no language agent",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    283
+   ],
+   "find": "The cost: eventual consistency — there is a small lag",
+   "repl": "The cost: eventual consistency, a small lag",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    283
+   ],
+   "find": "happily handles both — CQRS adds",
+   "repl": "handles both; CQRS adds",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    283
+   ],
+   "find": "for projections — we cover both distinctions in section 5.",
+   "repl": "for projections; the Event-Driven section draws both distinctions.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup; cross-reference by concept",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    324
+   ],
+   "find": "The sub-bullet is the reminder the user asked for: ",
+   "repl": "The sub-bullet is the reminder: ",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): leaked authoring request",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    380
+   ],
+   "find": "This is the specific case you asked about, and a common source of bad designs.",
+   "repl": "This case is a common source of bad designs.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): leaked authoring request",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    535
+   ],
+   "find": "Fallback: the recorded results that follow.",
+   "repl": "Fallback: the recorded results.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): soft positional reference",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    377
+   ],
+   "find": "This is the DB-backed option made concrete, and it's the one I'd reach for first.",
+   "repl": "This is the DB-backed option made concrete, and the default choice for a bounded saga.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "first-person and soft-hype tone in notes",
+   "_src": "tone"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    377
+   ],
+   "find": "Recovery is beautifully boring: after a crash, a sweeper just loads",
+   "repl": "Recovery needs no special path: after a crash, a sweeper loads",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "first-person and soft-hype tone in notes",
+   "_src": "tone"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    476
+   ],
+   "find": "if _, err := db.CopyFrom(ctx, metricsTbl, cols, rows); err != nil {",
+   "repl": "if err := upsert(ctx, rows); err != nil {    // INSERT ... ON CONFLICT (id) DO UPDATE",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 221,
+   "_why": "metrics.id is the primary key and a metric is flushed many times: CopyFrom cannot upsert and fails on the second flush; examples/25-caching/go flushes with INSERT ... ON CONFLICT (id) DO UPDATE",
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    476
+   ],
+   "find": "to the DB in one CopyFrom call.",
+   "repl": "to the DB in one batched upsert (ON CONFLICT (id) DO UPDATE), so a key flushed twice stays one row.",
+   "expect": 1,
+   "cat": "notes",
+   "_slide": 221,
+   "_why": "notes follow the corrected code",
+   "_src": "content"
+  },
+  {
+   "op": "set_code",
+   "sldId": 310,
+   "lines": [
+    "// registry_client.go — register a new version; the registry enforces the rule",
+    "const registry = \"http://apicurio.registry.svc/apis/registry/v3\"",
+    "func publish(group, artifactID, schema string) error {",
+    "   body, _ := json.Marshal(map[string]any{\"content\": map[string]string{ // v3 CreateVersion",
+    "      \"content\": schema, \"contentType\": \"application/json\"}})",
+    "   url := fmt.Sprintf(\"%s/groups/%s/artifacts/%s/versions\", registry, group, artifactID)",
+    "   resp, err := http.Post(url, \"application/json\", bytes.NewReader(body))",
+    "   if err != nil { return err }",
+    "   defer resp.Body.Close()",
+    "   if resp.StatusCode == http.StatusBadRequest { // 400 = compatibility rule violated",
+    "      return errors.New(\"incompatible schema change: blocking the merge\")",
+    "   }",
+    "   if resp.StatusCode >= 300 { return fmt.Errorf(\"registry: %s\", resp.Status) }",
+    "   return nil // 200 = compatible, new version created",
+    "}",
+    "// rule set once per artifact, e.g. BACKWARD: new consumers can read old data"
+   ],
+   "cat": "code",
+   "_why": "Apicurio Registry 3.3.3 REST v3: POST .../versions takes a CreateVersion JSON body (common/src/main/resources/META-INF/openapi.json); a raw schema body is the v2 shape. examples/09-api-registry/verify.sh sends the same body and expects 400 RuleViolationException",
+   "_src": "registry"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    310
+   ],
+   "find": "Apicurio 3.3 answers 400",
+   "repl": "Apicurio 3.3.3 answers 400",
+   "expect": 1,
+   "cat": "version",
+   "_why": "pin with patch",
+   "_src": "registry"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 487,
+   "shape": "Google Shape;2567;p234",
+   "png": "lgtm-presentation/edits/png/25-gray-failure.png",
+   "cat": "voice",
+   "_why": "ALL-CAPS emphasis baked into the old figure (PERCEIVED DIFFERENTLY, NOT fully down, OBSERVE FROM THE CLIENT, GREEN, OUTLIER DETECTION); replaced by the site figure assets/diagrams/25-gray-failure.svg",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 293,
+   "shape": "Google Shape;429;p40",
+   "png": "lgtm-presentation/edits/png/05-sourcing-vs-streaming.png",
+   "cat": "voice",
+   "_why": "ALL-CAPS emphasis baked into the old figure (SOURCING/STREAMING, ARE, IS, TRANSPORT, ABOUT, NOT, EVENT, PROPAGATED); replaced by the site figure assets/diagrams/05-sourcing-vs-streaming.svg (caps lowered there too)",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 294,
+   "shape": "Google Shape;440;p41",
+   "png": "lgtm-presentation/edits/png/05-tools-landscape.png",
+   "cat": "voice",
+   "_why": "ALL-CAPS emphasis baked into the old figure (COMPLEMENT); replaced by the site figure assets/diagrams/05-tools-landscape.svg (SUBSTRATE/COMPUTE/MOVEMENT are design labels)",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 410,
+   "shape": "Google Shape;1711;p157",
+   "png": "lgtm-presentation/edits/png/20-coupling-quadrant.png",
+   "cat": "voice",
+   "_why": "ALL-CAPS emphasis baked into the old figure ('strong OR distant'); replaced by the site figure assets/diagrams/20-coupling-quadrant.svg",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 445,
+   "shape_id": 2100,
+   "png": "lgtm-presentation/edits/png/22-hop-cost-go.png",
+   "cat": "voice",
+   "_why": "figure footer: 'where p99 goes to die' rewritten without the drama",
+   "_src": "hop"
+  }
+ ]
+}
