@@ -45,3 +45,15 @@
 *.json linguist-detectable=false
 *.yaml linguist-detectable=false
 *.yml linguist-detectable=false
+
+# ==============================================================================
+# JEKYLL SITE CHROME & SLIDE DECKS (added) — site scaffolding, not source.
+# Lets the real lead language (Java, the largest of the six) surface on the card.
+# ==============================================================================
+_site/**        linguist-generated
+_layouts/**     linguist-documentation
+_includes/**    linguist-documentation
+assets/**       linguist-documentation
+*.html          linguist-documentation
+presentation/**  linguist-vendored
+presentations/** linguist-vendored
