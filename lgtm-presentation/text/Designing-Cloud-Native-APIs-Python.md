@@ -119,7 +119,7 @@ p. 7
 - The contract is a versioned artifact in the registry, gated in CI, owned by the producing domain.
 - Consumers code against the contract and generated stubs, never against your database or internals.
 - This is what makes services independently deployable — the promise the contract encodes is the boundary.
-  - Tooling: pip with a fully pinned requirements.txt for reproducible Python builds; FastAPI emits OpenAPI; buf / protoc for gRPC; Strawberry exports SDL.
+  - Tooling: uv with exact pins in pyproject.toml and a uv.lock for reproducible Python builds; FastAPI emits OpenAPI; buf / protoc for gRPC; Strawberry exports SDL.
 
 p. 8
 
@@ -158,7 +158,7 @@ p. 11
 [chip] python · FastAPI
 
 ```python
-# main.py (excerpt); requirements.txt pins every package with ==
+# main.py (excerpt); pyproject.toml pins every package with ==; uv.lock locks the rest
 class Settings(BaseSettings):           # config from env — factor III
     database_url: str
     kafka_bootstrap: str = ""
@@ -181,7 +181,7 @@ Probes, env-config and an explicit version are the price of admission for a Kube
 
 p. 12
 
-> Walk the code: config comes from the environment through pydantic-settings (factor III), never from baked-in files, and requirements.txt pins every package with == so the image build is reproducible. The version on the FastAPI app comes from SERVICE_VERSION and shows up in OpenAPI and the registry.
+> Walk the code: config comes from the environment through pydantic-settings (factor III), never from baked-in files, and pyproject.toml pins every direct dependency with == while uv.lock records the full resolved set, so the image build (uv sync --locked) is reproducible. The version on the FastAPI app comes from SERVICE_VERSION and shows up in OpenAPI and the registry.
 >
 > The two probes are the contract with Kubernetes. /healthz is liveness (is the process alive? if not, restart it) and never checks dependencies. /readyz is readiness (can it serve?): it runs SELECT 1 on the database pool and, when that fails, answers 503 with status down, which takes the pod out of rotation without killing it. The probe reads the status code, not the body: Kubernetes treats any answer from 200 to 399 as ready. Getting liveness and readiness wrong is a top cause of cascading restarts, so stress the distinction.
 
@@ -992,18 +992,21 @@ p. 64
 
 ```python
 # main.py (excerpt), examples/12-security/python: an HMAC-SHA256 valet key
-VALET_SECRET = os.environ.get("VALET_SECRET", "demo-secret-do-not-use-in-prod")
+class Settings(BaseSettings):             # VALET_SECRET from the environment
+    valet_secret: str = "demo-secret-do-not-use-in-prod"
+settings = Settings()
 def _mint_valet(resource: str, operation: str, ttl: int = 300) -> dict:
     expires = int(time.time()) + ttl                        # time-bound
     payload = f"{resource}:{operation}:{expires}"           # one object, one operation
-    sig = hmac.new(VALET_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    key = settings.valet_secret.encode()
+    sig = hmac.new(key, payload.encode(), hashlib.sha256).hexdigest()
     return {"resource": resource, "operation": operation, "expires": expires, "token": sig}
 def _verify_valet(resource: str, operation: str, expires: int, token: str) -> bool:
     if time.time() > expires:
         return False                                        # expired: worthless
     payload = f"{resource}:{operation}:{expires}"
     expected = hmac.new(
-        VALET_SECRET.encode(), payload.encode(), hashlib.sha256
+        settings.valet_secret.encode(), payload.encode(), hashlib.sha256
     ).hexdigest()
     return hmac.compare_digest(token, expected)             # constant-time compare
 @app.post("/valet-key")
@@ -3555,7 +3558,7 @@ from openfeature import api
 from openfeature.contrib.provider.flagd import FlagdProvider
 from openfeature.evaluation_context import EvaluationContext
 
-api.set_provider(FlagdProvider(host='flagd', port=8013))
+api.set_provider(FlagdProvider(host=settings.flagd_host, port=settings.flagd_port))
 flags = api.get_client()
 
 @app.post('/checkout')
@@ -3742,7 +3745,7 @@ p. 237
 
 ```bash
 # Python / FastAPI — serve, then the same collection
-uvicorn app.main:app --port 8080 & # http://localhost:8080
+uv run uvicorn main:app --port 8080 & # http://localhost:8080
 newman run orders.postman_collection.json -e local.postman_environment.json
 ```
 
