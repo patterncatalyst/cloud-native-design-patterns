@@ -30,7 +30,7 @@ public class OutboxEvent extends PanacheEntityBase {
     public String eventType;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(columnDefinition = "jsonb", nullable = false)
+    @Column(nullable = false)
     public OrderPlacedPayload payload;
 
     @Generated(event = EventType.INSERT)
