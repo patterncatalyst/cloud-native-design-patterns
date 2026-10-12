@@ -5,7 +5,7 @@ Kafka fan-out — order.placed events consumed independently by shipping and not
 ## Framework & libraries
 
 - **Framework**: Spring Boot 4.1.1, Java 25 (Web, Kafka)
-- **Libraries**: spring-boot-starter-kafka (Spring Kafka 4), spring-boot-starter-jdbc, PostgreSQL driver, OpenTelemetry Java agent 2.32.0
+- **Libraries**: spring-boot-starter-kafka (Spring Kafka 4), spring-boot-starter-data-jpa, spring-boot-starter-actuator, PostgreSQL driver, OpenTelemetry Java agent 2.32.0
 - **Container base**: `ubi10/openjdk-25-runtime:1.24-15` (UID 185)
 
 ## Run
@@ -25,8 +25,8 @@ cd .. && bash verify.sh
 | Path | Description |
 |------|-------------|
 | `order-service/` | OrderController.java — REST + KafkaTemplate publish |
-| `shipping-consumer/` | ShippingListener.java — @KafkaListener with manual ack + JDBC insert |
-| `notification-consumer/` | NotificationListener.java — @KafkaListener with manual ack + JDBC insert |
+| `shipping-consumer/` | ShippingListener.java — @KafkaListener; existence check plus the unique constraint on `order_id` make it idempotent (Spring Data JPA) |
+| `notification-consumer/` | NotificationListener.java — @KafkaListener; existence check plus the unique constraint on `order_id` make it idempotent (Spring Data JPA) |
 
 ## Implementation notes
 

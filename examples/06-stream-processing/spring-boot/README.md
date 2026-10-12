@@ -5,7 +5,7 @@ Kafka stream processor with tumbling-window aggregation — real-time revenue pe
 ## Framework & libraries
 
 - **Framework**: Spring Boot 4.1.1, Java 25 (Kafka, Kafka Streams)
-- **Libraries**: spring-boot-starter-kafka (Spring Kafka 4), kafka-streams, spring-boot-starter-jdbc, OpenTelemetry Java agent
+- **Libraries**: spring-boot-starter-kafka (Spring Kafka 4), kafka-streams, spring-boot-starter-data-jpa, spring-boot-starter-actuator, OpenTelemetry Java agent
 - **Container base**: `ubi10/openjdk-25-runtime:1.24-15` (UID 185)
 
 ## Run
