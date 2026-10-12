@@ -53,6 +53,6 @@ public class OrderResource {
     /** The command's invariants reject bad input with IllegalArgumentException. */
     @ServerExceptionMapper
     public RestResponse<Map<String, String>> invalidCommand(IllegalArgumentException e) {
-        return RestResponse.status(RestResponse.Status.fromStatusCode(422), Map.of("detail", e.getMessage()));
+        return RestResponse.ResponseBuilder.ok(Map.of("detail", e.getMessage())).status(422).build();
     }
 }
