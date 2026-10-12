@@ -1,0 +1,7 @@
+{"ops":[
+ {"op":"replace","scope":"slide","sldIds":[333],"find":"Valet key  —  scoped","repl":"Valet key — scoped","expect":1,"cat":"voice"},
+ {"op":"replace","scope":"notes","sldIds":[378],"find":"persisted FAILED state","repl":"persisted COMPENSATED state","expect":1,"cat":"code"},
+ {"op":"replace","scope":"slide","sldIds":[440],"find":"inject correlation and identity","repl":"inject the caller address and identity","expect":1,"cat":"code"},
+ {"op":"fit_font","sldId":472,"shape_id":2400,"pt":11.5,"cat":"fit"},
+ {"op":"set_geometry","sldId":531,"shape":"Image 1","x":2.16,"y":1.95,"w":9.01,"h":4.30,"cat":"fit"}
+]}

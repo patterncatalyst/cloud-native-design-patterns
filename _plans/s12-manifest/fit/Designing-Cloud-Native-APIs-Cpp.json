@@ -1,0 +1,344 @@
+{
+ "entries": [
+  {
+   "sldId": 279,
+   "shape_id": 270,
+   "resize": {
+    "cx": 1826230,
+    "keep": "right"
+   },
+   "_why": "slide 24: chip 'c++ · cppgraphqlgen' wraps; one line at 11.0 pt"
+  },
+  {
+   "sldId": 279,
+   "shape_id": 271,
+   "pt": 9.5,
+   "_why": "slide 24: 24 code lines, 82 columns; 10.0 pt overflows the box"
+  },
+  {
+   "sldId": 279,
+   "shape_id": 272,
+   "resize": {
+    "y": 5712714,
+    "cy": 492506
+   },
+   "_why": "slide 24: text overflows its frame by overflow-top 3.6 pt, overflow-bottom 4.7 pt; free space around the frame"
+  },
+  {
+   "sldId": 284,
+   "shape_id": 326,
+   "resize": {
+    "cx": 1826230,
+    "keep": "right"
+   },
+   "_why": "slide 29: chip 'c++ · libpq + kafka' wraps; one line at 11.0 pt"
+  },
+  {
+   "sldId": 291,
+   "shape_id": 407,
+   "pt": 9.5,
+   "_why": "slide 36: 24 code lines, 88 columns; 10.0 pt overflows the box"
+  },
+  {
+   "sldId": 319,
+   "shape_id": 714,
+   "resize": {
+    "cx": 1826230,
+    "keep": "right"
+   },
+   "_why": "slide 64: chip 'c++ · OpenTelemetry' wraps; one line at 11.0 pt"
+  },
+  {
+   "sldId": 321,
+   "shape_id": 738,
+   "resize": {
+    "cx": 1826230,
+    "keep": "right"
+   },
+   "_why": "slide 66: chip 'c++ · OpenTelemetry' wraps; one line at 11.0 pt"
+  },
+  {
+   "sldId": 333,
+   "shape_id": 866,
+   "resize": {
+    "cx": 2077689,
+    "keep": "right"
+   },
+   "_why": "slide 78: chip 'c++ · Drogon + jwt-cpp' wraps; one line at 11.0 pt"
+  },
+  {
+   "sldId": 338,
+   "shape_id": 922,
+   "pt": 9.0,
+   "_why": "slide 83: 25 code lines, 85 columns; 10.0 pt overflows the box"
+  },
+  {
+   "sldId": 340,
+   "shape_id": 946,
+   "pt": 9.5,
+   "_why": "slide 85: 24 code lines, 65 columns; 10.0 pt overflows the box"
+  },
+  {
+   "sldId": 342,
+   "shape_id": 969,
+   "resize": {
+    "cx": 2329150,
+    "keep": "right"
+   },
+   "_why": "slide 87: chip 'c++ · rdkafka++ + jwt-cpp' wraps; one line at 11.0 pt"
+  },
+  {
+   "sldId": 365,
+   "shape_id": 1216,
+   "pt": 9.0,
+   "_why": "slide 110: 25 code lines, 73 columns; 10.0 pt overflows the box"
+  },
+  {
+   "sldId": 368,
+   "shape_id": 1249,
+   "pt": 9.0,
+   "_why": "slide 113: 25 code lines, 79 columns; 10.0 pt overflows the box"
+  },
+  {
+   "sldId": 385,
+   "shape_id": 1442,
+   "pt": 9.0,
+   "_why": "slide 130: 25 code lines, 78 columns; 10.0 pt overflows the box"
+  },
+  {
+   "sldId": 387,
+   "shape_id": 1466,
+   "pt": 9.0,
+   "_why": "slide 132: 25 code lines, 80 columns; 10.0 pt overflows the box"
+  },
+  {
+   "sldId": 389,
+   "shape_id": 1490,
+   "pt": 9.5,
+   "_why": "slide 134: 24 code lines, 87 columns; 10.0 pt overflows the box"
+  },
+  {
+   "sldId": 391,
+   "shape_id": 1513,
+   "resize": {
+    "cx": 1826230,
+    "keep": "right"
+   },
+   "_why": "slide 136: chip 'c++ · cppgraphqlgen' wraps; one line at 11.0 pt"
+  },
+  {
+   "sldId": 391,
+   "shape_id": 1514,
+   "pt": 9.5,
+   "_why": "slide 136: 24 code lines, 76 columns; 10.0 pt overflows the box"
+  },
+  {
+   "sldId": 401,
+   "shape_id": 1621,
+   "pt": 9.5,
+   "_why": "slide 146: 24 code lines, 85 columns; 10.0 pt overflows the box"
+  },
+  {
+   "sldId": 401,
+   "shape_id": 1622,
+   "resize": {
+    "y": 5712714,
+    "cy": 492506
+   },
+   "_why": "slide 146: text overflows its frame by overflow-top 3.6 pt, overflow-bottom 4.7 pt; free space around the frame"
+  },
+  {
+   "sldId": 444,
+   "shape_id": 2088,
+   "resize": {
+    "cx": 1826230,
+    "keep": "right"
+   },
+   "_why": "slide 189: chip 'c++ · Drogon + sol2' wraps; one line at 11.0 pt"
+  },
+  {
+   "sldId": 444,
+   "shape_id": 2089,
+   "pt": 9.5,
+   "_why": "slide 189: 24 code lines, 83 columns; 10.0 pt overflows the box"
+  },
+  {
+   "sldId": 461,
+   "shape_id": 2275,
+   "resize": {
+    "y": 5712714,
+    "cy": 492506
+   },
+   "_why": "slide 206: text overflows its frame by overflow-top 3.6 pt, overflow-bottom 4.7 pt; free space around the frame"
+  },
+  {
+   "sldId": 463,
+   "shape_id": 2298,
+   "pt": 9.5,
+   "_why": "slide 208: 24 code lines, 85 columns; 10.0 pt overflows the box"
+  },
+  {
+   "sldId": 472,
+   "shape_id": 2400,
+   "pt": 9.0,
+   "_why": "slide 217: 25 code lines, 77 columns; 10.0 pt overflows the box"
+  },
+  {
+   "sldId": 468,
+   "shape_id": 2352,
+   "cuts": [
+    {
+     "from": 4,
+     "to": 4,
+     "first": ""
+    },
+    {
+     "from": 18,
+     "to": 18,
+     "first": ""
+    }
+   ],
+   "pt": 9.5,
+   "_why": "slide 213: 26 code lines do not fit the box at 9 pt; excerpt of 24 lines at 9.5 pt, was 10.0 pt"
+  },
+  {
+   "sldId": 470,
+   "shape_id": 2376,
+   "cuts": [
+    {
+     "from": 5,
+     "to": 8,
+     "first": "  sw::redis::Redis& redis_;",
+     "last": "  std::string prefix_;",
+     "ellipsis": "  // ... members: redis_, loader_, ttl_, prefix_"
+    }
+   ],
+   "pt": 9.5,
+   "_why": "slide 215: 27 code lines do not fit the box at 9 pt; excerpt of 24 lines at 9.5 pt, was 10.0 pt"
+  },
+  {
+   "sldId": 474,
+   "shape_id": 2424,
+   "cuts": [
+    {
+     "from": 13,
+     "to": 18,
+     "first": "// Optional defensive: invalidate any stale entry (e.g. from a sibling read)",
+     "last": "}",
+     "ellipsis": "// ... optional variant: after the same INSERT, cache_.del(\"event:\" + id)"
+    }
+   ],
+   "pt": 10.0,
+   "_why": "slide 219: 28 code lines do not fit the box at 9 pt; excerpt of 23 lines at 10.0 pt, was 10.0 pt"
+  },
+  {
+   "sldId": 476,
+   "shape_id": 2448,
+   "cuts": [
+    {
+     "from": 18,
+     "to": 24,
+     "first": "      PgTxn txn = pg_.begin();",
+     "last": "      txn.commit();",
+     "ellipsis": "      // ... one transaction: INSERT each metric:{id} hash into metrics, commit"
+    }
+   ],
+   "pt": 9.5,
+   "_why": "slide 221: 30 code lines do not fit the box at 9 pt; excerpt of 24 lines at 9.5 pt, was 10.0 pt"
+  },
+  {
+   "sldId": 478,
+   "shape_id": 2472,
+   "cuts": [
+    {
+     "from": 7,
+     "to": 12,
+     "first": "  if (auto hit = cache_.get(key)) { cb(json_response(*hit)); co_return; }",
+     "last": "  cb(json_response(body));",
+     "ellipsis": "  // ... then cache-aside on key with TTL_S"
+    }
+   ],
+   "pt": 9.5,
+   "_why": "slide 223: 29 code lines do not fit the box at 9 pt; excerpt of 24 lines at 9.5 pt, was 10.0 pt"
+  },
+  {
+   "sldId": 492,
+   "shape_id": 2623,
+   "cuts": [
+    {
+     "from": 1,
+     "to": 3,
+     "first": "// Every C++ client has an EXPLICIT timeout; deadlines propagate downstream.",
+     "last": "using namespace std::chrono;",
+     "ellipsis": "// ... #include <chrono>; using namespace std::chrono;"
+    },
+    {
+     "from": 5,
+     "to": 5,
+     "first": ""
+    },
+    {
+     "from": 9,
+     "to": 9,
+     "first": "  // -------- gRPC: deadline propagation is built-in -------------"
+    }
+   ],
+   "pt": 9.0,
+   "_why": "slide 237: 29 code lines do not fit the box at 9 pt; excerpt of 25 lines at 9.0 pt, was 10.0 pt"
+  },
+  {
+   "sldId": 494,
+   "shape_id": 2647,
+   "cuts": [
+    {
+     "from": 2,
+     "to": 2,
+     "first": "// Prefer Istio retry policy when possible; in-process retry is for when you can't."
+    },
+    {
+     "from": 5,
+     "to": 5,
+     "first": ""
+    },
+    {
+     "from": 27,
+     "to": 27,
+     "first": ""
+    }
+   ],
+   "pt": 9.5,
+   "_why": "slide 239: 27 code lines do not fit the box at 9 pt; excerpt of 24 lines at 9.5 pt, was 10.0 pt"
+  },
+  {
+   "sldId": 496,
+   "shape_id": 2671,
+   "cuts": [
+    {
+     "from": 2,
+     "to": 2,
+     "first": "// Production C++ shops typically let Istio do this; included for reference."
+    },
+    {
+     "from": 4,
+     "to": 9,
+     "first": "  enum State { Closed, Open, HalfOpen };",
+     "last": "  static constexpr seconds RESET_AFTER = 30s;",
+     "ellipsis": "  // ... state_ (Closed, Open, HalfOpen), failures_, opened_at_; THRESHOLD 5, RESET_AFTER 30s"
+    }
+   ],
+   "pt": 9.5,
+   "_why": "slide 241: 30 code lines do not fit the box at 9 pt; excerpt of 24 lines at 9.5 pt, was 10.0 pt"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "find": "Glossary of acronyms (2 of 2) — platform, security, observability",
+   "repl": "Glossary of acronyms (2 of 2) — platform, security, telemetry",
+   "expect": 1,
+   "sldIds": [
+    352
+   ],
+   "_why": "title wraps to two lines and collides with the eyebrow; 'observability' -> 'telemetry' keeps it on one line"
+  }
+ ]
+}
