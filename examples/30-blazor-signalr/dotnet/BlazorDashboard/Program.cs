@@ -1,18 +1,20 @@
-using System.Text.Json;
 using BlazorDashboard;
 using BlazorDashboard.Components;
 using BlazorDashboard.Hubs;
 using Microsoft.AspNetCore.SignalR;
-using Npgsql;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://+:8080");
 
-var dbUrl = Environment.GetEnvironmentVariable("DATABASE_URL")
-    ?? "Host=postgres;Port=5432;Database=appdb;Username=appuser;Password=apppass";
-var redisConn = Environment.GetEnvironmentVariable("REDIS_URL") ?? "redis:6379";
+var dbUrl = builder.Configuration.GetValue("DATABASE_URL",
+    "Host=postgres;Port=5432;Database=appdb;Username=appuser;Password=apppass");
+var redisConn = builder.Configuration.GetValue("REDIS_URL", "redis:6379");
+
+builder.Services.AddDbContext<OrdersContext>(o => o.UseNpgsql(dbUrl));
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -29,8 +31,7 @@ builder.Services.AddOpenTelemetry()
         .AddSource("blazor-dashboard")
         .AddOtlpExporter());
 
-var dsBuilder = new NpgsqlDataSourceBuilder(dbUrl);
-await using var dataSource = dsBuilder.Build();
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
@@ -42,45 +43,31 @@ app.MapRazorComponents<App>()
 
 app.MapHub<OrderHub>("/hubs/orders");
 
-app.MapGet("/healthz", () => new { status = "ok" });
-
-app.MapGet("/orders", async () =>
+app.MapHealthChecks("/healthz", new HealthCheckOptions
 {
-    var orders = new List<OrderDto>();
-    await using var conn = await dataSource.OpenConnectionAsync();
-    await using var cmd = conn.CreateCommand();
-    cmd.CommandText = "SELECT id, sku, quantity, status FROM orders ORDER BY created_at DESC LIMIT 50";
-    await using var reader = await cmd.ExecuteReaderAsync();
-    while (await reader.ReadAsync())
-    {
-        orders.Add(new OrderDto(
-            reader.GetString(0), reader.GetString(1),
-            reader.GetInt32(2), reader.GetString(3)));
-    }
-    return orders;
+    ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok" }),
 });
 
-app.MapPost("/orders", async (HttpContext ctx, IHubContext<OrderHub> hub) =>
+app.MapGet("/orders", async (OrdersContext db) =>
+    await db.Orders.AsNoTracking().OrderByDescending(o => o.CreatedAt).Take(50)
+        .Select(o => OrderDto.From(o)).ToListAsync());
+
+app.MapPost("/orders", async (OrderRequest request, OrdersContext db, IHubContext<OrderHub> hub) =>
 {
-    using var doc = await JsonDocument.ParseAsync(ctx.Request.Body);
-    var root = doc.RootElement;
-    var sku = root.GetProperty("sku").GetString()!;
-    var quantity = root.GetProperty("quantity").GetInt32();
-    var id = Guid.NewGuid().ToString();
+    var order = new Order
+    {
+        Id = Guid.NewGuid().ToString(),
+        Sku = request.Sku,
+        Quantity = request.Quantity,
+        Status = "confirmed",
+    };
+    db.Orders.Add(order);
+    await db.SaveChangesAsync();
 
-    await using var conn = await dataSource.OpenConnectionAsync();
-    await using var cmd = conn.CreateCommand();
-    cmd.CommandText = "INSERT INTO orders (id, sku, quantity, status) VALUES ($1, $2, $3, $4)";
-    cmd.Parameters.AddWithValue(id);
-    cmd.Parameters.AddWithValue(sku);
-    cmd.Parameters.AddWithValue(quantity);
-    cmd.Parameters.AddWithValue("confirmed");
-    await cmd.ExecuteNonQueryAsync();
+    var dto = OrderDto.From(order);
+    await hub.Clients.Group("dashboard").SendAsync("OrderPlaced", dto);
 
-    var order = new OrderDto(id, sku, quantity, "confirmed");
-    await hub.Clients.Group("dashboard").SendAsync("OrderPlaced", order);
-
-    return Results.Json(order, statusCode: 201);
+    return Results.Json(dto, statusCode: StatusCodes.Status201Created);
 });
 
 app.Run();
