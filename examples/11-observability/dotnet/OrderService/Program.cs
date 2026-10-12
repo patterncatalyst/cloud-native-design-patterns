@@ -4,7 +4,8 @@ using System.Text;
 using System.Text.Json;
 using Confluent.Kafka;
 using Grpc.Net.Client;
-using Npgsql;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -13,10 +14,13 @@ using Proto;
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://+:8080");
 
-var dbUrl = Environment.GetEnvironmentVariable("DATABASE_URL")
-    ?? "Host=postgres;Port=5432;Database=appdb;Username=appuser;Password=apppass";
-var kafkaBootstrap = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP") ?? "kafka:9094";
-var inventoryAddr = Environment.GetEnvironmentVariable("INVENTORY_ADDR") ?? "inventory:50051";
+var dbUrl = builder.Configuration.GetValue("DATABASE_URL",
+    "Host=postgres;Port=5432;Database=appdb;Username=appuser;Password=apppass");
+var kafkaBootstrap = builder.Configuration.GetValue("KAFKA_BOOTSTRAP", "kafka:9094");
+var inventoryAddr = builder.Configuration.GetValue("INVENTORY_ADDR", "inventory:50051");
+
+builder.Services.AddDbContext<OrdersContext>(o => o.UseNpgsql(dbUrl));
+
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("order-service"))
     .WithTracing(t => t
@@ -27,10 +31,9 @@ builder.Services.AddOpenTelemetry()
         .AddMeter("order-service")
         .AddOtlpExporter());
 
-var app = builder.Build();
+builder.Services.AddHealthChecks();
 
-var dsBuilder = new NpgsqlDataSourceBuilder(dbUrl);
-await using var dataSource = dsBuilder.Build();
+var app = builder.Build();
 
 var channel = GrpcChannel.ForAddress($"http://{inventoryAddr}",
     new GrpcChannelOptions { HttpHandler = new SocketsHttpHandler { EnableMultipleHttp2Connections = true } });
@@ -52,14 +55,14 @@ var activitySource = new ActivitySource("order-service");
 var meter = new Meter("order-service");
 var ordersPlaced = meter.CreateCounter<long>("orders.placed");
 
-app.MapGet("/healthz", () => new { status = "ok" });
-
-app.MapPost("/orders", async (HttpContext ctx) =>
+app.MapHealthChecks("/healthz", new HealthCheckOptions
 {
-    using var doc = await JsonDocument.ParseAsync(ctx.Request.Body);
-    var root = doc.RootElement;
-    var sku = root.GetProperty("sku").GetString()!;
-    var quantity = root.GetProperty("quantity").GetInt32();
+    ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok" }),
+});
+
+app.MapPost("/orders", async (OrderRequest request, OrdersContext db) =>
+{
+    var (sku, quantity) = request;
     var id = Guid.NewGuid().ToString();
 
     using var reserveSpan = activitySource.StartActivity("reserve-stock");
@@ -71,17 +74,12 @@ app.MapPost("/orders", async (HttpContext ctx) =>
     var status = reply.Confirmed ? "confirmed" : "rejected";
     reserveSpan?.SetTag("stock.confirmed", reply.Confirmed);
 
-    await using var conn = await dataSource.OpenConnectionAsync();
-    await using var cmd = conn.CreateCommand();
-    cmd.CommandText = "INSERT INTO orders (id, sku, quantity, status) VALUES ($1, $2, $3, $4)";
-    cmd.Parameters.AddWithValue(id);
-    cmd.Parameters.AddWithValue(sku);
-    cmd.Parameters.AddWithValue(quantity);
-    cmd.Parameters.AddWithValue(status);
-    await cmd.ExecuteNonQueryAsync();
+    var order = new Order { Id = id, Sku = sku, Quantity = quantity, Status = status };
+    db.Orders.Add(order);
+    await db.SaveChangesAsync();
 
-    var order = new { id, sku, quantity, status };
-    var json = JsonSerializer.Serialize(order);
+    var dto = OrderDto.From(order);
+    var json = JsonSerializer.Serialize(dto, JsonSerializerOptions.Web);
 
     if (producer is not null)
     {
@@ -109,27 +107,11 @@ app.MapPost("/orders", async (HttpContext ctx) =>
     app.Logger.LogInformation("[trace_id={TraceId} span_id={SpanId}] order placed id={OrderId}",
         traceId, spanId, id);
 
-    return Results.Json(order, statusCode: 201);
+    return Results.Json(dto, statusCode: StatusCodes.Status201Created);
 });
 
-app.MapGet("/orders", async () =>
-{
-    var orders = new List<object>();
-    await using var conn = await dataSource.OpenConnectionAsync();
-    await using var cmd = conn.CreateCommand();
-    cmd.CommandText = "SELECT id, sku, quantity, status FROM orders ORDER BY created_at DESC LIMIT 50";
-    await using var reader = await cmd.ExecuteReaderAsync();
-    while (await reader.ReadAsync())
-    {
-        orders.Add(new
-        {
-            id = reader.GetString(0),
-            sku = reader.GetString(1),
-            quantity = reader.GetInt32(2),
-            status = reader.GetString(3)
-        });
-    }
-    return orders;
-});
+app.MapGet("/orders", async (OrdersContext db) =>
+    await db.Orders.AsNoTracking().OrderByDescending(o => o.CreatedAt).Take(50)
+        .Select(o => OrderDto.From(o)).ToListAsync());
 
 app.Run();
