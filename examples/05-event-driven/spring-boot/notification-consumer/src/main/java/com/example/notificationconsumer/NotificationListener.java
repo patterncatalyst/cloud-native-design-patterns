@@ -3,7 +3,6 @@ package com.example.notificationconsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -12,23 +11,29 @@ public class NotificationListener {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationListener.class);
 
-    private final JdbcTemplate jdbc;
+    private final NotificationRepository notifications;
 
-    public NotificationListener(JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
+    public NotificationListener(NotificationRepository notifications) {
+        this.notifications = notifications;
     }
 
+    /**
+     * Idempotent: a redelivered event is skipped by the existence check, and the unique constraint on
+     * {@code order_id} catches the race between two deliveries. Neither case throws, so the listener
+     * container never redelivers.
+     */
     @KafkaListener(topics = "order.placed", groupId = "notification-group")
     public void onOrderPlaced(OrderEvent event) {
-        log.info("Received order.placed: orderId={}", event.getId());
+        log.info("Received order.placed: orderId={}", event.id());
+        if (notifications.existsByOrderId(event.id())) {
+            log.info("Duplicate notification for orderId={}, skipping (idempotent)", event.id());
+            return;
+        }
         try {
-            jdbc.update(
-                "INSERT INTO notifications (order_id, channel) VALUES (?, 'email')",
-                event.getId()
-            );
-            log.info("Notification recorded for orderId={}", event.getId());
+            notifications.save(new Notification(event.id(), "email"));
+            log.info("Notification recorded for orderId={}", event.id());
         } catch (DataIntegrityViolationException e) {
-            log.info("Duplicate notification for orderId={}, skipping (idempotent)", event.getId());
+            log.info("Duplicate notification for orderId={}, skipping (idempotent)", event.id());
         }
     }
 }
