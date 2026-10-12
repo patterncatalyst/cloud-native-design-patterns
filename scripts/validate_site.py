@@ -10,8 +10,10 @@ Checks _docs/*.md, _parts/*.md, _example_pages/*.md and index.html:
   5. every excalidraw figure has assets/diagrams/<file>.svg and .excalidraw
   6. no positional terms in prose (outside code fences and inline code)
 
-  7. no `podman` anywhere outside the historical plans and lgtm-presentation/
-     (on by default; --allow-podman turns it off)
+  7. no `podman` anywhere outside the historical plans
+     (on by default; --allow-podman turns it off); lgtm-presentation/ is included
+  8. no positional terms in lgtm-presentation/*.md and lgtm-presentation/text/*.md
+  9. the stale-stack denylist (scripts/deck-denylist.json) over lgtm-presentation/text/*.md
 
 Optional: --allow-podman, --fail-on-warn. Output is `path:line: message`. Exit 1 on errors.
 Needs python3 stdlib and PyYAML.
@@ -19,6 +21,7 @@ Needs python3 stdlib and PyYAML.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
@@ -283,7 +286,7 @@ def check_file(path: Path, rep: Report) -> None:
     check_positional(text, path, rep, fm_lines)
 
 
-PODMAN_SKIP_DIRS = {"node_modules", ".git", "lgtm-presentation", "_site", ".bundle", "vendor"}
+PODMAN_SKIP_DIRS = {"node_modules", ".git", "_site", ".bundle", "vendor"}
 PODMAN_HISTORY = {
     "_plans/phase3-backlog.md",
     "_plans/qa-pass-r70.md",
@@ -291,7 +294,7 @@ PODMAN_HISTORY = {
     "_plans/iteration-plan.md",
     "scripts/validate_site.py",
 }
-PODMAN_SCAN_ROOTS = ["examples", "assets/diagrams", "scripts", "_plans", "_docs",
+PODMAN_SCAN_ROOTS = ["examples", "assets/diagrams", "scripts", "_plans", "_docs", "lgtm-presentation",
                      "_parts", "_example_pages", ".github", "_includes", "_layouts"]
 PODMAN_SCAN_SUFFIXES = {
     ".md", ".html", ".yml", ".yaml", ".py", ".sh", ".svg", ".excalidraw", ".json",
@@ -334,6 +337,39 @@ def check_podman(rep: Report, site_files: list[Path]) -> None:
                 rep.error(p, i, f"podman reference: {line.strip()[:100]}")
 
 
+DECK_DENYLIST = ROOT / "scripts" / "deck-denylist.json"
+DECK_MD_GLOBS = ["lgtm-presentation/*.md", "lgtm-presentation/text/*.md"]
+
+
+def check_deck_markdown(rep: Report) -> None:
+    """Positional language over the deck Markdown (text copies, companions, BUILD.md)."""
+    for g in DECK_MD_GLOBS:
+        for p in sorted(ROOT.glob(g)):
+            check_positional(p.read_text(encoding="utf-8"), p, rep, 0)
+
+
+def check_denylist(rep: Report) -> None:
+    """Stale-stack denylist: every line of the deck text copies (code included).
+
+    An entry is {id, regex, flags?, exempt?, files?, why}; a hit is an error unless the
+    exemption matches the same line; `files` limits it to text copies whose name contains
+    one of the given strings.
+    """
+    entries = json.loads(DECK_DENYLIST.read_text(encoding="utf-8"))
+    rules = []
+    for e in entries:
+        fl = re.I if "i" in e.get("flags", "") else 0
+        rules.append((e, re.compile(e["regex"], fl),
+                      re.compile(e["exempt"], re.I) if e.get("exempt") else None))
+    for p in sorted(ROOT.glob("lgtm-presentation/text/*.md")):
+        for i, line in enumerate(p.read_text(encoding="utf-8").split("\n"), 1):
+            for e, rx, ex in rules:
+                if e.get("files") and not any(k in p.name for k in e["files"]):
+                    continue
+                if rx.search(line) and not (ex and ex.search(line)):
+                    rep.error(p, i, f"denylist [{e['id']}] {e['why']}: {line.strip()[:100]}")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--allow-podman", action="store_true",
@@ -349,6 +385,8 @@ def main() -> int:
         check_file(f, rep)
     if not args.allow_podman:
         check_podman(rep, files)
+    check_deck_markdown(rep)
+    check_denylist(rep)
 
     for line in rep.errors + rep.warnings:
         print(line)

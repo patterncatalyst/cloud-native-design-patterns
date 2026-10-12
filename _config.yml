@@ -84,6 +84,7 @@ exclude:
   - node_modules/
   - examples/   # ← important: trailing slash; runnable code lives here, not site content
   - scripts/
+  - lgtm-presentation/
   - README.md
   - LICENSE
   - PRD.md
