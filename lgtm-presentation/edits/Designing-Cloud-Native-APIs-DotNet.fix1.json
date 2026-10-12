@@ -1,0 +1,4 @@
+{"ops":[
+ {"op":"set_text","sldId":377,"shape_id":1345,"paragraphs":["Two Blazor hosting models with different scaling profiles; both run on plain ASP.NET Core Pods and need no managed SignalR service."],"_cat":"fit","_why":"one line again, clear of the figure's footnote (the figure already says both are open source)"},
+ {"op":"resize_shape","sldId":377,"shape_id":1345,"y":5943600,"cy":310800,"_cat":"fit","_why":"restore the committed caption frame below the figure"}
+]}
