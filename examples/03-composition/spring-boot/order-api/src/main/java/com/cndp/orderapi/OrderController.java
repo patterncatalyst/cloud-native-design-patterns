@@ -1,10 +1,9 @@
 package com.cndp.orderapi;
 
 import java.util.List;
-import java.util.Map;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -14,33 +13,21 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 public class OrderController {
 
-    private final JdbcClient jdbc;
+    private final OrderRepository orders;
 
-    public OrderController(JdbcClient jdbc) {
-        this.jdbc = jdbc;
-    }
-
-    @GetMapping("/healthz")
-    public Map<String, String> healthz() {
-        return Map.of("status", "ok");
+    public OrderController(OrderRepository orders) {
+        this.orders = orders;
     }
 
     @GetMapping("/orders")
-    public List<Map<String, Object>> listOrders(
-            @RequestParam(defaultValue = "50") int limit) {
-        return jdbc.sql("SELECT id, sku, quantity, status FROM orders ORDER BY id LIMIT ?")
-                .param(Math.min(limit, 100))
-                .query().listOfRows();
+    public List<OrderView> listOrders(@RequestParam(defaultValue = "50") int limit) {
+        return orders.findAllByOrderByIdAsc(PageRequest.ofSize(Math.min(limit, 100)))
+                .stream().map(Order::toView).toList();
     }
 
     @GetMapping("/orders/{orderId}")
-    public Map<String, Object> getOrder(@PathVariable String orderId) {
-        var rows = jdbc.sql("SELECT id, sku, quantity, status FROM orders WHERE id = ?")
-                .param(orderId)
-                .query().listOfRows();
-        if (rows.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "order not found");
-        }
-        return rows.getFirst();
+    public OrderView getOrder(@PathVariable String orderId) {
+        return orders.findById(orderId).map(Order::toView)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "order not found"));
     }
 }
