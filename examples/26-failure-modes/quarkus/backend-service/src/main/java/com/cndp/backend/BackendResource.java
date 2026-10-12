@@ -9,12 +9,12 @@ import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
-import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.jboss.resteasy.reactive.RestHeader;
 
 @Path("/")
 @ApplicationScoped
@@ -50,7 +50,7 @@ public class BackendResource {
 
     @GET
     @Path("call")
-    public Response call(@HeaderParam("X-Deadline-Remaining") String deadlineRemaining) {
+    public Response call(@RestHeader("X-Deadline-Remaining") String deadlineRemaining) {
         callCount.incrementAndGet();
         String currentMode = mode.get();
 
@@ -95,11 +95,5 @@ public class BackendResource {
                 okResult.put("mode", "healthy");
                 return Response.ok(okResult).build();
         }
-    }
-
-    @GET
-    @Path("healthz")
-    public Map<String, String> healthz() {
-        return Map.of("status", "ok");
     }
 }
