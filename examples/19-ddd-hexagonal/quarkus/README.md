@@ -25,13 +25,14 @@ cd .. && LANG_DIR=quarkus bash verify.sh
 | Path | Description |
 |------|-------------|
 | `order-service/src/.../domain/` | Domain layer — Order aggregate, PlaceOrderCmd value object, OrderPlaced event, port interfaces (OrderRepository, EventPublisher), PlaceOrderUseCase. Zero framework imports. |
-| `order-service/src/.../adapter/` | Driven adapters — PostgresOrderRepository (raw JDBC via DataSource), LogEventPublisher (JBoss Logger). Driving adapter — OrderResource (JAX-RS REST). |
-| `order-service/src/.../OrderServiceApp.java` | CDI @Produces method wiring PlaceOrderUseCase from its ports — proves domain has no CDI dependency. |
-| `order-service/src/.../CliPlaceOrder.java` | CLI driving adapter — standalone main(), raw JDBC, no Quarkus/CDI. Proves port replaceability. Installed as `cli-place-order` (`order-service/cli-place-order`, on PATH in the image). |
+| `order-service/src/.../adapter/` | Driven adapters — PostgresOrderRepository (Hibernate ORM with Panache over an OrderEntity), LogEventPublisher (JBoss Logger). Driving adapter — OrderResource (JAX-RS REST). |
+| `order-service/src/.../UseCaseConfig.java` | CDI @Produces method wiring PlaceOrderUseCase from its ports — proves domain has no CDI dependency. |
+| `order-service/src/.../OrderServiceApp.java` | `@QuarkusMain`: no arguments run the HTTP service, arguments run the CLI adapter. |
+| `order-service/src/.../CliPlaceOrder.java` | CLI driving adapter — a `QuarkusApplication` that runs the same use case and the same Panache repository with the HTTP server off (`cli` profile). Proves port replaceability. Installed as `cli-place-order` (`order-service/cli-place-order`, on PATH in the image). |
 
 ## Implementation notes
 
-Clean package structure: `domain/`, `adapter/`. CDI wires adapter beans to port interfaces. PlaceOrderUseCase is a plain Java class instantiated via a @Produces factory method — it never imports jakarta.* or io.quarkus.*. The CLI adapter proves the same domain works without any framework at all.
+Clean package structure: `domain/`, `adapter/`. CDI wires adapter beans to port interfaces. PlaceOrderUseCase is a plain Java class instantiated via a @Produces factory method — it never imports jakarta.* or io.quarkus.*. The CLI adapter proves the same domain works behind a second driving adapter.
 
 ## Environment variables
 
