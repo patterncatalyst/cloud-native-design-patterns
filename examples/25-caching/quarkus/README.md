@@ -4,7 +4,7 @@ Six caching patterns in one service — cache-aside, read-through, write-through
 
 ## Framework & libraries
 
-- **Framework**: Quarkus 3.40.1 LTS (RESTEasy Reactive, Agroal JDBC, Redis Client, Scheduler)
+- **Framework**: Quarkus 3.40.1 LTS (Quarkus REST, Hibernate ORM with Panache, Redis Client, Redis Cache, Scheduler, SmallRye Health)
 - **Libraries**: quarkus-redis-client, quarkus-jdbc-postgresql
 - **Container base**: `registry.access.redhat.com/ubi10/openjdk-25:1.24-15` (build), `registry.access.redhat.com/ubi10/openjdk-25-runtime:1.24-15` (runtime)
 
@@ -28,7 +28,7 @@ cd .. && bash verify.sh
 
 ## Implementation notes
 
-Uses `RedisDataSource` from quarkus-redis-client for cache operations. `SafeRedis` wraps Redis calls with try/catch so cache outage does not break reads (falls back to DB). Background tasks use Quarkus `@Scheduled`.
+Uses `RedisDataSource` from quarkus-redis-client for the cache-aside, write-through, write-around, write-back and refresh-ahead strategies; read-through uses the Quarkus `Cache` API (`quarkus-redis-cache`, `Cache.get(key, loader)`); write-back flushes with Hibernate `StatelessSession.upsert`. `SafeRedis` wraps Redis calls with try/catch so cache outage does not break reads (falls back to DB). Background tasks use Quarkus `@Scheduled`.
 
 ## Environment variables
 

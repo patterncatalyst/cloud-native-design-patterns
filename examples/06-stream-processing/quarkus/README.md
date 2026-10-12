@@ -8,7 +8,7 @@ Quarkus 3.40.1 LTS implementation demonstrating windowed stream aggregation with
 - REST endpoints: `POST /orders`, `GET /orders`, `GET /healthz`
 - Accepts orders with `merchant_id`, `sku`, `quantity`, `total`
 - Publishes `order.placed` events to Kafka
-- PostgreSQL persistence via Agroal connection pool
+- PostgreSQL persistence via Hibernate ORM with Panache (`OrderEntity`); the stream processor reads and writes typed records (`OrderEvent`, `RevenueWindow`) through `ObjectMapperSerde`
 
 **stream-processor** (headless — no HTTP server)
 - Kafka Streams topology (`quarkus-kafka-streams`) over `order.placed`
