@@ -1,6 +1,8 @@
-using System.Collections.Concurrent;
+using System.Globalization;
 using System.Text.Json;
-using Npgsql;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,171 +10,39 @@ builder.WebHost.UseUrls("http://+:8080");
 
 var connStr = builder.Configuration.GetConnectionString("Default")
     ?? "Host=postgres;Port=5432;Database=appdb;Username=appuser;Password=apppass";
-var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL") ?? "redis:6379";
-
-var dsBuilder = new NpgsqlDataSourceBuilder(connStr);
-var dataSource = dsBuilder.Build();
-builder.Services.AddSingleton(dataSource);
-
-ConnectionMultiplexer? redis = null;
-try { redis = ConnectionMultiplexer.Connect(redisUrl); }
-catch { /* will retry on demand */ }
-
-builder.Services.AddSingleton(new RedisHolder(redis, redisUrl));
-
-var app = builder.Build();
-var logger = app.Logger;
-
+var redisUrl = builder.Configuration.GetValue("REDIS_URL", "redis:6379");
 const int TTL = 60;
 
-IDatabase? GetRedis()
+// A factory for the background services; request handlers get a scoped context made by the same factory.
+builder.Services.AddDbContextFactory<CacheContext>(o => o.UseNpgsql(connStr));
+builder.Services.AddScoped(sp => sp.GetRequiredService<IDbContextFactory<CacheContext>>().CreateDbContext());
+
+// Read-through goes through HybridCache (in-process L1, Redis L2). The other strategies spell out the
+// cache steps on a plain Redis client, because the strategy itself is the lesson.
+builder.Services.AddStackExchangeRedisCache(o => o.Configuration = redisUrl);
+builder.Services.AddHybridCache(o => o.DefaultEntryOptions = new HybridCacheEntryOptions
 {
-    var holder = app.Services.GetRequiredService<RedisHolder>();
-    try
-    {
-        if (holder.Mux is null || !holder.Mux.IsConnected)
-            holder.Mux = ConnectionMultiplexer.Connect(holder.Url);
-        return holder.Mux.GetDatabase();
-    }
-    catch { return null; }
-}
-
-// --- Background tasks ---
-var cts = new CancellationTokenSource();
-
-// Write-back flush policy: a failed upsert is re-queued, with exponential backoff between flush
-// cycles and a bounded number of attempts per id. After MaxFlushAttempts the id moves to
-// metric:failed (its value stays in the cache) and is logged, never dropped silently.
-const int MaxFlushAttempts = 5;
-const int FlushPeriodMs = 1000;
-const int MaxFlushBackoffMs = 8000;
-
-async Task Requeue(IDatabase db, IEnumerable<RedisValue> failed)
-{
-    foreach (var mid in failed)
-    {
-        var n = await db.HashIncrementAsync("metric:attempts", mid, 1);
-        if (n >= MaxFlushAttempts)
-        {
-            await db.SetAddAsync("metric:failed", mid);
-            await db.HashDeleteAsync("metric:attempts", mid);
-            logger.LogError("flusher: giving up on {Id} after {Attempts} attempts, parked on metric:failed", (string?)mid, n);
-        }
-        else
-        {
-            await db.SetAddAsync("metric:dirty", mid);
-            logger.LogWarning("flusher: re-queued {Id} (attempt {Attempt}/{Max})", (string?)mid, n, MaxFlushAttempts);
-        }
-    }
-}
-
-_ = Task.Run(async () =>
-{
-    var failures = 0;
-    while (!cts.Token.IsCancellationRequested)
-    {
-        await Task.Delay(Math.Min(FlushPeriodMs << failures, MaxFlushBackoffMs), cts.Token).ConfigureAwait(false);
-        try
-        {
-            var db = GetRedis();
-            if (db is null) continue;
-
-            var ids = await db.SetPopAsync("metric:dirty", 100);
-            if (ids.Length == 0) continue;
-
-            var failed = new List<RedisValue>();
-            foreach (var mid in ids)
-            {
-                try
-                {
-                    var data = await db.HashGetAllAsync($"metric:{mid}");
-                    if (data.Length > 0)
-                    {
-                        var payload = JsonSerializer.Serialize(
-                            data.ToDictionary(e => (string)e.Name!, e => (string)e.Value!));
-                        await using var conn = await dataSource.OpenConnectionAsync();
-                        await using var cmd = new NpgsqlCommand(
-                            "INSERT INTO metrics (id, payload) VALUES ($1, $2::jsonb) " +
-                            "ON CONFLICT (id) DO UPDATE SET payload = $2::jsonb, ts = NOW()", conn);
-                        cmd.Parameters.AddWithValue((string)mid!);
-                        cmd.Parameters.AddWithValue(payload);
-                        await cmd.ExecuteNonQueryAsync();
-                    }
-                    await db.HashDeleteAsync("metric:attempts", mid);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "flusher: flush failed for {Id}", (string?)mid);
-                    failed.Add(mid);
-                }
-            }
-            logger.LogInformation("flusher: persisted {Count} metrics", ids.Length - failed.Count);
-            if (failed.Count == 0) { failures = 0; }
-            else
-            {
-                failures = Math.Min(failures + 1, 3);
-                await Requeue(db, failed);
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "flusher error");
-        }
-    }
+    Expiration = TimeSpan.FromSeconds(TTL),
+    LocalCacheExpiration = TimeSpan.FromSeconds(TTL),
 });
 
-_ = Task.Run(async () =>
-{
-    while (!cts.Token.IsCancellationRequested)
-    {
-        await Task.Delay(5000, cts.Token).ConfigureAwait(false);
-        try
-        {
-            var db = GetRedis();
-            if (db is null) continue;
+builder.Services.AddSingleton(sp => new RedisHolder(redisUrl, sp.GetRequiredService<ILogger<RedisHolder>>()));
+builder.Services.AddHostedService<MetricFlusher>();
+builder.Services.AddHostedService<HotProductRefresher>();
 
-            var cutoff = DateTimeOffset.UtcNow.AddSeconds(-300).ToUnixTimeSeconds();
-            await db.SortedSetRemoveRangeByScoreAsync("product:hot", 0, cutoff);
-            var hotIds = await db.SortedSetRangeByRankAsync("product:hot");
-            foreach (var pid in hotIds)
-            {
-                var ttl = await db.KeyTimeToLiveAsync($"ra:product:{pid}");
-                if (ttl.HasValue && ttl.Value.TotalSeconds > 0 && ttl.Value.TotalSeconds < 10)
-                {
-                    await using var conn = await dataSource.OpenConnectionAsync();
-                    await using var cmd = new NpgsqlCommand(
-                        "SELECT id, name, price_cents FROM products WHERE id=$1", conn);
-                    cmd.Parameters.AddWithValue((string)pid!);
-                    await using var reader = await cmd.ExecuteReaderAsync();
-                    if (await reader.ReadAsync())
-                    {
-                        var data = JsonSerializer.Serialize(new
-                        {
-                            id = reader.GetString(0),
-                            name = reader.GetString(1),
-                            price_cents = reader.GetInt32(2)
-                        });
-                        await db.StringSetAsync($"ra:product:{pid}", data, TimeSpan.FromSeconds(TTL));
-                        logger.LogInformation("refresher: pre-warmed {Pid}", (string)pid!);
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "refresher error");
-        }
-    }
-});
+// Request and response bodies use snake_case field names (price_cents).
+builder.Services.ConfigureHttpJsonOptions(opts => opts.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
+builder.Services.AddHealthChecks();
 
-app.Lifetime.ApplicationStopping.Register(() => cts.Cancel());
+var app = builder.Build();
 
-// --- Helpers ---
+var redis = app.Services.GetRequiredService<RedisHolder>();
+
 async Task<string?> SafeCacheGet(string key)
 {
     try
     {
-        var db = GetRedis();
+        var db = redis.GetDatabase();
         if (db is null) return null;
         var val = await db.StringGetAsync(key);
         return val.IsNullOrEmpty ? null : (string?)val;
@@ -182,188 +52,126 @@ async Task<string?> SafeCacheGet(string key)
 
 async Task SafeCacheSet(string key, string value, int ttl = TTL)
 {
-    try { var db = GetRedis(); if (db is not null) await db.StringSetAsync(key, value, TimeSpan.FromSeconds(ttl)); }
+    try { var db = redis.GetDatabase(); if (db is not null) await db.StringSetAsync(key, value, TimeSpan.FromSeconds(ttl)); }
     catch { }
 }
 
 async Task SafeCacheDelete(string key)
 {
-    try { var db = GetRedis(); if (db is not null) await db.KeyDeleteAsync(key); }
+    try { var db = redis.GetDatabase(); if (db is not null) await db.KeyDeleteAsync(key); }
     catch { }
 }
 
-app.MapGet("/healthz", () => new { status = "ok" });
-
-// 1. Cache-aside
-app.MapGet("/cache-aside/products/{pid}", async (string pid, NpgsqlDataSource db) =>
+/// <summary>Cache-aside read of one product: the explicit get, load, set steps, tagged with where the answer came from.</summary>
+async Task<IResult> CachedProduct(string prefix, string pid, CacheContext db, Func<Task>? onRead = null)
 {
-    var key = $"ca:product:{pid}";
+    if (onRead is not null) await onRead();
+    var key = $"{prefix}:product:{pid}";
     var cached = await SafeCacheGet(key);
     if (cached is not null)
-    {
-        var obj = JsonSerializer.Deserialize<JsonElement>(cached);
-        return Results.Json(Merge("cache", obj));
-    }
+        return Results.Json(Merge("cache", JsonSerializer.Deserialize<JsonElement>(cached)));
 
-    await using var conn = await db.OpenConnectionAsync();
-    await using var cmd = new NpgsqlCommand("SELECT id, name, price_cents FROM products WHERE id=$1", conn);
-    cmd.Parameters.AddWithValue(pid);
-    await using var reader = await cmd.ExecuteReaderAsync();
-    if (!await reader.ReadAsync())
+    var product = await db.Products.AsNoTracking().Where(p => p.Id == pid)
+        .Select(p => ProductDto.From(p)).FirstOrDefaultAsync();
+    if (product is null)
         return Results.NotFound(new { error = "not found" });
 
-    var data = new { id = reader.GetString(0), name = reader.GetString(1), price_cents = reader.GetInt32(2) };
-    await SafeCacheSet(key, JsonSerializer.Serialize(data));
-    return Results.Json(Merge("db", data));
+    await SafeCacheSet(key, JsonSerializer.Serialize(product, CacheJson.Options));
+    return Results.Json(Merge("db", product));
+}
+
+app.MapHealthChecks("/healthz", new HealthCheckOptions
+{
+    ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok" }),
 });
 
-app.MapPut("/cache-aside/products/{pid}", async (string pid, HttpContext ctx, NpgsqlDataSource db) =>
-{
-    using var doc = await JsonDocument.ParseAsync(ctx.Request.Body);
-    var name = doc.RootElement.GetProperty("name").GetString()!;
-    var priceCents = doc.RootElement.GetProperty("price_cents").GetInt32();
+// 1. Cache-aside
+app.MapGet("/cache-aside/products/{pid}", (string pid, CacheContext db) => CachedProduct("ca", pid, db));
 
-    await using var conn = await db.OpenConnectionAsync();
-    await using var cmd = new NpgsqlCommand("UPDATE products SET name=$1, price_cents=$2 WHERE id=$3", conn);
-    cmd.Parameters.AddWithValue(name);
-    cmd.Parameters.AddWithValue(priceCents);
-    cmd.Parameters.AddWithValue(pid);
-    await cmd.ExecuteNonQueryAsync();
+app.MapPut("/cache-aside/products/{pid}", async (string pid, ProductUpdate update, CacheContext db) =>
+{
+    await db.Products.Where(p => p.Id == pid)
+        .ExecuteUpdateAsync(s => s.SetProperty(p => p.Name, update.Name).SetProperty(p => p.PriceCents, update.PriceCents));
 
     await SafeCacheDelete($"ca:product:{pid}");
     return Results.Json(new { ok = true, pattern = "cache-aside", action = "invalidated" });
 });
 
-// 2. Read-through
-app.MapGet("/read-through/products/{pid}", async (string pid, NpgsqlDataSource db) =>
+// 2. Read-through: HybridCache runs the loader on a miss and stores the result in L1 and Redis.
+app.MapGet("/read-through/products/{pid}", async (string pid, CacheContext db, HybridCache cache) =>
 {
     var key = $"rt:product:{pid}";
-    var cached = await SafeCacheGet(key);
-    if (cached is not null)
+    var source = "cache";
+    var product = await cache.GetOrCreateAsync<ProductDto?>(key, async ct =>
     {
-        var obj = JsonSerializer.Deserialize<JsonElement>(cached);
-        return Results.Json(Merge("cache", obj));
-    }
+        source = "db";
+        return await db.Products.AsNoTracking().Where(p => p.Id == pid)
+            .Select(p => ProductDto.From(p)).FirstOrDefaultAsync(ct);
+    });
 
-    await using var conn = await db.OpenConnectionAsync();
-    await using var cmd = new NpgsqlCommand("SELECT id, name, price_cents FROM products WHERE id=$1", conn);
-    cmd.Parameters.AddWithValue(pid);
-    await using var reader = await cmd.ExecuteReaderAsync();
-    if (!await reader.ReadAsync())
+    if (product is null)
+    {
+        await cache.RemoveAsync(key);
         return Results.NotFound(new { error = "not found" });
-
-    var data = new { id = reader.GetString(0), name = reader.GetString(1), price_cents = reader.GetInt32(2) };
-    await SafeCacheSet(key, JsonSerializer.Serialize(data));
-    return Results.Json(Merge("db", data));
+    }
+    return Results.Json(Merge(source, product));
 });
 
 // 3. Write-through
-app.MapGet("/write-through/products/{pid}", async (string pid, NpgsqlDataSource db) =>
+app.MapGet("/write-through/products/{pid}", (string pid, CacheContext db) => CachedProduct("wt", pid, db));
+
+app.MapPut("/write-through/products/{pid}", async (string pid, ProductUpdate update, CacheContext db) =>
 {
-    var key = $"wt:product:{pid}";
-    var cached = await SafeCacheGet(key);
-    if (cached is not null)
-    {
-        var obj = JsonSerializer.Deserialize<JsonElement>(cached);
-        return Results.Json(Merge("cache", obj));
-    }
+    await db.Products.Where(p => p.Id == pid)
+        .ExecuteUpdateAsync(s => s.SetProperty(p => p.Name, update.Name).SetProperty(p => p.PriceCents, update.PriceCents));
 
-    await using var conn = await db.OpenConnectionAsync();
-    await using var cmd = new NpgsqlCommand("SELECT id, name, price_cents FROM products WHERE id=$1", conn);
-    cmd.Parameters.AddWithValue(pid);
-    await using var reader = await cmd.ExecuteReaderAsync();
-    if (!await reader.ReadAsync())
-        return Results.NotFound(new { error = "not found" });
-
-    var data = new { id = reader.GetString(0), name = reader.GetString(1), price_cents = reader.GetInt32(2) };
-    await SafeCacheSet(key, JsonSerializer.Serialize(data));
-    return Results.Json(Merge("db", data));
-});
-
-app.MapPut("/write-through/products/{pid}", async (string pid, HttpContext ctx, NpgsqlDataSource db) =>
-{
-    using var doc = await JsonDocument.ParseAsync(ctx.Request.Body);
-    var name = doc.RootElement.GetProperty("name").GetString()!;
-    var priceCents = doc.RootElement.GetProperty("price_cents").GetInt32();
-
-    await using var conn = await db.OpenConnectionAsync();
-    await using var cmd = new NpgsqlCommand("UPDATE products SET name=$1, price_cents=$2 WHERE id=$3", conn);
-    cmd.Parameters.AddWithValue(name);
-    cmd.Parameters.AddWithValue(priceCents);
-    cmd.Parameters.AddWithValue(pid);
-    await cmd.ExecuteNonQueryAsync();
-
-    await using var cmd2 = new NpgsqlCommand("SELECT id, name, price_cents FROM products WHERE id=$1", conn);
-    cmd2.Parameters.AddWithValue(pid);
-    await using var reader = await cmd2.ExecuteReaderAsync();
-    if (await reader.ReadAsync())
-    {
-        var data = new { id = reader.GetString(0), name = reader.GetString(1), price_cents = reader.GetInt32(2) };
-        await SafeCacheSet($"wt:product:{pid}", JsonSerializer.Serialize(data));
-    }
+    var product = await db.Products.AsNoTracking().Where(p => p.Id == pid)
+        .Select(p => ProductDto.From(p)).FirstOrDefaultAsync();
+    if (product is not null)
+        await SafeCacheSet($"wt:product:{pid}", JsonSerializer.Serialize(product, CacheJson.Options));
     return Results.Json(new { ok = true, pattern = "write-through", action = "set" });
 });
 
 // 4. Write-around
-app.MapPost("/write-around/events", async (HttpContext ctx, NpgsqlDataSource db) =>
+app.MapPost("/write-around/events", async (EventRequest request, CacheContext db) =>
 {
-    using var doc = await JsonDocument.ParseAsync(ctx.Request.Body);
-    var id = doc.RootElement.GetProperty("id").GetString()!;
-    var type = doc.RootElement.GetProperty("type").GetString()!;
-    var payload = doc.RootElement.TryGetProperty("payload", out var p) ? p.GetRawText() : "{}";
-
-    await using var conn = await db.OpenConnectionAsync();
-    await using var cmd = new NpgsqlCommand(
-        "INSERT INTO events (id, type, payload) VALUES ($1, $2, $3::jsonb)", conn);
-    cmd.Parameters.AddWithValue(id);
-    cmd.Parameters.AddWithValue(type);
-    cmd.Parameters.AddWithValue(payload);
-    await cmd.ExecuteNonQueryAsync();
+    db.Events.Add(new EventRecord
+    {
+        Id = request.Id,
+        Type = request.Type,
+        Payload = request.Payload ?? JsonSerializer.SerializeToElement(new { }),
+    });
+    await db.SaveChangesAsync();
 
     return Results.Json(new { ok = true, pattern = "write-around", action = "db-only" });
 });
 
-app.MapGet("/write-around/events/{eid}", async (string eid, NpgsqlDataSource db) =>
+app.MapGet("/write-around/events/{eid}", async (string eid, CacheContext db) =>
 {
     var key = $"wa:event:{eid}";
     var cached = await SafeCacheGet(key);
     if (cached is not null)
-    {
-        var obj = JsonSerializer.Deserialize<JsonElement>(cached);
-        return Results.Json(Merge("cache", obj));
-    }
+        return Results.Json(Merge("cache", JsonSerializer.Deserialize<JsonElement>(cached)));
 
-    await using var conn = await db.OpenConnectionAsync();
-    await using var cmd = new NpgsqlCommand("SELECT id, type, payload FROM events WHERE id=$1", conn);
-    cmd.Parameters.AddWithValue(eid);
-    await using var reader = await cmd.ExecuteReaderAsync();
-    if (!await reader.ReadAsync())
+    var evt = await db.Events.AsNoTracking().Where(e => e.Id == eid)
+        .Select(e => EventDto.From(e)).FirstOrDefaultAsync();
+    if (evt is null)
         return Results.NotFound(new { error = "not found" });
 
-    var data = new
-    {
-        id = reader.GetString(0),
-        type = reader.GetString(1),
-        payload = JsonSerializer.Deserialize<JsonElement>(reader.GetString(2))
-    };
-    await SafeCacheSet(key, JsonSerializer.Serialize(data));
-    return Results.Json(Merge("db", data));
+    await SafeCacheSet(key, JsonSerializer.Serialize(evt, CacheJson.Options));
+    return Results.Json(Merge("db", evt));
 });
 
 // 5. Write-back (write-behind)
-app.MapPut("/write-back/metrics/{mid}", async (string mid, HttpContext ctx) =>
+app.MapPut("/write-back/metrics/{mid}", async (string mid, MetricRequest request) =>
 {
-    using var doc = await JsonDocument.ParseAsync(ctx.Request.Body);
-    var value = doc.RootElement.GetProperty("value").GetDouble();
-    var tags = doc.RootElement.TryGetProperty("tags", out var t) ? t.GetRawText() : "{}";
-
-    var db = GetRedis();
+    var db = redis.GetDatabase();
     if (db is null)
-        return Results.Json(new { error = "cache unavailable" }, statusCode: 503);
+        return Results.Json(new { error = "cache unavailable" }, statusCode: StatusCodes.Status503ServiceUnavailable);
 
     await db.HashSetAsync($"metric:{mid}", [
-        new HashEntry("value", value.ToString()),
-        new HashEntry("tags", tags)
+        new HashEntry("value", request.Value.ToString(CultureInfo.InvariantCulture)),
+        new HashEntry("tags", request.Tags?.GetRawText() ?? "{}")
     ]);
     await db.SetAddAsync("metric:dirty", mid);
     // 202: queued in the cache, not yet durable in Postgres
@@ -371,92 +179,61 @@ app.MapPut("/write-back/metrics/{mid}", async (string mid, HttpContext ctx) =>
         statusCode: StatusCodes.Status202Accepted);
 });
 
-app.MapGet("/write-back/metrics/{mid}", async (string mid, NpgsqlDataSource dbSource) =>
+app.MapGet("/write-back/metrics/{mid}", async (string mid, CacheContext db) =>
 {
-    var cache = GetRedis();
+    var cache = redis.GetDatabase();
     if (cache is not null)
     {
         var data = await cache.HashGetAllAsync($"metric:{mid}");
         if (data.Length > 0)
         {
-            var payload = data.ToDictionary(e => (string)e.Name!, e => (string)e.Value!);
             var result = new Dictionary<string, object> { ["source"] = "cache", ["id"] = mid };
-            foreach (var kv in payload) result[kv.Key] = kv.Value;
+            foreach (var entry in data) result[(string)entry.Name!] = (string)entry.Value!;
             return Results.Json(result);
         }
     }
 
-    await using var conn = await dbSource.OpenConnectionAsync();
-    await using var cmd = new NpgsqlCommand("SELECT id, payload FROM metrics WHERE id=$1", conn);
-    cmd.Parameters.AddWithValue(mid);
-    await using var reader = await cmd.ExecuteReaderAsync();
-    if (!await reader.ReadAsync())
-        return Results.NotFound(new { error = "not found" });
-
-    return Results.Json(new
-    {
-        source = "db",
-        id = reader.GetString(0),
-        payload = JsonSerializer.Deserialize<JsonElement>(reader.GetString(1))
-    });
+    var row = await db.Metrics.AsNoTracking().FirstOrDefaultAsync(m => m.Id == mid);
+    return row is null
+        ? Results.NotFound(new { error = "not found" })
+        : Results.Json(new { source = "db", id = row.Id, payload = row.Payload });
 });
 
-app.MapGet("/write-back/flush-status", async (NpgsqlDataSource dbSource) =>
+app.MapGet("/write-back/flush-status", async (CacheContext db) =>
 {
     int dirtyCount = -1;
     try
     {
-        var cache = GetRedis();
+        var cache = redis.GetDatabase();
         if (cache is not null) dirtyCount = (int)await cache.SetLengthAsync("metric:dirty");
     }
     catch { }
 
-    await using var conn = await dbSource.OpenConnectionAsync();
-    await using var cmd = new NpgsqlCommand("SELECT count(*) FROM metrics", conn);
-    var dbCount = (long)(await cmd.ExecuteScalarAsync())!;
-
-    return Results.Json(new { dirty_keys = dirtyCount, persisted_rows = dbCount });
+    return Results.Json(new { dirty_keys = dirtyCount, persisted_rows = await db.Metrics.LongCountAsync() });
 });
 
 // 6. Refresh-ahead
-app.MapGet("/refresh-ahead/products/{pid}", async (string pid, NpgsqlDataSource db) =>
-{
-    var key = $"ra:product:{pid}";
-    try
+app.MapGet("/refresh-ahead/products/{pid}", (string pid, CacheContext db) =>
+    CachedProduct("ra", pid, db, async () =>
     {
-        var cache = GetRedis();
-        if (cache is not null)
-            await cache.SortedSetAddAsync("product:hot", pid, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-    }
-    catch { }
-
-    var cached = await SafeCacheGet(key);
-    if (cached is not null)
-    {
-        var obj = JsonSerializer.Deserialize<JsonElement>(cached);
-        return Results.Json(Merge("cache", obj));
-    }
-
-    await using var conn = await db.OpenConnectionAsync();
-    await using var cmd = new NpgsqlCommand("SELECT id, name, price_cents FROM products WHERE id=$1", conn);
-    cmd.Parameters.AddWithValue(pid);
-    await using var reader = await cmd.ExecuteReaderAsync();
-    if (!await reader.ReadAsync())
-        return Results.NotFound(new { error = "not found" });
-
-    var data = new { id = reader.GetString(0), name = reader.GetString(1), price_cents = reader.GetInt32(2) };
-    await SafeCacheSet(key, JsonSerializer.Serialize(data));
-    return Results.Json(Merge("db", data));
-});
+        try
+        {
+            var cache = redis.GetDatabase();
+            if (cache is not null)
+                await cache.SortedSetAddAsync("product:hot", pid, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        }
+        catch { }
+    }));
 
 // Debug
 app.MapGet("/cache-keys", async () =>
 {
     try
     {
-        var holder = app.Services.GetRequiredService<RedisHolder>();
-        if (holder.Mux is null) return Results.Json(new { keys = Array.Empty<string>(), error = "cache unavailable" });
-        var server = holder.Mux.GetServer(holder.Mux.GetEndPoints()[0]);
+        redis.GetDatabase();
+        var mux = redis.Mux;
+        if (mux is null) return Results.Json(new { keys = Array.Empty<string>(), error = "cache unavailable" });
+        var server = mux.GetServer(mux.GetEndPoints()[0]);
         var keys = new List<string>();
         await foreach (var key in server.KeysAsync())
             keys.Add(key.ToString());
@@ -472,29 +249,17 @@ app.MapGet("/cache-keys", async () =>
 app.Run();
 
 // --- Helpers ---
+/// <summary>Flattens a cached or loaded document into one JSON object led by its "source".</summary>
 static Dictionary<string, object> Merge(string source, object data)
 {
+    var element = data is JsonElement je ? je : JsonSerializer.SerializeToElement(data, CacheJson.Options);
     var result = new Dictionary<string, object> { ["source"] = source };
-    if (data is JsonElement je)
-    {
-        foreach (var prop in je.EnumerateObject())
-            result[prop.Name] = prop.Value.ValueKind switch
-            {
-                JsonValueKind.Number => (object)prop.Value.GetInt32(),
-                JsonValueKind.String => prop.Value.GetString()!,
-                _ => prop.Value.Clone()
-            };
-    }
-    else
-    {
-        foreach (var prop in data.GetType().GetProperties())
-            result[prop.Name] = prop.GetValue(data)!;
-    }
+    foreach (var prop in element.EnumerateObject())
+        result[prop.Name] = prop.Value.ValueKind switch
+        {
+            JsonValueKind.Number => prop.Value.GetInt32(),
+            JsonValueKind.String => prop.Value.GetString()!,
+            _ => prop.Value.Clone()
+        };
     return result;
-}
-
-public class RedisHolder(ConnectionMultiplexer? mux, string url)
-{
-    public ConnectionMultiplexer? Mux { get; set; } = mux;
-    public string Url { get; } = url;
 }

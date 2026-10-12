@@ -5,7 +5,7 @@ Six caching patterns in one service — cache-aside, read-through, write-through
 ## Framework & libraries
 
 - **Framework**: ASP.NET Core (.NET 10.0.12) minimal API
-- **Libraries**: StackExchange.Redis, Npgsql
+- **Libraries**: StackExchange.Redis, Microsoft.Extensions.Caching.Hybrid with the Redis distributed cache, EF Core with Npgsql
 - **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520 (runtime), built with ubi9/dotnet-100:9.8-1791421718; runs as UID 1001
 
 ## Run
@@ -24,11 +24,11 @@ cd .. && bash verify.sh
 
 | Path | Description |
 |------|-------------|
-| `CacheService/` | Program.cs — minimal API with six cache-pattern endpoints, StackExchange.Redis for caching, Npgsql for Postgres |
+| `CacheService/` | Program.cs — minimal API with six cache-pattern endpoints; CacheContext.cs — EF Core mapping; CacheWorkers.cs — the write-back flusher and refresh-ahead `BackgroundService`s |
 
 ## Implementation notes
 
-All six patterns in one `Program.cs`. Uses `IConnectionMultiplexer` for Redis. Write-back pattern uses a `BackgroundService` for periodic flush. Cache resilience: Redis failures fall back to DB.
+Read-through goes through `HybridCache.GetOrCreateAsync` (in-process L1, Redis L2). The other five patterns spell out the cache steps on a StackExchange.Redis client, because the strategy is the lesson. The write-back flusher upserts with one `ExecuteSqlAsync` `ON CONFLICT` statement. Cache resilience: Redis failures fall back to DB.
 
 ## Environment variables
 

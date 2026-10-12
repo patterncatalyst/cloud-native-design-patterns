@@ -1,14 +1,18 @@
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using OpenFeature;
 using OpenFeature.Contrib.Providers.Flagd;
 using OpenFeature.Model;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://+:8080");
+
+var flagdHost = builder.Configuration.GetValue("FLAGD_HOST", "flagd");
+var flagdPort = builder.Configuration.GetValue("FLAGD_PORT", 8013);
+
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 var logger = app.Logger;
-
-var flagdHost = Environment.GetEnvironmentVariable("FLAGD_HOST") ?? "flagd";
-var flagdPort = int.Parse(Environment.GetEnvironmentVariable("FLAGD_PORT") ?? "8013");
 
 try
 {
@@ -48,7 +52,10 @@ EvaluationContext MakeCtx(HttpContext ctx)
         .Build();
 }
 
-app.MapGet("/healthz", () => new { status = "ok" });
+app.MapHealthChecks("/healthz", new HealthCheckOptions
+{
+    ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok" }),
+});
 
 // 1. Release flag — new-checkout
 app.MapPost("/checkout", async (HttpContext ctx) =>

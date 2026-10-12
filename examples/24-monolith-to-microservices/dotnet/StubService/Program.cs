@@ -1,15 +1,22 @@
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://+:8080");
+
+var serviceName = builder.Configuration.GetValue("SERVICE_NAME", "unknown");
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 
-var serviceName = Environment.GetEnvironmentVariable("SERVICE_NAME") ?? "unknown";
 var orders = new Dictionary<string, Dictionary<string, object>>();
 var counter = 0;
 var accessCounts = new Dictionary<string, int>();
 
-app.MapGet("/healthz", () => new { status = "ok", source = serviceName });
+app.MapHealthChecks("/healthz", new HealthCheckOptions
+{
+    ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok", source = serviceName }),
+});
 
 app.MapPost("/orders", async (HttpContext ctx) =>
 {

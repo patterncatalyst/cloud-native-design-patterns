@@ -1,7 +1,10 @@
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://+:8081");
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 
 var mode = "healthy";
@@ -45,6 +48,9 @@ app.MapGet("/process", async (HttpContext ctx) =>
     return Results.Ok(new { status = "ok", mode });
 });
 
-app.MapGet("/healthz", () => new { status = "ok" });
+app.MapHealthChecks("/healthz", new HealthCheckOptions
+{
+    ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok" }),
+});
 
 app.Run();

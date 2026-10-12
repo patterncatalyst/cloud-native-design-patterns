@@ -1,12 +1,18 @@
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://+:8080");
+
+var version = builder.Configuration.GetValue("APP_VERSION", "v1");
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 
-var version = Environment.GetEnvironmentVariable("APP_VERSION") ?? "v1";
-
-app.MapGet("/healthz", () => new { status = "ok", version });
+app.MapHealthChecks("/healthz", new HealthCheckOptions
+{
+    ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok", version }),
+});
 
 app.MapPost("/orders", async (HttpContext ctx) =>
 {

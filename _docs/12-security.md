@@ -234,8 +234,7 @@ public class ValetKeyService {
 
 ```csharp
 // Program.cs (excerpt), examples/12-security/dotnet: an HMAC-SHA256 valet key
-var valetSecret = Environment.GetEnvironmentVariable("VALET_SECRET")
-    ?? "demo-secret-do-not-use-in-prod";
+var valetSecret = builder.Configuration.GetValue("VALET_SECRET", "demo-secret-do-not-use-in-prod");
 app.MapPost("/valet-key", (HttpContext ctx) =>
 {
     var resource = ctx.Request.Query["resource"].ToString();

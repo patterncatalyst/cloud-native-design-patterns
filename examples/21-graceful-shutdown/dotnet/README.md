@@ -5,7 +5,7 @@ SIGTERM handling — drain in-flight requests, stop accepting new ones, close DB
 ## Framework & libraries
 
 - **Framework**: ASP.NET Core (.NET 10.0.12) minimal API
-- **Libraries**: Npgsql
+- **Libraries**: EF Core with Npgsql, ASP.NET Core health checks
 - **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520 (runtime), built with ubi9/dotnet-100:9.8-1791421718; runs as UID 1001
 
 ## Run
@@ -24,11 +24,11 @@ cd .. && bash verify.sh
 
 | Path | Description |
 |------|-------------|
-| `OrderService/` | Program.cs — a SIGTERM registration flips readiness, waits the drain delay, then calls StopApplication; graceful drain via HostOptions.ShutdownTimeout |
+| `OrderService/` | Program.cs and DrainService.cs — an `IHostedLifecycleService` flips readiness and waits the drain delay in `StoppingAsync`; graceful drain via HostOptions.ShutdownTimeout |
 
 ## Implementation notes
 
-A `PosixSignalRegistration` for SIGTERM (with `ManualLifetime` replacing `ConsoleLifetime`) flips readiness, waits `DRAIN_DELAY_SECONDS` (default 5), then calls `StopApplication()`: Kestrel stops accepting and finishes in-flight requests within `HostOptions.ShutdownTimeout` (20 s), the data source is disposed and the process exits 0. One SIGTERM, no second signal.
+The default `ConsoleLifetime` turns SIGTERM into a graceful stop. `DrainService.StoppingAsync` flips readiness and waits `DRAIN_DELAY_SECONDS` (default 5); every `StoppingAsync` runs before any `StopAsync`, so Kestrel keeps answering during the delay and then stops accepting and finishes in-flight requests within `HostOptions.ShutdownTimeout` (20 s). The process exits 0. One SIGTERM, no second signal.
 
 ## Environment variables
 

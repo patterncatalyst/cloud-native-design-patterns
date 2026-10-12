@@ -245,8 +245,8 @@ Read-through moves the database call from the application into the cache layer: 
 fetch it. The semantics are identical to cache-aside; the win is cleaner code with a single read
 interface and no if/else in every caller. The cost is less control over what triggers a DB hit,
 and you need a cache library that supports loaders. The platform frameworks supply this
-declaratively (Spring's `@Cacheable`, Quarkus's `@CacheResult` and `Cache.get`, .NET FusionCache's
-`GetOrSetAsync`); with the raw Redis clients you wrap it yourself.
+declaratively (Spring's `@Cacheable`, Quarkus's `@CacheResult` and `Cache.get`, .NET HybridCache's
+`GetOrCreateAsync`); with the raw Redis clients you wrap it yourself.
 
 {% include excalidraw.html
    file="24-read-through"
@@ -306,39 +306,24 @@ public ProductView readThroughGet(@RestPath String pid) {
 ```
 
 ```csharp
-// FusionCache (MIT): GetOrSetAsync IS read-through, with built-in stampede
-// protection — concurrent misses for one key invoke the factory ONCE.
-// Program.cs:
-//   builder.Services.AddFusionCache()
-//       .WithSerializer(new FusionCacheSystemTextJsonSerializer())
-//       .WithDistributedCache(sp => sp.GetRequiredService<IDistributedCache>())
-//       .WithDefaultEntryOptions(o => o.Duration = TimeSpan.FromSeconds(60)
-//                                      .SetFailSafe(true, TimeSpan.FromMinutes(5)));
-[ApiController, Route("products")]
-public class ProductsController(ShopDb db, IFusionCache cache) : ControllerBase
+// HybridCache (Microsoft.Extensions.Caching.Hybrid): GetOrCreateAsync IS read-through, with
+// built-in stampede protection: concurrent misses for one key run the loader ONCE.
+// Program.cs, examples/25-caching/dotnet:
+//   builder.Services.AddStackExchangeRedisCache(o => o.Configuration = redisUrl);   // L2
+//   builder.Services.AddHybridCache(o => o.DefaultEntryOptions = new HybridCacheEntryOptions
+//       { Expiration = TimeSpan.FromSeconds(60), LocalCacheExpiration = TimeSpan.FromSeconds(60) });
+app.MapGet("/read-through/products/{pid}", async (string pid, CacheContext db, HybridCache cache) =>
 {
-    [HttpGet("{id}")]
-    public async Task<ActionResult<Product>> Get(string id, CancellationToken ct)
+    var source = "cache";
+    var product = await cache.GetOrCreateAsync<ProductDto?>($"rt:product:{pid}", async ct =>
     {
-        var product = await cache.GetOrSetAsync<Product>(
-            $"product:{id}",
-            async token => await db.Products.FindAsync([id], token),     // loader
-            token: ct);
-        return product is null ? NotFound() : Ok(product);
-    }
-
-    [HttpPut("{id}")]
-    public async Task<ActionResult<Product>> Update(
-        string id, Product body, CancellationToken ct)
-    {
-        var p = await db.Products.FindAsync([id], ct);
-        if (p is null) return NotFound();
-        p.Update(body);
-        await db.SaveChangesAsync(ct);
-        await cache.RemoveAsync($"product:{id}", token: ct);             // invalidate
-        return Ok(p);
-    }
-}
+        source = "db";                                                    // the loader ran: a miss
+        return await db.Products.AsNoTracking().Where(p => p.Id == pid)
+            .Select(p => ProductDto.From(p)).FirstOrDefaultAsync(ct);   // loader
+    });
+    return product is null ? Results.NotFound() : Results.Json(Merge(source, product));
+});
+// On a write, invalidate with cache.RemoveAsync($"rt:product:{pid}"): both L1 and the Redis L2 entry go.
 ```
 
 ```python
@@ -825,29 +810,40 @@ void flusher() {                                       // BackgroundTasks
 
 ```csharp
 // Program.cs (excerpt), examples/25-caching/dotnet: write-back
-app.MapPut("/write-back/metrics/{mid}", async (string mid, HttpContext ctx) =>
+app.MapPut("/write-back/metrics/{mid}", async (string mid, MetricRequest request) =>
 {
     // ... HSET metric:<mid> {value, tags}; SADD metric:dirty <mid> (503 when Redis is down)
     return Results.Json(new { ok = true, pattern = "write-back", action = "cached-for-flush" },
         statusCode: StatusCodes.Status202Accepted);          // 202: queued, not yet durable
 });
-_ = Task.Run(async () =>                                     // the flusher, started at boot
+
+builder.Services.AddHostedService<MetricFlusher>();          // the flusher, started with the host
+
+public sealed class MetricFlusher(RedisHolder redis, IDbContextFactory<CacheContext> dbFactory,
+    ILogger<MetricFlusher> logger) : BackgroundService
 {
-    var failures = 0;
-    while (!cts.Token.IsCancellationRequested)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await Task.Delay(Math.Min(FlushPeriodMs << failures, MaxFlushBackoffMs), cts.Token);
-        var ids = await db.SetPopAsync("metric:dirty", 100);     // atomic batch dequeue
-        if (ids.Length == 0) continue;
-        var failed = new List<RedisValue>();  // Upsert: HGETALL, INSERT ... ON CONFLICT (id)
-        foreach (var mid in ids)
-            try { await Upsert(mid); await db.HashDeleteAsync("metric:attempts", mid); }
-            catch (Exception ex) { logger.LogError(ex, "flush failed"); failed.Add(mid); }
-        if (failed.Count == 0) { failures = 0; continue; }
-        failures = Math.Min(failures + 1, 3);                 // back off: 2 s, 4 s, 8 s
-        await Requeue(db, failed);   // HINCRBY metric:attempts: dirty again, failed after 5
+        var failures = 0;
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            await Task.Delay(Math.Min(FlushPeriodMs << failures, MaxFlushBackoffMs), stoppingToken);
+            var db = redis.GetDatabase();
+            var ids = await db!.SetPopAsync("metric:dirty", 100);        // atomic batch dequeue
+            if (ids.Length == 0) continue;
+            var failed = new List<RedisValue>();
+            foreach (var mid in ids)
+                try { await Upsert(mid); await db.HashDeleteAsync("metric:attempts", mid); }
+                catch (Exception ex) { logger.LogError(ex, "flusher: flush failed for {Id}", (string?)mid); failed.Add(mid); }
+            if (failed.Count == 0) { failures = 0; continue; }
+            failures = Math.Min(failures + 1, 3);                         // back off: 2 s, 4 s, 8 s
+            await Requeue(db, failed);   // HINCRBY metric:attempts: dirty again, failed after 5
+        }
     }
-});
+    // Upsert: HGETALL, then ctx.UpsertMetricAsync(id, json), one ExecuteSqlAsync:
+    //   INSERT INTO metrics (id, payload) VALUES ({id}, {json}::jsonb)
+    //   ON CONFLICT (id) DO UPDATE SET payload = {json}::jsonb, ts = NOW()
+}
 ```
 
 ```python
