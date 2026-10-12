@@ -5,7 +5,8 @@
 #   scripts/voice-scan.sh                       gate mode: ban tier must be 0 (CI runs this)
 #   scripts/voice-scan.sh --all-tiers-summary   all-tier totals for both scopes (never fails)
 #   scripts/voice-scan.sh [options] [PATH...]   pass scan.sh options through, e.g. --tier watch --hits all;
-#                                               with PATHs, scan only those (examples/ paths as Markdown)
+#                                               with PATHs (relative to the current directory), scan only
+#                                               those; paths under examples/ are scanned as Markdown
 #
 # Two scopes, scanned separately because --ext applies to a whole scan.sh run:
 #   site      the Jekyll content, layouts, homepage, README and diagram SVGs (default extensions)
@@ -14,7 +15,9 @@
 # scripts/voice/README.md and fix it upstream rather than here.
 set -euo pipefail
 
+START_DIR="$PWD"
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
+ROOT="$PWD"
 SCAN=(bash scripts/voice/scan.sh)
 
 SITE_ROOTS=(_docs _parts _example_pages _includes _layouts index.html README.md assets/diagrams)
@@ -67,8 +70,16 @@ while [[ $# -gt 0 ]]; do
             [[ $# -ge 2 ]] || { echo "voice-scan.sh: $1 needs a value" >&2; exit 2; }
             opts+=("$1" "$2"); shift 2 ;;
         -*) opts+=("$1"); shift ;;
-        examples|examples/*|./examples|./examples/*) examples+=("$1"); shift ;;
-        *) site+=("$1"); shift ;;
+        *)
+            # Paths are relative to where the script was run; scan them relative to the repo root.
+            path="$(realpath -m -- "$( [[ "$1" == /* ]] && echo "$1" || echo "$START_DIR/$1" )")"
+            [[ "$path" == "$ROOT" || "$path" == "$ROOT"/* ]] || { echo "voice-scan.sh: $1 is outside the repository" >&2; exit 2; }
+            rel="${path#"$ROOT"}"; rel="${rel#/}"; rel="${rel:-.}"
+            case "$rel" in
+                examples|examples/*) examples+=("$rel") ;;
+                *) site+=("$rel") ;;
+            esac
+            shift ;;
     esac
 done
 

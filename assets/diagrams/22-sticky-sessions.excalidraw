@@ -735,13 +735,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "prefer stateless behind a JWT; stickiness should be a deliberate choice, not a default",
+   "text": "prefer stateless behind a JWT; make stickiness an explicit choice, not a default",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "prefer stateless behind a JWT; stickiness should be a deliberate choice, not a default",
+   "originalText": "prefer stateless behind a JWT; make stickiness an explicit choice, not a default",
    "lineHeight": 1.25,
    "baseline": 12
   }

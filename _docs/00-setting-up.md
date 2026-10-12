@@ -90,7 +90,7 @@ what stops the patterns from staying abstract.
 
 ## How the book is ordered
 
-The order follows dependency: principles first, because they justify every later
+The order follows the dependencies: principles first, because they justify every later
 choice; then the synchronous surface (communications, composition); then data
 ownership; then the asynchronous backbone (events, streams); then the operational
 concerns (workflows and the platform planes); and finally anti-patterns as a

@@ -4,7 +4,7 @@ Approved by the user 2026-10-11. Opus plan; Sonnet executes in batches on `docs/
 
 ## User decisions (2026-10-11)
 
-1. Fix the scanner upstream first, then vendor that commit: lgtm-skills PR #48, merged as `a3350074a1df343b3bbd58a563f26bf0311a265a` (scratch file outside the scanned mirror; `candid` flagged).
+1. Fix the scanner upstream first, then vendor it: lgtm-skills PR #48 (50b4c08: scratch file outside the scanned mirror; `candid` flagged), then PR #49 from validation (a335007: "the rest of the appendix/section", adjective "deliberate", summary markers). Vendored at `a3350074a1df343b3bbd58a563f26bf0311a265a`.
 2. Fix watch tier too, with the triage policy below; every kept watch hit gets a reason code. Only ban tier is gated in CI.
 3. `_plans/` stays internal history: not rewritten, not gated, still published.
 
@@ -67,7 +67,7 @@ Approved by the user 2026-10-11. Opus plan; Sonnet executes in batches on `docs/
 8. `validate_site.py` 0 errors.
 9. Jekyll build (ruby:3.3, production, baseurl) for main and HEAD: same generated files; same ids except headings listed in ledgers with no inbound anchors; same href/src/data values.
 10. Changed SVGs pass `xmllint`; changed `.excalidraw` files are valid JSON with `text == originalText`; alt/caption agree; labels no longer than before; rendered and inspected.
-11. Vendored files byte-identical to lgtm-skills 50b4c08 (sha256), modes 100755/100644.
+11. Vendored files byte-identical to lgtm-skills a335007 (sha256), modes 100755/100644.
 12. actionlint clean on `content.yml`; shellcheck clean on `scripts/voice-scan.sh`.
 13. Gate proof (local, reverted): injection in a `_docs` page, in an `examples` README and in an SVG each exit 1; injection inside inline code and a fenced block exit 0.
 14. mawk (ubuntu:24.04 container) and gawk give the same all-tier totals; the CI log shows them.
@@ -82,7 +82,7 @@ Approved by the user 2026-10-11. Opus plan; Sonnet executes in batches on `docs/
 | 1 vendor + wrapper | done (bf3f9d3) |
 | 2–7 batches | done (B6 15f0f0a, B1 99243f4, B4 79e04a8, B2 d32a858, B5 a7d0874, B3 31d8eb7) |
 | 8 gate | done |
-| 9 validation, PR | validation round 1 done; repair round 1 (lgtm-skills #49 re-vendored, wrapper paths fix aebfb9e, wording 9450973); final recheck pending |
+| 9 validation, PR | validation round 1 done; repair round 1 (lgtm-skills #49 re-vendored, wrapper paths fix aebfb9e, wording 9450973); final recheck: merge verdict; its nits fixed (22-sticky-sessions label, Appendix L opener, chapter 00 and 04 wording, wrapper path resolution) |
 
 ## Results
 
@@ -207,3 +207,5 @@ Every remaining watch hit is kept with a reason code (literal minikube/OpenShift
 - 27-ci-gate label "in CI as they do locally"; chapter 04 positional alt "A band below" -> "A second band".
 - Wrapper: `voice-scan.sh <paths>` scans only those paths (examples/ paths as Markdown); examples output notes its relative paths.
 - Heading changes across S11 (none with inbound anchors): 00, 11, 14, 23, 25, 29-P, plus the "NOT" lowercase headings in the two prerequisites pages (slug unchanged).
+
+Final after the recheck nits: watch 108 (the `22-sticky-sessions` label no longer says "deliberate"; the table above was generated one fix earlier and shows 109).

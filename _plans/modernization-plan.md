@@ -33,7 +33,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | S8 | chore/infra-images | 2 | done (111/111 PASS; two Opus repair rounds; PR #66; lgtm-skills #45 + r5.x; main run green, Actions cache 2.4 GB) |
 | S9 | docs/minikube-docker-driver (+ 05 on minikube) | 7 | done (PR #67) |
 | S10 | feature/openshift-local-appendix | 8 | done (PR #68, 48e7736) |
-| S11 | docs/professional-voice | 9 | executed (awaiting validation; plan: _plans/s11-professional-voice-plan.md) |
+| S11 | docs/professional-voice | 9 | validated (PR pending; plan: _plans/s11-professional-voice-plan.md) |
 | S12 | docs/deck-refresh | 10 (expanded 2026-10-11) | pending |
 
 ## Target pins (verified 2026-10-09; re-check at the start of each branch)
@@ -90,7 +90,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
   - Teardown removed the operator, 10 CRDs, namespaces and the registry route change; `crc stop` (not deleted); second teardown exit 0; current-context unset and `~/.kube/config` sha256 unchanged.
   - Details: `_plans/s10-openshift-local-plan.md`, "Live results".
 - S11: voice scan reports zero ban-tier hits and is enforced in CI.
-  Evidence (2026-10-11): ban 95 -> 0 and watch 239 -> 109 over the gated scope (scanner lgtm-skills a335007, vendored in `scripts/voice/`); per-file table and ledgers in `_plans/s11-professional-voice-plan.md`; gate = `scripts/voice-scan.sh` step in `content.yml` (`content-ok`).
+  Evidence (2026-10-11): ban 95 -> 0 and watch 239 -> 108 over the gated scope (scanner lgtm-skills a335007, vendored in `scripts/voice/`); per-file table and ledgers in `_plans/s11-professional-voice-plan.md`; gate = `scripts/voice-scan.sh` step in `content.yml` (`content-ok`).
 - S12 (scope expanded by the user 2026-10-11): review every presentation in `lgtm-presentation/` (the six Designing-Cloud-Native-APIs decks, K8s-Environment-Access-Policies, Network-Policy-Process-Advisory, and their .md/.docx companions) for:
   - version changes (every version on a slide matches the S2–S8 pins);
   - stack changes (Docker Engine, not the old container engine; locked libraries such as Streamiz, faust-streaming, goka, librdkafka C++, C++23; kafka-ui removed);

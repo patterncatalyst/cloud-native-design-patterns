@@ -8,7 +8,7 @@ description: "Six standard caching patterns — cache-aside, read-through, write
 duration: 24 minutes
 ---
 
-Caching is often the cheapest large performance win you have, and the easiest to get
+Caching is one of the cheapest big performance wins, and the easiest to get
 subtly wrong. The six patterns in this appendix all use the same pieces — an application, a cache
 (Redis here), and a database — and differ in exactly two things: *who does the work* and
 *what consistency story you get*. The discipline is to pick the pattern that matches the

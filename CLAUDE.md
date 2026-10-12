@@ -197,6 +197,8 @@ k6, Locust.
   diagram label changes, change the SVG, both `text` and `originalText` in the `.excalidraw`,
   and any alt text or caption that repeats it. The scanner is vendored from lgtm-skills
   (`scripts/voice/README.md`): fix it upstream and re-vendor, never edit the copy.
+  Check a few files while writing with `scripts/voice-scan.sh --tier all --hits all <paths>`
+  (paths relative to the current directory; `examples/` paths are scanned as Markdown).
 
 ## Workflow in Claude Code (changed from claude.ai)
 
