@@ -1,0 +1,1617 @@
+{
+ "ops": [
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    511
+   ],
+   "find": "on unless deliberately killed",
+   "repl": "on until an operator kills it",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    259
+   ],
+   "find": "LEAST-WORST",
+   "repl": "least-worst",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    259
+   ],
+   "find": "RISK management",
+   "repl": "risk management",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    259
+   ],
+   "find": "FREE LUNCH",
+   "repl": "free lunch",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    259
+   ],
+   "find": "MADE WORSE",
+   "repl": "made worse",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    293
+   ],
+   "find": "events are the TRANSPORT.",
+   "repl": "events are the transport.",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    317
+   ],
+   "find": "in THIS request",
+   "repl": "in this request",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    317
+   ],
+   "find": "what EXACTLY happened",
+   "repl": "what exactly happened",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    317
+   ],
+   "find": "which FUNCTION is burning",
+   "repl": "which function is burning",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    318
+   ],
+   "find": "Needed for BUSINESS operations",
+   "repl": "Needed for business operations",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    318
+   ],
+   "find": "agent INTO the pod",
+   "repl": "agent into the pod",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    324
+   ],
+   "find": "ESSENTIAL in distributed systems",
+   "repl": "Essential in distributed systems",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    324
+   ],
+   "find": "ALL errors, ALL traces",
+   "repl": "all errors, all traces",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    324
+   ],
+   "find": "PLUS tail sampling",
+   "repl": "plus tail sampling",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    328
+   ],
+   "find": "at the WRONG layer",
+   "repl": "at the wrong layer",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    410
+   ],
+   "find": "Strong OR distant",
+   "repl": "Strong or distant",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    417
+   ],
+   "find": "stop NEW traffic",
+   "repl": "stop new traffic",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    441
+   ],
+   "find": "a BUSINESS rule",
+   "repl": "a business rule",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    441
+   ],
+   "find": "It runs INSIDE one service",
+   "repl": "It runs inside one service",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    451
+   ],
+   "find": "affects ALL clients",
+   "repl": "affects all clients",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    458
+   ],
+   "find": "routing layer FIRST",
+   "repl": "routing layer first",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    464
+   ],
+   "find": "is a TRANSITION state",
+   "repl": "is a transition state",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    480
+   ],
+   "find": "constraint AND eventual durability is acceptable AND your",
+   "repl": "constraint, eventual durability is acceptable and your",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    482
+   ],
+   "find": "to BOUND the blast radius",
+   "repl": "to bound the blast radius",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    487
+   ],
+   "find": "is PERCEIVED DIFFERENTLY by",
+   "repl": "is perceived differently by",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    498
+   ],
+   "find": "reject excess work IMMEDIATELY",
+   "repl": "reject excess work immediately",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    501
+   ],
+   "find": "RED metrics PER DEPENDENCY",
+   "repl": "RED metrics per dependency",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    503
+   ],
+   "find": "at ONE layer",
+   "repl": "at one layer",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    285
+   ],
+   "find": "the SINGLE source of truth",
+   "repl": "the single source of truth",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    286
+   ],
+   "find": "in ONE local transaction",
+   "repl": "in one local transaction",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    291
+   ],
+   "find": "handlers MUST be idempotent",
+   "repl": "handlers must be idempotent",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    293
+   ],
+   "find": "EVENT SOURCING means",
+   "repl": "Event sourcing means",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    293
+   ],
+   "find": "EVENT STREAMING means",
+   "repl": "Event streaming means",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    293
+   ],
+   "find": "a propagated FACT about",
+   "repl": "a propagated fact about",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "KAFKA is the SUBSTRATE",
+   "repl": "Kafka is the substrate",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "PULSAR is also substrate",
+   "repl": "Pulsar is also substrate",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "pub/sub PLUS queue",
+   "repl": "pub/sub plus queue",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "FLINK is COMPUTE",
+   "repl": "Flink is compute",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "sits ON TOP of",
+   "repl": "sits on top of",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    294
+   ],
+   "find": "NIFI is MOVEMENT",
+   "repl": "NiFi is movement",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    316
+   ],
+   "find": "answer WHERE the time went",
+   "repl": "answer where the time went",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    316
+   ],
+   "find": "what EXACTLY happened",
+   "repl": "what exactly happened",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    316
+   ],
+   "find": "propagates ALONG the whole trace",
+   "repl": "propagates along the whole trace",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    316
+   ],
+   "find": "which FUNCTION is burning",
+   "repl": "which function is burning",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    316
+   ],
+   "find": "you can PIVOT",
+   "repl": "you can pivot",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    317
+   ],
+   "find": "took 200ms but WHY",
+   "repl": "took 200ms but why",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    318
+   ],
+   "find": "auto-INJECTION from auto-INSTRUMENTATION from MANUAL instrumentation",
+   "repl": "auto-injection from auto-instrumentation from manual instrumentation",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    320
+   ],
+   "find": "travelling WITH the request",
+   "repl": "travelling with the request",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    320
+   ],
+   "find": "is CONSTANT across",
+   "repl": "is constant across",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    323
+   ],
+   "find": "question is WHEN the",
+   "repl": "question is when the",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    323
+   ],
+   "find": "HEAD sampling decides at the START",
+   "repl": "Head sampling decides at the start",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    323
+   ],
+   "find": "it's BLIND at",
+   "repl": "it is blind at",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    323
+   ],
+   "find": "TAIL sampling decides at the END",
+   "repl": "Tail sampling decides at the end",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    323
+   ],
+   "find": "sample by TRACE not by span",
+   "repl": "sample by trace, not by span",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    337
+   ],
+   "find": "are REJECTED",
+   "repl": "are rejected",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    338
+   ],
+   "find": "defines the LOGIC",
+   "repl": "defines the logic",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    338
+   ],
+   "find": "is the INSTANCE that",
+   "repl": "is the instance that",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    341
+   ],
+   "find": "a CLAIM TICKET (",
+   "repl": "a claim ticket (",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    382
+   ],
+   "find": "agree ONE error contract",
+   "repl": "agree one error contract",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    383
+   ],
+   "find": "a STABLE machine-readable",
+   "repl": "a stable machine-readable",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    384
+   ],
+   "find": "status CLASS, which",
+   "repl": "status class, which",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    392
+   ],
+   "find": "backoff PLUS jitter",
+   "repl": "backoff plus jitter",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    416
+   ],
+   "find": "lag, THEN stop accepting",
+   "repl": "lag, then stop accepting",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    423
+   ],
+   "find": "north/south AND east/west",
+   "repl": "north/south and east/west",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    436
+   ],
+   "find": "The DIFFICULT part",
+   "repl": "The difficult part",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    441
+   ],
+   "find": "sits BEHIND the mesh",
+   "repl": "sits behind the mesh",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    447
+   ],
+   "find": "(encryption AND identity)",
+   "repl": "(encryption and identity)",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    447
+   ],
+   "find": "with NO app code",
+   "repl": "with no app code",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    454
+   ],
+   "find": "a DEPLOYMENT-organisation property",
+   "repl": "a deployment-organisation property",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    454
+   ],
+   "find": "when does THIS monolith",
+   "repl": "when does this monolith",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    462
+   ],
+   "find": "owns BEHAVIOUR",
+   "repl": "owns behaviour",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    465
+   ],
+   "find": "differ in WHO reads/writes the cache, WHEN, and WHO owns",
+   "repl": "differ in who reads/writes the cache, when, and who owns",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    467
+   ],
+   "find": "in WHO does the work",
+   "repl": "in who does the work",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    485
+   ],
+   "find": "is QUORUM:",
+   "repl": "is quorum:",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    488
+   ],
+   "find": "exactly ONE layer",
+   "repl": "exactly one layer",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    489
+   ],
+   "find": "for ALL callers",
+   "repl": "for all callers",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    491
+   ],
+   "find": "call MUST have a timeout",
+   "repl": "call must have a timeout",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    499
+   ],
+   "find": "it EJECTS that host",
+   "repl": "it ejects that host",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    499
+   ],
+   "find": "don't ALSO retry",
+   "repl": "don't also retry",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    502
+   ],
+   "find": "across a ROW",
+   "repl": "across a row",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    502
+   ],
+   "find": "down a COLUMN",
+   "repl": "down a column",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    427
+   ],
+   "find": "the EDGE/INGRESS layer",
+   "repl": "the edge/ingress layer",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    427
+   ],
+   "find": "the API GATEWAY (",
+   "repl": "the API gateway (",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    427
+   ],
+   "find": "the SERVICE MESH (",
+   "repl": "the service mesh (",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    427
+   ],
+   "find": "into the APP itself",
+   "repl": "into the app itself",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    433
+   ],
+   "find": "so the latency-budget slide later makes sense",
+   "repl": "so the L7 latency budget makes sense",
+   "expect": 1,
+   "cat": "positional",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    449
+   ],
+   "find": "as the canary slide earlier",
+   "repl": "as the weighted canary",
+   "expect": 1,
+   "cat": "positional",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    493
+   ],
+   "find": "storm two slides back",
+   "repl": "storm from the amplification-loop discussion",
+   "expect": 1,
+   "cat": "positional",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    440
+   ],
+   "find": "inject correlation and identity",
+   "repl": "inject the caller address and identity",
+   "expect": 1,
+   "cat": "code",
+   "_src": "capsfix"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 286,
+   "shape": "Google Shape;349;p33",
+   "png": "lgtm-presentation/edits/png/04-dual-write-outbox.png",
+   "cat": "voice",
+   "_why": "figure heading 'Dual-write is a lie' -> 'Dual-write is unsafe' (src/04-dual-write-outbox.svg)",
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    336
+   ],
+   "find": "validate identity (OAuth/OIDC against your IdP), check device posture, then issue a JWT",
+   "repl": "validate identity (OAuth/OIDC against your IdP), apply the route's access policy, then issue a JWT",
+   "expect": 1,
+   "cat": "code",
+   "_why": "OAuth2 Proxy has no device-posture check; the proxies enforce per-route identity policy",
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    344
+   ],
+   "find": "; Microsoft Cloud Adoption Framework: security patterns.",
+   "repl": "; OWASP Microservices Security Cheat Sheet.",
+   "expect": 1,
+   "cat": "stack",
+   "_why": "vendor-neutral reference (decision 7)",
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    340
+   ],
+   "find": "Semaphore(50))",
+   "repl": "Semaphore(5))",
+   "expect": 1,
+   "cat": "code",
+   "_why": "examples/12-security/python BULKHEAD_LIMIT = 5",
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    340
+   ],
+   "find": "# 50 concurrent requests per tenant;",
+   "repl": "# 5 concurrent requests per tenant;",
+   "expect": 1,
+   "cat": "code",
+   "_why": "bulkhead 5",
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    340
+   ],
+   "find": "once 50 are running",
+   "repl": "once 5 are running",
+   "expect": 1,
+   "cat": "code",
+   "_why": "bulkhead 5",
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    294
+   ],
+   "find": "Event-driven tools landscape  —  Kafka",
+   "repl": "Event-driven tools landscape — Kafka",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "title spacing (one space around the dash, as the other titles)",
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    333
+   ],
+   "find": "Valet key  —  scoped",
+   "repl": "Valet key — scoped",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "title spacing (Q.fix2 in Quarkus)",
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    351
+   ],
+   "find": "Glossary of acronyms  (1 of 2)  —  protocols",
+   "repl": "Glossary of acronyms (1 of 2) — protocols",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "title spacing, as the (2 of 2) title",
+   "_src": "content"
+  },
+  {
+   "op": "set_geometry",
+   "sldId": 531,
+   "shape": "Image 1",
+   "x": 2.16,
+   "y": 1.95,
+   "w": 9.01,
+   "h": 4.3,
+   "cat": "fit",
+   "_why": "Appendix R topology figure enlarged to the free area, as Q.fix2 does in Quarkus",
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    362
+   ],
+   "find": "a field with a NEW number",
+   "repl": "a field with a new number",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    363
+   ],
+   "find": "SAFE: brand-new field",
+   "repl": "safe: brand-new field",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    363
+   ],
+   "find": "SAFE: new field; old clients",
+   "repl": "safe: new field; old clients",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    363
+   ],
+   "find": "BREAKING (don't)",
+   "repl": "breaking (don't)",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    368
+   ],
+   "find": "per-POD state",
+   "repl": "per-pod state",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    457
+   ],
+   "find": "IDENTIFY: pick",
+   "repl": "Identify: pick",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    457
+   ],
+   "find": "MOVE: build",
+   "repl": "Move: build",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    472
+   ],
+   "find": "caches THAT — the canonical value",
+   "repl": "caches that row — the canonical value",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    474
+   ],
+   "find": "because you DO want",
+   "repl": "because you do want",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    500
+   ],
+   "find": "stops sending NEW traffic",
+   "repl": "stops sending new traffic",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    492
+   ],
+   "find": "an EXPLICIT timeout",
+   "repl": "an explicit timeout",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    284
+   ],
+   "find": "a DIFFERENT, denormalised",
+   "repl": "a different, denormalised",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    391
+   ],
+   "find": "nulls THIS field only",
+   "repl": "nulls this field only",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    419
+   ],
+   "find": "fail readiness FIRST",
+   "repl": "fail readiness first",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    474
+   ],
+   "find": "deliberately NOT writing to cache",
+   "repl": "no cache write here",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    494
+   ],
+   "find": "Retry ONLY idempotent calls",
+   "repl": "Retry only idempotent calls",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    494
+   ],
+   "find": "Do NOT decorate a non-idempotent POST",
+   "repl": "Do not decorate a non-idempotent POST",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    500
+   ],
+   "find": "flip to NOT ready while draining",
+   "repl": "flip to not-ready while draining",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    429
+   ],
+   "find": " and give you the mesh CRDs we'll see next.",
+   "repl": " and give you the mesh CRDs (VirtualService, DestinationRule).",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    494
+   ],
+   "find": "Pair with a circuit breaker (next slides) so a down dep stops retries entirely.",
+   "repl": "Pair with a circuit breaker so a down dependency stops retries entirely.",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    407
+   ],
+   "find": "Strength is a ladder we'll see next (intrusive to contract).",
+   "repl": "Strength is a ladder (intrusive to contract).",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    441
+   ],
+   "find": "(and the one we'll see code for)",
+   "repl": "(and the one the code models)",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    490
+   ],
+   "find": "The next slides cover each with code; the final matrix maps patterns to modes.",
+   "repl": "Each one gets code, and a matrix maps patterns to modes.",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    457
+   ],
+   "find": "The next slides cover three ways to do the redirect:",
+   "repl": "There are three ways to do the redirect:",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    490
+   ],
+   "find": "The next slides give each its own diagram and per-language code",
+   "repl": "Each gets its own diagram and per-language code",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    270
+   ],
+   "find": "The next slides give you a decision rule and then show each protocol in code",
+   "repl": "The section gives a decision rule and then shows each protocol in code",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    431
+   ],
+   "find": "payload modification that we'll see more of — the L7 router",
+   "repl": "payload modification — the L7 router",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    295
+   ],
+   "find": "state, which is the next section.",
+   "repl": "state, the subject of stream processing.",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    329
+   ],
+   "find": "that the next slides alternate between pattern-and-implementation pairs",
+   "repl": "that the section alternates between pattern-and-implementation pairs",
+   "expect": 1,
+   "cat": "voice",
+   "_src": "caps"
+  },
+  {
+   "op": "recolour_code",
+   "sldId": 273,
+   "shape_id": 203,
+   "allow_noop": true,
+   "cat": "code",
+   "_src": "colour"
+  },
+  {
+   "op": "recolour_code",
+   "sldId": 363,
+   "shape_id": 1189,
+   "allow_noop": true,
+   "cat": "code",
+   "_src": "colour"
+  },
+  {
+   "op": "recolour_code",
+   "sldId": 372,
+   "shape_id": 1291,
+   "allow_noop": true,
+   "cat": "code",
+   "_src": "colour"
+  },
+  {
+   "op": "recolour_code",
+   "sldId": 449,
+   "shape_id": 2144,
+   "allow_noop": true,
+   "cat": "code",
+   "_src": "colour"
+  },
+  {
+   "op": "recolour_code",
+   "sldId": 521,
+   "shape_id": 8,
+   "allow_noop": true,
+   "cat": "code",
+   "_src": "colour"
+  },
+  {
+   "op": "recolour_code",
+   "sldId": 522,
+   "shape_id": 8,
+   "allow_noop": true,
+   "cat": "code",
+   "_src": "colour"
+  },
+  {
+   "op": "recolour_code",
+   "sldId": 524,
+   "shape_id": 8,
+   "allow_noop": true,
+   "cat": "code",
+   "_src": "colour"
+  },
+  {
+   "op": "recolour_code",
+   "sldId": 533,
+   "shape_id": 8,
+   "allow_noop": true,
+   "cat": "code",
+   "_src": "colour"
+  },
+  {
+   "op": "recolour_code",
+   "sldId": 535,
+   "shape_id": 8,
+   "allow_noop": true,
+   "cat": "code",
+   "_src": "colour"
+  }
+ ]
+}
