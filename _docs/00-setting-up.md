@@ -2,7 +2,7 @@
 title: "Setting up · Patterns in the age of AI"
 order: 0
 part: "Setting up"
-description: "Why a shared vocabulary of patterns matters more now that an AI writes the first draft, and the canonical five-service system we design against for the rest of the book."
+description: "Why a shared vocabulary of patterns matters more now that an AI writes the first draft, and the canonical five-service system we design against throughout the book."
 duration: 10 minutes
 ---
 
@@ -21,13 +21,13 @@ amplifier; the patterns decide which direction it amplifies.
 
 ## Four maxims to carry throughout
 
-Every concrete choice in this book is a deliberate exercise in four ideas. Keep
+Every concrete choice in this book applies four ideas. Keep
 them in view:
 
 - **The least-worst decision.** Every architecture choice is a set of trades —
   latency for throughput, consistency for availability, simplicity for
   flexibility. The job is not to find the option with no downside; it is to make
-  the trades visible and deliberate.
+  the trades visible and explicit.
 - **Risk management.** You manage the *distribution* of failures, not their
   existence. Failure doesn't go away; you choose where it lands and how it's
   contained.
@@ -36,8 +36,8 @@ them in view:
   operational complexity. The question is whether you are buying the right thing
   for what you are paying.
 - **No problem cannot be made worse.** A confidently-wrong intervention amplifies
-  the original pain. AI tooling makes confident interventions cheap and easy,
-  which is exactly why this maxim earns its place.
+  the original pain. AI tooling makes confident interventions cheap,
+  which is exactly why this maxim is needed.
 
 ## Three layers of patterns literacy
 
@@ -88,9 +88,9 @@ When a later chapter shows the transactional outbox, or content-based routing, o
 a saga, it is wiring up *these* services. Keeping one concrete system in mind is
 what stops the patterns from staying abstract.
 
-## How the rest of the book is ordered
+## How the book is ordered
 
-The order is deliberate: principles first, because they justify every later
+The order follows the dependencies: principles first, because they justify every later
 choice; then the synchronous surface (communications, composition); then data
 ownership; then the asynchronous backbone (events, streams); then the operational
 concerns (workflows and the platform planes); and finally anti-patterns as a

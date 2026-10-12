@@ -631,13 +631,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "internal traffic is where most L7 decisions actually happen \u2014 and where you get mTLS, retries, and locality for free",
+   "text": "internal traffic is where most L7 decisions happen, and where the mesh gives you mTLS, retries, and locality",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "internal traffic is where most L7 decisions actually happen \u2014 and where you get mTLS, retries, and locality for free",
+   "originalText": "internal traffic is where most L7 decisions happen, and where the mesh gives you mTLS, retries, and locality",
    "lineHeight": 1.25,
    "baseline": 12
   }

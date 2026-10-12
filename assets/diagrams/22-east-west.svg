@@ -19,5 +19,5 @@
 <path d="M440,142 L740,142" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-start="url(#a)" marker-end="url(#a)"/>
 <text x="596.0" y="134.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">mTLS · HTTP/2 · gRPC</text>
 <text x="596.0" y="134.0" font-size="11" fill="#555" text-anchor="middle">mTLS · HTTP/2 · gRPC</text>
-<text x="590" y="405" font-size="12" fill="#2f6db5" text-anchor="middle">internal traffic is where most L7 decisions actually happen — and where you get mTLS, retries, and locality for free</text>
+<text x="590" y="405" font-size="12" fill="#2f6db5" text-anchor="middle">internal traffic is where most L7 decisions happen, and where the mesh gives you mTLS, retries, and locality</text>
 </svg>

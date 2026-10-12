@@ -190,8 +190,8 @@ func aggregate(ctx goka.Context, msg any) {
 
 Every tab is the same topology: read `order.placed`, group by merchant, bucket into
 five-minute windows, fold each window into a running total, and write the result to
-a derived `revenue.by-merchant` stream. The JVM, .NET, Python and Go versions (Kafka Streams, Streamiz, Faust, goka) get the
-changelog-backed store for free — kill the pod and the window state rebuilds by
+a derived `revenue.by-merchant` stream. The JVM, .NET, Python and Go versions (Kafka Streams, Streamiz, Faust, goka) get a
+changelog-backed store built in — kill the pod and the window state rebuilds by
 replaying the changelog topic. The C++ version keeps the window map in process,
 which is fine while the state is bounded; once you need joins or state larger than a
 worker, that is the signal to move to a dedicated engine like Flink rather than
@@ -242,7 +242,7 @@ a different access pattern:
 
 {% include excalidraw.html
    file="06-window-types"
-   alt="Three rows of window types. Tumbling: fixed 5-minute buckets with no overlap — event lands in exactly one window. Hopping (sliding): 5-minute windows that advance every 1 minute, overlapping — event lands in multiple windows, giving a smoothed view. Session: variable-length windows defined by an inactivity gap — no events for 10 minutes closes the window, suited to user-activity sessions."
+   alt="Three rows of window types. Tumbling: fixed 5-minute buckets with no overlap, so an event lands in exactly one window. Hopping (sliding): 5-minute windows that advance every 1 minute, overlapping, so an event lands in multiple windows, giving a smoothed view. Session: variable-length windows defined by an inactivity gap; no events for 10 minutes closes the window, suited to user-activity sessions."
    caption="Figure 6.3 — Three window types: tumbling (fixed, no overlap), hopping (fixed, overlapping), and session (variable, gap-based)" %}
 
 **Tumbling windows** — fixed-size, non-overlapping. Every event lands in exactly one
@@ -281,7 +281,7 @@ and watermarks at a scale that in-process libraries don't attempt.
 
 A stream processor's load is *backlog*, not CPU. The right scaling signal is
 **consumer lag** — how far behind the log the workers are. KEDA reads that lag and
-scales workers up, and crucially **down to zero** when there is no lag. For
+scales workers up, and **down to zero** when there is no lag. For
 synchronous HTTP services the same KEDA closes the loop on request rate instead.
 One mechanism, two signals.
 

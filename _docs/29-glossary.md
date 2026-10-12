@@ -11,7 +11,7 @@ Every acronym the book leans on, expanded and put in context. They are grouped b
 layer they belong to — the wire, the data store, messaging, the platform, security,
 observability, and the domain — so a term is easy to find by the part of the system it
 describes. Where an acronym means something specific *in this book*, the third column says
-what, because a few of them (notably `ACL`) carry a different meaning here than the one you
+what, because a few of them (`ACL` among them) carry a different meaning here than the one you
 might expect.
 
 ## Protocols, APIs, and the wire

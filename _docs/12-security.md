@@ -298,7 +298,7 @@ inside the cluster, must carry a verifiable identity and pass policy on *every* 
 
 {% include excalidraw.html
    file="12-zero-trust"
-   alt="Top: the old perimeter model — VPN to a trusted intranet to any service — where getting in once means trusted forever and lateral movement is trivial. Bottom: the zero-trust model — user/device to an IAP/auth proxy (who, where, device, MFA, posture) to a policy engine making a per-request decision (OPA/Cedar) to a service that accepts only requests carrying a valid claim, repeated for every downstream call, with mTLS and SPIFFE identity inside the cluster."
+   alt="Top: the old perimeter model (VPN to a trusted intranet to any service), where getting in once means trusted forever and lateral movement is trivial. Bottom: the zero-trust model: user/device to an IAP/auth proxy (who, where, device, MFA, posture) to a policy engine making a per-request decision (OPA/Cedar) to a service that accepts only requests carrying a valid claim, repeated for every downstream call, with mTLS and SPIFFE identity inside the cluster."
    caption="Figure 12.4 — Perimeter trust versus zero-trust: identity and policy are checked on every hop, not once at the edge" %}
 
 In our stack this is layered: an identity-aware proxy at the edge checks who and what

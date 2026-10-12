@@ -19,13 +19,13 @@ The orchestrator must survive a crash mid-flow, so in-memory state is a
 non-starter — a pod restart would strand every in-flight saga with no idea what to
 compensate. The workhorse option is a **DB-backed state machine**: one row per saga
 instance holding its `status`, a `step_index`, and a `context` blob, with *you*
-owning the transitions. Crucially, the state update and the next command commit
+owning the transitions. The state update and the next command commit
 **together** in one transaction — the same outbox discipline from the Data chapter,
 applied to the saga's own progress.
 
 {% include excalidraw.html
    file="17-saga-state"
-   alt="Four ways a saga can keep its state. In-memory: a dict or object only, lost on pod restart, never for real sagas. DB state machine: one row per saga instance with status and context JSON, and you own the transitions. Event-sourced: append step events and rebuild by replay, with full audit history. Workflow engine: Temporal or Camunda, durable execution with retries and timers built in. Whatever the store, the state transition and the outbound command must commit together."
+   alt="Four ways a saga can keep its state. In-memory: a dict or object only, lost on pod restart, not for production. DB state machine: one row per saga instance with status and context JSON, and you own the transitions. Event-sourced: append step events and rebuild by replay, with full audit history. Workflow engine: Temporal or Camunda, durable execution with retries and timers built in. Whatever the store, the state transition and the outbound command must commit together."
    caption="Figure D.1 — Where saga state can live; the DB-backed state machine is the workhorse, but the commit-together rule is the same for all" %}
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
@@ -149,7 +149,7 @@ picks up exactly where it left off.
 There is no cross-service rollback — when `book_shipping` fails, the `charge_payment`
 that already committed in the payment service is *real money*. So compensation
 runs a defined **semantic inverse** for each step that completed — `charge → refund`,
-`reserve → release` — **in reverse order**, and only for the steps that actually
+`reserve → release` — **in reverse order**, and only for the steps that
 finished.
 
 {% include excalidraw.html
@@ -304,8 +304,8 @@ confirm the database shows `release_stock` then `refund_payment` executing in th
 order — and that `cancel_shipping` does *not* run, because shipping never completed.
 Then kill the orchestrator pod mid-flow and restart it: the `RUNNING` saga should
 resume from its persisted `step_index` and `context`, not start over. Reverse-order
-inverses over only the completed steps, plus a clean resume, is the saga actually
-working.
+inverses over only the completed steps, plus a clean resume, shows the saga
+works.
 
 ---
 *Verification status: verified — [`examples/17-sagas/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/17-sagas/) passes 11/11 checks in each of the six languages on Docker Engine (2026-10-10)
