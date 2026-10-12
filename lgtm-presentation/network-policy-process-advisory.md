@@ -1,58 +1,63 @@
-# Network Policy Process — Red Hat Advisory
+# Network Policy Process — Advisory
 
 A recommended approach for operationalizing in-cluster network segmentation
-on OpenShift, from perimeter-only to developer-owned NetworkPolicies.
+on Kubernetes, from perimeter-only to developer-owned NetworkPolicies.
 
 ---
 
 ## What this document is
 
-This is Red Hat's recommended approach to building a network policy process
+This is a recommended approach to building a network policy process
 for an organization that:
 
 - Runs perimeter and east-west controls through a firewall team on a
-  traditional appliance (Palo Alto, Fortinet, etc.) today.
-- Wants to shift network segmentation left into the OpenShift cluster using
-  Kubernetes NetworkPolicy, AdminNetworkPolicy, and EgressFirewall.
+  traditional perimeter firewall appliance today.
+- Wants to shift network segmentation left into the Kubernetes cluster using
+  NetworkPolicy, ClusterNetworkPolicy, and egress rules.
 - Has developers who are not security specialists — most have never written
   a firewall rule and do not inherently know what traffic their applications
   require.
 
 **What this document is not:** a tool selection exercise or an ownership
 assignment. It describes a process and a maturity path. Organizations apply
-it with the teams and tools they already have.
+it with the teams and tools they already have. The tools named are upstream
+open-source options: a CNI that enforces NetworkPolicy and ClusterNetworkPolicy
+(Calico or Cilium), Kyverno or OPA Gatekeeper for admission policy, Trivy for
+manifest scanning, Falco for runtime detection, and Argo CD for GitOps.
 
 ---
 
-## 1. Where customers typically start
+## 1. Where organizations typically start
 
 Most organizations move through a four-phase maturity path. Trying to skip
 phases — jumping straight to developer-authored micro-segmentation — is the
 most common cause of stalled adoption.
 
 The timeline for each phase depends on the organization's complexity, team
-capacity, and risk tolerance. The phases below are sequential — each builds
-on the previous — but the pace is agreed upon by the organization.
+capacity, and risk tolerance. The four phases are sequential, each building
+on the previous, but the pace is agreed upon by the organization.
 
 ### Phase 1 — Observe
 
-Before writing any policy, understand what traffic actually flows today.
+Before writing any policy, understand what traffic flows today.
 
-Red Hat Advanced Cluster Security (ACS) automatically discovers network
-flows between deployments, namespaces, and external destinations. It builds
-a **network baseline** — a map of every connection the cluster has seen — and
-renders it in the **Network Graph**. This baseline becomes the source of truth
-for what traffic is expected.
+The CNI records the network flows between pods, namespaces, and external
+destinations: Hubble with Cilium (`hubble observe`), or Calico's flow logs
+(Goldmane, viewed in the Whisker console). Inspektor Gadget's
+`advise_networkpolicy` gadget records the TCP and UDP traffic of chosen
+namespaces. Together they give a **network baseline**, a map of every
+connection the cluster has seen, which becomes the source of truth for what
+traffic is expected.
 
 At this stage, nothing is denied. The goal is visibility. The firewall team
-and platform team review the ACS network graph together and identify:
+and platform team review the observed flows together and identify:
 
 - Which services talk to each other (and which shouldn't).
 - Which services make outbound calls to external endpoints.
 - Which connections cross namespace boundaries.
 - Which traffic patterns were previously invisible behind the perimeter.
 
-**What Red Hat typically sees:** customers are surprised by the volume of
+**What field teams typically see:** organizations are surprised by the volume of
 east-west traffic they did not know existed — service-to-service connections
 that were never documented because the perimeter firewall was the only
 control plane.
@@ -76,17 +81,19 @@ spec:
     - Egress
 ```
 
-Simultaneously, use ACS to **auto-generate NetworkPolicy YAML** from the
-observed baseline. ACS generates a single policy per deployment (named
-`stackrox-generated-<deployment>`), with ingress rules based on observed
-source pods and namespace selectors. These generated policies are a starting
+Simultaneously, **generate NetworkPolicy YAML** from the observed baseline.
+Inspektor Gadget's `advise_networkpolicy` writes one policy per workload, with
+ingress and egress rules based on the observed peers (Kubernetes NetworkPolicy,
+or CiliumNetworkPolicy on Cilium). These generated policies are a starting
 point — they capture what traffic *did* flow, not what traffic *should* flow.
+On Calico, a StagedNetworkPolicy shows in the flow logs what a policy would
+deny before it is enforced.
 
 The platform team reviews the generated policies, removes any connections
 that should not have existed (the audit value of this step is significant),
 and applies the cleaned-up policies alongside the default-deny.
 
-**What Red Hat typically sees:** the first default-deny rollout in a non-prod
+**What field teams typically see:** the first default-deny rollout in a non-prod
 namespace immediately reveals undocumented dependencies — a monitoring agent
 that scrapes every pod, a legacy batch job that connects to an external
 database, a sidecar that phones home to a SaaS endpoint. Discovering these
@@ -95,8 +102,8 @@ in dev or test is the point.
 ### Phase 3 — Guardrails
 
 With baseline policies in place, the platform team introduces cluster-scoped
-guardrails using OpenShift's **AdminNetworkPolicy (ANP)** and
-**BaselineAdminNetworkPolicy (BANP)**.
+guardrails using the upstream **ClusterNetworkPolicy (CNP)** API, in its
+**Admin** and **Baseline** tiers.
 
 These are the policies the platform team owns — they cannot be overridden by
 developers, and they establish the security boundaries that all applications
@@ -106,69 +113,76 @@ inherit.
 
 App teams begin authoring and owning their own namespace-scoped
 NetworkPolicies. They do this via pull request, with CI validation and
-platform team review. The process section later in this document describes
+platform team review. The CI/CD flow section describes
 this workflow in detail.
 
 ---
 
 ## 2. The three-tier policy model
 
-OpenShift's OVN-Kubernetes network plugin evaluates traffic against three
+A CNI that implements ClusterNetworkPolicy evaluates traffic against three
 tiers of policy, in order. Understanding this model is critical — it
 determines who controls what and where overrides are possible.
 
-### Tier 1 — AdminNetworkPolicy (ANP)
+### Tier 1 — ClusterNetworkPolicy, Admin tier
 
 - **Scope:** cluster-wide (not namespace-scoped)
 - **Controlled by:** platform / infrastructure team
-- **Priority:** 0 (highest) to 99 (lowest)
-- **Actions:** Allow, Deny, or **Pass** (hand evaluation to the next tier)
-- **Override:** cannot be overridden by NetworkPolicy or BANP
+- **Priority:** 0 (highest) to 1000 (lowest)
+- **Actions:** Accept, Deny, or **Pass** (hand evaluation to the next tier)
+- **Override:** cannot be overridden by NetworkPolicy or the Baseline tier
+- **Status:** `policy.networking.k8s.io/v1alpha2` (alpha, network-policy-api v0.2.0); enforced by Calico 3.32 and later, and by Cilium 1.20 when enabled
 
-ANP is where the platform team enforces non-negotiable rules: deny traffic
-to the control plane from application namespaces, allow monitoring agents
-to scrape all pods, deny cross-environment traffic (dev → prod). A **Pass**
+The Admin tier is where the platform team enforces non-negotiable rules: deny
+traffic to the control plane from application namespaces, accept monitoring
+agents scraping all pods, deny cross-environment traffic (dev → prod). A **Pass**
 rule explicitly delegates the decision to the next tier (NetworkPolicy),
 which is how the platform team says "app teams, this one is yours to decide."
 
-**Critical caution:** an ANP with an empty namespace selector (`{}`) matches
-*all* namespaces, including `openshift-*` and `kube-system`. Use workload-
-specific label selectors. An overly broad ANP can lock the cluster.
+**Critical caution:** an Admin-tier policy with an empty namespace selector
+(`{}`) matches *all* namespaces, including `kube-system` and the CNI's own
+namespaces. Use workload-specific label selectors. An overly broad Admin-tier
+policy can lock the cluster.
 
 ### Tier 2 — NetworkPolicy (NP)
 
 - **Scope:** namespace-scoped
 - **Controlled by:** app teams (developers)
-- **Override:** can be overridden by ANP (which takes precedence)
+- **Override:** can be overridden by the Admin tier (which takes precedence)
 
 This is the standard Kubernetes NetworkPolicy API. App teams use it to
 define which pods in their namespace accept traffic from which sources, on
-which ports. Traffic that matches an ANP Allow or Deny rule never reaches
-this tier — it is only evaluated if the ANP passed the traffic through.
+which ports. Traffic that matches an Admin-tier Accept or Deny rule never reaches
+this tier; it is evaluated unless an Admin-tier rule accepted or denied the traffic.
 
-### Tier 3 — BaselineAdminNetworkPolicy (BANP)
+### Tier 3 — ClusterNetworkPolicy, Baseline tier
 
-- **Scope:** cluster-wide (singleton — only one BANP exists per cluster)
+- **Scope:** cluster-wide (one default-deny policy is the recommended shape)
 - **Controlled by:** platform / infrastructure team
-- **Actions:** Allow or Deny (no Pass)
+- **Actions:** Deny for the safety net, Accept for cluster-wide defaults such as DNS
 - **Override:** *can* be overridden by NetworkPolicy
 
-BANP is the safety net. It catches traffic that was passed by the ANP and
-not matched by any NetworkPolicy. The recommended use is **default-deny at
-the BANP tier** — if no ANP rule and no NetworkPolicy allows it, BANP denies
-it. This means that a namespace with no NetworkPolicies at all still has a
+The Baseline tier is the safety net. It decides traffic that no Admin-tier rule
+accepted or denied and no NetworkPolicy covers. The recommended use is **default-deny at
+the Baseline tier**: if no Admin-tier rule and no NetworkPolicy allows it, the
+Baseline tier denies it. This means that a namespace with no NetworkPolicies at all still has a
 default-deny posture, without requiring the app team to create the
 default-deny policy themselves.
 
+The earlier releases of the API split these two tiers into
+AdminNetworkPolicy and BaselineAdminNetworkPolicy (`v1alpha1`). Upstream now
+lists them as previous APIs, and Calico 3.32 no longer enforces them, so new
+policies use ClusterNetworkPolicy.
+
 ### How the tiers compose
 
-*Diagram: advisory-tier-evaluation — OVN-Kubernetes three-tier policy evaluation*
+*Diagram: advisory-tier-evaluation — ClusterNetworkPolicy three-tier evaluation*
 
 ![Three-tier policy evaluation](../assets/diagrams/advisory-tier-evaluation.svg)
 
-**The value proposition for the customer:** the platform team controls tiers
+**The value proposition for the organization:** the platform team controls tiers
 1 and 3 (the guardrails). Developers control tier 2 (their application's
-policies). Even if a developer writes no NetworkPolicies at all, the BANP
+policies). Even if a developer writes no NetworkPolicies at all, the Baseline
 default-deny ensures the namespace is not wide open. This directly addresses
 the developer skill gap — the platform provides safety by default.
 
@@ -179,11 +193,12 @@ the developer skill gap — the platform provides safety by default.
 Developers are not firewall engineers. Expecting them to author network
 policies from scratch — knowing which ports their services listen on, which
 upstream services call them, and which external endpoints they need — is
-unrealistic at the start. Red Hat recommends four complementary approaches:
+unrealistic at the start. Four complementary approaches close the gap:
 
-### a) ACS-generated baselines — developers review, not author
+### a) Generated baselines — developers review, not author
 
-ACS observes actual traffic for a configurable window, then generates
+Inspektor Gadget's `advise_networkpolicy` observes traffic for a chosen window,
+then generates
 NetworkPolicy YAML that matches the observed flows. The developer's job is
 to *review* the generated policy — "does this look right? should this
 connection exist?" — not to author it from scratch. This inverts the skill
@@ -213,9 +228,9 @@ namespace and label selectors, and submit a PR. The template handles the
 hard parts (deny-all baseline, correct policyTypes, CIDR ranges for external
 services).
 
-### c) BANP as a safety net
+### c) The Baseline tier as a safety net
 
-With a BANP configured to deny traffic that no other policy allows, a
+With a Baseline-tier policy that denies traffic no other policy allows, a
 developer who deploys a new service without any NetworkPolicy gets
 default-deny behavior automatically. Their service cannot send or receive
 traffic until they (or the platform) create a policy. This is strict but
@@ -227,8 +242,8 @@ connectivity issue that surfaces immediately in testing.
 When a new namespace is provisioned (via GitOps, a self-service portal, or
 an operator), the provisioning process automatically includes:
 
-- A default-deny NetworkPolicy
-- An EgressFirewall allowing only approved external destinations
+- A default-deny NetworkPolicy (a Kyverno generate rule can create it for every new namespace)
+- Egress rules allowing only approved external destinations
 - Starter NetworkPolicy templates in a `policies/` directory
 - RBAC bindings giving the app team edit access to NetworkPolicy resources
 
@@ -254,28 +269,28 @@ The pipeline stages:
 1. **Developer** authors or modifies NetworkPolicy YAML and opens a PR
    against the policy repo.
 2. **CI validates automatically:**
-   - Schema check — `oc apply --dry-run=client` (valid YAML, correct API version)
-   - Policy lint — conftest / kyverno CLI (organizational rules: no allow-all,
-     required labels, port range limits)
-   - ACS build-time — validate against known baselines and flag policies that
-     would allow traffic outside the baseline
-   - Dry-run apply — `oc apply --dry-run=server` against a staging cluster
+   - Schema check — `kubeconform` and `kubectl apply --dry-run=client` (valid YAML, correct API version)
+   - Policy lint — conftest / `kyverno test` / `gator verify` (organizational rules: no allow-all,
+     required labels, port range limits); `trivy config` scans the manifests
+   - Baseline diff — compare the change with the policy generated from observed flows
+     and flag rules that would allow traffic outside the baseline
+   - Dry-run apply — `kubectl apply --dry-run=server` against a staging cluster
      (catches admission denials, quota issues)
 3. **Platform / security team reviews the PR** — CODEOWNERS enforces: app
    team authors NetworkPolicies (platform reviews), platform authors
-   ANP/BANP/EgressFirewall (firewall/security reviews).
-4. **Merge triggers GitOps sync** — OpenShift GitOps (ArgoCD) syncs to
+   ClusterNetworkPolicies and egress rules (firewall/security reviews).
+4. **Merge triggers GitOps sync** — Argo CD syncs to the
    staging cluster, smoke tests validate connectivity, then syncs to
    production.
-5. **Post-deploy validation** — ACS network graph confirms no anomalous
-   flows, OVN-Kubernetes flow logs confirm deny counts are expected.
+5. **Post-deploy validation** — Hubble or Calico flow logs confirm no unexpected
+   flows and the expected deny counts; Falco alerts on unexpected egress at runtime.
 
-### What ACS build-time tools add
+### What generated baselines add
 
-Starting with ACS 4.4, build-time network policy tools can generate and
-validate policies locally or in a CI pipeline. This closes the loop between
-"what traffic does my app need" (observed in ACS) and "what policy should I
-write" (generated and validated in CI). The developer never needs to author
+Inspektor Gadget's `advise_networkpolicy` gadget records the traffic of the
+selected namespaces and writes the NetworkPolicy that matches it. This closes the loop between
+"what traffic does my app need" (observed by the CNI) and "what policy should I
+write" (generated, then validated in CI). The developer never needs to author
 a policy from scratch — they generate one from the baseline, review it, and
 submit the PR.
 
@@ -283,7 +298,7 @@ submit the PR.
 
 ## 5. Repo structure
 
-Red Hat recommends a three-layer repository model that separates platform-
+A three-layer repository model separates platform-
 owned policies from application-owned policies, with clear ownership and
 review boundaries.
 
@@ -291,14 +306,14 @@ review boundaries.
 cluster-policies/
 │
 ├── platform-baselines/                    # Platform team owns
-│   ├── anp/
+│   ├── admin-tier/
 │   │   ├── deny-cross-env.yaml           # Block dev ↔ prod traffic
-│   │   ├── allow-monitoring.yaml         # Prometheus/OTel can scrape all pods
+│   │   ├── accept-monitoring.yaml        # Prometheus/OTel can scrape all pods
 │   │   ├── deny-control-plane.yaml       # Apps cannot reach API server directly
 │   │   └── pass-app-traffic.yaml         # Delegate app-to-app decisions to NP tier
-│   ├── banp/
+│   ├── baseline-tier/
 │   │   └── default-deny-baseline.yaml    # Safety net: deny anything not explicitly allowed
-│   ├── egressfirewall/
+│   ├── egress/
 │   │   ├── prod-egress.yaml              # Production: allow only approved external CIDRs/DNS
 │   │   ├── test-egress.yaml              # Test: same as prod (mirrors topology)
 │   │   └── dev-egress.yaml               # Dev: broader access, still no direct internet
@@ -348,7 +363,7 @@ cluster-policies/
 
 | Layer | Authors | Reviewers | Scope |
 |-------|---------|-----------|-------|
-| `platform-baselines/` (ANP, BANP, EgressFirewall) | Platform team | Firewall / security team | Cluster-wide |
+| `platform-baselines/` (Admin tier, Baseline tier, egress rules) | Platform team | Firewall / security team | Cluster-wide |
 | `onboarding/` (templates) | Platform team | Platform team | Reusable templates |
 | `app-policies/` (NetworkPolicy) | App teams | Platform team | Per-namespace |
 
@@ -367,22 +382,24 @@ policy flows through the same CI pipeline regardless of target environment.
 
 When a developer reports "my service can't reach X," the triage path is:
 
-1. **ACS anomalous flow alerts** — check the ACS network graph for the
-   deployment. If the connection appears as an anomalous flow (outside the
-   baseline), it was likely never policy-allowed. Decide whether to add
+1. **Compare with the baseline** — check whether the connection is in the
+   observed baseline (the generated policies in Git). If it is not, it was
+   likely never policy-allowed. Decide whether to add
    a policy or investigate why the new connection exists.
 
-2. **OVN-Kubernetes flow logs** — OVN-K logs denied packets with source pod,
-   destination, port, and the ACL rule that denied them. These logs
-   identify *which tier* denied the traffic (ANP, NP, or BANP), which
+2. **Flow logs** — `hubble observe --verdict DROPPED` (Cilium) or the Calico
+   flow logs show the dropped flow with source pod, destination and port.
+   Match it with the policies that select the pod to find *which tier*
+   denied the traffic (Admin, NP, or Baseline), which
    tells you who needs to update the policy.
 
-3. **`oc adm must-gather`** — collects network policy state, OVN-K
-   configuration, and flow logs for offline analysis. Use this for
-   escalation to Red Hat support.
+3. **Diagnostics bundle** — `cilium sysdump` or `calicoctl cluster diags`
+   collects network policy state, CNI configuration, and logs for offline
+   analysis. Use it for an upstream issue or for escalation to your support
+   provider.
 
 **Target:** denied-flow triage should take under 30 minutes. If it
-regularly takes longer, the observability tooling (ACS, flow logs) is not
+regularly takes longer, the observability tooling (flow logs, baselines) is not
 configured correctly.
 
 ### Break-glass process
@@ -390,10 +407,10 @@ configured correctly.
 When a denied flow is blocking a production incident and the normal PR
 process is too slow:
 
-1. A platform team member creates a **temporary ANP with a Pass rule** at a
+1. A platform team member creates a **temporary Admin-tier policy with a Pass rule** at a
    high priority (low number), handing the traffic decision to the
-   NetworkPolicy tier. If no NetworkPolicy exists for the target, the BANP
-   (if configured as default-deny) will still deny — so the break-glass
+   NetworkPolicy tier. If no NetworkPolicy exists for the target, the Baseline tier
+   (if configured as default-deny) will still deny, so the break-glass
    may need a temporary NetworkPolicy as well.
 
 2. The temporary rule is **time-boxed** (label it with an expiration date
@@ -407,13 +424,13 @@ process is too slow:
 
 ### Drift detection
 
-- **OpenShift GitOps (ArgoCD)** reports sync status for every policy
-  manifest. If someone manually applies a policy via `oc apply` instead
-  of the PR pipeline, ArgoCD detects the drift and either alerts or
-  auto-reverts (depending on configuration).
+- **Argo CD** reports sync status for every policy
+  manifest. If someone manually applies a policy via `kubectl apply` instead
+  of the PR pipeline, Argo CD detects the drift and either alerts or
+  auto-reverts (self-heal, depending on configuration).
 
-- **ACS baseline drift** — if new traffic flows appear that are not in
-  the ACS network baseline, ACS flags them as anomalous. This catches
+- **Baseline drift** — if new traffic flows appear that are not in
+  the observed baseline, the flow logs and Falco flag them. This catches
   both policy drift (someone added a rule manually) and application
   drift (a new service started making unexpected connections).
 
@@ -422,8 +439,8 @@ process is too slow:
 Maintain a dashboard or periodic report showing:
 
 - Namespaces with default-deny in place vs. those without.
-- Namespaces with ACS baselines active vs. those still in observation.
-- ANP/BANP rules in effect and their last-modified dates.
+- Namespaces with reviewed baselines vs. those still in observation.
+- Admin-tier and Baseline-tier rules in effect and their last-modified dates.
 - Break-glass events in the current quarter.
 - Denied-flow triage times (mean, p95).
 
@@ -432,22 +449,22 @@ Maintain a dashboard or periodic report showing:
 ## 7. The firewall team's evolving role
 
 The shift to in-cluster network policy does not eliminate the firewall team.
-It changes their scope and elevates their role from gatekeeper to architect.
+It changes their scope and moves their role from gatekeeper to architect.
 
 ### What stays with the firewall team
 
-- **North-south edge controls** — the perimeter firewall (Palo Alto)
+- **North-south edge controls** — the perimeter firewall
   continues to manage traffic entering and leaving the data center or
   cloud VPC. This is where TLS inspection, DDoS mitigation, and
   compliance logging (PCI, HIPAA) remain.
 
-- **EgressFirewall authorship** — the firewall team authors and reviews
-  EgressFirewall CRDs that control which external destinations cluster
+- **Egress rule authorship** — the firewall team authors and reviews
+  the egress rules that control which external destinations cluster
   workloads can reach. This is their domain expertise (approved CIDRs,
   DNS-based rules, compliance-required blocks).
 
-- **ANP / BANP review** — the firewall team reviews all cluster-scoped
-  network policies (ANP, BANP) because these have cluster-wide blast
+- **Admin and Baseline tier review** — the firewall team reviews all cluster-scoped
+  network policies (the Admin and Baseline tiers) because these have cluster-wide blast
   radius. The platform team authors them; the firewall team approves.
 
 ### What shifts to the platform and app teams
@@ -482,34 +499,34 @@ After sustained effort over a maturity period agreed upon by the
 organization, a mature network policy practice looks like this:
 
 - [ ] **Default-deny in every namespace** — no namespace exists without a
-      default-deny NetworkPolicy or BANP coverage.
-- [ ] **ACS baselines active** — every production namespace has a locked
-      baseline. New flows trigger anomalous-flow alerts.
-- [ ] **ANP guardrails enforced** — cross-environment traffic blocked,
+      default-deny NetworkPolicy or Baseline-tier coverage.
+- [ ] **Baselines reviewed** — every production namespace has a reviewed
+      baseline in Git. New flows outside it raise alerts.
+- [ ] **Admin-tier guardrails enforced** — cross-environment traffic blocked,
       monitoring access allowed, control-plane access restricted.
-- [ ] **BANP default-deny** — the cluster-wide safety net catches any
-      traffic not explicitly allowed by ANP or NetworkPolicy.
+- [ ] **Baseline-tier default-deny** — the cluster-wide safety net catches any
+      traffic not explicitly allowed by the Admin tier or NetworkPolicy.
 - [ ] **App teams authoring policies via PR** — developers submit
-      NetworkPolicy changes through the CI/CD pipeline, not `oc apply`.
-- [ ] **CI validates before merge** — schema checks, policy linting, ACS
-      build-time validation, and dry-run apply run on every PR.
-- [ ] **EgressFirewall per project** — outbound traffic is restricted to
+      NetworkPolicy changes through the CI/CD pipeline, not `kubectl apply`.
+- [ ] **CI validates before merge** — schema checks, policy linting, baseline
+      diff, and dry-run apply run on every PR.
+- [ ] **Egress rules per namespace** — outbound traffic is restricted to
       approved external destinations in every namespace.
-- [ ] **Firewall team reviews, does not block** — turnaround on ANP/BANP
+- [ ] **Firewall team reviews, does not block** — turnaround on Admin and Baseline tier
       reviews is under 48 hours.
-- [ ] **Denied-flow triage under 30 minutes** — ACS alerts and OVN-K flow
-      logs provide immediate root-cause.
+- [ ] **Denied-flow triage under 30 minutes** — flow logs and Falco alerts
+      provide immediate root-cause.
 - [ ] **Quarterly policy review** — all break-glass events reviewed,
-      stale policies removed, ACS baselines refreshed, RBAC bindings
+      stale policies removed, baselines refreshed, RBAC bindings
       audited.
 
-### What customers wish they'd done differently
+### What organizations wish they'd done differently
 
-These are the top five lessons Red Hat hears from customers who have
-completed this journey:
+These are the five lessons heard most often from organizations that have
+completed this transition:
 
-1. **"We should have started with observation, not enforcement."** Customers
-   who jumped to default-deny without first running ACS in observation mode
+1. **"We should have started with observation, not enforcement."** Teams
+   that jumped to default-deny without first observing the flows
    caused outages from denied traffic they did not know existed. The observe
    phase pays for itself.
 
@@ -517,14 +534,14 @@ completed this journey:
    should be simple — three to five archetypes, not twenty. Start broad
    and refine based on actual PR volume and developer feedback.
 
-3. **"We underestimated the EgressFirewall work."** Cataloging every
+3. **"We underestimated the egress work."** Cataloging every
    external endpoint every service needs to reach is the most
    time-consuming part of the shift. Start this inventory in Phase 1
-   alongside the ACS observation.
+   alongside the flow observation.
 
-4. **"We should have involved the firewall team earlier."** Customers who
+4. **"We should have involved the firewall team earlier."** Teams that
    presented in-cluster policy as a replacement for the firewall team met
-   resistance. Customers who positioned it as "the firewall team's
+   resistance. Teams that positioned it as "the firewall team's
    expertise applied at a new layer" got buy-in.
 
 5. **"We needed a break-glass process on day one."** The first denied-flow
@@ -543,11 +560,11 @@ full stack:
 
 | Governance layer | This document | Companion document |
 |-----------------|---------------|-------------------|
-| Network segmentation | NetworkPolicy, ANP, BANP, EgressFirewall — the focus here | Default-deny baseline, environment-specific allow rules |
+| Network segmentation | NetworkPolicy, ClusterNetworkPolicy (Admin and Baseline tiers), egress rules: the focus here | Default-deny baseline, environment-specific allow rules |
 | RBAC | Who can create/modify network policies | Full RBAC matrix by environment (dev/test/prod) |
 | Admission control | Policy linting in CI (conftest, kyverno) | OPA Gatekeeper ConstraintTemplates |
-| GitOps | ArgoCD sync and drift detection for policies | Full GitOps-gated production change pipeline |
-| Audit | ACS baselines, OVN-K flow logs, break-glass tracking | API server audit logs, OPA decision logs, Git history |
+| GitOps | Argo CD sync and drift detection for policies | Full GitOps-gated production change pipeline |
+| Audit | Flow logs, Falco alerts, break-glass tracking | API server audit logs, OPA decision logs, Git history |
 | Namespace isolation | NetworkPolicy as one of four controls | RBAC + NetworkPolicy + ResourceQuota + LimitRange |
 
 The network policy process described here is one vertical slice of that
@@ -559,11 +576,13 @@ network segmentation leaves east-west traffic uncontrolled.
 
 ## References
 
-- [OpenShift AdminNetworkPolicy documentation](https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/network_security/admin-network-policy)
-- [BaselineAdminNetworkPolicy documentation](https://docs.openshift.com/container-platform/4.16/networking/network_security/AdminNetworkPolicy/ovn-k-banp.html)
-- [Using AdminNetworkPolicy API to secure OpenShift cluster networking](https://www.redhat.com/en/blog/using-adminnetworkpolicy-api-to-secure-openshift-cluster-networking)
-- [OpenShift EgressFirewall documentation](https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/network_security/egress-firewall)
-- [ACS — Managing network policies](https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/3.69/html/operating/manage-network-policies)
+- [Kubernetes Network Policy API: ClusterNetworkPolicy](https://network-policy-api.sigs.k8s.io/)
+- [network-policy-api v0.2.0 release notes](https://github.com/kubernetes-sigs/network-policy-api/releases/tag/v0.2.0)
+- [Network Policy API implementations](https://network-policy-api.sigs.k8s.io/implementations/)
+- [Calico v3.32 release notes: ClusterNetworkPolicy](https://github.com/projectcalico/calico/blob/release-v3.32/release-notes/v3.32.0-release-notes.md)
+- [Cilium: Kubernetes network policy](https://docs.cilium.io/en/stable/network/kubernetes/policy/)
+- [Inspektor Gadget: advise_networkpolicy](https://inspektor-gadget.io/docs/latest/gadgets/advise_networkpolicy)
+- [Kyverno policy: add-network-policy](https://kyverno.io/policies/best-practices/add-network-policy/add-network-policy/)
 - [Kubernetes Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
 - [CNCF Cloud Native Security Whitepaper](https://github.com/cncf/tag-security/tree/main/security-whitepaper)
 - [Kubernetes RBAC Good Practices](https://kubernetes.io/docs/concepts/security/rbac-good-practices/)
