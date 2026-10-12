@@ -5,7 +5,7 @@ description = "Cloud-native design patterns example: 22-l7-routing/python/router
 requires-python = ">=3.14"
 dependencies = [
   "fastapi==0.143.0",
-  "pydantic==2.14.0",
+  "pydantic==2.14.1",
   "uvicorn==0.54.0",
 ]
 

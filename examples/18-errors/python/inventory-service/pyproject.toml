@@ -9,7 +9,7 @@ dependencies = [
   "grpcio-status==1.84.0",
   "grpcio-tools==1.84.0",
   "protobuf==7.36.2",
-  "pydantic==2.14.0",
+  "pydantic==2.14.1",
   "pydantic-settings==2.15.0",
 ]
 

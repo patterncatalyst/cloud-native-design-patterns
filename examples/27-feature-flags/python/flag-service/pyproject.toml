@@ -7,7 +7,7 @@ dependencies = [
   "fastapi==0.143.0",
   "openfeature-provider-flagd==0.5.2",
   "openfeature-sdk==0.10.0",
-  "pydantic==2.14.0",
+  "pydantic==2.14.1",
   "pydantic-settings==2.15.0",
   "uvicorn==0.54.0",
 ]
