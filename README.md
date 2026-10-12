@@ -59,7 +59,7 @@ cd python && docker compose down -v
 | `_includes/codetabs.html` + `assets/js/codetabs.js` | the multi-language code tabs (no plugin) |
 | `assets/diagrams/` | paired `name.svg` + `name.excalidraw` figures |
 | `lgtm-presentation/` | the six source decks + `BUILD.md` manifest |
-| `_plans/` | the roadmap and the Phase-3 backlog |
+| `_plans/` | internal planning notes |
 
 ## Deploy
 

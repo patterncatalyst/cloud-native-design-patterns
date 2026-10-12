@@ -324,7 +324,7 @@ done
 
 ---
 
-## What you do NOT need
+## What you do not need
 
 All application code runs inside containers built from **Red Hat UBI** base
 images. You do not need to install any of these locally to run the examples:
