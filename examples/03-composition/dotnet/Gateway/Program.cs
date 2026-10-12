@@ -1,4 +1,4 @@
-using System.Text.Json;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using GreenDonut;
 using Grpc.Net.Client;
 using OpenTelemetry.Resources;
@@ -8,37 +8,49 @@ using Proto;
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://+:8080");
 
-var orderApiUrl = Environment.GetEnvironmentVariable("ORDER_API_URL") ?? "http://order-api:8081";
-var inventoryAddr = Environment.GetEnvironmentVariable("INVENTORY_ADDR") ?? "inventory:50051";
+var orderApiUrl = builder.Configuration.GetValue("ORDER_API_URL", "http://order-api:8081");
+var inventoryAddr = builder.Configuration.GetValue("INVENTORY_ADDR", "inventory:50051");
 
 var channel = GrpcChannel.ForAddress($"http://{inventoryAddr}",
     new GrpcChannelOptions { HttpHandler = new SocketsHttpHandler { EnableMultipleHttp2Connections = true } });
 builder.Services.AddSingleton(new Inventory.InventoryClient(channel));
-builder.Services.AddSingleton(new OrderApiClient(orderApiUrl));
+builder.Services.AddHttpClient<OrderApiClient>(c => c.BaseAddress = new Uri(orderApiUrl));
 
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("gateway"))
     .WithTracing(t => t
         .AddAspNetCoreInstrumentation()
         .AddOtlpExporter(o => o.Endpoint = new Uri(
-            Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") ?? "http://lgtm:4318")));
+            builder.Configuration.GetValue("OTEL_EXPORTER_OTLP_ENDPOINT", "http://lgtm:4318"))));
 
 builder.Services
     .AddGraphQLServer()
     .AddQueryType<Query>()
     .AddTypeExtension<OrderStockExtension>();
 
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 
-app.MapGet("/healthz", () => new { status = "ok" });
+app.MapHealthChecks("/healthz", new HealthCheckOptions
+{
+    ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok" }),
+});
 app.MapGraphQL("/graphql");
 
 app.Run();
 
-public class OrderApiClient
+/// <summary>Typed client for the order API; the factory owns the handler lifetime.</summary>
+public class OrderApiClient(HttpClient http)
 {
-    public HttpClient Http { get; }
-    public OrderApiClient(string baseUrl) => Http = new HttpClient { BaseAddress = new Uri(baseUrl) };
+    public async Task<List<OrderDto>> ListAsync(int limit, CancellationToken ct) =>
+        await http.GetFromJsonAsync<List<OrderDto>>($"/orders?limit={limit}", ct) ?? [];
+
+    public async Task<OrderDto?> FindAsync(string id, CancellationToken ct)
+    {
+        using var resp = await http.GetAsync($"/orders/{id}", ct);
+        return resp.IsSuccessStatusCode ? await resp.Content.ReadFromJsonAsync<OrderDto>(ct) : null;
+    }
 }
 
 public class OrderDto
@@ -51,22 +63,11 @@ public class OrderDto
 
 public class Query
 {
-    public async Task<List<OrderDto>> GetOrders(OrderApiClient api, int limit = 50)
-    {
-        var resp = await api.Http.GetAsync($"/orders?limit={limit}");
-        var json = await resp.Content.ReadAsStringAsync();
-        return JsonSerializer.Deserialize<List<OrderDto>>(json,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
-    }
+    public Task<List<OrderDto>> GetOrders(OrderApiClient api, CancellationToken ct, int limit = 50) =>
+        api.ListAsync(limit, ct);
 
-    public async Task<OrderDto?> GetOrder(OrderApiClient api, string id)
-    {
-        var resp = await api.Http.GetAsync($"/orders/{id}");
-        if (!resp.IsSuccessStatusCode) return null;
-        var json = await resp.Content.ReadAsStringAsync();
-        return JsonSerializer.Deserialize<OrderDto>(json,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-    }
+    public Task<OrderDto?> GetOrder(OrderApiClient api, string id, CancellationToken ct) =>
+        api.FindAsync(id, ct);
 }
 
 [ExtendObjectType(typeof(OrderDto))]
@@ -76,15 +77,24 @@ public class OrderStockExtension
         => await loader.LoadAsync(order.Sku);
 }
 
-public class StockBatchDataLoader : BatchDataLoader<string, int?>
+public partial class StockBatchDataLoader : BatchDataLoader<string, int?>
 {
     private readonly Inventory.InventoryClient _client;
+    private readonly ILogger<StockBatchDataLoader> _logger;
 
     public StockBatchDataLoader(
         Inventory.InventoryClient client,
         IBatchScheduler batchScheduler,
-        DataLoaderOptions options)
-        : base(batchScheduler, options) => _client = client;
+        DataLoaderOptions options,
+        ILogger<StockBatchDataLoader> logger)
+        : base(batchScheduler, options)
+    {
+        _client = client;
+        _logger = logger;
+    }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "DataLoader batched {Count} skus in one gRPC call")]
+    private partial void LogBatched(int count);
 
     protected override async Task<IReadOnlyDictionary<string, int?>> LoadBatchAsync(
         IReadOnlyList<string> keys, CancellationToken ct)
@@ -92,7 +102,7 @@ public class StockBatchDataLoader : BatchDataLoader<string, int?>
         var request = new GetStockBatchRequest();
         request.Skus.AddRange(keys);
         var reply = await _client.GetStockBatchAsync(request, cancellationToken: ct);
-        Console.WriteLine($"DataLoader batched {keys.Count} skus in one gRPC call");
+        LogBatched(keys.Count);
         return reply.Items.ToDictionary(i => i.Sku, i => (int?)i.Available);
     }
 }

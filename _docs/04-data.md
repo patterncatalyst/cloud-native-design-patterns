@@ -175,28 +175,24 @@ public Response createOrder(CreateOrderRequest request) {
 ```
 
 ```csharp
-// EF Core + Debezium CDC. For WCF/COM+ refugees: this REPLACES the MSDTC
-// two-phase commit you used to make "save the order AND queue the event" atomic.
-public class OrderService(OrdersDbContext db) : IOrderService
+// EF Core + Debezium CDC, examples/04-data/dotnet. For WCF/COM+ refugees: this REPLACES
+// the MSDTC two-phase commit you used to make "save the order AND queue the event" atomic.
+app.MapPost("/orders", async (OrderRequest request, OrdersContext db) =>
 {
-    public async Task<Order> CreateAsync(OrderIn body)
+    var order = new Order { Id = Guid.NewGuid().ToString(), Sku = request.Sku,
+                            Quantity = request.Quantity, Status = "confirmed" };
+    var dto = OrderDto.From(order);
+    db.Orders.Add(order);                            // state change
+    db.Outbox.Add(new OutboxEvent                    // same SaveChanges -> outbox row
     {
-        await using var tx = await db.Database.BeginTransactionAsync();
-
-        var order = Order.From(body);
-        db.Orders.Add(order);                        // state change
-        db.Outbox.Add(new OutboxEntry(               // same txn -> outbox row
-            EventType:     "order.placed",
-            AggregateType: "orders",
-            AggregateId:   order.Id,
-            Payload:       JsonSerializer.Serialize(order),
-            CreatedAt:     DateTimeOffset.UtcNow));
-
-        await db.SaveChangesAsync();                 // single local commit
-        await tx.CommitAsync();                      // Debezium tails WAL -> Kafka
-        return order;
-    }
-}
+        AggregateId = order.Id,
+        EventType = "order.placed",
+        Payload = JsonSerializer.SerializeToElement(dto, JsonSerializerOptions.Web),
+    });
+    await db.SaveChangesAsync();                     // one local transaction; Debezium tails the WAL -> Kafka
+    return Results.Json(dto, statusCode: StatusCodes.Status201Created);
+});
+// Broker down? The order still commits; the event ships when CDC catches up.
 // Wolverine (MIT) ships a transactional outbox with EF Core integration if you prefer the framework path.
 ```
 

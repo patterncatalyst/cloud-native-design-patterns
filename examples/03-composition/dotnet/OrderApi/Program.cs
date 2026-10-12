@@ -1,66 +1,41 @@
-using Npgsql;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://+:8081");
 
+var dbUrl = builder.Configuration.GetValue("DATABASE_URL",
+    "Host=postgres;Port=5432;Database=appdb;Username=appuser;Password=apppass");
+builder.Services.AddDbContext<OrdersContext>(o => o.UseNpgsql(dbUrl));
+
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("order-api"))
     .WithTracing(t => t
         .AddAspNetCoreInstrumentation()
         .AddOtlpExporter(o => o.Endpoint = new Uri(
-            Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") ?? "http://lgtm:4318")));
+            builder.Configuration.GetValue("OTEL_EXPORTER_OTLP_ENDPOINT", "http://lgtm:4318"))));
+
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-var dbUrl = Environment.GetEnvironmentVariable("DATABASE_URL")
-    ?? "Host=postgres;Port=5432;Database=appdb;Username=appuser;Password=apppass";
-var dsBuilder = new NpgsqlDataSourceBuilder(dbUrl);
-await using var dataSource = dsBuilder.Build();
+app.MapHealthChecks("/healthz", new HealthCheckOptions
+{
+    ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok" }),
+});
 
-app.MapGet("/healthz", () => new { status = "ok" });
-
-app.MapGet("/orders", async (int? limit) =>
+app.MapGet("/orders", async (int? limit, OrdersContext db) =>
 {
     var lim = limit is > 0 ? limit.Value : 50;
-    var orders = new List<object>();
-    await using var conn = await dataSource.OpenConnectionAsync();
-    await using var cmd = conn.CreateCommand();
-    cmd.CommandText = "SELECT id, sku, quantity, status FROM orders ORDER BY id LIMIT $1";
-    cmd.Parameters.AddWithValue(lim);
-    await using var reader = await cmd.ExecuteReaderAsync();
-    while (await reader.ReadAsync())
-    {
-        orders.Add(new
-        {
-            id = reader.GetString(0),
-            sku = reader.GetString(1),
-            quantity = reader.GetInt32(2),
-            status = reader.GetString(3)
-        });
-    }
-    return orders;
+    return await db.Orders.AsNoTracking().OrderBy(o => o.Id).Take(lim).Select(o => OrderDto.From(o)).ToListAsync();
 });
 
-app.MapGet("/orders/{orderId}", async (string orderId) =>
-{
-    await using var conn = await dataSource.OpenConnectionAsync();
-    await using var cmd = conn.CreateCommand();
-    cmd.CommandText = "SELECT id, sku, quantity, status FROM orders WHERE id = $1";
-    cmd.Parameters.AddWithValue(orderId);
-    await using var reader = await cmd.ExecuteReaderAsync();
-    if (await reader.ReadAsync())
-    {
-        return Results.Json(new
-        {
-            id = reader.GetString(0),
-            sku = reader.GetString(1),
-            quantity = reader.GetInt32(2),
-            status = reader.GetString(3)
-        });
-    }
-    return Results.NotFound();
-});
+app.MapGet("/orders/{orderId}", async (string orderId, OrdersContext db) =>
+    await db.Orders.AsNoTracking().Where(o => o.Id == orderId).Select(o => OrderDto.From(o)).FirstOrDefaultAsync()
+        is { } order
+        ? Results.Json(order)
+        : Results.NotFound());
 
 app.Run();

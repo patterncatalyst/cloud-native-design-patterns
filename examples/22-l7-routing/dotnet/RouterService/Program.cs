@@ -1,7 +1,10 @@
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://+:8080");
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 var logger = app.Logger;
 
@@ -12,7 +15,10 @@ var rules = new Dictionary<string, object>
     ["default_topic"] = "orders.default"
 };
 
-app.MapGet("/healthz", () => new { status = "ok" });
+app.MapHealthChecks("/healthz", new HealthCheckOptions
+{
+    ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok" }),
+});
 
 app.MapPost("/orders", async (HttpContext ctx) =>
 {

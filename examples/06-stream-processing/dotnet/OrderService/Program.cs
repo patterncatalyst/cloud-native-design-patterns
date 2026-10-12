@@ -1,27 +1,35 @@
 using System.Text.Json;
 using Confluent.Kafka;
-using Npgsql;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://+:8080");
 
+var dbUrl = builder.Configuration.GetValue("DATABASE_URL",
+    "Host=postgres;Port=5432;Database=appdb;Username=appuser;Password=apppass");
+var kafkaBootstrap = builder.Configuration.GetValue("KAFKA_BOOTSTRAP", "kafka:9094");
+
+builder.Services.AddDbContext<OrdersContext>(o => o.UseNpgsql(dbUrl));
+
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("order-service"))
     .WithTracing(t => t
         .AddAspNetCoreInstrumentation()
         .AddOtlpExporter(o => o.Endpoint = new Uri(
-            Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT") ?? "http://lgtm:4318")));
+            builder.Configuration.GetValue("OTEL_EXPORTER_OTLP_ENDPOINT", "http://lgtm:4318"))));
+
+// The REST and Kafka payloads use snake_case field names (merchant_id).
+builder.Services.ConfigureHttpJsonOptions(opts =>
+    opts.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
+
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
-
-var dbUrl = Environment.GetEnvironmentVariable("DATABASE_URL")
-    ?? "Host=postgres;Port=5432;Database=appdb;Username=appuser;Password=apppass";
-var kafkaBootstrap = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP") ?? "kafka:9094";
-
-var dsBuilder = new NpgsqlDataSourceBuilder(dbUrl);
-await using var dataSource = dsBuilder.Build();
 
 IProducer<Null, string>? producer = null;
 for (var i = 0; i < 30; i++)
@@ -39,61 +47,43 @@ for (var i = 0; i < 30; i++)
     }
 }
 
-app.MapGet("/healthz", () => new { status = "ok" });
-
-app.MapPost("/orders", async (HttpContext ctx) =>
+app.MapHealthChecks("/healthz", new HealthCheckOptions
 {
-    using var doc = await JsonDocument.ParseAsync(ctx.Request.Body);
-    var root = doc.RootElement;
-    var merchantId = root.GetProperty("merchant_id").GetString()!;
-    var sku = root.GetProperty("sku").GetString()!;
-    var quantity = root.GetProperty("quantity").GetInt32();
-    var total = root.GetProperty("total").GetDouble();
-    var id = Guid.NewGuid().ToString();
+    ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok" }),
+});
 
-    await using var conn = await dataSource.OpenConnectionAsync();
-    await using var cmd = conn.CreateCommand();
-    cmd.CommandText = "INSERT INTO orders (id, merchant_id, sku, quantity, total, status) VALUES ($1, $2, $3, $4, $5, $6)";
-    cmd.Parameters.AddWithValue(id);
-    cmd.Parameters.AddWithValue(merchantId);
-    cmd.Parameters.AddWithValue(sku);
-    cmd.Parameters.AddWithValue(quantity);
-    cmd.Parameters.AddWithValue(total);
-    cmd.Parameters.AddWithValue("confirmed");
-    await cmd.ExecuteNonQueryAsync();
+app.MapPost("/orders", async (OrderRequest request, OrdersContext db, IOptions<JsonOptions> json) =>
+{
+    var order = new Order
+    {
+        Id = Guid.NewGuid().ToString(),
+        MerchantId = request.MerchantId,
+        Sku = request.Sku,
+        Quantity = request.Quantity,
+        Total = (decimal)request.Total,
+        Status = "confirmed",
+    };
+    db.Orders.Add(order);
+    await db.SaveChangesAsync();
 
-    var order = new { id, merchant_id = merchantId, sku, quantity, total, status = "confirmed" };
-    var json = JsonSerializer.Serialize(order);
-
+    var placed = new OrderPlaced(order.Id, order.MerchantId, order.Sku, order.Quantity, request.Total, order.Status);
     if (producer is not null)
     {
-        try { await producer.ProduceAsync("order.placed", new Message<Null, string> { Value = json }); }
+        try
+        {
+            await producer.ProduceAsync("order.placed", new Message<Null, string>
+            {
+                Value = JsonSerializer.Serialize(placed, json.Value.SerializerOptions),
+            });
+        }
         catch { }
     }
 
-    return Results.Json(order, statusCode: 201);
+    return Results.Json(placed, statusCode: StatusCodes.Status201Created);
 });
 
-app.MapGet("/orders", async () =>
-{
-    var orders = new List<object>();
-    await using var conn = await dataSource.OpenConnectionAsync();
-    await using var cmd = conn.CreateCommand();
-    cmd.CommandText = "SELECT id, merchant_id, sku, quantity, total, status FROM orders ORDER BY created_at DESC LIMIT 50";
-    await using var reader = await cmd.ExecuteReaderAsync();
-    while (await reader.ReadAsync())
-    {
-        orders.Add(new
-        {
-            id = reader.GetString(0),
-            merchant_id = reader.GetString(1),
-            sku = reader.GetString(2),
-            quantity = reader.GetInt32(3),
-            total = reader.GetDecimal(4),
-            status = reader.GetString(5)
-        });
-    }
-    return orders;
-});
+app.MapGet("/orders", async (OrdersContext db) =>
+    await db.Orders.AsNoTracking().OrderByDescending(o => o.CreatedAt).Take(50)
+        .Select(o => OrderDto.From(o)).ToListAsync());
 
 app.Run();

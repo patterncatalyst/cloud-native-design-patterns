@@ -5,7 +5,7 @@ Hexagonal (ports-and-adapters) architecture — domain logic isolated from infra
 ## Framework & libraries
 
 - **Framework**: ASP.NET Core (.NET 10.0.12) minimal API
-- **Libraries**: Npgsql
+- **Libraries**: EF Core with Npgsql
 - **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520 (runtime), built with ubi9/dotnet-100:9.8-1791421718; runs as UID 1001
 
 ## Run
@@ -24,7 +24,7 @@ cd .. && bash verify.sh
 
 | Path | Description |
 |------|-------------|
-| `OrderService/` | Program.cs — composition root and minimal API driving adapter; `Domain/` (entities, ports, use case); `Adapters/` (Npgsql repository, log publisher) |
+| `OrderService/` | Program.cs — composition root and minimal API driving adapter; `Domain/` (entities, ports, use case); `Adapters/` (EF Core repository and mapping, log publisher, CLI) |
 | `OrderService/Adapters/CliPlaceOrder.cs` | CLI driving adapter — `OrderService place-order <sku> <qty>`, handled before the web host is built; calls `PlaceOrderUseCase`, never the repository |
 | `cli-place-order` | Wrapper installed on PATH in the image: `cli-place-order <sku> <qty>` |
 

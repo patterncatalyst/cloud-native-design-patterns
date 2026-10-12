@@ -5,7 +5,7 @@ Database-per-service pattern — schema isolation, versioned migrations, and tra
 ## Framework & libraries
 
 - **Framework**: ASP.NET Core (.NET 10.0.12) minimal API
-- **Libraries**: Npgsql, Npgsql.OpenTelemetry
+- **Libraries**: EF Core with Npgsql, Npgsql.OpenTelemetry
 - **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520 (runtime), built with ubi9/dotnet-100:9.8-1791421718; runs as UID 1001
 
 ## Run
@@ -24,11 +24,11 @@ cd .. && bash verify.sh
 
 | Path | Description |
 |------|-------------|
-| `OrderService/` | Program.cs — minimal API with raw Npgsql transactional access |
+| `OrderService/` | Program.cs — minimal API; OrdersContext.cs — EF Core mapping of orders and outbox |
 
 ## Implementation notes
 
-Uses `NpgsqlTransaction` for atomic writes. No ORM — raw SQL with parameterized queries.
+The order and its outbox row are added to the same `DbContext` and committed by one `SaveChangesAsync`, which is one transaction. The schema is owned by `db/init`; there are no migrations.
 
 ## Environment variables
 

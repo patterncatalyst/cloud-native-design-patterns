@@ -5,7 +5,7 @@ Twelve-factor env-based config and liveness/readiness probes.
 ## Framework & libraries
 
 - **Framework**: ASP.NET Core (.NET 10.0.12) minimal API
-- **Libraries**: Npgsql (Postgres), OpenTelemetry hosting/OTLP exporter
+- **Libraries**: EF Core with Npgsql (Postgres), ASP.NET Core health checks, OpenTelemetry hosting/OTLP exporter
 - **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520 (runtime), built with ubi9/dotnet-100:9.8-1791421718; runs as UID 1001
 
 ## Run
@@ -24,11 +24,11 @@ cd .. && bash verify.sh
 
 | Path | Description |
 |------|-------------|
-| `OrderService/` | Program.cs — minimal API with MapGet/MapPost for orders and probes |
+| `OrderService/` | Program.cs — minimal API with health checks and order endpoints; OrdersContext.cs — the EF Core mapping of the orders table |
 
 ## Implementation notes
 
-All logic in a single `Program.cs`. Uses raw Npgsql (no EF Core). Config via `IConfiguration` / env vars.
+`OrdersContext` maps the table owned by `db/init` (no migrations). `/healthz` and `/readyz` come from `AddHealthChecks` and `MapHealthChecks`, with the `AddDbContextCheck` readiness check behind `/readyz`. Config via `IConfiguration` / env vars.
 
 ## Environment variables
 

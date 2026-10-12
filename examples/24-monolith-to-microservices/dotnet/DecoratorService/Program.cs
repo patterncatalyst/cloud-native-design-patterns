@@ -1,18 +1,21 @@
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using System.Text.Json;
 using Confluent.Kafka;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://+:8080");
-var app = builder.Build();
-var logger = app.Logger;
 
-var legacyUrl = Environment.GetEnvironmentVariable("LEGACY_URL") ?? "http://legacy:8080";
-var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL") ?? "redis:6379";
-var kafkaBootstrap = Environment.GetEnvironmentVariable("KAFKA_BOOTSTRAP") ?? "kafka:9094";
+var legacyUrl = builder.Configuration.GetValue("LEGACY_URL", "http://legacy:8080");
+var redisUrl = builder.Configuration.GetValue("REDIS_URL", "redis:6379");
+var kafkaBootstrap = builder.Configuration.GetValue("KAFKA_BOOTSTRAP", "kafka:9094");
 const int CacheTtl = 60;
 
-var httpClient = new HttpClient { BaseAddress = new Uri(legacyUrl) };
+builder.Services.AddHttpClient<LegacyClient>(c => c.BaseAddress = new Uri(legacyUrl));
+builder.Services.AddHealthChecks();
+
+var app = builder.Build();
+var logger = app.Logger;
 
 ConnectionMultiplexer? redis = null;
 for (var i = 0; i < 10; i++)
@@ -41,9 +44,12 @@ for (var i = 0; i < 30; i++)
 
 var publishedEvents = new List<Dictionary<string, object>>();
 
-app.MapGet("/healthz", () => new { status = "ok" });
+app.MapHealthChecks("/healthz", new HealthCheckOptions
+{
+    ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok" }),
+});
 
-app.MapGet("/orders/{orderId}", async (string orderId) =>
+app.MapGet("/orders/{orderId}", async (string orderId, LegacyClient legacy) =>
 {
     var cacheKey = $"order:{orderId}";
     try
@@ -60,8 +66,7 @@ app.MapGet("/orders/{orderId}", async (string orderId) =>
     }
     catch { }
 
-    var resp = await httpClient.GetAsync($"/orders/{orderId}");
-    var body = await resp.Content.ReadAsStringAsync();
+    var body = (await legacy.GetOrderAsync(orderId)).Body;
     logger.LogInformation("CACHE_MISS order_id={OrderId}", orderId);
 
     try
@@ -74,12 +79,11 @@ app.MapGet("/orders/{orderId}", async (string orderId) =>
     return Results.Json(JsonSerializer.Deserialize<JsonElement>(body));
 });
 
-app.MapPost("/orders", async (HttpContext ctx) =>
+app.MapPost("/orders", async (HttpContext ctx, LegacyClient legacy) =>
 {
     var reqBody = await new StreamReader(ctx.Request.Body).ReadToEndAsync();
-    var resp = await httpClient.PostAsync("/orders",
-        new StringContent(reqBody, System.Text.Encoding.UTF8, "application/json"));
-    var body = await resp.Content.ReadAsStringAsync();
+    var reply = await legacy.PostOrderAsync(reqBody);
+    var body = reply.Body;
     var data = JsonSerializer.Deserialize<JsonElement>(body);
 
     var orderId = data.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? "" : "";
@@ -103,7 +107,7 @@ app.MapPost("/orders", async (HttpContext ctx) =>
         }
     }
 
-    ctx.Response.StatusCode = (int)resp.StatusCode;
+    ctx.Response.StatusCode = reply.StatusCode;
     ctx.Response.ContentType = "application/json";
     await ctx.Response.WriteAsync(body);
 });
@@ -114,3 +118,21 @@ app.MapGet("/events", () =>
 });
 
 app.Run();
+
+public record LegacyReply(int StatusCode, string Body);
+
+/// <summary>Typed client for the legacy order API; the factory manages the handler lifetime.</summary>
+public class LegacyClient(HttpClient http)
+{
+    public Task<LegacyReply> GetOrderAsync(string orderId) =>
+        SendAsync(http.GetAsync($"/orders/{orderId}"));
+
+    public Task<LegacyReply> PostOrderAsync(string json) =>
+        SendAsync(http.PostAsync("/orders", new StringContent(json, System.Text.Encoding.UTF8, "application/json")));
+
+    private static async Task<LegacyReply> SendAsync(Task<HttpResponseMessage> request)
+    {
+        using var resp = await request;
+        return new LegacyReply((int)resp.StatusCode, await resp.Content.ReadAsStringAsync());
+    }
+}

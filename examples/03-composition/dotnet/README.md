@@ -25,7 +25,7 @@ cd .. && bash verify.sh
 | Path | Description |
 |------|-------------|
 | `Gateway/` | Program.cs — HotChocolate GraphQL gateway calling order-api and inventory via gRPC |
-| `OrderApi/` | Program.cs — REST order service with Npgsql |
+| `OrderApi/` | Program.cs — REST order service on EF Core |
 | `InventoryService/` | Program.cs — gRPC inventory service |
 
 ## Implementation notes

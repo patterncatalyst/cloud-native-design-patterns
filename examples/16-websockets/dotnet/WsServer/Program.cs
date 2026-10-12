@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
@@ -6,10 +7,12 @@ using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://+:8080");
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 
-var podName = Environment.GetEnvironmentVariable("POD_NAME") ?? "ws-pod";
-var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL") ?? "redis://redis:6379";
+var podName = builder.Configuration.GetValue("POD_NAME", "ws-pod");
+var redisUrl = builder.Configuration.GetValue("REDIS_URL", "redis://redis:6379");
 var redisHost = redisUrl.Replace("redis://", "");
 
 var clients = new ConcurrentDictionary<string, WebSocket>();
@@ -65,7 +68,10 @@ if (redis is not null)
 
 app.UseWebSockets();
 
-app.MapGet("/healthz", () => new { status = "ok", pod = podName });
+app.MapHealthChecks("/healthz", new HealthCheckOptions
+{
+    ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok", pod = podName }),
+});
 
 app.MapGet("/info", () => new { pod = podName, clients = clients.Keys.ToArray() });
 
