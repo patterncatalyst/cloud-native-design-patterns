@@ -1,11 +1,11 @@
 import logging
-import os
 from concurrent import futures
 
 import grpc
 from grpc_status import rpc_status
 from google.protobuf import any_pb2, duration_pb2
 from google.rpc import status_pb2, error_details_pb2
+from pydantic_settings import BaseSettings
 
 import inventory_pb2
 import inventory_pb2_grpc
@@ -13,15 +13,20 @@ import inventory_pb2_grpc
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("inventory")
 
-INITIAL_STOCK = int(os.getenv("INITIAL_STOCK", "10"))
-FAIL_MODE = os.getenv("FAIL_MODE", "none")
+
+class Settings(BaseSettings):
+    initial_stock: int = 10
+    fail_mode: str = "none"
+
+
+settings = Settings()
 
 stock = {}
 
 
 class InventoryServicer(inventory_pb2_grpc.InventoryServiceServicer):
     def ReserveStock(self, request, context):
-        if FAIL_MODE == "unavailable":
+        if settings.fail_mode == "unavailable":
             retry_info = error_details_pb2.RetryInfo(
                 retry_delay=duration_pb2.Duration(seconds=2)
             )
@@ -36,7 +41,7 @@ class InventoryServicer(inventory_pb2_grpc.InventoryServiceServicer):
             return inventory_pb2.ReserveResponse()
 
         if request.sku not in stock:
-            stock[request.sku] = INITIAL_STOCK
+            stock[request.sku] = settings.initial_stock
 
         if stock[request.sku] < request.quantity:
             context.set_code(grpc.StatusCode.FAILED_PRECONDITION)
@@ -53,7 +58,7 @@ def serve():
     inventory_pb2_grpc.add_InventoryServiceServicer_to_server(InventoryServicer(), server)
     server.add_insecure_port("[::]:50051")
     server.start()
-    log.info("inventory-service started on :50051 (stock=%d, fail_mode=%s)", INITIAL_STOCK, FAIL_MODE)
+    log.info("inventory-service started on :50051 (stock=%d, fail_mode=%s)", settings.initial_stock, settings.fail_mode)
     server.wait_for_termination()
 
 

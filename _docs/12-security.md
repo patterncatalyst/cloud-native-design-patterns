@@ -257,12 +257,15 @@ app.MapPost("/valet-key", (HttpContext ctx) =>
 
 ```python
 # main.py (excerpt), examples/12-security/python: an HMAC-SHA256 valet key
-VALET_SECRET = os.environ.get("VALET_SECRET", "demo-secret-do-not-use-in-prod")
+class Settings(BaseSettings):                               # VALET_SECRET from the environment
+    valet_secret: str = "demo-secret-do-not-use-in-prod"
+
+settings = Settings()
 
 def _mint_valet(resource: str, operation: str, ttl: int = 300) -> dict:
     expires = int(time.time()) + ttl                        # time-bound
     payload = f"{resource}:{operation}:{expires}"           # one object, one operation
-    sig = hmac.new(VALET_SECRET.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    sig = hmac.new(settings.valet_secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
     return {"resource": resource, "operation": operation, "expires": expires, "token": sig}
 
 def _verify_valet(resource: str, operation: str, expires: int, token: str) -> bool:
@@ -270,7 +273,7 @@ def _verify_valet(resource: str, operation: str, expires: int, token: str) -> bo
         return False                                        # expired: worthless
     payload = f"{resource}:{operation}:{expires}"
     expected = hmac.new(
-        VALET_SECRET.encode(), payload.encode(), hashlib.sha256
+        settings.valet_secret.encode(), payload.encode(), hashlib.sha256
     ).hexdigest()
     return hmac.compare_digest(token, expected)             # constant-time compare
 

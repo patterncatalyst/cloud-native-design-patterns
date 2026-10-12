@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import os
 import time
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -11,12 +10,19 @@ import redis.asyncio as aioredis
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from pydantic_settings import BaseSettings
 
 log = logging.getLogger("cache-service")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgres://appuser:apppass@postgres:5432/appdb")
-REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
+
+class Settings(BaseSettings):
+    database_url: str = "postgres://appuser:apppass@postgres:5432/appdb"
+    redis_url: str = "redis://redis:6379"
+
+
+settings = Settings()
+
 TTL = 60
 
 pool: asyncpg.Pool
@@ -159,8 +165,8 @@ async def refresher():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global pool, cache
-    pool = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=10)
-    cache = aioredis.from_url(REDIS_URL, decode_responses=False)
+    pool = await asyncpg.create_pool(settings.database_url, min_size=2, max_size=10)
+    cache = aioredis.from_url(settings.redis_url, decode_responses=False)
 
     flush_task = asyncio.create_task(flusher())
     refresh_task = asyncio.create_task(refresher())

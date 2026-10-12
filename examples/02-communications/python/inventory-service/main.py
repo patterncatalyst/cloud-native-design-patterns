@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 from concurrent import futures
 
 import grpc
@@ -10,6 +9,8 @@ from opentelemetry.instrumentation.grpc import GrpcInstrumentorServer
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 import inventory_pb2
 import inventory_pb2_grpc
@@ -17,19 +18,24 @@ import inventory_pb2_grpc
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("inventory")
 
-OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://lgtm:4318")
-SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "inventory")
 
-resource = Resource.create({"service.name": SERVICE_NAME})
+class Settings(BaseSettings):
+    otel_endpoint: str = Field("http://lgtm:4318", validation_alias="OTEL_EXPORTER_OTLP_ENDPOINT")
+    service_name: str = Field("inventory", validation_alias="OTEL_SERVICE_NAME")
+    initial_stock: int = 100
+
+
+settings = Settings()
+
+resource = Resource.create({"service.name": settings.service_name})
 provider = TracerProvider(resource=resource)
 provider.add_span_processor(
-    BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{OTEL_ENDPOINT}/v1/traces"))
+    BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{settings.otel_endpoint}/v1/traces"))
 )
 trace.set_tracer_provider(provider)
 GrpcInstrumentorServer().instrument()
 
 STOCK: dict[str, int] = {}
-INITIAL_STOCK = int(os.getenv("INITIAL_STOCK", "100"))
 
 
 class InventoryServicer(inventory_pb2_grpc.InventoryServicer):
@@ -38,7 +44,7 @@ class InventoryServicer(inventory_pb2_grpc.InventoryServicer):
         qty = request.quantity
 
         if sku not in STOCK:
-            STOCK[sku] = INITIAL_STOCK
+            STOCK[sku] = settings.initial_stock
 
         remaining = STOCK[sku] - qty
         if remaining >= 0:

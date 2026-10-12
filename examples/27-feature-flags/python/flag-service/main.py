@@ -1,5 +1,4 @@
 import logging
-import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Header, Query
@@ -7,24 +6,30 @@ from openfeature import api
 from openfeature.evaluation_context import EvaluationContext
 from openfeature.contrib.provider.flagd import FlagdProvider
 from openfeature.contrib.provider.flagd.config import ResolverType
+from pydantic_settings import BaseSettings
 
 log = logging.getLogger("flag-service")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
-FLAGD_HOST = os.getenv("FLAGD_HOST", "flagd")
-FLAGD_PORT = int(os.getenv("FLAGD_PORT", "8013"))
+
+class Settings(BaseSettings):
+    flagd_host: str = "flagd"
+    flagd_port: int = 8013
+
+
+settings = Settings()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
         provider = FlagdProvider(
-            host=FLAGD_HOST,
-            port=FLAGD_PORT,
+            host=settings.flagd_host,
+            port=settings.flagd_port,
             resolver_type=ResolverType.RPC,
         )
         api.set_provider(provider)
-        log.info("OpenFeature provider set: flagd at %s:%d", FLAGD_HOST, FLAGD_PORT)
+        log.info("OpenFeature provider set: flagd at %s:%d", settings.flagd_host, settings.flagd_port)
     except Exception:
         log.exception("Failed to connect to flagd — will use defaults")
 

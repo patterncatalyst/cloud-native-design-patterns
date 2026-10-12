@@ -1,5 +1,4 @@
 import logging
-import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -15,6 +14,8 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from strawberry.dataloader import DataLoader
 from strawberry.fastapi import GraphQLRouter
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 import inventory_pb2
 import inventory_pb2_grpc
@@ -22,14 +23,19 @@ import inventory_pb2_grpc
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("gateway")
 
-ORDER_API_URL = os.getenv("ORDER_API_URL", "http://order-api:8081")
-INVENTORY_ADDR = os.getenv("INVENTORY_ADDR", "inventory:50051")
-OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://lgtm:4318")
+
+class Settings(BaseSettings):
+    order_api_url: str = "http://order-api:8081"
+    inventory_addr: str = "inventory:50051"
+    otel_endpoint: str = Field("http://lgtm:4318", validation_alias="OTEL_EXPORTER_OTLP_ENDPOINT")
+
+
+settings = Settings()
 
 resource = Resource.create({"service.name": "gateway"})
 provider = TracerProvider(resource=resource)
 provider.add_span_processor(
-    BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{OTEL_ENDPOINT}/v1/traces"))
+    BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{settings.otel_endpoint}/v1/traces"))
 )
 trace.set_tracer_provider(provider)
 tracer = trace.get_tracer(__name__)
@@ -66,7 +72,7 @@ class Query:
     @strawberry.field
     async def orders(self, info: strawberry.types.Info, limit: int = 50) -> list[OrderType]:
         with tracer.start_as_current_span("fetch_orders_rest"):
-            resp = await http_client.get(f"{ORDER_API_URL}/orders", params={"limit": limit})
+            resp = await http_client.get(f"{settings.order_api_url}/orders", params={"limit": limit})
             resp.raise_for_status()
             data = resp.json()
         return [OrderType(**o) for o in data]
@@ -74,7 +80,7 @@ class Query:
     @strawberry.field
     async def order(self, info: strawberry.types.Info, id: str) -> Optional[OrderType]:
         with tracer.start_as_current_span("fetch_order_rest"):
-            resp = await http_client.get(f"{ORDER_API_URL}/orders/{id}")
+            resp = await http_client.get(f"{settings.order_api_url}/orders/{id}")
             if resp.status_code == 404:
                 return None
             resp.raise_for_status()
@@ -96,7 +102,7 @@ graphql_router = GraphQLRouter(schema, context_getter=get_context)
 async def lifespan(app: FastAPI):
     global http_client, grpc_channel, inventory_stub
     http_client = httpx.AsyncClient(timeout=10.0)
-    grpc_channel = grpc.aio.insecure_channel(INVENTORY_ADDR)
+    grpc_channel = grpc.aio.insecure_channel(settings.inventory_addr)
     inventory_stub = inventory_pb2_grpc.InventoryStub(grpc_channel)
     log.info("gateway started")
     yield

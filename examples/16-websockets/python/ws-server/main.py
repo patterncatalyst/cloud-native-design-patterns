@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import os
 import uuid
 from collections import defaultdict
 from contextlib import asynccontextmanager
@@ -14,17 +13,24 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("ws-server")
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
-OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://lgtm:4318")
-POD_NAME = os.getenv("POD_NAME", f"ws-pod-{uuid.uuid4().hex[:6]}")
 
-resource = Resource.create({"service.name": "ws-server", "pod.name": POD_NAME})
+class Settings(BaseSettings):
+    redis_url: str = "redis://redis:6379"
+    otel_endpoint: str = Field("http://lgtm:4318", validation_alias="OTEL_EXPORTER_OTLP_ENDPOINT")
+    pod_name: str = Field(default_factory=lambda: f"ws-pod-{uuid.uuid4().hex[:6]}")
+
+
+settings = Settings()
+
+resource = Resource.create({"service.name": "ws-server", "pod.name": settings.pod_name})
 provider = TracerProvider(resource=resource)
-provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{OTEL_ENDPOINT}/v1/traces")))
+provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{settings.otel_endpoint}/v1/traces")))
 trace.set_tracer_provider(provider)
 tracer = trace.get_tracer("ws-server")
 
@@ -47,7 +53,7 @@ async def backplane_listener():
         payload = json.loads(msg["data"])
         target = payload.get("target")
         sender_pod = payload.get("pod")
-        if sender_pod == POD_NAME:
+        if sender_pod == settings.pod_name:
             continue
         if target and target in clients:
             ws = clients[target]
@@ -78,9 +84,9 @@ async def backplane_listener():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global redis_pool, pubsub_task
-    redis_pool = redis.from_url(REDIS_URL)
+    redis_pool = redis.from_url(settings.redis_url)
     pubsub_task = asyncio.create_task(backplane_listener())
-    log.info("ws-server started pod=%s", POD_NAME)
+    log.info("ws-server started pod=%s", settings.pod_name)
     yield
     pubsub_task.cancel()
     await redis_pool.aclose()
@@ -92,17 +98,17 @@ FastAPIInstrumentor.instrument_app(app)
 
 @app.get("/healthz")
 async def healthz():
-    return {"status": "ok", "pod": POD_NAME}
+    return {"status": "ok", "pod": settings.pod_name}
 
 
 @app.get("/info")
 async def info():
-    return {"pod": POD_NAME, "clients": list(clients.keys())}
+    return {"pod": settings.pod_name, "clients": list(clients.keys())}
 
 
 @app.post("/send")
 async def send_via_backplane(target: str = None, message: str = "hello"):
-    payload = {"pod": POD_NAME, "target": target, "data": message}
+    payload = {"pod": settings.pod_name, "target": target, "data": message}
     await redis_pool.publish(CHANNEL, json.dumps(payload))
 
     if target and target in clients:
@@ -127,7 +133,7 @@ async def send_via_backplane(target: str = None, message: str = "hello"):
             except Exception:
                 pass
 
-    return {"sent": True, "pod": POD_NAME}
+    return {"sent": True, "pod": settings.pod_name}
 
 
 @app.websocket("/ws/{client_id}")
@@ -136,7 +142,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
     resume_seq = websocket.query_params.get("resume_seq")
 
     clients[client_id] = websocket
-    log.info("client connected id=%s pod=%s", client_id, POD_NAME)
+    log.info("client connected id=%s pod=%s", client_id, settings.pod_name)
 
     if resume_seq:
         resume_seq = int(resume_seq)
@@ -150,8 +156,8 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
             data = await websocket.receive_text()
             msg = json.loads(data) if data.startswith("{") else {"type": "ping"}
             if msg.get("type") == "ping":
-                await websocket.send_json({"type": "pong", "pod": POD_NAME})
+                await websocket.send_json({"type": "pong", "pod": settings.pod_name})
     except WebSocketDisconnect:
-        log.info("client disconnected id=%s pod=%s", client_id, POD_NAME)
+        log.info("client disconnected id=%s pod=%s", client_id, settings.pod_name)
     finally:
         clients.pop(client_id, None)

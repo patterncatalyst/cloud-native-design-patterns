@@ -1,0 +1,17 @@
+[project]
+name = "cndp-18-inventory-service"
+version = "1.0.0"
+description = "Cloud-native design patterns example: 18-errors/python/inventory-service"
+requires-python = ">=3.14"
+dependencies = [
+  "googleapis-common-protos==1.75.5",
+  "grpcio==1.84.0",
+  "grpcio-status==1.84.0",
+  "grpcio-tools==1.84.0",
+  "protobuf==7.36.2",
+  "pydantic==2.14.1",
+  "pydantic-settings==2.15.0",
+]
+
+[tool.uv]
+package = false

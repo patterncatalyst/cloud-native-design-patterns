@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import uuid
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -18,6 +17,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from pydantic import BaseModel, Field
 from strawberry.fastapi import GraphQLRouter
+from pydantic_settings import BaseSettings
 
 import inventory_pb2
 import inventory_pb2_grpc
@@ -25,16 +25,21 @@ import inventory_pb2_grpc
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("order")
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgres://appuser:apppass@postgres:5432/appdb")
-KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "kafka:9094")
-INVENTORY_ADDR = os.getenv("INVENTORY_ADDR", "inventory:50051")
-OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://lgtm:4318")
-SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "order")
 
-resource = Resource.create({"service.name": SERVICE_NAME})
+class Settings(BaseSettings):
+    database_url: str = "postgres://appuser:apppass@postgres:5432/appdb"
+    kafka_bootstrap: str = "kafka:9094"
+    inventory_addr: str = "inventory:50051"
+    otel_endpoint: str = Field("http://lgtm:4318", validation_alias="OTEL_EXPORTER_OTLP_ENDPOINT")
+    service_name: str = Field("order", validation_alias="OTEL_SERVICE_NAME")
+
+
+settings = Settings()
+
+resource = Resource.create({"service.name": settings.service_name})
 provider = TracerProvider(resource=resource)
 provider.add_span_processor(
-    BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{OTEL_ENDPOINT}/v1/traces"))
+    BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{settings.otel_endpoint}/v1/traces"))
 )
 trace.set_tracer_provider(provider)
 tracer = trace.get_tracer(__name__)
@@ -67,13 +72,13 @@ inventory_stub: Optional[inventory_pb2_grpc.InventoryStub] = None
 async def lifespan(app: FastAPI):
     global db_pool, producer, grpc_channel, inventory_stub
 
-    db_pool = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=10)
+    db_pool = await asyncpg.create_pool(settings.database_url, min_size=2, max_size=10)
     producer = AIOKafkaProducer(
-        bootstrap_servers=KAFKA_BOOTSTRAP,
+        bootstrap_servers=settings.kafka_bootstrap,
         value_serializer=lambda v: json.dumps(v).encode(),
     )
     await producer.start()
-    grpc_channel = grpc.aio.insecure_channel(INVENTORY_ADDR)
+    grpc_channel = grpc.aio.insecure_channel(settings.inventory_addr)
     inventory_stub = inventory_pb2_grpc.InventoryStub(grpc_channel)
     log.info("order-service started")
 

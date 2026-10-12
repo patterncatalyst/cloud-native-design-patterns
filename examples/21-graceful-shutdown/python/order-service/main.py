@@ -9,11 +9,18 @@ from typing import Optional
 import asyncpg
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("order")
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgres://appuser:apppass@postgres:5432/appdb")
+
+class Settings(BaseSettings):
+    database_url: str = "postgres://appuser:apppass@postgres:5432/appdb"
+    drain_delay_seconds: float = 5.0
+
+
+settings = Settings()
 
 db_pool: Optional[asyncpg.Pool] = None
 shutting_down = False
@@ -25,8 +32,6 @@ class OrderIn(BaseModel):
     sku: str = Field(min_length=1)
     quantity: int = Field(gt=0)
 
-
-DRAIN_DELAY_SECONDS = float(os.getenv("DRAIN_DELAY_SECONDS", "5"))
 
 # uvicorn's own SIGTERM handler, saved when ours is installed: it starts uvicorn's graceful
 # shutdown (stop accepting, finish open requests, then run the lifespan exit below).
@@ -46,9 +51,9 @@ def handle_sigterm(signum, frame):
         return  # already draining
     shutting_down = True
     log.info("SIGTERM received — readiness flipped, draining in-flight requests")
-    log.info("waiting %.0fs for endpoints to update", DRAIN_DELAY_SECONDS)
+    log.info("waiting %.0fs for endpoints to update", settings.drain_delay_seconds)
     # Keep serving during the delay, then hand over to uvicorn (stop accepting, finish in-flight).
-    loop.call_soon_threadsafe(loop.call_later, DRAIN_DELAY_SECONDS, stop_server, signum, frame)
+    loop.call_soon_threadsafe(loop.call_later, settings.drain_delay_seconds, stop_server, signum, frame)
 
 
 @asynccontextmanager
@@ -57,7 +62,7 @@ async def lifespan(app: FastAPI):
     loop = asyncio.get_running_loop()
     # uvicorn installs its handlers before the lifespan starts; keep it and chain to it.
     uvicorn_sigterm = signal.signal(signal.SIGTERM, handle_sigterm)
-    db_pool = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=10)
+    db_pool = await asyncpg.create_pool(settings.database_url, min_size=2, max_size=10)
     log.info("order-service started (PID=%d)", os.getpid())
     yield
     log.info("waiting for in-flight requests to drain...")

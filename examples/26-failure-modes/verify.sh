@@ -58,11 +58,11 @@ printf '==> Verifying Example 26: Failure Modes\n\n'
 # --- Services healthy ---
 check "edge healthz returns ok" \
     "curl $CURL_OPTS -sf $EDGE/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 check "backend healthz returns ok" \
     "curl $CURL_OPTS -sf $BACKEND/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 # ===================================================================
 # 1. Timeout

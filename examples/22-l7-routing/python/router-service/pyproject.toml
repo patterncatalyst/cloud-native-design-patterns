@@ -1,0 +1,13 @@
+[project]
+name = "cndp-22-router-service"
+version = "1.0.0"
+description = "Cloud-native design patterns example: 22-l7-routing/python/router-service"
+requires-python = ">=3.14"
+dependencies = [
+  "fastapi==0.143.0",
+  "pydantic==2.14.1",
+  "uvicorn==0.54.0",
+]
+
+[tool.uv]
+package = false

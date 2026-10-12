@@ -1,0 +1,105 @@
+{
+ "ops": [
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    265
+   ],
+   "find": "pip with a fully pinned requirements.txt for reproducible Python builds",
+   "repl": "uv with exact pins in pyproject.toml and a uv.lock for reproducible Python builds",
+   "expect": 1,
+   "cat": "text",
+   "_slide": 10,
+   "_why": "examples/*/python build with uv (S13)",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    269
+   ],
+   "find": "requirements.txt pins every package with ==",
+   "repl": "pyproject.toml pins every package with ==; uv.lock locks the rest",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 14,
+   "_why": "examples use pyproject.toml and uv.lock",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    269
+   ],
+   "find": "and requirements.txt pins every package with == so the image build is reproducible.",
+   "repl": "and pyproject.toml pins every direct dependency with == while uv.lock records the full resolved set, so the image build (uv sync --locked) is reproducible.",
+   "expect": 1,
+   "cat": "notes",
+   "_slide": 14,
+   "_why": "notes follow uv",
+   "_src": "s13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 333,
+   "lines": [
+    "# main.py (excerpt), examples/12-security/python: an HMAC-SHA256 valet key",
+    "class Settings(BaseSettings):             # VALET_SECRET from the environment",
+    "    valet_secret: str = \"demo-secret-do-not-use-in-prod\"",
+    "settings = Settings()",
+    "def _mint_valet(resource: str, operation: str, ttl: int = 300) -> dict:",
+    "    expires = int(time.time()) + ttl                        # time-bound",
+    "    payload = f\"{resource}:{operation}:{expires}\"           # one object, one operation",
+    "    key = settings.valet_secret.encode()",
+  "    sig = hmac.new(key, payload.encode(), hashlib.sha256).hexdigest()",
+    "    return {\"resource\": resource, \"operation\": operation, \"expires\": expires, \"token\": sig}",
+    "def _verify_valet(resource: str, operation: str, expires: int, token: str) -> bool:",
+    "    if time.time() > expires:",
+    "        return False                                        # expired: worthless",
+    "    payload = f\"{resource}:{operation}:{expires}\"",
+    "    expected = hmac.new(",
+    "        settings.valet_secret.encode(), payload.encode(), hashlib.sha256",
+    "    ).hexdigest()",
+    "    return hmac.compare_digest(token, expected)             # constant-time compare",
+    "@app.post(\"/valet-key\")",
+    "async def mint_key(resource: str, operation: str = \"GET\"):",
+    "    return _mint_valet(resource, operation)",
+    "# GET /verify-valet answers 403 for an expired or tampered key"
+   ],
+   "_slide": 78,
+   "_why": "examples/12 reads VALET_SECRET through pydantic-settings",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    508
+   ],
+   "find": "api.set_provider(FlagdProvider(host='flagd', port=8013))",
+   "repl": "api.set_provider(FlagdProvider(host=settings.flagd_host, port=settings.flagd_port))",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 253,
+   "_why": "examples/27 reads the flagd address through pydantic-settings",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    521
+   ],
+   "find": "uvicorn app.main:app --port 8080 &",
+   "repl": "uv run uvicorn main:app --port 8080 &",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 266,
+   "_why": "examples run under uv and expose main:app",
+   "_src": "s13"
+  }
+ ]
+}

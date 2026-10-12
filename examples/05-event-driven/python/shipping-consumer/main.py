@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import signal
 import asyncio
 from typing import Optional
@@ -12,18 +11,26 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("shipping")
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgres://appuser:apppass@postgres:5432/appdb")
-KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "kafka:9094")
-OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://lgtm:4318")
 
-resource = Resource.create({"service.name": os.getenv("OTEL_SERVICE_NAME", "shipping-consumer")})
+class Settings(BaseSettings):
+    database_url: str = "postgres://appuser:apppass@postgres:5432/appdb"
+    kafka_bootstrap: str = "kafka:9094"
+    otel_endpoint: str = Field("http://lgtm:4318", validation_alias="OTEL_EXPORTER_OTLP_ENDPOINT")
+    service_name: str = Field("shipping-consumer", validation_alias="OTEL_SERVICE_NAME")
+
+
+settings = Settings()
+
+resource = Resource.create({"service.name": settings.service_name})
 provider = TracerProvider(resource=resource)
 provider.add_span_processor(
-    BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{OTEL_ENDPOINT}/v1/traces"))
+    BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{settings.otel_endpoint}/v1/traces"))
 )
 trace.set_tracer_provider(provider)
 tracer = trace.get_tracer("shipping")
@@ -39,10 +46,10 @@ async def main():
     signal.signal(signal.SIGTERM, _signal_handler)
     signal.signal(signal.SIGINT, _signal_handler)
 
-    pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=5)
+    pool = await asyncpg.create_pool(settings.database_url, min_size=1, max_size=5)
     consumer = AIOKafkaConsumer(
         "order.placed",
-        bootstrap_servers=KAFKA_BOOTSTRAP,
+        bootstrap_servers=settings.kafka_bootstrap,
         group_id="shipping-group",
         auto_offset_reset="earliest",
         enable_auto_commit=False,

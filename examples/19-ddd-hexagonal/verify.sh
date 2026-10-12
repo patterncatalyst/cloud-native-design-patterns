@@ -114,7 +114,7 @@ printf '\n--- 2. REST driving adapter ---\n'
 
 check "healthz returns ok" \
     "curl $CURL_OPTS -sf $BASE/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 ORDER_JSON=$(curl $CURL_OPTS -sf -X POST "$BASE/orders" \
     -H 'Content-Type: application/json' \

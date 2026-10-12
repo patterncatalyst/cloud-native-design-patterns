@@ -59,7 +59,7 @@ printf '==> Verifying Example 21: Graceful Shutdown\n\n'
 # --- Service is up ---
 check "healthz returns ok" \
     "curl $CURL_OPTS -sf $BASE/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 check_status "readyz returns 200 (ready)" \
     "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' $BASE/readyz" \
@@ -109,9 +109,9 @@ check "container exited after one SIGTERM (no second signal)" \
     "ctr_inspect -f '{{.State.Running}}' cndp-order-service" \
     '^false$'
 
-check "exit code is 0" \
+check "exit code is 0 (143 on the JVM)" \
     "ctr_inspect -f '{{.State.ExitCode}}' cndp-order-service" \
-    '^0$'
+    '^\(0\|143\)$'
 
 check_status "drain finished within the 30s grace period (${elapsed}s)" \
     "[ $elapsed -lt $GRACE ] && echo ok" \
@@ -153,9 +153,9 @@ t0=$(date +%s)
 ctr_stop -t "$GRACE" cndp-order-service >/dev/null 2>&1 || true
 elapsed=$(( $(date +%s) - t0 ))
 
-check "docker stop: exit code is 0 (not 137 from SIGKILL)" \
+check "docker stop: exit code is 0 (143 on the JVM, not 137 from SIGKILL)" \
     "ctr_inspect -f '{{.State.ExitCode}}' cndp-order-service" \
-    '^0$'
+    '^\(0\|143\)$'
 
 check_status "docker stop: drained before the ${GRACE}s timeout (${elapsed}s)" \
     "[ $elapsed -lt $GRACE ] && echo ok" \

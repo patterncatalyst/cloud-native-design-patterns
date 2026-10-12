@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import uuid
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -21,6 +20,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings
 
 import inventory_pb2
 import inventory_pb2_grpc
@@ -32,19 +32,24 @@ logging.basicConfig(
 )
 log = logging.getLogger("order")
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgres://appuser:apppass@postgres:5432/appdb")
-KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "kafka:9094")
-INVENTORY_ADDR = os.getenv("INVENTORY_ADDR", "inventory:50051")
-OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://lgtm:4318")
+
+class Settings(BaseSettings):
+    database_url: str = "postgres://appuser:apppass@postgres:5432/appdb"
+    kafka_bootstrap: str = "kafka:9094"
+    inventory_addr: str = "inventory:50051"
+    otel_endpoint: str = Field("http://lgtm:4318", validation_alias="OTEL_EXPORTER_OTLP_ENDPOINT")
+
+
+settings = Settings()
 
 resource = Resource.create({"service.name": "order-service"})
 
 tp = TracerProvider(resource=resource)
-tp.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{OTEL_ENDPOINT}/v1/traces")))
+tp.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{settings.otel_endpoint}/v1/traces")))
 trace.set_tracer_provider(tp)
 tracer = trace.get_tracer("order-service")
 
-reader = PeriodicExportingMetricReader(OTLPMetricExporter(endpoint=f"{OTEL_ENDPOINT}/v1/metrics"), export_interval_millis=5000)
+reader = PeriodicExportingMetricReader(OTLPMetricExporter(endpoint=f"{settings.otel_endpoint}/v1/metrics"), export_interval_millis=5000)
 mp = MeterProvider(resource=resource, metric_readers=[reader])
 metrics.set_meter_provider(mp)
 meter = metrics.get_meter("order-service")
@@ -85,9 +90,9 @@ class Order(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global db_pool, producer
-    db_pool = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=10)
+    db_pool = await asyncpg.create_pool(settings.database_url, min_size=2, max_size=10)
     producer = AIOKafkaProducer(
-        bootstrap_servers=KAFKA_BOOTSTRAP,
+        bootstrap_servers=settings.kafka_bootstrap,
         value_serializer=lambda v: json.dumps(v).encode(),
     )
     await producer.start()
@@ -113,7 +118,7 @@ async def place_order(body: OrderIn):
     with tracer.start_as_current_span("reserve-stock") as span:
         span.set_attribute("sku", body.sku)
         span.set_attribute("quantity", body.quantity)
-        async with grpc.aio.insecure_channel(INVENTORY_ADDR) as channel:
+        async with grpc.aio.insecure_channel(settings.inventory_addr) as channel:
             stub = inventory_pb2_grpc.InventoryServiceStub(channel)
             resp = await stub.ReserveStock(
                 inventory_pb2.ReserveRequest(sku=body.sku, quantity=body.quantity)

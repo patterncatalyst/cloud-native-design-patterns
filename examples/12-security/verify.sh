@@ -67,7 +67,7 @@ printf -- '--- 1. Sidecar trust middleware ---\n'
 
 check "healthz bypasses identity check" \
     "curl $CURL_OPTS -sf $BASE/healthz" \
-    '"status":"ok"'
+    '"status": *"\(ok\|UP\)"'
 
 check "request without X-Forwarded-Client-Cert → 403" \
     "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST $BASE/orders -H 'Content-Type: application/json' -d '{\"sku\":\"w\",\"quantity\":1,\"tenant\":\"t\"}'" \

@@ -1,0 +1,17 @@
+[project]
+name = "cndp-25-cache-service"
+version = "1.0.0"
+description = "Cloud-native design patterns example: 25-caching/python/cache-service"
+requires-python = ">=3.14"
+dependencies = [
+  "asyncpg==0.32.0",
+  "fastapi==0.143.0",
+  "hiredis==3.4.2",
+  "pydantic==2.14.1",
+  "pydantic-settings==2.15.0",
+  "redis==8.1.0",
+  "uvicorn==0.54.0",
+]
+
+[tool.uv]
+package = false

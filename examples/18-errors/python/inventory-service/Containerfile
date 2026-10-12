@@ -1,17 +1,27 @@
-FROM registry.access.redhat.com/ubi10/python-314-minimal:10.2-1791464217
-USER 1001
-
-COPY --chown=1001:0 --chmod=g=u inventory-service/requirements.txt .
-RUN --mount=type=cache,target=/opt/app-root/src/.cache/pip,uid=1001 \
-    PIP_NO_CACHE_DIR= PIP_DISABLE_PIP_VERSION_CHECK=1 pip install -r requirements.txt
-
-COPY --chown=1001:0 --chmod=g=u proto/inventory.proto proto/inventory.proto
-RUN python -m grpc_tools.protoc \
+# Build stage: uv installs the locked runtime dependencies into a self-contained venv. The venv is built at
+# the path the runtime stage uses, because a venv is not relocatable.
+FROM registry.access.redhat.com/ubi10/python-314-minimal:10.2-1791464217 AS build
+USER 0
+WORKDIR /opt/app-root/src
+RUN pip install --no-cache-dir uv==0.13.0
+ENV UV_PYTHON_DOWNLOADS=never UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1 UV_CACHE_DIR=/uv-cache
+COPY inventory-service/pyproject.toml inventory-service/uv.lock ./
+RUN --mount=type=cache,target=/uv-cache \
+    uv sync --locked --no-dev
+COPY proto/inventory.proto proto/inventory.proto
+RUN .venv/bin/python -m grpc_tools.protoc \
     -Iproto \
     --python_out=. \
     --grpc_python_out=. \
     proto/inventory.proto
 
+# Runtime stage: the venv, the generated gRPC stubs and the service code only; no uv, no build tools.
+FROM registry.access.redhat.com/ubi10/python-314-minimal:10.2-1791464217
+WORKDIR /opt/app-root/src
+COPY --from=build --chown=1001:0 --chmod=g=u /opt/app-root/src/.venv /opt/app-root/src/.venv
+COPY --from=build --chown=1001:0 --chmod=g=u /opt/app-root/src/inventory_pb2.py /opt/app-root/src/inventory_pb2_grpc.py ./
 COPY --chown=1001:0 --chmod=g=u inventory-service/main.py .
+ENV PATH="/opt/app-root/src/.venv/bin:$PATH"
 EXPOSE 50051
+USER 1001
 CMD ["python", "main.py"]

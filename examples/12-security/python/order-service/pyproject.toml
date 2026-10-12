@@ -1,0 +1,15 @@
+[project]
+name = "cndp-12-order-service"
+version = "1.0.0"
+description = "Cloud-native design patterns example: 12-security/python/order-service"
+requires-python = ">=3.14"
+dependencies = [
+  "fastapi==0.143.0",
+  "pydantic==2.14.1",
+  "pydantic-settings==2.15.0",
+  "starlette==1.7.0",
+  "uvicorn==0.54.0",
+]
+
+[tool.uv]
+package = false
