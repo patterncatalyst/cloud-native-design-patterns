@@ -92,11 +92,11 @@ compatibility). Python: uv 0.13.0, `astral-sh/setup-uv` v10.3.0; package version
 | # | Step | PR | Status |
 |---|---|---|---|
 | 0 | Preflight: pins, checklists read, scanner baseline (this file), Docker idle, S12 venv | 1 | done (baseline above) |
-| 1 | Spikes on 01 and 21 (Quarkus, Spring, .NET): absolute health paths and exact JSON; JVM exit code after framework drain; 21 log lines and "shutting down" body during the delay; Hibernate `validate` on TEXT/JSONB/TIMESTAMPTZ; Spring lifecycle delay keeps actuator serving. Output: exact verify.sh pattern changes | 1 | pending |
-| 2 | Shared verify.sh pattern relaxations (D1) + Python uv/pydantic-settings (32 projects) + CI marker + Python deck slides 10, 14 and site; matrix for every example whose verify.sh changed | 1 | pending |
-| 3 | Quarkus batch (about 26 projects) + site tabs + `Quarkus.fix5.json` | 2 | pending |
-| 4 | Spring batch (about 26) + site tabs + `Spring.fix6.json` | 3 | pending |
-| 5 | .NET batch (about 28) + site tabs + `DotNet.fix6.json` | 4 | pending |
+| 1 | Spikes on 01 and 21 (Quarkus, Spring, .NET): absolute health paths and exact JSON; JVM exit code after framework drain; 21 log lines and "shutting down" body during the delay; Hibernate `validate` on TEXT/JSONB/TIMESTAMPTZ; Spring lifecycle delay keeps actuator serving. Output: exact verify.sh pattern changes | 1 | done |
+| 2 | Shared verify.sh pattern relaxations (D1) + Python uv/pydantic-settings (32 projects) + CI marker + Python deck slides 10, 14 and site; matrix for every example whose verify.sh changed | 1 | committed; Python 32/32 PASS, non-Python matrix resumed 2026-10-12 |
+| 3 | Quarkus batch (about 26 projects) + site tabs + `Quarkus.fix5.json` | 2 | committed on `refactor/s13-quarkus`, matrix pending |
+| 4 | Spring batch (about 26) + site tabs + `Spring.fix6.json` | 3 | committed on `refactor/s13-spring`, matrix pending |
+| 5 | .NET batch (about 28) + site tabs + `DotNet.fix6.json` | 4 | committed on `refactor/s13-dotnet`, matrix pending |
 | 6 | Go (`any`) and C++ (spdlog) + any deck/site follow-ups | 5 | pending |
 | 7 | Final full matrix (111 targets, one at a time), footers with verified counts | 5 | pending |
 | 8 | CLAUDE.md locked stacks (ORMs, health, shutdown, uv, schema ownership), modernization plan | 5 | pending |
