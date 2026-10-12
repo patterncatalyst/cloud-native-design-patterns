@@ -1,12 +1,15 @@
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using System.Diagnostics;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://+:8080");
-var app = builder.Build();
 
-var backendUrl = Environment.GetEnvironmentVariable("BACKEND_URL") ?? "http://localhost:8081";
-var httpClient = new HttpClient { BaseAddress = new Uri(backendUrl) };
+var backendUrl = builder.Configuration.GetValue("BACKEND_URL", "http://localhost:8081");
+builder.Services.AddHttpClient<BackendClient>(c => c.BaseAddress = new Uri(backendUrl));
+builder.Services.AddHealthChecks();
+
+var app = builder.Build();
 
 // --- Circuit Breaker ---
 var cbState = "closed";
@@ -101,16 +104,19 @@ var bulkheadActive = 0;
 
 // --- Endpoints ---
 
-app.MapGet("/healthz", () => new { status = "ok" });
+app.MapHealthChecks("/healthz", new HealthCheckOptions
+{
+    ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok" }),
+});
 
 // 1. With timeout
-app.MapGet("/with-timeout", async () =>
+app.MapGet("/with-timeout", async (BackendClient backend) =>
 {
     var sw = Stopwatch.StartNew();
     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
     try
     {
-        var resp = await httpClient.GetAsync("/process", cts.Token);
+        var resp = await backend.ProcessAsync(cts.Token);
         var elapsed = Math.Round(sw.Elapsed.TotalSeconds, 2);
         var body = JsonSerializer.Deserialize<JsonElement>(await resp.Content.ReadAsStringAsync());
         return Results.Json(new { status = (int)resp.StatusCode, elapsed_s = elapsed, body });
@@ -123,7 +129,7 @@ app.MapGet("/with-timeout", async () =>
 });
 
 // 2. With retry + exponential backoff + jitter
-app.MapGet("/with-retry", async () =>
+app.MapGet("/with-retry", async (BackendClient backend) =>
 {
     var sw = Stopwatch.StartNew();
     var attempts = 0;
@@ -138,7 +144,7 @@ app.MapGet("/with-retry", async () =>
         attempts = attempt;
         try
         {
-            var resp = await httpClient.GetAsync("/process", cts.Token);
+            var resp = await backend.ProcessAsync(cts.Token);
             if ((int)resp.StatusCode < 500)
             {
                 var elapsed = Math.Round(sw.Elapsed.TotalSeconds, 2);
@@ -165,7 +171,7 @@ app.MapGet("/with-retry", async () =>
 });
 
 // 3. With circuit breaker + fallback
-app.MapGet("/with-breaker", async () =>
+app.MapGet("/with-breaker", async (BackendClient backend) =>
 {
     if (!CbAllow())
     {
@@ -176,7 +182,7 @@ app.MapGet("/with-breaker", async () =>
     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
     try
     {
-        var resp = await httpClient.GetAsync("/process", cts.Token);
+        var resp = await backend.ProcessAsync(cts.Token);
         if ((int)resp.StatusCode >= 500)
         {
             CbRecordFailure();
@@ -194,7 +200,7 @@ app.MapGet("/with-breaker", async () =>
 });
 
 // 4. Deadline propagation
-app.MapGet("/with-deadline", async (HttpContext ctx) =>
+app.MapGet("/with-deadline", async (HttpContext ctx, BackendClient backend) =>
 {
     var budgetMs = 1000;
     var budgetParam = ctx.Request.Query["budget_ms"].FirstOrDefault();
@@ -217,12 +223,10 @@ app.MapGet("/with-deadline", async (HttpContext ctx) =>
     }
 
     using var cts = new CancellationTokenSource(remaining);
-    var req = new HttpRequestMessage(HttpMethod.Get, "/process");
-    req.Headers.Add("X-Deadline-Ms", remaining.ToString());
 
     try
     {
-        var resp = await httpClient.SendAsync(req, cts.Token);
+        var resp = await backend.ProcessAsync(cts.Token, remaining);
         var elapsed = Math.Round(sw.Elapsed.TotalSeconds, 2);
         var body = JsonSerializer.Deserialize<JsonElement>(await resp.Content.ReadAsStringAsync());
         return Results.Json(new
@@ -248,7 +252,7 @@ app.MapGet("/with-deadline", async (HttpContext ctx) =>
 });
 
 // 5. Bulkhead — bounded concurrency
-app.MapGet("/with-bulkhead", async () =>
+app.MapGet("/with-bulkhead", async (BackendClient backend) =>
 {
     if (!bulkheadSem.Wait(0))
     {
@@ -260,7 +264,7 @@ app.MapGet("/with-bulkhead", async () =>
     try
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-        var resp = await httpClient.GetAsync("/process", cts.Token);
+        var resp = await backend.ProcessAsync(cts.Token);
         var body = JsonSerializer.Deserialize<JsonElement>(await resp.Content.ReadAsStringAsync());
         return Results.Json(new { status = (int)resp.StatusCode, body, active_slots = bulkheadActive });
     }
@@ -286,3 +290,16 @@ app.MapGet("/bulkhead-state", () => new
 });
 
 app.Run();
+
+/// <summary>Typed client for the backend; the factory manages the handler lifetime.</summary>
+public class BackendClient(HttpClient http)
+{
+    /// <param name="deadlineMs">When set, sent as X-Deadline-Ms so the backend can reject work it cannot finish.</param>
+    public Task<HttpResponseMessage> ProcessAsync(CancellationToken ct, int? deadlineMs = null)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "/process");
+        if (deadlineMs is { } ms)
+            request.Headers.Add("X-Deadline-Ms", ms.ToString());
+        return http.SendAsync(request, ct);
+    }
+}
