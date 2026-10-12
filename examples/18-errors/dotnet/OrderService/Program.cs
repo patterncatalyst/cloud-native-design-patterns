@@ -1,10 +1,9 @@
 using System.Diagnostics;
-using System.Text.Json;
 using Grpc.Core;
 using GrpcStatusCode = Grpc.Core.StatusCode;
 using Grpc.Net.Client;
 using Inventory.Grpc;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -17,117 +16,97 @@ builder.Services.AddOpenTelemetry()
         .AddAspNetCoreInstrumentation()
         .AddOtlpExporter());
 
+// Problem bodies carry the bare W3C trace id (32 hex digits), not the framework's traceparent-style default.
+builder.Services.AddProblemDetails(o => o.CustomizeProblemDetails = c =>
+    c.ProblemDetails.Extensions["traceId"] = Activity.Current?.TraceId.ToString() ?? "");
+builder.Services.AddHealthChecks();
+
+var inventoryAddr = builder.Configuration.GetValue("INVENTORY_ADDR", "http://inventory:50051");
+builder.Services.AddSingleton(new InventoryService.InventoryServiceClient(GrpcChannel.ForAddress(inventoryAddr)));
+
 var app = builder.Build();
 
-var inventoryAddr = Environment.GetEnvironmentVariable("INVENTORY_ADDR") ?? "http://inventory:50051";
-var channel = GrpcChannel.ForAddress(inventoryAddr);
-var inventoryClient = new InventoryService.InventoryServiceClient(channel);
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 
-string? GetTraceId()
+app.MapHealthChecks("/healthz", new HealthCheckOptions
 {
-    var activity = Activity.Current;
-    return activity?.TraceId.ToString();
-}
+    ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok" }),
+});
 
-IResult ProblemResponse(int status, string code, string message, bool retryable = false,
-    int? retryAfter = null, List<object>? details = null)
+app.MapPost("/orders", async (OrderRequest request, InventoryService.InventoryServiceClient inventory,
+    HttpContext http, ILogger<Program> logger) =>
 {
-    var body = new Dictionary<string, object>
-    {
-        ["type"] = $"urn:error:{code.ToLower().Replace('_', '-')}",
-        ["title"] = message,
-        ["status"] = status,
-        ["code"] = code,
-        ["traceId"] = GetTraceId() ?? "",
-        ["retryable"] = retryable
-    };
-    if (retryAfter.HasValue)
-        body["retryAfter"] = retryAfter.Value;
-    if (details != null)
-        body["details"] = details;
-
-    return new ProblemResult(body, status, retryAfter);
-}
-
-app.MapGet("/healthz", () => new { status = "ok" });
-
-app.MapPost("/orders", async (HttpContext ctx) =>
-{
-    using var doc = await JsonDocument.ParseAsync(ctx.Request.Body);
-    var root = doc.RootElement;
-
     var errors = new List<object>();
-    string? sku = null;
-    int quantity = 0;
-
-    if (!root.TryGetProperty("sku", out var skuProp) || skuProp.GetString() is null or "")
+    if (string.IsNullOrEmpty(request.Sku))
         errors.Add(new { field = "body.sku", message = "String should have at least 1 character" });
-    else
-        sku = skuProp.GetString()!;
-
-    if (!root.TryGetProperty("quantity", out var qtyProp) || qtyProp.GetInt32() <= 0)
+    if (request.Quantity is not > 0)
         errors.Add(new { field = "body.quantity", message = "Input should be greater than 0" });
-    else
-        quantity = qtyProp.GetInt32();
 
     if (errors.Count > 0)
-        return ProblemResponse(422, "VALIDATION_ERROR", "request validation failed", details: errors);
-
-    var orderId = Guid.NewGuid().ToString();
+        return ProblemFor(http, 422, "VALIDATION_ERROR", "request validation failed", details: errors);
 
     try
     {
-        var resp = await inventoryClient.ReserveStockAsync(new ReserveRequest
+        var resp = await inventory.ReserveStockAsync(new ReserveRequest
         {
-            Sku = sku!,
-            Quantity = quantity
+            Sku = request.Sku!,
+            Quantity = request.Quantity!.Value
         });
 
         if (!resp.Confirmed)
-        {
-            return ProblemResponse(409, "STOCK_UNAVAILABLE",
-                $"insufficient stock for {sku}", retryable: false);
-        }
+            return ProblemFor(http, 409, "STOCK_UNAVAILABLE", $"insufficient stock for {request.Sku}");
 
-        return Results.Json(new
+        return TypedResults.Json(new
         {
-            id = orderId,
-            sku,
-            quantity,
+            id = Guid.NewGuid().ToString(),
+            sku = request.Sku,
+            quantity = request.Quantity,
             status = "confirmed",
             remaining_stock = resp.Remaining
-        }, statusCode: 201);
+        }, statusCode: StatusCodes.Status201Created);
     }
     catch (RpcException ex) when (ex.StatusCode == GrpcStatusCode.Unavailable)
     {
-        return ProblemResponse(503, "INVENTORY_UNAVAILABLE",
-            "inventory service is temporarily unavailable",
-            retryable: true, retryAfter: 2);
+        return ProblemFor(http, 503, "INVENTORY_UNAVAILABLE",
+            "inventory service is temporarily unavailable", retryable: true, retryAfter: 2);
     }
     catch (RpcException ex) when (ex.StatusCode == GrpcStatusCode.FailedPrecondition)
     {
-        return ProblemResponse(409, "STOCK_UNAVAILABLE",
-            ex.Status.Detail, retryable: false);
+        return ProblemFor(http, 409, "STOCK_UNAVAILABLE", ex.Status.Detail);
     }
     catch (RpcException ex)
     {
-        app.Logger.LogError("gRPC error: StatusCode={Code} Detail={Detail}", ex.StatusCode, ex.Status.Detail);
-        return ProblemResponse(502, "UPSTREAM_ERROR",
-            "unexpected error from inventory service",
-            retryable: true, retryAfter: 5);
+        logger.LogError("gRPC error: StatusCode={Code} Detail={Detail}", ex.StatusCode, ex.Status.Detail);
+        return ProblemFor(http, 502, "UPSTREAM_ERROR",
+            "unexpected error from inventory service", retryable: true, retryAfter: 5);
     }
 });
 
 app.Run();
 
-class ProblemResult(Dictionary<string, object> body, int statusCode, int? retryAfter) : IResult
+/// <summary>RFC 9457 problem with the collection's extension members: code, retryable, retryAfter, details (traceId is added by CustomizeProblemDetails).</summary>
+static IResult ProblemFor(HttpContext http, int status, string code, string message,
+    bool retryable = false, int? retryAfter = null, List<object>? details = null)
 {
-    public async Task ExecuteAsync(HttpContext httpContext)
+    var extensions = new Dictionary<string, object?>
     {
-        httpContext.Response.StatusCode = statusCode;
-        httpContext.Response.ContentType = "application/problem+json";
-        if (retryAfter.HasValue)
-            httpContext.Response.Headers["Retry-After"] = retryAfter.Value.ToString();
-        await httpContext.Response.WriteAsJsonAsync(body);
+        ["code"] = code,
+        ["retryable"] = retryable,
+    };
+    if (retryAfter is { } seconds)
+    {
+        extensions["retryAfter"] = seconds;
+        http.Response.Headers.RetryAfter = seconds.ToString();
     }
+    if (details is not null)
+        extensions["details"] = details;
+
+    return TypedResults.Problem(
+        title: message,
+        statusCode: status,
+        type: $"urn:error:{code.ToLower().Replace('_', '-')}",
+        extensions: extensions);
 }
+
+public record OrderRequest(string? Sku, int? Quantity);

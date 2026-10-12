@@ -16,9 +16,9 @@ public class StockStore
     private readonly int _initial;
     private readonly Dictionary<string, int> _stock = new();
 
-    public StockStore()
+    public StockStore(IConfiguration config)
     {
-        _initial = int.Parse(Environment.GetEnvironmentVariable("INITIAL_STOCK") ?? "10");
+        _initial = config.GetValue("INITIAL_STOCK", 10);
     }
 
     public (bool confirmed, int remaining) Reserve(string sku, int quantity)
