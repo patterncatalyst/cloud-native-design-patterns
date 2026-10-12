@@ -1,0 +1,19 @@
+[project]
+name = "cndp-01-cloud-native-principles"
+version = "1.0.0"
+description = "Cloud-native design patterns example: 01-cloud-native-principles/python"
+requires-python = ">=3.14"
+dependencies = [
+  "asyncpg==0.32.0",
+  "fastapi==0.143.0",
+  "opentelemetry-distro==0.66b1",
+  "opentelemetry-exporter-otlp-proto-http==1.45.1",
+  "opentelemetry-instrumentation-asyncpg==0.66b1",
+  "opentelemetry-instrumentation-fastapi==0.66b1",
+  "pydantic==2.14.0",
+  "pydantic-settings==2.15.0",
+  "uvicorn==0.54.0",
+]
+
+[tool.uv]
+package = false

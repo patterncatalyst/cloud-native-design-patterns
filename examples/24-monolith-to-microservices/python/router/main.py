@@ -1,13 +1,18 @@
-import os
-
 import httpx
 from fastapi import FastAPI, Request
 from starlette.responses import Response
+from pydantic_settings import BaseSettings
 
 app = FastAPI()
 
-MONOLITH_URL = os.environ.get("MONOLITH_URL", "http://monolith:8080")
-NEW_SERVICE_URL = os.environ.get("NEW_SERVICE_URL", "http://new-service:8080")
+
+class Settings(BaseSettings):
+    monolith_url: str = "http://monolith:8080"
+    new_service_url: str = "http://new-service:8080"
+
+
+settings = Settings()
+
 client = httpx.AsyncClient(timeout=5.0)
 
 routes: dict = {
@@ -19,8 +24,8 @@ routes: dict = {
 def _resolve_upstream(tenant: str) -> str:
     target = routes["tenant_routes"].get(tenant, routes["default"])
     if target == "new-service":
-        return NEW_SERVICE_URL
-    return MONOLITH_URL
+        return settings.new_service_url
+    return settings.monolith_url
 
 
 @app.api_route("/orders", methods=["POST"])

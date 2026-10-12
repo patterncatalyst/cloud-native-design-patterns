@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import uuid
 from contextlib import asynccontextmanager
 from typing import Optional
@@ -15,18 +14,25 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("order")
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgres://appuser:apppass@postgres:5432/appdb")
-KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "kafka:9094")
-OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://lgtm:4318")
 
-resource = Resource.create({"service.name": os.getenv("OTEL_SERVICE_NAME", "order-service")})
+class Settings(BaseSettings):
+    database_url: str = "postgres://appuser:apppass@postgres:5432/appdb"
+    kafka_bootstrap: str = "kafka:9094"
+    otel_endpoint: str = Field("http://lgtm:4318", validation_alias="OTEL_EXPORTER_OTLP_ENDPOINT")
+    service_name: str = Field("order-service", validation_alias="OTEL_SERVICE_NAME")
+
+
+settings = Settings()
+
+resource = Resource.create({"service.name": settings.service_name})
 provider = TracerProvider(resource=resource)
 provider.add_span_processor(
-    BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{OTEL_ENDPOINT}/v1/traces"))
+    BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{settings.otel_endpoint}/v1/traces"))
 )
 trace.set_tracer_provider(provider)
 tracer = trace.get_tracer("order-service")
@@ -50,9 +56,9 @@ class Order(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global db_pool, producer
-    db_pool = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=10)
+    db_pool = await asyncpg.create_pool(settings.database_url, min_size=2, max_size=10)
     producer = AIOKafkaProducer(
-        bootstrap_servers=KAFKA_BOOTSTRAP,
+        bootstrap_servers=settings.kafka_bootstrap,
         value_serializer=lambda v: json.dumps(v).encode(),
     )
     await producer.start()

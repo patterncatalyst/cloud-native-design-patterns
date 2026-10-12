@@ -1,5 +1,4 @@
 import logging
-import os
 from concurrent import futures
 
 import grpc
@@ -12,6 +11,8 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 import inventory_pb2
 import inventory_pb2_grpc
@@ -19,16 +20,21 @@ import inventory_pb2_grpc
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("inventory")
 
-OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://lgtm:4318")
-INITIAL_STOCK = int(os.getenv("INITIAL_STOCK", "100"))
+
+class Settings(BaseSettings):
+    otel_endpoint: str = Field("http://lgtm:4318", validation_alias="OTEL_EXPORTER_OTLP_ENDPOINT")
+    initial_stock: int = 100
+
+
+settings = Settings()
 
 resource = Resource.create({"service.name": "inventory-service"})
 
 tp = TracerProvider(resource=resource)
-tp.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{OTEL_ENDPOINT}/v1/traces")))
+tp.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{settings.otel_endpoint}/v1/traces")))
 trace.set_tracer_provider(tp)
 
-reader = PeriodicExportingMetricReader(OTLPMetricExporter(endpoint=f"{OTEL_ENDPOINT}/v1/metrics"), export_interval_millis=5000)
+reader = PeriodicExportingMetricReader(OTLPMetricExporter(endpoint=f"{settings.otel_endpoint}/v1/metrics"), export_interval_millis=5000)
 mp = MeterProvider(resource=resource, metric_readers=[reader])
 metrics.set_meter_provider(mp)
 meter = metrics.get_meter("inventory-service")
@@ -42,7 +48,7 @@ stock = {}
 class InventoryServicer(inventory_pb2_grpc.InventoryServiceServicer):
     def ReserveStock(self, request, context):
         if request.sku not in stock:
-            stock[request.sku] = INITIAL_STOCK
+            stock[request.sku] = settings.initial_stock
 
         confirmed = stock[request.sku] >= request.quantity
         if confirmed:

@@ -9,7 +9,6 @@ that settles when the window closes; consumers keep the latest record per
 import asyncio
 import json
 import logging
-import os
 from datetime import timedelta
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
@@ -21,25 +20,32 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 ORDERS = "order.placed"
 REVENUE = "revenue.by-merchant"
 
-KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP", "kafka:9094")
-OTEL_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://lgtm:4318")
-WINDOW_SECONDS = int(os.getenv("WINDOW_SECONDS", "10"))
+
+class Settings(BaseSettings):
+    kafka_bootstrap: str = "kafka:9094"
+    otel_endpoint: str = Field("http://lgtm:4318", validation_alias="OTEL_EXPORTER_OTLP_ENDPOINT")
+    window_seconds: int = 10
+
+
+settings = Settings()
 
 log = logging.getLogger("stream-processor")
 
 provider = TracerProvider(resource=Resource.create({"service.name": "stream-processor"}))
-provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{OTEL_ENDPOINT}/v1/traces")))
+provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{settings.otel_endpoint}/v1/traces")))
 trace.set_tracer_provider(provider)
 tracer = trace.get_tracer("stream-processor")
 
 app = faust.App(
     # The app id is also the consumer group (verify.sh looks for "stream-processor").
     "stream-processor",
-    broker=f"kafka://{KAFKA_BOOTSTRAP}",
+    broker=f"kafka://{settings.kafka_bootstrap}",
     # The window state is small and bounded (a window expires one window length after it
     # closes) and every write is mirrored to the table's changelog topic, which Faust
     # replays on restart. An in-memory store is therefore enough: no RocksDB, no volume.
@@ -63,8 +69,8 @@ revenue = app.Table(
     "revenue",
     default=lambda: {"count": 0, "total": "0"},
 ).tumbling(
-    WINDOW_SECONDS,
-    expires=timedelta(seconds=WINDOW_SECONDS),
+    settings.window_seconds,
+    expires=timedelta(seconds=settings.window_seconds),
 ).relative_to_stream()
 
 
@@ -114,7 +120,7 @@ async def aggregate(orders):
 
         # Kafka record timestamp (seconds); the window is the one that contains it.
         timestamp = faust.current_event().message.timestamp
-        start = int(timestamp // WINDOW_SECONDS) * WINDOW_SECONDS
+        start = int(timestamp // settings.window_seconds) * settings.window_seconds
 
         with tracer.start_as_current_span("aggregate") as span:
             span.set_attribute("merchant.id", merchant)
@@ -134,7 +140,7 @@ async def aggregate(orders):
         log.info("emitted revenue window=%d merchant=%s count=%d revenue=%s", start, merchant, count, shown)
         # revenue is spliced in as a JSON number with exactly two decimals
         body = '{"window_start": %d, "window_end": %d, "merchant_id": %s, "order_count": %d, "revenue": %s}' % (
-            start, start + WINDOW_SECONDS, json.dumps(merchant), count, shown,
+            start, start + settings.window_seconds, json.dumps(merchant), count, shown,
         )
         await revenue_topic.send(key=merchant.encode(), value=body.encode())
 
@@ -142,7 +148,7 @@ async def aggregate(orders):
 async def ensure_topics() -> None:
     """Faust only declares its own internal topics. Create the source and the sink up
     front (broker defaults apply), as the Streamiz version does, and wait for Kafka."""
-    admin = AIOKafkaAdminClient(bootstrap_servers=KAFKA_BOOTSTRAP)
+    admin = AIOKafkaAdminClient(bootstrap_servers=settings.kafka_bootstrap)
     for attempt in range(1, 31):
         try:
             await admin.start()
@@ -151,7 +157,7 @@ async def ensure_topics() -> None:
             log.warning("Kafka not ready, retry %d/30: %s", attempt, e)
             await asyncio.sleep(2)
     else:
-        raise RuntimeError(f"could not reach Kafka at {KAFKA_BOOTSTRAP}")
+        raise RuntimeError(f"could not reach Kafka at {settings.kafka_bootstrap}")
     try:
         for name in (ORDERS, REVENUE):
             try:

@@ -1,9 +1,13 @@
-import os
-
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings
 
-SERVICE_NAME = os.environ.get("SERVICE_NAME", "unknown")
+
+class Settings(BaseSettings):
+    service_name: str = "unknown"
+
+
+settings = Settings()
 
 app = FastAPI()
 
@@ -20,7 +24,7 @@ class OrderIn(BaseModel):
 
 @app.get("/healthz")
 async def healthz():
-    return {"status": "ok", "source": SERVICE_NAME}
+    return {"status": "ok", "source": settings.service_name}
 
 
 @app.post("/orders", status_code=201)
@@ -33,7 +37,7 @@ async def create_order(body: OrderIn):
         "sku": body.sku,
         "quantity": body.quantity,
         "tenant": body.tenant,
-        "source": SERVICE_NAME,
+        "source": settings.service_name,
     }
     return orders[oid]
 
@@ -42,7 +46,7 @@ async def create_order(body: OrderIn):
 async def get_order(order_id: str):
     _access_counts[order_id] = _access_counts.get(order_id, 0) + 1
     if order_id not in orders:
-        return {"id": order_id, "source": SERVICE_NAME, "status": "stub"}
+        return {"id": order_id, "source": settings.service_name, "status": "stub"}
     return orders[order_id]
 
 

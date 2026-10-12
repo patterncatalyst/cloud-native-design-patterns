@@ -2,15 +2,22 @@
 Proves the domain is adapter-agnostic — no domain files change.
 Run as `cli-place-order <sku> <quantity>` (wrapper for `python -m adapters.cli`)."""
 import asyncio
-import os
 import sys
 
 import asyncpg
+from pydantic_settings import BaseSettings
 
 from adapters.log_publisher import LogEventPublisher
 from adapters.postgres_repo import PostgresOrderRepository
 from domain.models import PlaceOrderCmd
 from domain.service import PlaceOrder
+
+
+class Settings(BaseSettings):
+    database_url: str = "postgres://appuser:apppass@postgres:5432/appdb"
+
+
+settings = Settings()
 
 
 async def main():
@@ -21,7 +28,7 @@ async def main():
     sku = sys.argv[1]
     quantity = int(sys.argv[2])
 
-    dsn = os.environ.get("DATABASE_URL", "postgres://appuser:apppass@postgres:5432/appdb")
+    dsn = settings.database_url
     pool = await asyncpg.create_pool(dsn)
 
     repo = PostgresOrderRepository(pool)
