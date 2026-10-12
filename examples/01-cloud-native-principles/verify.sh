@@ -105,7 +105,7 @@ sleep 5
 
 check "readiness recovers after DB restart" \
     "curl $CURL_OPTS -sf $BASE/readyz | tr -d ' \\n'" \
-    '^{"status":"\(ready\|UP\)"'
+    '^{"status":"\(ready\|UP\)"\|"status":"\(ready\|UP\)"}$'
 
 printf '\n==> Results: %d passed, %d failed\n' "$PASS" "$FAIL"
 [[ $FAIL -eq 0 ]] && printf '==> PASS\n' || { printf '==> FAIL\n'; exit 1; }
