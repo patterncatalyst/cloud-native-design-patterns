@@ -64,6 +64,7 @@ func (s *Server) handleReadyz(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.pool.Ping(ctx); err != nil {
 		slog.ErrorContext(ctx, "readiness check failed", "error", err)
+		w.WriteHeader(http.StatusServiceUnavailable)
 		json.NewEncoder(w).Encode(ReadinessResponse{
 			Status: "down",
 			Checks: map[string]string{

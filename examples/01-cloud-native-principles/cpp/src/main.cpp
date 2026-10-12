@@ -108,7 +108,9 @@ int main() {
                 j["status"] = "down";
             }
             j["checks"] = checks;
-            cb(HttpResponse::newHttpJsonResponse(j));
+            auto resp = HttpResponse::newHttpJsonResponse(j);
+            if (!db_ok) resp->setStatusCode(k503ServiceUnavailable);
+            cb(resp);
         },
         {Get});
 

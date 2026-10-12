@@ -7,6 +7,7 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
@@ -43,18 +44,20 @@ public class HealthResource {
 
     @GET
     @Path("readyz")
-    public Map<String, Object> readyz() {
+    public Response readyz() {
         for (int attempt = 0; attempt < 2; attempt++) {
             try (var conn = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
                  var stmt = conn.createStatement();
                  var rs = stmt.executeQuery("SELECT 1")) {
-                return Map.of("status", "ready", "checks", Map.of("database", "ok"));
+                return Response.ok(Map.of("status", "ready", "checks", Map.of("database", "ok"))).build();
             } catch (Exception e) {
                 if (attempt == 0) {
                     try { Thread.sleep(1000); } catch (InterruptedException ie) { break; }
                 }
             }
         }
-        return Map.of("status", "down", "checks", Map.of("database", "unreachable"));
+        return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                .entity(Map.of("status", "down", "checks", Map.of("database", "unreachable")))
+                .build();
     }
 }

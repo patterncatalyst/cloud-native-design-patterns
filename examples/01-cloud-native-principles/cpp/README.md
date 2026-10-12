@@ -43,7 +43,7 @@ GET /healthz
 # Readiness probe (checks DB)
 GET /readyz
 → {"status":"ready","checks":{"database":"ok"}}
-→ {"status":"down","checks":{"database":"unreachable"}}  # when DB is down
+→ 503 {"status":"down","checks":{"database":"unreachable"}}  # when DB is down
 
 # Create order
 POST /orders?customer=alice&total=42.50
@@ -103,14 +103,14 @@ The connection pool patterns are identical; only the connection type differs (`P
 
 ## Cross-check it yourself
 
-Run `./verify.sh` from the parent directory. It tests all 10 checks from the tutorial:
+Run `./verify.sh` from the parent directory. It runs the 13 checks of the tutorial, grouped as:
 1. Root endpoint returns service info from environment
 2. Liveness probe always returns ok
 3. Readiness probe checks DB connectivity
 4. Create order via POST with query params
 5. List orders returns JSON array
-6. Readiness flips to down when DB is stopped
+6. Readiness flips to 503 (status down) when DB is stopped
 7. Liveness still returns ok when DB is stopped
 8. Readiness recovers after DB restart
 
-*Verification status: pending first successful run*
+*Verification status: verified, 13/13 on Docker Engine (2026-10-12)*
