@@ -4,7 +4,7 @@ marker: "J"
 label: "Appendix J"
 order: 23
 part: "Deep-dive appendices"
-description: ".NET-only reference: the pinned .NET 10 library and platform bill of materials, a Windows-to-Kubernetes migration table, an honest list of ecosystem gaps, and a six-library recipe for a new cloud-native service."
+description: ".NET-only reference: the pinned .NET 10 library and platform bill of materials, a Windows-to-Kubernetes migration table, a list of ecosystem gaps, and a six-library recipe for a new cloud-native service."
 duration: 18 minutes
 ---
 
@@ -15,7 +15,7 @@ duration: 18 minutes
 
 This is the reference appendix: a consolidated bill of materials for the application
 side, the same for the platform side, an expanded migration table with a one-line
-rationale per row, a candid look at what .NET genuinely lacks, and a short recipe to
+rationale per row, a look at what .NET lacks, and a short recipe to
 start a new service. It is built for the .NET-developers-moving-from-Windows audience,
 and its through-line is that the library choices and the platform choices are entirely
 separable — the cluster does not know or care that the Pods happen to run .NET.
@@ -58,7 +58,7 @@ cloud.
 | Scheduling | Quartz.NET | Cron / cluster-aware job scheduling | Apache 2.0 | Quartz |
 | Scheduling | DistributedLock | Distributed mutex over Postgres / Redis / SQL Server | MIT | DistributedLock.* |
 
-A few choices are worth calling out. `Microsoft.AspNetCore.OpenApi` and SignalR are built
+A few choices need explanation. `Microsoft.AspNetCore.OpenApi` and SignalR are built
 into ASP.NET Core 10 — no extra package. **Confluent.Kafka** is the Kafka client the examples use directly: a bus abstraction such as MassTransit would hide the consumer-group, offset-commit, and partition semantics the chapters teach, and MassTransit v9 moved to a commercial license.
 **Streamiz.Kafka.Net** is a .NET port of Kafka Streams, which means windowed aggregations
 without standing up a Flink cluster. **Temporalio.Temporal** pairs with the Temporal Server
@@ -97,13 +97,13 @@ the application layer.
 The one license nuance to flag for your own legal review: the Grafana **LGTM** stack
 (Tempo, Mimir, Loki, Grafana) is AGPL-3.0, which some organisations treat differently from
 Apache/MIT. Everything else here is permissive. The bottom line is a standard CNCF-friendly
-stack on which .NET 10 is simply one workload type.
+stack on which .NET 10 is one workload type.
 
 ## From Windows / .NET 4.x to Kubernetes / .NET 10
 
 This is the expanded version of the bridge from the Cloud-Native Principles chapter —
 twenty-two rows, four columns. Read the rightmost column, "what changes most," because that
-is where the architectural shift actually lives. Almost every row preserves the *shape* of
+is where the architectural shift lives. Almost every row preserves the *shape* of
 the pattern: you still have request handlers, background workers, scheduled jobs,
 distributed locks, health checks, configuration sources, and telemetry. What changes is who
 owns the substrate — IIS owned the host, Kubernetes does now; the substrate becomes
@@ -139,14 +139,14 @@ open-source and cluster-native.
 | Resilience | Hand-coded try/retry loops, Polly v6 standalone | M.E.Resilience pipelines (built on Polly) | Composable: retry + circuit breaker + timeout + hedging |
 | Health probes | ASP.NET app warmup, monitoring agents | M.E.Diagnostics.HealthChecks → /healthz/live + ready | Kubernetes is the monitoring agent |
 
-Only two rows are genuine conceptual rewrites rather than substrate swaps. **COM+ / MSDTC
+Only two rows are conceptual rewrites rather than substrate swaps. **COM+ / MSDTC
 distributed transactions become sagas** — you write compensations explicitly because there
 is no two-phase commit across services. And **BizTalk orchestration becomes a Temporal
 workflow or an NRules routing pipeline** — orchestration is now C# code in your
 repository, not a separately-authored artifact in a separate runtime. Everything else is the
 platform owning more and your code owning less.
 
-## What the .NET cloud-native story genuinely lacks
+## What the .NET cloud-native story lacks
 
 Every ecosystem has gaps; pretending .NET does not would erode trust. These are real, and
 in each case there is a workable .NET path, a polyglot path, or a commercial path.
@@ -163,23 +163,22 @@ in each case there is a workable .NET path, a polyglot path, or a commercial pat
 - **Thinner stream processing.** Streamiz.Kafka.Net is excellent but is a smaller project
   than Kafka Streams. If stream processing is central, Flink remains the heavyweight option,
   typically as a separate JVM service.
-- **Deliberately simple DI.** Microsoft.Extensions.DependencyInjection is intentionally
-  minimal. For property injection, decorators, or advanced lifetime scopes, Autofac or
-  Lamar are drop-in replacements.
+- **Simple DI.** Microsoft.Extensions.DependencyInjection is minimal. For property injection, decorators, or advanced lifetime
+  scopes, Autofac or Lamar are drop-in replacements.
 - **MassTransit v9 is commercial.** The previously open-source service bus moved to a
   commercial license, so this book uses Confluent.Kafka directly for Kafka messaging and
   Wolverine (MIT) where a framework bus is wanted.
 - **MediatR is no longer open source.** It moved to a commercial license, and Wolverine is
-  the modern MIT-licensed equivalent — arguably a better design — for new projects.
+  the modern MIT-licensed equivalent, and a better design, for new projects.
 
-The honest summary: the .NET cloud-native story is solid for well over 95% of line-of-business
+In summary: the .NET cloud-native story is solid for well over 95% of line-of-business
 and SaaS workloads. The remaining few percent — integration platforms with heavy mainframe,
 EDI, or HL7 needs, or central heavy stream processing — is where you mix runtimes or accept a
 different trade-off.
 
 ## The five-line recipe for a new service
 
-The steps are deliberately ordered — instrument first, then choose a protocol surface, then
+The order matters: instrument first, then choose a protocol surface, then
 settle data ownership, then pick a workflow tier, then let the cluster do the heavy lifting:
 
 1. **Instrument from line one.** `dotnet new web`; add `Microsoft.AspNetCore.OpenApi`,
@@ -187,11 +186,11 @@ settle data ownership, then pick a workflow tier, then let the cluster do the he
    checks at `/healthz/live` and `/healthz/ready`; expose `ActivitySource`-based telemetry
    immediately.
 2. **Pick exactly the protocols you need.** Minimal APIs for REST at the edge,
-   `Grpc.AspNetCore` for internal service-to-service, HotChocolate only if you genuinely
+   `Grpc.AspNetCore` for internal service-to-service, HotChocolate only if you
    need GraphQL aggregation. Do not surface all three by default.
 3. **Settle data ownership.** EF Core for the OLTP store, with the outbox table in the same
    `DbContext` as your aggregates; Debezium to Kafka via Strimzi. Add a bus framework only when
-   you actually need bus abstraction, or use `Confluent.Kafka` directly for tighter control.
+   you need bus abstraction, or use `Confluent.Kafka` directly for tighter control.
 4. **Choose a workflow tier.** Temporal .NET SDK when the saga is durable, long, or
    cross-service; Stateless when it is small and in-process. Persist *every* transition;
    never trust in-memory state to survive a Pod restart.
@@ -205,7 +204,7 @@ SignalR per workload — only when the use case earns it.
 
 ### Cross-check it yourself
 
-This appendix is reference material, so the check is that the recipe actually stands up.
+This appendix is reference material, so the check is that the recipe stands up.
 Scaffold the six-library service and confirm the day-one wiring end to end: `dotnet new web`,
 add the six packages, map `/healthz/live` and `/healthz/ready`, and start it. Hit both health
 endpoints with curl and confirm `200`s with the expected probe payloads. Then issue one real

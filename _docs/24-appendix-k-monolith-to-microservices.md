@@ -24,7 +24,7 @@ Define the term before fixing it. A monolith is not a code-organisation problem 
 *deployment* property. A clean codebase with clear modules, layers, and tests is still a
 monolith if it ships as one binary on one heartbeat. That property has real costs: a change
 anywhere means redeploying everything, a bug in reporting can take down payments, and one
-scaling unit has to serve very different workloads. But the costs do not make monoliths
+scaling unit has to serve different workloads. But the costs do not make monoliths
 *wrong*. For a new product, a small team, or anything that fits in one team's head, a
 monolith is often the simplest and fastest path to value, and premature decomposition is its
 own anti-pattern. The real question is never "monolith or microservices?" in the abstract —
@@ -33,7 +33,7 @@ patterns earn their keep.
 
 {% include excalidraw.html
    file="24-monolith-unit"
-   alt="A monolith as a unit of deployment. Web/mobile and other systems call into a single deployable that contains every module — auth, orders, inventory, catalog, payments, shipping, reporting, notifications, admin, pricing, returns, search — all sharing one database that every module reads and writes, giving schema-level coupling everywhere. A change anywhere means redeploying everything, a bug in reporting can take down payments, and one scaling unit serves very different workloads — but it is often the simplest, fastest path to value when the system fits in one team's head."
+   alt="A monolith as a unit of deployment. Web/mobile and other systems call into a single deployable that contains every module (auth, orders, inventory, catalog, payments, shipping, reporting, notifications, admin, pricing, returns, search), all sharing one database that every module reads and writes, giving schema-level coupling everywhere. A change anywhere means redeploying everything, a bug in reporting can take down payments, and one scaling unit serves different workloads. It is often the simplest, fastest path to value when the system fits in one team's head."
    caption="Figure K.1 — A monolith is a deployment property: one binary, one heartbeat, one shared database — every module ships and scales together" %}
 
 ## The modular monolith — often the destination
@@ -47,7 +47,7 @@ another's internals (import-linter or modulegraph rules in Python; module-system
 build-dependency rules on the JVM and .NET). You get most of the benefit of microservices —
 clear boundaries, replaceable modules, independent reasoning — at a fraction of the
 operational cost: one deployment, one log stream, one debugger session. And if you later need
-to split for real, it is a small refactor (rename the public API, move the files, ship) not a
+to split later, it is a small refactor (rename the public API, move the files, ship) not a
 rewrite.
 
 {% include excalidraw.html
@@ -55,7 +55,7 @@ rewrite.
    alt="A modular monolith, still a single deployable, holding an Orders module (public API PlaceOrder and GetOrder, private internals guarded by the build tool), an Inventory module (public API ReserveStock and CheckAvailability, no shared types), and a Payments module (public API ChargeCard and Refund, its own data schema). They share one database but with separate schemas — orders, inventory, payments — and no cross-schema joins, enforced. Modules talk only through their public API, enforced by linters and build rules rather than a gentlemen's agreement."
    caption="Figure K.2 — The modular monolith: one deployable, strict in-process boundaries enforced by build tooling, separate schemas" %}
 
-The genuinely hard part of decomposition is the *database*, and the modular monolith lets you
+The hard part of decomposition is the *database*, and the modular monolith lets you
 do it while still one process.
 
 The hardest coupling to see is in the data — schema dependencies, cross-table joins, and
@@ -106,7 +106,7 @@ before it reaches the legacy system, giving yourself a place to redirect later.
    alt="Step zero of every migration: introduce a routing layer before extracting anything. Clients hit a proxy or reverse proxy (nginx, Envoy, HAProxy, or YARP) through which all traffic now flows, and the proxy forwards everything to the monolith, which still owns everything and doesn't know about the proxy. New services like an extracted Orders.svc and a future Inventory.svc are soon to come behind the proxy's future routes. There is zero behaviour change for clients on day one, but the lever to route traffic to extracted services is now in place, and the proxy is also where TLS, auth, rate-limiting, and observability consolidate."
    caption="Figure K.5 — The proxy is step zero: add the routing layer first, forwarding everything to the monolith, so later cutovers are a config change not a client release" %}
 
-Once the proxy is in place it earns its keep by *redirecting* a slice — by path
+Once the proxy is in place it pays off by *redirecting* a slice — by path
 (`/orders/*` → new service), by header (`X-Tenant: acme` → new service), by percentage, or by
 feature flag. The new service handles its slice and the monolith handles the rest, while clients
 still see one URL, one auth boundary, one TLS cert. Roll forward by widening the new-service
@@ -120,14 +120,14 @@ used for migration instead of canary release.
 
 Sometimes the data split is too risky to do at the same time as the process split. Then you let
 the new service and the monolith share the database for a while: both read and write the same
-tables, and the new service owns the *API* but not the *data*. This is genuinely useful for
+tables, and the new service owns the *API* but not the *data*. This is useful for
 extracting reads first (the new service is a nicer API over a read replica) and as a stepping
 stone when the data migration is its own project. But it is a transition state, never a
 destination — every schema change now needs both apps to agree, and that coordination tax grows
 with every team that owns part of the same database. Plan its dissolution from the start: the
 next step is to give the new service its own store, via CDC out of the monolith's database,
 dual-writing during a brief sync window, or event-sourcing the data across. A shared-database
-strangler with no exit plan simply becomes the new monolith.
+strangler with no exit plan becomes the new monolith.
 
 {% include excalidraw.html
    file="24-shared-database"
@@ -351,7 +351,7 @@ func forward(w http.ResponseWriter, r *http.Request, c *http.Client, upstream st
 The shape is identical everywhere: read the payload, pick an upstream by content rather than
 URL, and forward. Two implementation notes matter. The body is consumed when you read it, so you
 must hand the same bytes through to the upstream — the Python `forward` and the C++ `req->body()`
-both do this deliberately. And the HTTP client is reused across requests so its connection pool
+both do this to keep the bytes intact. And the HTTP client is reused across requests so its connection pool
 stays warm. The only real cost is the per-request body parse; over a migration measured in days
 it is irrelevant next to the risk it controls, but over months it adds up — which is why, in
 production, the same logic often moves into a sidecar's Lua/WASM filter or an `EnvoyFilter`.
@@ -591,7 +591,7 @@ book-length treatment is Sam Newman's *Monolith to Microservices* (O'Reilly).
 
 ### Cross-check it yourself
 
-Prove the two properties this appendix actually rests on: reversibility and equivalence. Stand the
+Prove the two properties this appendix rests on: reversibility and equivalence. Stand the
 content router in front of a stub "monolith" and a stub "new service" that tag their responses,
 and drive traffic with `hey`. Send a batch with `tenant: acme` and confirm every one lands on the
 new service; send the rest and confirm they land on the monolith; then flip the rule (or widen the

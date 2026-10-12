@@ -36,6 +36,6 @@
 <path d="M210,167 L240,167" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M210,239 L240,210" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M690,296 L685,330" fill="none" stroke="#555" stroke-width="2" marker-start="url(#a)" marker-end="url(#a)"/>
-<text x="590" y="420" font-size="12" fill="#a23" text-anchor="middle">change anywhere → redeploy everything · a bug in Reporting can take down Payments · one scaling unit for very different workloads</text>
+<text x="590" y="420" font-size="12" fill="#a23" text-anchor="middle">change anywhere → redeploy everything · a bug in Reporting can take down Payments · one scaling unit for different workloads</text>
 <text x="590" y="450" font-size="12" fill="#555" text-anchor="middle">not always wrong — often the simplest, fastest path to value when the system fits in one team&#x27;s head</text>
 </svg>

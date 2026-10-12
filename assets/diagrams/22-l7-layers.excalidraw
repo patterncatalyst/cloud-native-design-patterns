@@ -1126,13 +1126,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "each layer makes a different kind of decision, and each emits a trace span \u2014 the journey is observable end to end",
+   "text": "each layer makes a distinct decision, and each emits a trace span \u2014 the path is observable end to end",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "each layer makes a different kind of decision, and each emits a trace span \u2014 the journey is observable end to end",
+   "originalText": "each layer makes a distinct decision, and each emits a trace span \u2014 the path is observable end to end",
    "lineHeight": 1.25,
    "baseline": 11
   }
