@@ -163,25 +163,29 @@ public OrderDto createOrder(@RestQuery String customer, @RestQuery BigDecimal to
 
 ```csharp
 // Program.cs (excerpt), examples/01-cloud-native-principles/dotnet
-var builder = WebApplication.CreateBuilder(args);
-// ... ConnectionStrings__Default from the environment (factor III) -> NpgsqlDataSource
+builder.Services.AddDbContext<OrdersContext>(o => o.UseNpgsql(connString));  // ConnectionStrings__Default (factor III)
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<OrdersContext>("database", tags: ["ready"]);          // readiness: the context can connect
 var app = builder.Build();
-app.MapGet("/healthz", () => new { status = "ok" });          // liveness: the process is up
-app.MapGet("/readyz", async (NpgsqlDataSource db) =>          // readiness: SELECT 1
+
+app.MapHealthChecks("/healthz", new HealthCheckOptions                       // liveness: the process is up
 {
-    try
+    Predicate = _ => false,                                                  // no dependency checks
+    ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok" }),
+});
+
+app.MapHealthChecks("/readyz", new HealthCheckOptions                        // readiness: 200, or 503 out of rotation
+{
+    Predicate = r => r.Tags.Contains("ready"),
+    ResponseWriter = (ctx, report) =>
     {
-        await using var conn = await db.OpenConnectionAsync();
-        await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT 1";
-        await cmd.ExecuteScalarAsync();
-        return Results.Ok(new { status = "ready", checks = new { database = "ok" } });
-    }
-    catch                                                     // down: 503, out of rotation
-    {
-        return Results.Json(new { status = "down", checks = new { database = "unreachable" } },
-            statusCode: StatusCodes.Status503ServiceUnavailable);
-    }
+        var up = report.Status == HealthStatus.Healthy;
+        return ctx.Response.WriteAsJsonAsync(new
+        {
+            status = up ? "ready" : "down",
+            checks = new { database = up ? "ok" : "unreachable" },
+        });
+    },
 });
 ```
 

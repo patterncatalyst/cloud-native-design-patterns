@@ -132,27 +132,32 @@ public class DrainReadinessCheck implements HealthCheck {
 ```
 
 ```csharp
-// Program.cs (excerpt), examples/21-graceful-shutdown/dotnet: one SIGTERM drives the drain
-builder.Services.AddSingleton<IHostLifetime, ManualLifetime>();  // not ConsoleLifetime
+// Program.cs (excerpt), examples/21-graceful-shutdown/dotnet: the default ConsoleLifetime turns
+// one SIGTERM into a graceful stop; the drain is a hosted service's StoppingAsync step
+builder.Services.AddSingleton<ShutdownState>();
+builder.Services.AddHostedService<DrainService>();
 builder.Services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(20));
-var app = builder.Build();
-var shuttingDown = false;                 // GET /readyz answers 503 once it is set
-var drainDelay = int.TryParse(Environment.GetEnvironmentVariable("DRAIN_DELAY_SECONDS"),
-    out var d) && d >= 0 ? d : 5;
-PosixSignalRegistration.Create(PosixSignal.SIGTERM, ctx =>
+builder.Services.AddHealthChecks()
+    .AddCheck<ShutdownHealthCheck>("shutdown", tags: ["ready"])   // /readyz answers 503 once draining
+    .AddDbContextCheck<OrdersContext>("database", tags: ["ready"]);
+// app.MapHealthChecks("/healthz") always 200, "/readyz" runs the "ready" checks; app.Run();
+
+public sealed class DrainService(ShutdownState state, IConfiguration config, ILogger<DrainService> logger)
+    : IHostedLifecycleService
 {
-    ctx.Cancel = true;                    // the host does not stop at once
-    if (shuttingDown) return;             // already draining
-    shuttingDown = true;                  // 1. readiness fails first
-    _ = Task.Run(async () =>
+    // Every StoppingAsync runs before any StopAsync, and Kestrel stops in StopAsync:
+    // the server keeps answering during the delay, then drains in-flight requests.
+    public async Task StoppingAsync(CancellationToken cancellationToken)
     {
-        await Task.Delay(TimeSpan.FromSeconds(drainDelay));  // 2. serve on: endpoints update
-        app.Lifetime.StopApplication();   // 3. Kestrel stops accepting, finishes in-flight
-    });
-});
-app.Lifetime.ApplicationStopped.Register(() => dataSource.Dispose());   // 4. close the pool
-// ... MapGet /healthz (always 200), /readyz, /orders; app.Run();
-// ManualLifetime : IHostLifetime: WaitForStartAsync and StopAsync return Task.CompletedTask
+        state.MarkShuttingDown();                                          // 1. readiness fails first
+        var delay = TimeSpan.FromSeconds(config.GetValue("DRAIN_DELAY_SECONDS", 5));
+        logger.LogInformation("SIGTERM received, readiness flipped, draining in-flight requests");
+        try { await Task.Delay(delay, cancellationToken); }                // 2. serve on: endpoints update
+        catch (OperationCanceledException) { }
+        logger.LogInformation("shutting down HTTP server (in_flight={InFlight})", state.InFlight);
+    }                                                                      // 3. Kestrel stops accepting, finishes
+    // 4. the DbContext pool is disposed with the host; the other lifecycle methods return Task.CompletedTask
+}
 ```
 
 ```python
