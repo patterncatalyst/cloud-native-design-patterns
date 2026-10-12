@@ -77,6 +77,9 @@ require_crc
 wait_for 600 "node Ready" bash -c "oc --context '$OCP_CONTEXT' get nodes --no-headers | grep -q ' Ready'"
 ok "server: $(ocx version -o json 2>/dev/null | jq -r '"Kubernetes " + .serverVersion.gitVersion' 2>/dev/null || echo unknown)"
 
+# The reads and the registry patch below need a settled API; the long stability window comes later.
+wait_for 1800 "cluster operators settled" cluster_settled
+
 step "Ingress CA"
 mkdir -p "$STATE" "$REGISTRY_CA_DIR"
 # The CA is public; the directories are owned by the current user.
@@ -91,8 +94,9 @@ default_route="$(ocx get configs.imageregistry.operator.openshift.io/cluster -o 
 if [[ "$default_route" == true ]]; then
     ok "default route already enabled (left as found)"
 else
-    ocx patch configs.imageregistry.operator.openshift.io/cluster --type merge -p '{"spec":{"defaultRoute":true}}' >/dev/null
+    # Annotate first: if the patch then fails, teardown still knows the route is ours to revert.
     ocx annotate configs.imageregistry.operator.openshift.io/cluster "$ROUTE_ANNOTATION=true" --overwrite >/dev/null
+    ocx patch configs.imageregistry.operator.openshift.io/cluster --type merge -p '{"spec":{"defaultRoute":true}}' >/dev/null
     ok "default route enabled (annotated so teardown reverts it)"
 fi
 wait_for 300 "registry route exists" bash -c "[[ -n \"\$(oc --context '$OCP_CONTEXT' get route default-route -n openshift-image-registry -o jsonpath='{.spec.host}' 2>/dev/null)\" ]]"

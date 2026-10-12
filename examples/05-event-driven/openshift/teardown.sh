@@ -149,6 +149,15 @@ if ocx get namespace "$OPERATOR_NAMESPACE" >/dev/null 2>&1; then
     ocx delete namespace "$OPERATOR_NAMESPACE" --wait=false >/dev/null 2>&1 || problem "delete namespace $OPERATOR_NAMESPACE failed"
     soft_wait 300 "namespace $OPERATOR_NAMESPACE deleted" gone namespace "$OPERATOR_NAMESPACE"
 fi
+# OLM keeps a cluster-scoped Operator object per installed package and namespace. It outlives the
+# Subscription and CSV, so remove it once nothing of ours is left. OLM recreates it while labelled
+# CRDs exist, so it stays when CRDs were kept for foreign items.
+olm_operator="amq-streams.$OPERATOR_NAMESPACE"
+if [[ -z "$kept_crds" ]] && ocx get operators.operators.coreos.com "$olm_operator" >/dev/null 2>&1; then
+    ocx delete operators.operators.coreos.com "$olm_operator" --ignore-not-found >/dev/null 2>&1 \
+        || problem "delete OLM Operator object $olm_operator failed"
+    ok "OLM Operator object $olm_operator removed"
+fi
 
 step "3/5 Registry default route"
 registry_config=configs.imageregistry.operator.openshift.io/cluster
@@ -175,6 +184,7 @@ ours="$(
         has_crd "$crd" && echo "crd/$crd"
     done
     ocx get clusterrolebinding -o name 2>/dev/null | grep -E 'cndp'
+    [[ -n "$kept_crds" ]] || ocx get operators.operators.coreos.com "$olm_operator" -o name 2>/dev/null
 )"
 ours="$(grep -v '^$' <<<"$ours" || true)"
 not_ours="$(

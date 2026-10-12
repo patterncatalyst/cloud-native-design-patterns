@@ -76,7 +76,7 @@ recorded current-context, including "none"); never print or store the kubeadmin 
 secret; images go to the internal registry with `skopeo copy` and a `builder` token held in a shell variable and
 passed through a process-substitution authfile (no `skopeo login`, no `--dest-creds`, no token in a file or an
 argument list); never `curl -k` or port-forward; CRC is stopped after use, never deleted, and `teardown.sh`
-removes only the CRDs our CSV owns (and only with no foreign Kafka items), reports foreign items and never removes them.
+removes only the CRDs our CSV owns or that carry OLM's `operators.coreos.com/amq-streams.cndp-amq-streams` label (and only with no foreign Kafka items), plus OLM's `Operator` object for that package; it reports foreign items and never removes them.
 
 ## Running-example domain
 

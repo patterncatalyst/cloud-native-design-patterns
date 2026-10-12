@@ -48,13 +48,13 @@ valid_lang() {
 }
 
 # wait_for <seconds> <description> <command...>: poll every 5 s until the command succeeds.
+# The deadline is wall-clock time (SECONDS), so time spent inside slow oc calls counts too.
 wait_for() {
-    local timeout="$1" what="$2" waited=0
+    local timeout="$1" what="$2" deadline=$(( SECONDS + $1 ))
     shift 2
     until "$@" >/dev/null 2>&1; do
-        (( waited >= timeout )) && fail "timed out after ${timeout}s waiting for $what"
+        (( SECONDS >= deadline )) && fail "timed out after ${timeout}s waiting for $what"
         sleep 5
-        waited=$(( waited + 5 ))
     done
     ok "$what"
 }
@@ -85,7 +85,7 @@ crc_vm_running() { crc status 2>/dev/null | grep -q 'CRC VM:.*Running'; }
 # enabling the registry's default route rolls the API servers, and crc status reports "Starting"
 # until that finishes.
 cluster_settled() {
-    ocx get clusteroperators -o json 2>/dev/null | jq -e '[.items[].status.conditions
+    ocx get clusteroperators --request-timeout=20s -o json 2>/dev/null | jq -e '[.items[].status.conditions
         | map({(.type): .status}) | add
         | select(.Available != "True" or .Progressing != "False" or .Degraded != "False")] | length == 0' >/dev/null
 }
@@ -95,19 +95,18 @@ cluster_settled() {
 # cluster settles once, then the API servers roll again a few minutes later; one passing check is
 # not enough. Fails only when <timeout> seconds pass without a full window.
 wait_cluster_stable() {
-    local timeout="$1" window="$2" elapsed=0 stable=0
-    while (( elapsed < timeout )); do
+    local timeout="$1" window="$2" deadline=$(( SECONDS + $1 )) since=""
+    while (( SECONDS < deadline )); do
         if cluster_settled; then
-            stable=$(( stable + 10 ))
-            if (( stable >= window )); then
+            [[ -n "$since" ]] || since=$SECONDS
+            if (( SECONDS - since >= window )); then
                 ok "cluster operators stable for ${window}s"
                 return 0
             fi
         else
-            stable=0
+            since=""
         fi
         sleep 10
-        elapsed=$(( elapsed + 10 ))
     done
     fail "cluster operators did not stay settled for ${window}s within ${timeout}s"
 }
@@ -183,6 +182,11 @@ foreign_kafka_items() {
     if has_crd kafkas.kafka.strimzi.io; then
         ocx get kafka -A --no-headers 2>/dev/null | awk -v ns="$NAMESPACE" '$1 != ns {print "kafka " $1 "/" $2}'
     fi
+    # Strimzi installed without OLM (Helm or plain YAML): its CRDs lack our OLM label, and OLM would
+    # adopt and relabel them if our Subscription installed over them.
+    ocx get crd -l "!$OLM_CRD_LABEL" -o name 2>/dev/null | grep -E '\.strimzi\.io$' | sed 's/^customresourcedefinition.apiextensions.k8s.io\//crd (not installed by our Subscription) /' || true
+    ocx get deployment -A -l strimzi.io/kind=cluster-operator --no-headers 2>/dev/null \
+        | awk -v ns="$OPERATOR_NAMESPACE" '$1 != ns {print "cluster-operator deployment " $1 "/" $2}'
 }
 
 # Fail when AMQ Streams or Strimzi is already installed by someone else: an AllNamespaces

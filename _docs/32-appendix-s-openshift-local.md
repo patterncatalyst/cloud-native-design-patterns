@@ -83,9 +83,12 @@ proposes afterwards, stays unapproved, so the version moves only when someone ed
 The operator has its own namespace, `cndp-amq-streams`, and its own OperatorGroup with an empty
 `spec`, which means AllNamespaces. The operator therefore watches `cndp-05` without a second
 OperatorGroup there. Teardown removes the Subscription, the CSV, its InstallPlans and the OperatorGroup,
-then the two namespaces and the CRDs the CSV owns, and reverts the registry route if setup enabled it. A cluster-wide operator also manages any Kafka cluster
-it can see, so `deploy.sh` first takes an inventory and refuses to continue if another AMQ
-Streams or Strimzi installation is present.
+then the two namespaces, the CRDs the CSV owns and OLM's `Operator` object for the package, and
+reverts the registry route if setup enabled it. A cluster-wide operator also manages any Kafka
+cluster it can see, so `deploy.sh` first takes an inventory and refuses to continue if it finds
+another project's AMQ Streams or Strimzi Subscription or CSV, a Kafka resource outside `cndp-05`,
+Strimzi CRDs that our Subscription did not install, or a Strimzi cluster-operator Deployment in
+another namespace.
 
 The catalog is the authority on what is newest, and it can only be read from a running cluster.
 On the recorded run, `oc --context crc-admin get packagemanifest amq-streams -n openshift-marketplace` reported:
@@ -304,13 +307,25 @@ three unrelated traces. This appendix fixes that in the code, not in the check.
 The order-service starts a producer span and injects the context into the record headers:
 
 ```csharp
-using var publish = orderSource.StartActivity("order.placed publish", ActivityKind.Producer);
-var message = new Message<Null, string> { Value = json, Headers = new Headers() };
-Propagators.DefaultTextMapPropagator.Inject(
-    new PropagationContext(publish?.Context ?? Activity.Current?.Context ?? default, Baggage.Current),
-    message.Headers,
-    (headers, key, value) => headers.Add(key, Encoding.UTF8.GetBytes(value)));
-await producer.ProduceAsync("order.placed", message);
+Activity? publish = null;
+try
+{
+    publish = orderSource.StartActivity("order.placed publish", ActivityKind.Producer);
+    var message = new Message<Null, string> { Value = json, Headers = new Headers() };
+    Propagators.DefaultTextMapPropagator.Inject(
+        new PropagationContext(publish?.Context ?? Activity.Current?.Context ?? default, Baggage.Current),
+        message.Headers,
+        (headers, key, value) => headers.Add(key, Encoding.UTF8.GetBytes(value)));
+    await producer.ProduceAsync("order.placed", message);
+}
+catch (Exception ex)
+{
+    publish?.SetStatus(ActivityStatusCode.Error, ex.Message);
+}
+finally
+{
+    publish?.Dispose();
+}
 ```
 
 Each consumer extracts it and starts its span as a child:
@@ -321,7 +336,10 @@ var parent = Propagators.DefaultTextMapPropagator.Extract(
     cr.Message.Headers,
     (headers, key) => headers is null
         ? Array.Empty<string>()
-        : headers.Where(h => h.Key == key).Select(h => Encoding.UTF8.GetString(h.GetValueBytes())));
+        : headers.Where(h => h.Key == key)
+                 .Select(h => h.GetValueBytes())
+                 .Where(b => b is not null)
+                 .Select(b => Encoding.UTF8.GetString(b!)));
 using var span = source.StartActivity("process_shipment", ActivityKind.Consumer, parent.ActivityContext);
 ```
 
