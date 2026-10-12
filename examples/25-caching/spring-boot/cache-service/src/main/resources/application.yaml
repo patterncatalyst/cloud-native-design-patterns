@@ -3,6 +3,8 @@ spring:
     url: jdbc:postgresql://localhost:5432/appdb
     username: appuser
     password: apppass
+    hikari:
+      connection-timeout: 2000   # fail fast so a flush against a down database is re-queued
   data:
     redis:
       host: localhost

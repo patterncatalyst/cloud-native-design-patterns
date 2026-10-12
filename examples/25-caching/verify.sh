@@ -146,10 +146,10 @@ check "event payload is correct" \
 # ===================================================================
 printf '\n--- 5. Write-back ---\n'
 
-check_status "write-back PUT returns 200" \
+check_status "write-back PUT returns 202 (queued, not yet durable)" \
     "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X PUT -H 'Content-Type: application/json' \
      -d '{\"value\":42.5,\"tags\":{\"host\":\"node-1\"}}' $BASE/write-back/metrics/m1" \
-    "200"
+    "202"
 
 check "metric readable from cache immediately" \
     "curl $CURL_OPTS -sf $BASE/write-back/metrics/m1" \
@@ -161,6 +161,32 @@ sleep 3
 check "metric flushed to DB" \
     "curl $CURL_OPTS -sf $BASE/write-back/flush-status" \
     '"persisted_rows":1'
+
+# A failed flush is re-queued and retried, not dropped: write while Postgres is down,
+# bring it back, and the entry reaches the table.
+printf '  \xe2\x86\x92 stopping Postgres to test the flush retry...\n'
+ctr_stop cndp-postgres >/dev/null 2>&1
+
+check_status "write-back PUT returns 202 while the DB is down" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X PUT -H 'Content-Type: application/json' \
+     -d '{\"value\":7.5,\"tags\":{\"host\":\"node-2\"}}' $BASE/write-back/metrics/m2" \
+    "202"
+
+sleep 5
+printf '  \xe2\x86\x92 restarting Postgres...\n'
+ctr_start cndp-postgres >/dev/null 2>&1
+for _ in $(seq 1 45); do
+    curl $CURL_OPTS -s $BASE/write-back/flush-status 2>/dev/null | grep -q '"persisted_rows":2' && break
+    sleep 2
+done
+
+check "failed flush is retried and persisted after the DB recovers" \
+    "curl $CURL_OPTS -sf $BASE/write-back/flush-status" \
+    '"persisted_rows":2'
+
+check "logs show the failed flush" \
+    "ctr_logs cndp-cache-service 2>&1" \
+    'flush failed\|flusher error'
 
 # ===================================================================
 # 6. Refresh-ahead

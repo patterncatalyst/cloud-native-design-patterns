@@ -236,7 +236,8 @@ public class CacheResource {
             return Response.status(503)
                     .entity(Map.of("error", "cache unavailable")).build();
         }
-        return Response.ok(Map.of(
+        // 202: queued in the cache, not yet durable in Postgres
+        return Response.accepted(Map.of(
                 "ok", true,
                 "pattern", "write-back",
                 "action", "cached-for-flush")).build();

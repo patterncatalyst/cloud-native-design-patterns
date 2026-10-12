@@ -234,7 +234,8 @@ public class CacheController {
             return ResponseEntity.status(503)
                     .body(Map.of("error", "cache unavailable"));
         }
-        return ResponseEntity.ok(Map.of(
+        // 202: queued in the cache, not yet durable in Postgres
+        return ResponseEntity.accepted().body(Map.of(
                 "ok", true,
                 "pattern", "write-back",
                 "action", "cached-for-flush"));

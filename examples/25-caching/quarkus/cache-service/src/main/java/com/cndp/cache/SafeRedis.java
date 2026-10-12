@@ -81,6 +81,23 @@ public class SafeRedis {
         }
     }
 
+    public long hincrby(String key, String field, long delta) {
+        try {
+            return hashes.hincrby(key, field, delta);
+        } catch (Exception e) {
+            Log.warnf("Redis HINCRBY failed for key=%s: %s", key, e.getMessage());
+            return 1L;
+        }
+    }
+
+    public void hdel(String key, String field) {
+        try {
+            hashes.hdel(key, field);
+        } catch (Exception e) {
+            Log.warnf("Redis HDEL failed for key=%s: %s", key, e.getMessage());
+        }
+    }
+
     public void sadd(String key, String member) {
         try {
             sets.sadd(key, member);
