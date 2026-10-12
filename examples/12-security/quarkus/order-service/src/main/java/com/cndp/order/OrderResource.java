@@ -7,11 +7,12 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+
+import org.jboss.resteasy.reactive.RestQuery;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -32,12 +33,6 @@ public class OrderResource {
 
     private final ConcurrentHashMap<String, Map<String, Object>> orders = new ConcurrentHashMap<>();
     private final AtomicInteger counter = new AtomicInteger(0);
-
-    @GET
-    @Path("healthz")
-    public Map<String, String> healthz() {
-        return Map.of("status", "ok");
-    }
 
     @POST
     @Path("orders")
@@ -81,18 +76,18 @@ public class OrderResource {
     @POST
     @Path("valet-key")
     public Map<String, Object> mintValetKey(
-            @QueryParam("resource") String resource,
-            @QueryParam("operation") @DefaultValue("GET") String operation) {
+            @RestQuery String resource,
+            @RestQuery @DefaultValue("GET") String operation) {
         return valetKeyService.mint(resource, operation);
     }
 
     @GET
     @Path("verify-valet")
     public Response verifyValetKey(
-            @QueryParam("resource") String resource,
-            @QueryParam("operation") String operation,
-            @QueryParam("expires") long expires,
-            @QueryParam("token") String token) {
+            @RestQuery String resource,
+            @RestQuery String operation,
+            @RestQuery long expires,
+            @RestQuery String token) {
         if (valetKeyService.verify(resource, operation, expires, token)) {
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("valid", true);
