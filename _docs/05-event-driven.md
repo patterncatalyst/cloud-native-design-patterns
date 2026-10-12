@@ -27,8 +27,8 @@ on Kubernetes) as the backbone.
 
 ## Core benefits — and the costs they carry
 
-Event-driven design buys three things, and the honest version of the story is that
-each one comes paired with a cost you then have to design for. The benefits are why
+Event-driven design buys three things, and each one comes paired with a cost you
+then have to design for. The benefits are why
 you reach for it; the costs are what separates a system that works from one that pages
 you at 3 a.m.
 
@@ -42,9 +42,9 @@ Each cost has a standard answer, and all three already appeared in this book:
 
 - **Eventual consistency** — the write side commits, the event ships, consumers catch
   up a moment later. Design reads to tolerate that lag, or read from the write model
-  when you genuinely need read-your-writes; never assume a consumer is up to date the
+  when you need read-your-writes; never assume a consumer is up to date the
   instant the producer commits. This is the same trade the outbox and CQRS sections
-  make deliberately.
+  make.
 - **Debugging complexity** — a single user action becomes a chain of events across
   several services, so "what happened to order A-1001?" is no longer one log to grep.
   The fix is to thread a correlation / trace id through every event envelope and lean
@@ -248,7 +248,7 @@ identical.
 
 ## Schemas are the contract
 
-Events need contracts as much as REST and gRPC do — arguably more, because consumers
+Events need contracts as much as REST and gRPC do, and more, because consumers
 are anonymous and you can't call them to coordinate a change. The schema (Avro,
 Protobuf, or JSON Schema) lives in a registry; in our stack that is **Apicurio**, run
 in-cluster.
@@ -266,7 +266,7 @@ compatibility policy — **FORWARD** so old consumers tolerate new producers, or
 **BACKWARD** so new consumers tolerate old data — a change that would break the other
 side is refused. Best of all, that check runs in CI at publish time: a breaking schema
 is **rejected before it merges**, not discovered in production when an anonymous
-consumer falls over. That enforcement is what makes "add a consumer safely" actually
+consumer falls over. That enforcement is what makes "add a consumer safely"
 safe.
 
 ## Event sourcing vs. event streaming
@@ -321,8 +321,8 @@ plain Kubernetes as everything else.
 ## Choosing the substrate: Kafka vs Pulsar vs AMQP
 
 The tools landscape split the work into substrate, compute, and movement; the
-**substrate** — the durable broker the whole system leans on — is the load-bearing
-choice. Three common answers, with genuinely different models rather than cosmetic
+**substrate** — the durable broker the whole system leans on — is the decisive
+choice. Three common answers, with different models rather than cosmetic
 differences:
 
 | | **Apache Kafka** | **Apache Pulsar** | **AMQP** (e.g. RabbitMQ) |
@@ -347,12 +347,12 @@ Pulsar's pitch over Kafka is mostly **operational**: because serving and storage
 separate layers, you can scale them independently and tier cold data to object storage,
 and multi-tenancy and geo-replication are built in rather than bolted on. The price is
 a larger surface to run — more components and moving parts — which only pays off for
-teams that actually need those properties.
+teams that need those properties.
 
 For this book's running system — `order.placed` as a replayable fact that several
 services consume independently — a **log** is the right substrate, and Kafka is the
 sensible default. Reach for **Pulsar** when multi-tenancy, geo, or storage/compute
-separation are hard requirements, and for **AMQP** when the job is really a *task
+separation are hard requirements, and for **AMQP** when the job is a *task
 queue* with complex routing rather than an event log you replay.
 
 ## Inside the substrates: architecture and what each is best at
@@ -377,8 +377,8 @@ offset**, reading at its own position into the log.
    alt="Producers, keyed by entity, append to a Kafka cluster drawn as a partitioned, replicated log with Partition 0, 1, and 2, each a leader plus in-sync replicas. Two consumer groups read from the cluster — a payment group that tracks its own offsets and an analytics group with independent offsets that can replay. A note: records are retained by time or size, not deleted on read; partitions give parallelism, replicas give durability, and groups read independently."
    caption="Figure 5.5 — Kafka architecture: a partitioned, replicated log read by independent consumer groups" %}
 
-Its advantages follow from that design. Sequential appends and zero-copy reads push
-very high **throughput**; partitions give linear **horizontal scale**; replication
+Its advantages follow from that design. Sequential appends and zero-copy reads give
+high **throughput**; partitions give linear **horizontal scale**; replication
 gives **durability**; and because the log is retained rather than consumed, producers
 and consumers are **decoupled in time** — a consumer can be down for an hour or added
 years later and still get the full story. You build services against it the way this
@@ -400,7 +400,7 @@ consequences. A live consumer sits at the head, processing new records as they a
 An analytics job can reset to offset zero and replay the entire history. A brand-new
 consumer can join later and read all of history to build its state, with **no impact
 on the producer or on existing consumers** — nobody is draining a queue, so nobody
-contends for the messages. Replay is simply moving an offset backward. That is the
+contends for the messages. Replay is moving an offset backward. That is the
 foundation for event sourcing, for rebuilding a stream processor's state after a
 crash, and for the windowed computation taken up in **06 · Stream Processing**. Both
 Kafka (run by Strimzi in our cluster) and Pulsar give you this durable, replayable,
@@ -428,7 +428,7 @@ per-tenant isolation and quotas — and **geo-replication** is built in. And one
 substrate covers both jobs: its **subscription modes** (exclusive, shared, failover,
 key-shared) yield a competing-consumer *queue* and a streaming *log* from the same
 topic. The price is operational surface — brokers plus BookKeeper plus a metadata
-store — which earns its keep only when you actually need those properties.
+store — which pays off only when you need those properties.
 
 ### AMQP / RabbitMQ — routing through exchanges
 
@@ -451,12 +451,12 @@ consumers — and per-message **ack / nack / requeue** makes it excellent for **
 distribution and request/reply**, where each task goes to exactly one worker and is
 retried on failure. The trade-offs are the flip side: there is **no replay** (a
 consumed message is gone unless you kept a copy), and throughput **degrades as queues
-deepen**, because a backed-up queue is the broker holding the very state it was
-designed to shed. Reach for it when the job is genuinely a task queue with complex
+deepen**, because a backed-up queue is the broker holding the state it was
+designed to shed. Reach for it when the job is a task queue with complex
 routing, not an event log you rewind.
 
 For an event backbone the system treats as its memory, the log model is the one that
-wins — which is the idea the rest of this chapter builds on.
+wins — which is the idea this chapter builds on.
 
 ## Building event-driven microservices: consume, process, produce
 
@@ -663,7 +663,7 @@ what the next pattern depends on.
 
 Once data is liberated, events come in two styles. An **event notification** is thin —
 "order A-1001 was placed" — and tells a consumer only that something happened; to act on
-it, the consumer must **call back** to the source for the details, which quietly
+it, the consumer must **call back** to the source for the details, which
 re-introduces the synchronous coupling events were meant to remove. **Event-carried
 state transfer (ECST)** instead puts enough state *in the event* — the order's customer,
 total, and status — so the consumer needs no call-back at all.
@@ -745,8 +745,8 @@ There is no network round-trip to a shared database, so it is fast — but it is
 so it has to survive the instance dying.
 
 That is what the **changelog** is for. Every write to the state store is also appended to
-a **compacted changelog topic** in the broker, which makes the store durable and,
-crucially, **rebuildable**: when an instance crashes or a rebalance moves its partition
+a **compacted changelog topic** in the broker, which makes the store durable and
+**rebuildable**: when an instance crashes or a rebalance moves its partition
 to another instance, the new owner replays the changelog to restore the store before it
 resumes. State lives locally for speed and in the log for safety — the table–stream
 duality doing real work.
@@ -758,7 +758,7 @@ duality doing real work.
 
 Maintaining a per-customer running total looks different in each ecosystem, because the
 embedded-store-plus-changelog machinery is exactly what the JVM stream-processing
-frameworks give you for free and the others assemble:
+frameworks provide and the others assemble:
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
@@ -831,7 +831,7 @@ func aggregate(ctx goka.Context, msg any) {
 }
 ```
 
-The honest ecosystem note: Kafka Streams (Spring, Quarkus), its .NET port Streamiz, and
+On the ecosystem side, Kafka Streams (Spring, Quarkus), its .NET port Streamiz, and
 Python's Faust give you the state store and its changelog as first-class `KTable` / `Table`
 abstractions; Go's **goka** does the same with a group table; and in C++, with no such
 framework, you keep the store and mirror writes to a compacted topic by hand — more code,
@@ -848,7 +848,7 @@ of arrival order:
   if its version is newer than what you hold, so a late `v1` can't clobber a `v2` already
   applied.
 - Prefer **commutative** updates — adding to a counter, unioning a set — where order
-  simply doesn't matter.
+  doesn't matter.
 - Make every handler **idempotent**, so a duplicate is a no-op (dedupe by event id, or
   fold into an upsert).
 
@@ -922,7 +922,7 @@ if !ok || e.Version > cur.Version {                    // highest version wins
 ## Event time, processing time, and determinism
 
 A stream processor sees two clocks. **Processing time** is when the consumer happens to
-handle an event; **event time** is when the thing actually happened, carried *in* the
+handle an event; **event time** is when the thing happened, carried *in* the
 event. They drift apart — an event can be produced at 10:00, sit in a partition, and be
 processed at 10:05 — and they drift by different amounts after a backlog or a replay. The
 rule that keeps results stable is to compute on **event time, never the wall clock**. Do
@@ -940,7 +940,7 @@ side output rather than silently corrupting a closed result.
 {% include excalidraw.html
    file="05-event-time-watermark"
    alt="Events arrive in processing-time order with event-times 12, then 10 (out of order), then 9 (late). A handler orders them by event time with a watermark at T equals 11. Windows up to 11 close into a deterministic result; the event with event-time 9, which is older than T, is late and goes to a side output. A note: key computation off event time, not the wall clock, so replaying the log yields the same answer."
-   caption="Figure 5.15 — Event time plus a watermark: close windows by event time and handle late events deliberately" %}
+   caption="Figure 5.15 — Event time plus a watermark: close windows by event time and handle late events explicitly" %}
 
 The deep mechanics of windows and watermarks — tumbling, sliding, and session windows,
 and how a stateful engine like Flink advances them — are the subject of **06 · Stream
@@ -958,7 +958,7 @@ skipped and none is double-counted.
 
 {% include excalidraw.html
    file="05-checkpoint-recovery"
-   alt="A processor consumes from an input log, holding local state and an offset, and periodically snapshots state and offset together to a checkpoint store. On a crash, recovery restores from the checkpoint, seeks the input to the saved offset, and resumes the processor by replaying forward. A note: snapshot state and input offset together so on failure you restore and replay from there — and rewind on purpose to reprocess and rebuild."
+   alt="A processor consumes from an input log, holding local state and an offset, and periodically snapshots state and offset together to a checkpoint store. On a crash, recovery restores from the checkpoint, seeks the input to the saved offset, and resumes the processor by replaying forward. A note: snapshot state and input offset together so on failure you restore and replay from there — and rewind to reprocess and rebuild."
    caption="Figure 5.16 — A checkpoint snapshots state and offset as a unit, so recovery restores both and replays the gap" %}
 
 The last piece is making the *output* survive recovery too. Replaying after a crash
@@ -1023,7 +1023,7 @@ cl.Produce(ctx, &kgo.Record{Topic: "order.validated",
 cl.EndTransaction(ctx, kgo.TryCommit)                          // commit output + offsets
 ```
 
-Reprocessing is the same machinery used on purpose. Because the log retains history and
+Reprocessing is the same machinery, triggered by choice rather than by a crash. Because the log retains history and
 the processor keys off event time, you can **rewind the offsets** — to a checkpoint, or
 all the way to zero — and reprocess: to fix a bug in the logic, to rebuild a consumer's
 state from scratch, or to populate a brand-new view. Replay is not only a recovery path;
@@ -1053,7 +1053,7 @@ the orchestrator is a **coupling point** and one more thing to keep available.
    caption="Figure 5.17 — Choreography reacts to events with no coordinator; orchestration centralizes the flow in one" %}
 
 Neither is universally right. Choreography suits simple, stable flows where decoupling
-matters most; orchestration earns its keep when a process is complex, needs visibility, or
+matters most; orchestration pays off when a process is complex, needs visibility, or
 changes often. Many systems mix them — choreography between bounded contexts, orchestration
 within one.
 
@@ -1251,7 +1251,7 @@ Whichever you use, put the **tenant id in the partition key** so a tenant's even
 their order and land together, never derive a topic name from unsanitized tenant input, and
 choose between a **shared topic keyed by tenant** (simple, weaker isolation) and a **topic or
 namespace per tenant** (stronger isolation, more sprawl to manage) based on how hard the
-isolation requirement really is.
+isolation requirement is.
 
 ## Living with eventual consistency
 
@@ -1265,7 +1265,7 @@ truth. That window is not a bug to hide; it is a property to design for.
    alt="A client writes to the source of truth, which commits and emits an event; the event is applied to a read model or view after a delay of delta-t. A read of the view during that delta-t window may be stale. A note: read-your-writes means routing a writer's own reads to the source, or waiting until the read model reaches the write's version."
    caption="Figure 5.20 — The consistency window: a read model lags the source by Δt, which read-your-writes hides for the writer" %}
 
-The honest move is to decide where strong consistency is genuinely required — usually a
+Decide where strong consistency is required — usually a
 small core, like the payment charge itself — and let everything else converge, with a few
 standard tactics to keep it humane:
 
