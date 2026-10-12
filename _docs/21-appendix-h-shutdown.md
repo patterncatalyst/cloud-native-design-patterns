@@ -86,27 +86,24 @@ bound, which together fit the 30-second grace period.
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-// OrderServiceApplication.java (excerpt), examples/21-graceful-shutdown/spring-boot
+// DrainLifecycle.java (excerpt), examples/21-graceful-shutdown/spring-boot
 // application.properties: server.shutdown=graceful
 //                         spring.lifecycle.timeout-per-shutdown-phase=20s
-@SpringBootApplication
-public class OrderServiceApplication {
-    public static void main(String[] args) {
-        // registered before Spring starts: replaces the JVM's default SIGTERM handler
-        Signal.handle(new Signal("TERM"), signal -> {
-            ShutdownState state = ShutdownState.getInstance();  // GET /readyz reads it: 503
-            if (!state.markShuttingDown()) return;   // one SIGTERM drives the drain
-            long delay = drainDelaySeconds();        // DRAIN_DELAY_SECONDS, default 5
-            new Thread(() -> {
-                try { Thread.sleep(delay * 1000); }  // keep serving: endpoints update
-                catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-                System.exit(0);  // shutdown hook: stop accepting, finish in-flight, close pool
-            }, "drain").start();
-        });
-        SpringApplication.run(OrderServiceApplication.class, args);
+//                         management.endpoint.health.group.readiness.include=readinessState,db,drain
+@Component
+class DrainLifecycle implements SmartLifecycle {
+    @Override
+    public void stop() {                             // SIGTERM: Spring stops the highest phase first
+        if (!state.markShuttingDown()) return;       // one SIGTERM drives the drain
+        AvailabilityChangeEvent.publish(events, this, ReadinessState.REFUSING_TRAFFIC);
+        sleep(drainDelayMillis);                     // DRAIN_DELAY_SECONDS, default 5: keep serving
+        // then the graceful web-server phase finishes in-flight requests, and the pool closes
     }
+    @Override
+    public int getPhase() { return DEFAULT_PHASE - 512; }   // before the web server's own stop
 }
-// Kafka consumers, the scheduler and WebSockets drain in a ContextClosedEvent listener.
+// A "drain" HealthIndicator reports DOWN "shutting down", so GET /readyz returns 503 while
+// GET /healthz stays 200. Kafka consumers and the scheduler stop with the context.
 ```
 
 ```java

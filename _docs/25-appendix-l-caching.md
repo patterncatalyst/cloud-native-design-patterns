@@ -256,41 +256,32 @@ declaratively (Spring's `@Cacheable`, Quarkus's `@CacheResult` and `Cache.get`, 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-// Spring Cache abstraction with Redis backing (Spring Boot 4, Jackson 3).
+// Spring Cache abstraction with Redis backing (Spring Boot 4, Jackson 3),
+// examples/25-caching/spring-boot: Cache.get(key, loader) is the read-through call.
 @Configuration
-@EnableCaching
-public class CacheConfig {
+class ReadThroughCacheConfig {
     @Bean
-    public RedisCacheManager cacheManager(RedisConnectionFactory cf) {
+    RedisCacheManager cacheManager(RedisConnectionFactory cf, CacheServiceProperties props) {
+        var products = RedisCacheConfiguration.defaultCacheConfig()
+            .entryTtl(Duration.ofSeconds(props.ttlSeconds()))
+            .disableCachingNullValues()
+            .computePrefixWith(cacheName -> "rt:product:")        // keys: rt:product:<id>
+            .serializeValuesWith(SerializationPair.fromSerializer(
+                new JacksonJsonRedisSerializer<>(ProductView.class)));  // plain JSON values
         return RedisCacheManager.builder(cf)
-            .cacheDefaults(RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofSeconds(60))
-                // json() = Jackson 3 with default typing and Spring cache null-value
-                // support, so cache hits come back as Product, not LinkedHashMap
-                .serializeValuesWith(SerializationPair.fromSerializer(
-                    RedisSerializer.json())))
+            .withInitialCacheConfigurations(Map.of("read-through-products", products))
             .build();
     }
 }
 
-@Service
-public class ProductService {
-    private final ProductRepository repo;
-    public ProductService(ProductRepository repo) { this.repo = repo; }
-
-    @Cacheable(value = "products", key = "#id")           // ← cache-then-load
-    public Product findById(String id) {
-        return repo.findById(id)                          // method body = loader
-            .orElseThrow(() -> new ResponseStatusException(NOT_FOUND));
-    }
-
-    @CacheEvict(value = "products", key = "#id")
-    @Transactional
-    public Product update(String id, Product body) {
-        Product p = repo.findById(id).orElseThrow();
-        p.update(body);
-        return repo.save(p);
-    }
+@GetMapping("/read-through/products/{pid}")
+public ResponseEntity<ProductResponse> readThroughGet(@PathVariable String pid) {
+    var loaded = new AtomicBoolean();                              // set only when the loader ran
+    ProductView product = readThroughCache.get(pid, () -> {        // hit: cached; miss: this loader
+        loaded.set(true);
+        return products.find(pid).orElseThrow(() -> new UnknownProduct(pid));
+    });
+    return ResponseEntity.ok(product.from(loaded.get() ? "db" : "cache"));   // "source"
 }
 ```
 
@@ -798,10 +789,8 @@ public void flusher() {                                // BackgroundTasks
     List<String> failed = new ArrayList<>();
     for (String mid : ids) {
         try {                                     // upsert: an id flushed twice is one row
-            jdbc.sql("INSERT INTO metrics (id, payload) VALUES (?, ?::jsonb) "
-                    + "ON CONFLICT (id) DO UPDATE SET payload = ?::jsonb, ts = NOW()")
-                    .param(mid).param(json).param(json).update();   // json: the cached hash
-            cache.hdel("metric:attempts", mid);
+            metrics.upsert(mid, json);                 // MetricRepository: @Modifying native
+            cache.hdel("metric:attempts", mid);        // INSERT ... ON CONFLICT (id) DO UPDATE
         } catch (Exception e) { failed.add(mid); }     // logged: flush failed for <mid>
     }
     if (failed.isEmpty()) { failures = 0; return; }
