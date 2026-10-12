@@ -8,3 +8,14 @@ server:
 flagd:
   host: ${FLAGD_HOST:flagd}
   port: ${FLAGD_PORT:8013}
+
+# /healthz and /readyz on the main port are the liveness and readiness probe groups.
+management.endpoint.health:
+  probes.enabled: true
+  group:
+    liveness:
+      include: livenessState
+      additional-path: "server:/healthz"
+    readiness:
+      include: readinessState
+      additional-path: "server:/readyz"

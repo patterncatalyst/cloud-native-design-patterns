@@ -279,11 +279,6 @@ public class EdgeController {
         return result;
     }
 
-    @GetMapping("/healthz")
-    public Map<String, String> healthz() {
-        return Map.of("status", "ok");
-    }
-
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
