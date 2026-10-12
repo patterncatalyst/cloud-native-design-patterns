@@ -321,7 +321,7 @@ plain Kubernetes as everything else.
 ## Choosing the substrate: Kafka vs Pulsar vs AMQP
 
 The tools landscape split the work into substrate, compute, and movement; the
-**substrate** — the durable broker the whole system leans on — is the decisive
+**substrate** — the durable broker the whole system leans on — is the most consequential
 choice. Three common answers, with different models rather than cosmetic
 differences:
 
@@ -677,7 +677,7 @@ With ECST the consumer **folds** events into its own **local, denormalized mater
 view** — a read model shaped exactly for its queries, kept current by the stream and
 rebuildable by replay. Reads become local and fast, and a momentary outage of the source
 no longer stalls the consumer. The cost is **denormalization**: the same facts now live
-in several services' views, kept eventually consistent by the stream — the deliberate
+in several services' views, kept eventually consistent by the stream — the
 trade an event-driven system makes, spending storage and duplication to buy decoupling
 and autonomy. The consumer side is a fold into an upsert; the event alone is enough to
 build the row:
@@ -1279,7 +1279,7 @@ standard tactics to keep it humane:
 
 The throughline of the whole chapter: an event-driven system trades immediate consistency
 and a single in-the-moment truth for decoupling, autonomy, scale, and a complete, replayable
-history. Spend that trade where it pays, and be deliberate about the few places it doesn't.
+history. Spend that trade where it pays, and avoid it in the few places it doesn't.
 
 ### Cross-check it yourself
 

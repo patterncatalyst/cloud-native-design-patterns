@@ -456,7 +456,7 @@ so performance work is mostly about keeping the *per-message* cost low and the
 | **Tuned heartbeats** | ping often enough to detect a dead link in seconds, rarely enough not to wake every idle connection constantly |
 | **Per-pod connection caps** | memory-per-connection × cap sizes the pod; scale and trigger on connection count, not CPU |
 
-The throughline with the rest of this appendix: most of these are the same levers
+The throughline of the WebSocket patterns: most of these are the same levers
 that make the system *scale* — bounded buffers and connection caps are what let the
 HPA reason about a pod, and binary framing is what keeps the backplane cheap.
 
@@ -502,7 +502,7 @@ unbounded buffer until the pod OOMs.
 
 Everything in this appendix uses raw WebSockets — direct `ws.SendAsync` or
 `c.Write`, manual heartbeats, hand-built backplanes, explicit sequence tracking.
-This is deliberate: raw sockets are cross-language, and the patterns (backplane,
+The appendix stays on raw sockets because they are cross-language, and the patterns (backplane,
 resume, binary framing) are universal.
 
 **SignalR** is ASP.NET Core's real-time abstraction that sits *on top of* WebSockets
@@ -549,7 +549,7 @@ SignalR**.
 
 ### Cross-check it yourself
 
-Test what the backplane provides. Connect a client to `ws-pod-1`, then send it a
+Prove the backplane carries messages between pods. Connect a client to `ws-pod-1`, then send it a
 message *from* `ws-pod-2`: with the backplane wired up it arrives; rip the backplane
 out and it vanishes, because no other pod can reach that socket. Then scale the
 Deployment down by one and confirm the dropped clients reconnect with backoff and

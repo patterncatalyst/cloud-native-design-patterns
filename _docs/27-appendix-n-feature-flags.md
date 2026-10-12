@@ -269,8 +269,8 @@ interval, with no redeploy.
 ## The kill switch
 
 A kill switch is the operational flag you reach for during an incident: wrap a risky or expensive
-dependency in a flag so it can be disabled instantly without a deploy. It is the deliberate,
-human-driven complement to the circuit breaker from the Failure Modes appendix — the breaker
+dependency in a flag so it can be disabled instantly without a deploy. It is the human-driven
+complement to the circuit breaker from the Failure Modes appendix — the breaker
 trips automatically on errors; the kill switch is flipped by a person.
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}

@@ -29,7 +29,7 @@ errors). Everything that follows comes from accepting this and designing to boun
 
 ## A taxonomy of failure modes
 
-The failures sort into three families, and the rest of the appendix is the toolkit that sits
+The failures sort into three families, and the defensive toolkit sits
 underneath them.
 
 {% include excalidraw.html
@@ -157,9 +157,8 @@ edge before it enters the system.
 
 ## The defensive toolkit
 
-The rest of the appendix is the toolkit, and the key point is that **no pattern is
-sufficient alone** — several interact, and production resilience is their deliberate
-composition. Retry without a circuit breaker amplifies; a circuit breaker without a fallback
+**No pattern in the toolkit is sufficient alone** — several interact, and production
+resilience is their composition. Retry without a circuit breaker amplifies; a circuit breaker without a fallback
 just fails faster; a bulkhead without a timeout still lets threads block within its pool. The
 patterns here each get a diagram and per-language code; the platform-level pieces (Istio,
 shutdown, observability) sit underneath the application-level ones.

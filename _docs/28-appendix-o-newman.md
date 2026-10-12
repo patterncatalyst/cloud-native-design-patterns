@@ -80,7 +80,7 @@ implementation in this book.
    alt="One collection running under Newman tests the same HTTP API (/orders, /payments) against six order-service implementations — Spring Boot, Quarkus, .NET, Python, C++, and Go. Because Newman tests the API as a black box, one collection validates every implementation; the contract is the spec, not the code."
    caption="Figure O.3 — One collection is the conformance suite for all six implementations" %}
 
-This is a powerful idea: the collection *is* the API specification made executable. Point
+The collection *is* the API specification made executable. Point
 it at whichever implementation is running and the assertions are identical. Bringing the service
 under test up is the only language-specific step; the Newman command that follows is the same.
 
@@ -197,7 +197,7 @@ against them.
 
 {% include excalidraw.html
    file="27-ci-gate"
-   alt="A pipeline: pull request, build image, docker compose up of the order/payment/inventory services, newman run of the collection, then a gate where pass merges and fail blocks. The services run on Docker Engine in CI exactly as locally, and a failed assertion fails the build."
+   alt="A pipeline: pull request, build image, docker compose up of the order/payment/inventory services, newman run of the collection, then a gate where pass merges and fail blocks. The services run on Docker Engine in CI as they do locally, and a failed assertion fails the build."
    caption="Figure O.5 — Newman as a merge gate: bring the stack up on Docker, run the collection, fail the build on a broken contract" %}
 
 ```yaml

@@ -112,7 +112,7 @@ one pod: the balancer sets a cookie and routes subsequent requests back to the s
 but that ties the session to one pod's lifetime, so a restart loses it. **IP-hash** needs
 no cookie but is fragile behind NAT and mobile networks, where many users share an address
 and load skews. The real cost is that stickiness fights elastic scaling, fast restarts, and
-graceful shutdown — the entire cloud-native delivery model. Treat it as a deliberate choice
+graceful shutdown — the entire cloud-native delivery model. Treat it as a choice made
 for a known constraint, never a default, and prefer to externalise state (Redis for session
 data, JWT claims for identity, the backplane from the WebSockets appendix for fan-out) so
 the balancer can return to no-affinity.

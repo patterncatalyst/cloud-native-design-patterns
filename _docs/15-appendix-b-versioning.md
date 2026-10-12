@@ -58,7 +58,7 @@ travels with those links:
 - **URI-path** works too, but every emitted link must already carry the version
   (`/v2/orders/A-1001/items`); a client that follows links stays pinned to one
   version, which is fine until you want it to move.
-- **Query-param** and **custom-header** versioning break link-following: the
+- **Query-param** and **custom-header** versioning break link-following without any error: the
   version lives outside the URL, so a naively followed link drops it.
 
 **Impact on security.** Each live version is attack surface you must keep patched —

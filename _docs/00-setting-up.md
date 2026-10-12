@@ -21,13 +21,13 @@ amplifier; the patterns decide which direction it amplifies.
 
 ## Four maxims to carry throughout
 
-Every concrete choice in this book is a deliberate exercise in four ideas. Keep
+Every concrete choice in this book applies four ideas. Keep
 them in view:
 
 - **The least-worst decision.** Every architecture choice is a set of trades —
   latency for throughput, consistency for availability, simplicity for
   flexibility. The job is not to find the option with no downside; it is to make
-  the trades visible and deliberate.
+  the trades visible and explicit.
 - **Risk management.** You manage the *distribution* of failures, not their
   existence. Failure doesn't go away; you choose where it lands and how it's
   contained.
@@ -90,7 +90,7 @@ what stops the patterns from staying abstract.
 
 ## How the book is ordered
 
-The order is deliberate: principles first, because they justify every later
+The order follows dependency: principles first, because they justify every later
 choice; then the synchronous surface (communications, composition); then data
 ownership; then the asynchronous backbone (events, streams); then the operational
 concerns (workflows and the platform planes); and finally anti-patterns as a

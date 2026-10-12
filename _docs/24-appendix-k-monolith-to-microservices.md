@@ -47,7 +47,7 @@ another's internals (import-linter or modulegraph rules in Python; module-system
 build-dependency rules on the JVM and .NET). You get most of the benefit of microservices —
 clear boundaries, replaceable modules, independent reasoning — at a fraction of the
 operational cost: one deployment, one log stream, one debugger session. And if you later need
-to split later, it is a small refactor (rename the public API, move the files, ship) not a
+to split, it is a small refactor (rename the public API, move the files, ship) not a
 rewrite.
 
 {% include excalidraw.html
@@ -351,7 +351,7 @@ func forward(w http.ResponseWriter, r *http.Request, c *http.Client, upstream st
 The shape is identical everywhere: read the payload, pick an upstream by content rather than
 URL, and forward. Two implementation notes matter. The body is consumed when you read it, so you
 must hand the same bytes through to the upstream — the Python `forward` and the C++ `req->body()`
-both do this to keep the bytes intact. And the HTTP client is reused across requests so its connection pool
+both forward the buffered body unchanged. And the HTTP client is reused across requests so its connection pool
 stays warm. The only real cost is the per-request body parse; over a migration measured in days
 it is irrelevant next to the risk it controls, but over months it adds up — which is why, in
 production, the same logic often moves into a sidecar's Lua/WASM filter or an `EnvoyFilter`.

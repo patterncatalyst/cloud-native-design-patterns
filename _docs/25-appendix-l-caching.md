@@ -8,8 +8,8 @@ description: "Six standard caching patterns — cache-aside, read-through, write
 duration: 24 minutes
 ---
 
-Caching is the most effective performance tool you have and the easiest to get subtly
-wrong. The six patterns in this appendix all use the same pieces — an application, a cache
+Caching is often the cheapest large performance win you have, and the easiest to get
+subtly wrong. The six patterns in this appendix all use the same pieces — an application, a cache
 (Redis here), and a database — and differ in exactly two things: *who does the work* and
 *what consistency story you get*. The discipline is to pick the pattern that matches the
 consistency you need and the read/write profile you have, not the one
@@ -1327,8 +1327,8 @@ cache, so if reads are already fast, don't add one. The failure modes to design 
 
 - **Don't cache rarely-read data.** Caching write-once-read-never data thrashes the cache and gains
   nothing. Profile read patterns first.
-- **Don't cache without a TTL.** An unbounded cache grows until it evicts at random, which is the worst
-  failure because it is unpredictable. Always set an explicit TTL or a `maxmemory-policy`
+- **Don't cache without a TTL.** An unbounded cache grows until it evicts at random, a failure that is
+  hard to diagnose because it is unpredictable. Always set an explicit TTL or a `maxmemory-policy`
   (`allkeys-lru` is the typical default); an unbounded Redis with no eviction policy will OOM-kill
   itself.
 - **Avoid cache stampedes (thundering herd).** When a hot key expires and many concurrent readers all

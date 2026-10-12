@@ -58,7 +58,7 @@ cloud.
 | Scheduling | Quartz.NET | Cron / cluster-aware job scheduling | Apache 2.0 | Quartz |
 | Scheduling | DistributedLock | Distributed mutex over Postgres / Redis / SQL Server | MIT | DistributedLock.* |
 
-A few choices need explanation. `Microsoft.AspNetCore.OpenApi` and SignalR are built
+`Microsoft.AspNetCore.OpenApi` and SignalR are built
 into ASP.NET Core 10 — no extra package. **Confluent.Kafka** is the Kafka client the examples use directly: a bus abstraction such as MassTransit would hide the consumer-group, offset-commit, and partition semantics the chapters teach, and MassTransit v9 moved to a commercial license.
 **Streamiz.Kafka.Net** is a .NET port of Kafka Streams, which means windowed aggregations
 without standing up a Flink cluster. **Temporalio.Temporal** pairs with the Temporal Server
@@ -163,15 +163,16 @@ in each case there is a workable .NET path, a polyglot path, or a commercial pat
 - **Thinner stream processing.** Streamiz.Kafka.Net is excellent but is a smaller project
   than Kafka Streams. If stream processing is central, Flink remains the heavyweight option,
   typically as a separate JVM service.
-- **Simple DI.** Microsoft.Extensions.DependencyInjection is minimal. For property injection, decorators, or advanced lifetime
-  scopes, Autofac or Lamar are drop-in replacements.
+- **Minimal built-in DI.** Microsoft.Extensions.DependencyInjection covers constructor
+  injection only. For property injection, decorators, or advanced lifetime scopes, Autofac
+  or Lamar are drop-in replacements.
 - **MassTransit v9 is commercial.** The previously open-source service bus moved to a
   commercial license, so this book uses Confluent.Kafka directly for Kafka messaging and
   Wolverine (MIT) where a framework bus is wanted.
 - **MediatR is no longer open source.** It moved to a commercial license, and Wolverine is
   the modern MIT-licensed equivalent, and a better design, for new projects.
 
-In summary: the .NET cloud-native story is solid for well over 95% of line-of-business
+The .NET cloud-native story is solid for well over 95% of line-of-business
 and SaaS workloads. The remaining few percent — integration platforms with heavy mainframe,
 EDI, or HL7 needs, or central heavy stream processing — is where you mix runtimes or accept a
 different trade-off.

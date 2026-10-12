@@ -161,7 +161,7 @@ to a domain you don't yet understand, where the boundaries themselves are still 
    alt="The four Cynefin domains, each with its coupling posture. Complex (probe, sense, respond): keep coupling loose and reversible — favour events and contracts, and don't split prematurely. Complicated (sense, analyse, respond): design boundaries with DDD context mapping and invest in the right contracts. Chaotic (act, sense, respond): stabilise first with strong, local coupling, even a monolith, then refactor as it clarifies. Clear (sense, categorise, respond): standardise on contract coupling and codify the known-good with registry-checked schemas."
    caption="Figure G.5 — Cynefin and coupling: match the posture to how well you understand the domain" %}
 
-The throughline with the rest of the appendix: in a **complex** domain you keep
+The throughline of the coupling model: in a **complex** domain you keep
 strength low and reversibility high because you *will* move the boundaries; once the
 domain becomes **clear**, you can afford to standardise on the loosest workable strength
 — contract coupling — and freeze it. The anti-pattern is treating an early, complex

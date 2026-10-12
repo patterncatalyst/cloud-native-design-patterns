@@ -266,8 +266,6 @@ the body dominates. And none of it reaches a browser directly: a browser needs
 
 ## Choosing between them in practice
 
-In short:
-
 - **Public, partner-facing, browser or third-party clients, caching matters →
   REST.**
 - **Internal service-to-service, low latency, high call volume, streaming → gRPC.**
@@ -278,8 +276,8 @@ In short:
 
 The closing point ties back to the whole book: forcing one protocol everywhere —
 "we're a gRPC shop," "everything is GraphQL" — is *itself* an anti-pattern. Each
-protocol fits a specific axis; a healthy system uses all of them
-where they fit.
+protocol is strongest on a specific axis; a healthy system uses each where it
+fits.
 
 ## Common mistakes with each
 

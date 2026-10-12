@@ -30,7 +30,7 @@ distributed monolith.
 
 {% include excalidraw.html
    file="04-db-per-service"
-   alt="Four services — order, inventory, payment, shipping — each owning its data, each backed by its own PostgreSQL with a private schema run by CloudNativePG. A band below reads: polyglot persistence, pick the store per workload (relational, key-value, search, object)."
+   alt="Four services — order, inventory, payment, shipping — each owning its data, each backed by its own PostgreSQL with a private schema run by CloudNativePG. A second band reads: polyglot persistence, pick the store per workload (relational, key-value, search, object)."
    caption="Figure 4.1 — A database per service: private schemas, reached only through the owning API" %}
 
 Ownership also frees each service to pick the store that fits its workload —
