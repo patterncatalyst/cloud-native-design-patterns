@@ -32,14 +32,6 @@ public class OrderController {
     }
 
     // -----------------------------------------------------------------
-    // Health check — open path (filter skips it)
-    // -----------------------------------------------------------------
-    @GetMapping("/healthz")
-    public Map<String, String> healthz() {
-        return Map.of("status", "ok");
-    }
-
-    // -----------------------------------------------------------------
     // Create order — requires identity, uses per-tenant bulkhead
     // -----------------------------------------------------------------
     @PostMapping("/orders")

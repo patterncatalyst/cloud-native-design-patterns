@@ -18,14 +18,14 @@ import java.util.Set;
 /**
  * Jakarta Servlet Filter that enforces sidecar trust.
  * Rejects requests without the X-Forwarded-Client-Cert header (set by
- * the service mesh sidecar) with a 403.  Open paths like /healthz are
+ * the service mesh sidecar) with a 403.  Probe paths (/healthz, /readyz) are
  * exempt.
  */
 @Component
 @Order(1)
 public class SidecarTrustFilter implements Filter {
 
-    private static final Set<String> OPEN_PATHS = Set.of("/healthz");
+    private static final Set<String> OPEN_PATHS = Set.of("/healthz", "/readyz");
     private static final String IDENTITY_HEADER = "X-Forwarded-Client-Cert";
     private static final String SUBJECT_HEADER = "X-Jwt-Claim-Sub";
 
