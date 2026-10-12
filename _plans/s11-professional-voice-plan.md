@@ -4,7 +4,7 @@ Approved by the user 2026-10-11. Opus plan; Sonnet executes in batches on `docs/
 
 ## User decisions (2026-10-11)
 
-1. Fix the scanner upstream first, then vendor that commit: lgtm-skills PR #48, merged as `50b4c08f0454cfc5826096081d201827018d2b90` (scratch file outside the scanned mirror; `candid` flagged).
+1. Fix the scanner upstream first, then vendor that commit: lgtm-skills PR #48, merged as `a3350074a1df343b3bbd58a563f26bf0311a265a` (scratch file outside the scanned mirror; `candid` flagged).
 2. Fix watch tier too, with the triage policy below; every kept watch hit gets a reason code. Only ban tier is gated in CI.
 3. `_plans/` stays internal history: not rewritten, not gated, still published.
 
