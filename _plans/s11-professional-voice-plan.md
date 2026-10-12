@@ -79,7 +79,42 @@ Approved by the user 2026-10-11. Opus plan; Sonnet executes in batches on `docs/
 | Step | Status |
 |---|---|
 | 0 upstream fix | done (lgtm-skills #48, 50b4c08) |
-| 1 vendor + wrapper | in progress |
-| 2–7 batches | pending |
-| 8 gate | pending |
+| 1 vendor + wrapper | done (bf3f9d3) |
+| 2–7 batches | done (B6 15f0f0a, B1 99243f4, B4 79e04a8, B2 d32a858, B5 a7d0874, B3 31d8eb7) |
+| 8 gate | done |
 | 9 validation, PR | pending |
+
+## Results (before Opus validation)
+
+| Scope | Before (all tiers / ban) | After (all tiers / ban) |
+|---|---|---|
+| site (`_docs`, `_parts`, `_example_pages`, `_includes`, `_layouts`, `index.html`, `README.md`, `assets/diagrams`) | 289 / 90 | 80 / 0 |
+| examples (`examples/**/*.md`) | 26 / 0 | 24 / 0 |
+
+Every remaining watch hit is kept with a reason code. Per-batch ledgers (from the executors' hand-backs):
+
+### B6 (15f0f0a) appendices R-S, example pages, READMEs
+- ban 0 -> 0. watch: site files ~100 -> 49, examples md 24 -> 22 (all kept, reason-coded).
+- Changed: README.md:62 (internal planning notes), _example_pages/prerequisites.md:331 + examples/PREREQUISITES.md:327 heading "NOT" -> "not" (slug unchanged), examples/19-ddd-hexagonal/cpp/README.md:34 "ONLY" -> "only".
+- Kept: literal-subject (minikube/OpenShift in 31, 32, prerequisites, 05 READMEs, 31/32 SVG labels); table-data (31/32 result tables, 32:35, em-dash file lists in 7 READMEs, _example_pages/index.md:66); idiom (README.md:13 and 32:118 counts; "Release It!" title); identifier (UNIQUE SQL keyword).
+### B1 chapter 05
+- _docs/05: ban 16 -> 0, watch ~22 -> 11 kept (chapter-opener :10; machine-subject :243 :938; survey-term :297 :323; identifier :303; idiom :299; table-data :335; misconception-contrast :397; literal-subject :1294 :1297).
+- 05-checkpoint-recovery: ban 1 -> 0 (svg + excalidraw + alt ~961). 05-sourcing-vs-streaming: watch 2 -> 0 (ALL-CAPS; svg + excalidraw).
+- No heading changes. Rewrites to review: :459 "rest of this chapter" -> "which is the idea this chapter builds on"; "decisive choice"; "pays off"; "triggered by choice rather than by a crash".
+### B4 appendices I-K
+- 22: ban 4 lines file-level (7 incl. diagrams) -> 0, watch ~12 -> 1 kept (identifier :57 22-l7-journey). 23: ban 9 -> 0, watch 6 -> 1 kept (table-data :105 row/column count). 24: ban 7 -> 0, watch 7 -> 0. Diagrams: ban 2 -> 0, watch ~5 -> 0.
+- Heading: 23 "What the .NET cloud-native story genuinely lacks" -> "... lacks" (no anchor links).
+- Triples: 22-hop-cost ("pay for itself", alt + Figure I.7 caption), 22-east-west (svg+excalidraw), 22-l7-layers (svg+excalidraw+alt :43 + prose :53), 22-l7-journey alt/caption "path", 24-monolith-unit (svg+excalidraw; alt :36 em-dash split).
+- Kept unflagged: 24 heading "The shared database — a deliberate intermediate state" (pre-existing, meaningful).
+- Review: 23 ~166 "Simple DI", ~182 "The order matters", 24 ~354 "to keep the bytes intact".
+### B2 chapters 00-13
+- Batch total: ban ~28 -> 0, watch ~40 -> 1 kept (chapter-opener 04:14). Per-file counts not tracked by the executor (validator to recount from main).
+- Headings: 00 "How the rest of the book is ordered" -> "How the book is ordered"; 11 "How correlation actually works" -> "How correlation works" (no inbound anchors).
+- Triples (hand-edited svg+excalidraw): 04-cqrs, 12-claim-check, 08-four-planes, 04-db-per-service, 13-antipatterns-grid (+ alt 13:22). Caption Figure 8.1 rewritten; em-dash alts in 02, 06, 12 split.
+- Review: 08 "never remove one without warning" (was "never silently remove one"; human subject).
+### B5 committed a7d0874 (ledger above)
+### B3 appendices A-H (31d8eb7)
+- 14: ban 4->0, watch 4->0. 15: ban 1->0, watch 11->5 (idiom :22 :25 :31 :221; machine-subject :108). 16: ban 4->0, watch 1->0. 17: ban 1->0, watch 4->0. 18: ban 2->0, watch 1->1 (machine-subject :406). 19: ban 3->0, watch 8->0. 20: ban 2->0, watch 10->1 (machine-subject :184). 21: ban 1->0, watch 4->0. SVG: ban 4->0, watch 4->3 (15-rest-versioning idiom x2; 18-rest-errors literal-subject payload data).
+- Heading: 14 "Three paradigms, three mental models" -> "Three paradigms and their mental models" (no anchors).
+- Triples: 17-saga-state (+ alt D.1), 18-rest-errors, 19-strategic-ddd (+ alt), 20-cynefin-coupling (+ alt), 21-shutdown-sequence.
+- Review: 16 opener rewrite; 16 "Test what the backplane provides."; 18 added "so nothing about the implementation leaks"; 21 "is evidence that graceful shutdown works".

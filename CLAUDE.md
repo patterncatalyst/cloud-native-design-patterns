@@ -29,13 +29,13 @@ approvals**, no direct pushes. The required checks are summary jobs that always 
 | Check | Workflow | Covers |
 |-------|----------|--------|
 | `site` | `pages.yml` | Jekyll build (deploys only on a push to main) |
-| `content-ok` | `content.yml` | `scripts/validate_site.py` (the "Validate before commit" rules) |
+| `content-ok` | `content.yml` | `scripts/validate_site.py` (the "Validate before commit" rules) + voice scan, ban tier (`scripts/voice-scan.sh`) |
 | `examples-ok` | `examples.yml` | build matrix per changed example project |
 
 Workflows trigger on `push: branches: [main]` plus `pull_request:` (no `paths:` filters).
 `examples.yml` selects projects with `scripts/ci_changed_projects.py`, which you can run
-locally (`--base origin/main`). Run `python3 scripts/validate_site.py` before committing doc
-changes. Work on a branch, open a PR, wait for the three checks, squash-merge.
+locally (`--base origin/main`). Run `python3 scripts/validate_site.py` and `scripts/voice-scan.sh` before
+committing doc changes. Work on a branch, open a PR, wait for the three checks, squash-merge.
 
 ## Example layout
 
@@ -189,6 +189,14 @@ k6, Locust.
 - **Validate before commit:** front-matter parses; raw-guard balance; **0 unguarded `{{`**;
   each codetab block-count == its `langs` count; referenced figures exist (`.svg` + `.excalidraw`);
   **0 positional terms**.
+- **Professional voice:** `scripts/voice-scan.sh` must report 0 ban-tier hits (CI gate in
+  `content-ok`). Watch-tier hits are reviewed in context: rewrite them unless the word is
+  literal (a machine that fails silently, minikube as the subject, a result table). Scope:
+  `_docs`, `_parts`, `_example_pages`, `_includes`, `_layouts`, `index.html`, `README.md`,
+  `assets/diagrams/*.svg`, and `examples/**/*.md`; `lgtm-presentation/` joins in S12. When a
+  diagram label changes, change the SVG, both `text` and `originalText` in the `.excalidraw`,
+  and any alt text or caption that repeats it. The scanner is vendored from lgtm-skills
+  (`scripts/voice/README.md`): fix it upstream and re-vendor, never edit the copy.
 
 ## Workflow in Claude Code (changed from claude.ai)
 

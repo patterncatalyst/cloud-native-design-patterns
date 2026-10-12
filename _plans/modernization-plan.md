@@ -33,7 +33,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | S8 | chore/infra-images | 2 | done (111/111 PASS; two Opus repair rounds; PR #66; lgtm-skills #45 + r5.x; main run green, Actions cache 2.4 GB) |
 | S9 | docs/minikube-docker-driver (+ 05 on minikube) | 7 | done (PR #67) |
 | S10 | feature/openshift-local-appendix | 8 | done (PR #68, 48e7736) |
-| S11 | docs/professional-voice | 9 | in progress (plan: _plans/s11-professional-voice-plan.md) |
+| S11 | docs/professional-voice | 9 | executed (awaiting validation; plan: _plans/s11-professional-voice-plan.md) |
 | S12 | docs/deck-refresh | 10 (expanded 2026-10-11) | pending |
 
 ## Target pins (verified 2026-10-09; re-check at the start of each branch)
