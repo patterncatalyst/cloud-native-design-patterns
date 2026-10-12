@@ -23,7 +23,7 @@ g.emit("27-ci-gate", 920, 280,
     ],
     notes=[
         {"x": 460, "y": 250, "anchor": "middle", "color": "#2f6db5",
-         "text": "the services run on Docker Engine in CI exactly as on a laptop — no managed cloud — and a failed assertion fails the build"},
+         "text": "the services run on Docker Engine in CI exactly as locally — no managed cloud — and a failed assertion fails the build"},
     ])
 
 # ---- Figure O.3: one collection, six implementations -----------------------

@@ -9,7 +9,7 @@ duration: 20 minutes
 ---
 
 Postman is already one of the tools this book reaches for to exercise an API by hand. **Newman**
-is its command-line runner: it executes the very same Postman collection headlessly, which turns
+is its command-line runner: it executes the same Postman collection headlessly, which turns
 the requests your team already pokes at interactively into an automated test gate you can run on
 every change. The payoff is that the assertions live in one place — the collection — and the same
 file serves three audiences: a developer clicking through Postman, a reviewer reading the tests,
@@ -80,7 +80,7 @@ implementation in this book.
    alt="One collection running under Newman tests the same HTTP API (/orders, /payments) against six order-service implementations — Spring Boot, Quarkus, .NET, Python, C++, and Go. Because Newman tests the API as a black box, one collection validates every implementation; the contract is the spec, not the code."
    caption="Figure O.3 — One collection is the conformance suite for all six implementations" %}
 
-This is a quietly powerful idea: the collection *is* the API specification made executable. Point
+This is a powerful idea: the collection *is* the API specification made executable. Point
 it at whichever implementation is running and the assertions are identical. Bringing the service
 under test up is the only language-specific step; the Newman command that follows is the same.
 
@@ -148,7 +148,7 @@ This is how you cover boundary values, bad input, and edge cases without duplica
 
 {% include excalidraw.html
    file="27-data-driven"
-   alt="A collection of one request set, combined with an iteration-data.csv of rows (id and qty values including a zero and a very large number), runs once per row under newman, producing N result sets — one per case."
+   alt="A collection of one request set, combined with an iteration-data.csv of rows (id and qty values including a zero and a large number), runs once per row under newman, producing N result sets — one per case."
    caption="Figure O.4 — Data-driven runs: one request set, many inputs via --iteration-data" %}
 
 ```bash
@@ -192,12 +192,12 @@ it appears.
 ## Newman in CI
 
 The runner exits non-zero when any assertion fails, which is all a pipeline needs to gate a merge.
-The services come up on Docker Engine exactly as they do on a laptop — no managed cloud — and Newman runs
+The services come up on Docker Engine exactly as they do locally — no managed cloud — and Newman runs
 against them.
 
 {% include excalidraw.html
    file="27-ci-gate"
-   alt="A pipeline: pull request, build image, docker compose up of the order/payment/inventory services, newman run of the collection, then a gate where pass merges and fail blocks. The services run on Docker Engine in CI exactly as on a laptop, and a failed assertion fails the build."
+   alt="A pipeline: pull request, build image, docker compose up of the order/payment/inventory services, newman run of the collection, then a gate where pass merges and fail blocks. The services run on Docker Engine in CI exactly as locally, and a failed assertion fails the build."
    caption="Figure O.5 — Newman as a merge gate: bring the stack up on Docker, run the collection, fail the build on a broken contract" %}
 
 ```yaml
@@ -236,13 +236,13 @@ API/contract tier: real HTTP against a running service, fast enough to run on ev
 
 Keep the base of fast unit tests broad, use Newman for the contract and integration behaviour that
 only shows up over real HTTP, and reserve a thin layer of full end-to-end tests for the few
-journeys that genuinely need the whole system. Pushing everything into Newman makes a slow,
+journeys that need the whole system. Pushing everything into Newman makes a slow,
 brittle suite; ignoring it leaves the contract untested.
 
 ## Negative and authentication testing
 
 The cases that matter most are the ones that are easy to skip. Assert the **failure** paths as
-deliberately as the happy path: a `401` with a `WWW-Authenticate` header when the token is missing,
+carefully as the happy path: a `401` with a `WWW-Authenticate` header when the token is missing,
 a `403` when it is present but unauthorised, a `409` or `422` on a business-rule violation, and a
 `429` carrying `RateLimit` headers when a client exceeds its budget. Confirm idempotency by sending
 the same `Idempotency-Key` twice and asserting the second response matches the first rather than
@@ -267,7 +267,7 @@ JSON-schema validation.
 
 Prove the gate end to end against the running stack. Bring the services up with `docker compose up -d --build --wait`,
 then `newman run` the orders collection with `--reporters cli,junit` and confirm a green run and a
-`newman.xml` you could hand to CI. Now make the contract break on purpose — have the service return
+`newman.xml` you could hand to CI. Now break the contract — have the service return
 `200` instead of `201` on create, or drop the `id` field — and confirm Newman exits non-zero and
 the failing assertion names the exact expectation. Finally, add a negative row to your
 `--iteration-data` (a zero-quantity order expecting `422`) and confirm it passes against a correct

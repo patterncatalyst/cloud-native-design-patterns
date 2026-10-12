@@ -577,13 +577,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "the mesh gives timeouts, retries, mesh-bulkheads (connectionPool) and gray-failure ejection (outlierDetection) for free \u2014 don't ALSO retry in the app",
+   "text": "the mesh already gives timeouts, retries, mesh-bulkheads (connectionPool) and gray-failure ejection (outlierDetection) \u2014 don't also retry in the app",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "the mesh gives timeouts, retries, mesh-bulkheads (connectionPool) and gray-failure ejection (outlierDetection) for free \u2014 don't ALSO retry in the app",
+   "originalText": "the mesh already gives timeouts, retries, mesh-bulkheads (connectionPool) and gray-failure ejection (outlierDetection) \u2014 don't also retry in the app",
    "lineHeight": 1.25,
    "baseline": 11
   }

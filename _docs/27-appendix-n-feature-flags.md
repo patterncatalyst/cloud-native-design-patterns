@@ -35,7 +35,7 @@ mechanism behind every canary and every safe cutover in the book.
 
 ## Four kinds of flag
 
-"Feature flag" covers four genuinely different tools, and conflating them is the root of most
+"Feature flag" covers four different tools, and conflating them is the root of most
 flag messes. They differ along two axes — how long the flag lives, and who decides to flip it.
 
 {% include excalidraw.html
@@ -48,10 +48,10 @@ and then be removed. **Experiment (A/B) flags** are temporary and data-owned: th
 across variants so a metric can be measured, and they *require* sticky assignment. **Ops /
 kill-switch flags** are long-lived and SRE-owned: a permanent control to disable a feature or a
 dependency fast under load or incident. **Permission / entitlement flags** are long-lived and
-product-owned: they gate functionality by plan, tier, or region, and are really part of the
+product-owned: they gate functionality by plan, tier, or region, and are part of the
 product model rather than a rollout. The defaults differ too: a release flag fails *off* (new
 code stays dark if the flag system is unreachable), while a kill-switch usually fails *on* (the
-feature stays available unless someone deliberately kills it).
+feature stays available unless someone kills it).
 
 ## Evaluating a flag: OpenFeature and flagd
 
@@ -59,7 +59,7 @@ Evaluation should not couple your code to a vendor. **OpenFeature** is the CNCF 
 API standard — one SDK surface across languages — and **flagd** is its lightweight open-source
 backend that evaluates flags from a file, ConfigMap, or synced source, in-cluster. Together they
 keep the whole feature-flag story open-source and running on plain Kubernetes, with no managed
-SaaS, consistent with the rest of this book; swapping flagd for another provider later is a
+SaaS, consistent with the open-source stack used throughout the book; swapping flagd for another provider later is a
 configuration change, not a code change.
 
 {% include excalidraw.html
@@ -271,7 +271,7 @@ interval, with no redeploy.
 A kill switch is the operational flag you reach for during an incident: wrap a risky or expensive
 dependency in a flag so it can be disabled instantly without a deploy. It is the deliberate,
 human-driven complement to the circuit breaker from the Failure Modes appendix — the breaker
-trips automatically on errors; the kill switch is flipped on purpose.
+trips automatically on errors; the kill switch is flipped by a person.
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
@@ -364,7 +364,7 @@ is dead code, a hidden conditional, and a live risk surface that nobody remember
 
 The discipline that keeps it healthy: give every *release* flag an owner and an expiry from the
 moment it is created, and treat removing it as part of finishing the feature, not optional
-cleanup. Long-lived ops and entitlement flags are exempt — they are permanent by design — which
+cleanup. Long-lived ops and entitlement flags are exempt because they are meant to be permanent, which
 is exactly why distinguishing the four types matters. A short-lived flag that has reached 100%
 for two weeks should be deleted along with the branch it guarded.
 
@@ -373,7 +373,7 @@ for two weeks should be deleted along with the branch it guarded.
 A flag multiplies the states your system can be in, so test **both** sides of every flag you
 depend on (a test suite that only exercises the default path will not catch a bug behind the
 flag), keep the number of *simultaneously interacting* flags small, and default flags off in test
-environments unless a test sets them deliberately. Observability ties flags back to the
+environments unless a test sets them explicitly. Observability ties flags back to the
 Observability chapter: record the resolved variant as a span attribute and a metric label, so a
 latency or error change can be attributed to a specific flag and cohort — "the new checkout's p99
 is worse for the 25% on `on`" is only visible if the variant is on the telemetry. The recurring
