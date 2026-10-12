@@ -1,8 +1,11 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Npgsql;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://+:8080");
@@ -10,8 +13,7 @@ builder.WebHost.UseUrls("http://+:8080");
 var connString = builder.Configuration.GetConnectionString("Default")
     ?? throw new InvalidOperationException("ConnectionStrings:Default is required");
 
-var dataSource = new NpgsqlDataSourceBuilder(connString).Build();
-builder.Services.AddSingleton(dataSource);
+builder.Services.AddDbContext<OrdersContext>(o => o.UseNpgsql(connString));
 
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("order-service"))
@@ -26,77 +28,47 @@ builder.Services.ConfigureHttpJsonOptions(opts =>
     opts.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
 });
 
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<OrdersContext>("database", tags: ["ready"]);
+
 var app = builder.Build();
 
-var serviceVersion = Environment.GetEnvironmentVariable("SERVICE_VERSION") ?? "0.0.0";
-var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("order-service");
+var serviceVersion = builder.Configuration["SERVICE_VERSION"] ?? "0.0.0";
 
 app.MapGet("/", () => new { service = "order-service", version = serviceVersion, config_source = "environment" });
 
-app.MapGet("/healthz", () => new { status = "ok" });
-
-app.MapGet("/readyz", async (NpgsqlDataSource db) =>
+app.MapHealthChecks("/healthz", new HealthCheckOptions
 {
-    try
-    {
-        await using var conn = await db.OpenConnectionAsync();
-        await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT 1";
-        await cmd.ExecuteScalarAsync();
-        return Results.Ok(new { status = "ready", checks = new { database = "ok" } });
-    }
-    catch
-    {
-        return Results.Json(
-            new { status = "down", checks = new { database = "unreachable" } },
-            statusCode: StatusCodes.Status503ServiceUnavailable);
-    }
+    Predicate = _ => false,
+    ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok" }),
 });
 
-app.MapGet("/orders", async (NpgsqlDataSource db) =>
+app.MapHealthChecks("/readyz", new HealthCheckOptions
 {
-    await using var conn = await db.OpenConnectionAsync();
-    await using var cmd = conn.CreateCommand();
-    cmd.CommandText = "SELECT id, customer, total FROM orders ORDER BY id";
-    await using var reader = await cmd.ExecuteReaderAsync();
-
-    var orders = new List<object>();
-    while (await reader.ReadAsync())
+    Predicate = r => r.Tags.Contains("ready"),
+    ResponseWriter = (ctx, report) =>
     {
-        orders.Add(new
+        var up = report.Status == HealthStatus.Healthy;
+        return ctx.Response.WriteAsJsonAsync(new
         {
-            id = reader.GetInt32(0),
-            customer = reader.GetString(1),
-            total = reader.GetDecimal(2)
+            status = up ? "ready" : "down",
+            checks = new { database = up ? "ok" : "unreachable" },
         });
-    }
-    return orders;
+    },
 });
 
-app.MapPost("/orders", async (HttpContext ctx, NpgsqlDataSource db) =>
+app.MapGet("/orders", async (OrdersContext db) =>
+    await db.Orders.AsNoTracking().OrderBy(o => o.Id).Select(o => OrderDto.From(o)).ToListAsync());
+
+app.MapPost("/orders", async (string customer, decimal total, OrdersContext db, ILogger<Program> logger) =>
 {
-    var customer = ctx.Request.Query["customer"].ToString();
-    var total = decimal.Parse(ctx.Request.Query["total"]!);
-
-    await using var conn = await db.OpenConnectionAsync();
-    await using var cmd = conn.CreateCommand();
-    cmd.CommandText = "INSERT INTO orders (customer, total) VALUES ($1, $2) RETURNING id, customer, total";
-    cmd.Parameters.AddWithValue(customer);
-    cmd.Parameters.AddWithValue(total);
-    await using var reader = await cmd.ExecuteReaderAsync();
-    await reader.ReadAsync();
-
-    var order = new
-    {
-        id = reader.GetInt32(0),
-        customer = reader.GetString(1),
-        total = reader.GetDecimal(2)
-    };
-
+    var order = new Order { Customer = customer, Total = total };
+    db.Orders.Add(order);
+    await db.SaveChangesAsync();
+    var dto = OrderDto.From(order);
     logger.LogInformation("order_created id={Id} customer={Customer} total={Total:F2}",
-        order.id, order.customer, order.total);
-
-    return Results.Ok(order);
+        dto.Id, dto.Customer, dto.Total);
+    return TypedResults.Ok(dto);
 });
 
 app.Run();
