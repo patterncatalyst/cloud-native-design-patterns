@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
@@ -6,9 +7,11 @@ using System.Text.Json;
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://+:8080");
 
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 
-var valetSecret = Environment.GetEnvironmentVariable("VALET_SECRET") ?? "demo-secret-do-not-use-in-prod";
+var valetSecret = builder.Configuration.GetValue("VALET_SECRET", "demo-secret-do-not-use-in-prod");
 var orders = new ConcurrentDictionary<string, object>();
 var counter = 0;
 var bulkheadLimit = 5;
@@ -40,7 +43,10 @@ app.Use(async (ctx, next) =>
     await next();
 });
 
-app.MapGet("/healthz", () => new { status = "ok" });
+app.MapHealthChecks("/healthz", new HealthCheckOptions
+{
+    ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok" }),
+});
 
 app.MapPost("/orders", async (HttpContext ctx) =>
 {
