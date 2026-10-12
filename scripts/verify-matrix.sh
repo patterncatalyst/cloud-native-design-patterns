@@ -44,10 +44,12 @@ for t in "${targets[@]}"; do
   done
 done
 
-running="$(docker ps -q | wc -l)"
+# The quarkus-agent MCP's doc-search containers (label quarkus-agent-mcp) are tooling, not a workshop.
+others="$(docker ps --format '{{.Names}}\t{{.Label "quarkus-agent-mcp"}}' | awk -F'\t' '$2 == "" {print $1}')"
+running="$(printf '%s' "$others" | grep -c . || true)"
 if [ "$running" -ne 0 ]; then
   echo "refusing to start: $running container(s) already running (one workshop at a time)" >&2
-  docker ps --format '  {{.Names}}' >&2
+  printf '%s\n' "$others" | sed 's/^/  /' >&2
   exit 2
 fi
 

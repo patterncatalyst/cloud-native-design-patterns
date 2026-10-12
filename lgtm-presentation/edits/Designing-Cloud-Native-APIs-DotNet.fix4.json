@@ -1,0 +1,567 @@
+{
+ "ops": [
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    296
+   ],
+   "find": "Kafka is the substrate — a partitioned",
+   "repl": "Kafka is the substrate: a partitioned",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup (6 per paragraph)",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    296
+   ],
+   "find": "Pulsar is also substrate — same broad category",
+   "repl": "Pulsar is also substrate, in the same broad category",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    296
+   ],
+   "find": "Flink is compute — not a transport layer at all, but",
+   "repl": "Flink is compute: not a transport layer, but",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    296
+   ],
+   "find": "NiFi is movement — a visual",
+   "repl": "NiFi is movement: a visual",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    296
+   ],
+   "find": "They complement — pick by",
+   "repl": "They complement each other; pick by",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    320
+   ],
+   "find": "This is the slide the user specifically asked for: distinguish auto-injection from auto-instrumentation from manual instrumentation — three things people conflate.",
+   "repl": "Auto-injection, auto-instrumentation and manual instrumentation are three things people conflate.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): leaked authoring request; em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    320
+   ],
+   "find": "wrap known frameworks — your HTTP handler",
+   "repl": "wrap known frameworks: your HTTP handler",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    320
+   ],
+   "find": "a Kubernetes-level mechanism — the OpenTelemetry Operator",
+   "repl": "a Kubernetes-level mechanism; the OpenTelemetry Operator",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    320
+   ],
+   "find": "Python — ",
+   "repl": "Python: ",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    320
+   ],
+   "find": "Java/Quarkus — ",
+   "repl": "Java/Quarkus: ",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    285
+   ],
+   "find": "The cost: eventual consistency — there is a small lag",
+   "repl": "The cost: eventual consistency, a small lag",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    285
+   ],
+   "find": "happily handles both — CQRS adds",
+   "repl": "handles both; CQRS adds",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    285
+   ],
+   "find": "for projections — we cover both distinctions in section 5.",
+   "repl": "for projections; the Event-Driven section draws both distinctions.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup; cross-reference by concept",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    326
+   ],
+   "find": "The sub-bullet is the reminder the user asked for: ",
+   "repl": "The sub-bullet is the reminder: ",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): leaked authoring request",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    384
+   ],
+   "find": "This is the specific case you asked about, and a common source of bad designs.",
+   "repl": "This case is a common source of bad designs.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): leaked authoring request",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    566
+   ],
+   "find": "Fallback: the recorded results that follow.",
+   "repl": "Fallback: the recorded results.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): soft positional reference",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    263
+   ],
+   "find": "The six pillars that follow are the rubric",
+   "repl": "These six pillars are the rubric",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): soft positional reference",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    380
+   ],
+   "find": "in-memory state is a non-starter — a Pod restart",
+   "repl": "in-memory state is a non-starter: a Pod restart",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    380
+   ],
+   "find": "Stateless is a lighter in-process alternative we'll show side by side.",
+   "repl": "Stateless is the lighter in-process alternative, compared with Temporal in this appendix.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): soft positional reference",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    380
+   ],
+   "find": "with EF Core — simplest, and great for most cases.",
+   "repl": "with EF Core; the simplest option, and enough for most cases.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    381
+   ],
+   "find": "The managed alternative is Temporal, covered in this appendix.NET and Stateless — same problem, different point",
+   "repl": "Temporal .NET and Stateless, both in this appendix, solve the same problem at a different point",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): garbled text from an earlier replace",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    490
+   ],
+   "find": "a 'dirty set' — the dirty set tells",
+   "repl": "a 'dirty set'; the dirty set tells",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    490
+   ],
+   "find": "inside the loop iteration — BackgroundService is a singleton.",
+   "repl": "inside the loop iteration, because BackgroundService is a singleton.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    490
+   ],
+   "find": "go back on the dirty set for retry — idempotent.",
+   "repl": "go back on the dirty set for retry; the flush is idempotent.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "watch triage (final validation): em-dash pileup",
+   "_src": "watch"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    381
+   ],
+   "find": "the one I'd reach for first when the saga is bounded and I want to own the transitions.",
+   "repl": "the default choice when the saga is bounded and the team wants to own the transitions.",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "first-person and soft-hype tone in notes",
+   "_src": "tone"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    381
+   ],
+   "find": "Recovery is beautifully boring:",
+   "repl": "Recovery needs no special path:",
+   "expect": 1,
+   "cat": "voice",
+   "_why": "first-person and soft-hype tone in notes",
+   "_src": "tone"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    293
+   ],
+   "find": "In the running example the loop runs inside a BackgroundService.",
+   "repl": "In the running example the loop runs in a plain console worker that PosixSignalRegistration cancels on SIGTERM.",
+   "expect": 1,
+   "cat": "notes",
+   "_slide": 38,
+   "_why": "examples/05-event-driven/dotnet/NotificationConsumer/Program.cs has no BackgroundService (no example does); the loop is top-level with a SIGTERM-cancelled token",
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    381
+   ],
+   "find": "s.Status = \"DONE\";",
+   "repl": "s.Status = \"COMPLETED\";",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 126,
+   "_why": "examples/17-sagas/dotnet (and every language, verify.sh, _docs/17 codetab) end a saga in COMPLETED, not DONE",
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    465
+   ],
+   "find": "run Camunda or Kogito DMN as a separate service",
+   "repl": "run a DMN engine such as Apache KIE (Kogito) as a separate service",
+   "expect": 1,
+   "cat": "stack",
+   "_slide": 210,
+   "_why": "maintained open source only: Camunda 7 Community Edition reached end of life in October 2025 and Camunda 8 is under the source-available Camunda License; Apache KIE (Kogito/Drools DMN) is Apache 2.0",
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    465
+   ],
+   "find": " you may still want a Camel sidecar in a JVM Pod, or commercial alternatives like Boomi / MuleSoft if open source isn't a hard constraint.",
+   "repl": " you may still want a Camel sidecar in a JVM Pod.",
+   "expect": 1,
+   "cat": "stack",
+   "_slide": 210,
+   "_why": "no commercial vendor products as recommendations (open-source-only policy)",
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    465
+   ],
+   "find": "it moved to a commercial license in late 2024.",
+   "repl": "it moved to a commercial license in 2025.",
+   "expect": 1,
+   "cat": "stack",
+   "_slide": 210,
+   "_why": "MediatR's commercial licensing was announced in April 2025 and shipped with v13 in July 2025, not late 2024",
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    465
+   ],
+   "find": "either a workable .NET path, a polyglot path, or a commercial path.",
+   "repl": "either a workable .NET path or a polyglot path.",
+   "expect": 1,
+   "cat": "stack",
+   "_slide": 210,
+   "_why": "the commercial path is gone with the Boomi / MuleSoft mention",
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    465
+   ],
+   "find": "run Camunda or Kogito as a separate service.",
+   "repl": "run Apache KIE (Kogito) as a separate service.",
+   "expect": 1,
+   "cat": "stack",
+   "_slide": 210,
+   "_why": "Camunda is no longer a maintained open-source option (7 CE end of life, 8 source-available)",
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    452
+   ],
+   "find": "run Camunda or Kogito DMN as a separate service",
+   "repl": "run Apache KIE (Kogito) DMN as a separate service",
+   "expect": 1,
+   "cat": "stack",
+   "_slide": 197,
+   "_why": "Camunda is no longer a maintained open-source option",
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    460
+   ],
+   "find": "For DMN specifically, Camunda DMN engine docs",
+   "repl": "For DMN specifically, the Apache KIE (Kogito) DMN docs",
+   "expect": 1,
+   "cat": "stack",
+   "_slide": 205,
+   "_why": "Camunda is no longer a maintained open-source option",
+   "_src": "content"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    323
+   ],
+   "find": "and the consumer extracts them, as the Appendix S code shows.",
+   "repl": "and the consumer extracts them, as examples/05-event-driven/dotnet does (OrderService injects, ShippingConsumer and NotificationConsumer extract).",
+   "expect": 1,
+   "cat": "notes",
+   "_why": "the decks carry no Appendix S; point at the example that shows both sides",
+   "_src": "mine"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "find": "StackExchangeRedis package (Apache 2.0)",
+   "repl": "StackExchangeRedis package (MIT)",
+   "expect": 2,
+   "cat": "notes",
+   "_why": "Microsoft.AspNetCore.SignalR.StackExchangeRedis ships from dotnet/aspnetcore under MIT",
+   "_src": "mine"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    462
+   ],
+   "find": "All MIT or Apache 2.0; no cloud-vendor lock-in.",
+   "repl": "All MIT, Apache 2.0 or BSD-3; no cloud-vendor lock-in.",
+   "expect": 1,
+   "cat": "notes",
+   "_why": "Polly is BSD-3; matches the figure footer",
+   "_src": "mine"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 501,
+   "shape": "Google Shape;2717;p248",
+   "png": "lgtm-presentation/edits/png/25-gray-failure.png",
+   "cat": "voice",
+   "_why": "ALL-CAPS emphasis baked into the old figure (PERCEIVED DIFFERENTLY, NOT fully down, OBSERVE FROM THE CLIENT, GREEN, OUTLIER DETECTION); replaced by the site figure assets/diagrams/25-gray-failure.svg",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 295,
+   "shape": "Google Shape;450;p42",
+   "png": "lgtm-presentation/edits/png/05-sourcing-vs-streaming.png",
+   "cat": "voice",
+   "_why": "ALL-CAPS emphasis baked into the old figure (SOURCING/STREAMING, ARE, IS, TRANSPORT, ABOUT, NOT, EVENT, PROPAGATED); replaced by the site figure assets/diagrams/05-sourcing-vs-streaming.svg (caps lowered there too)",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 296,
+   "shape": "Google Shape;461;p43",
+   "png": "lgtm-presentation/edits/png/05-tools-landscape.png",
+   "cat": "voice",
+   "_why": "ALL-CAPS emphasis baked into the old figure (COMPLEMENT); replaced by the site figure assets/diagrams/05-tools-landscape.svg (SUBSTRATE/COMPUTE/MOVEMENT are design labels)",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 418,
+   "shape": "Google Shape;1798;p165",
+   "png": "lgtm-presentation/edits/png/20-coupling-quadrant.png",
+   "cat": "voice",
+   "_why": "ALL-CAPS emphasis baked into the old figure ('strong OR distant'); replaced by the site figure assets/diagrams/20-coupling-quadrant.svg",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 548,
+   "shape_id": 4,
+   "png": "lgtm-presentation/edits/png/29-container-layers.png",
+   "cat": "fit",
+   "_why": "figure re-rendered: the 'COPY --from=build' edge label overlapped the publish box (assets/diagrams/29-container-layers.svg, scripts/gen_29_diagrams.py)",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 462,
+   "shape_id": 2282,
+   "png": "lgtm-presentation/edits/png/70-appJ-pinned-libraries-dn.png",
+   "cat": "stack",
+   "_why": "Temporalio.Temporal -> Temporalio (the NuGet id), MIT; ASP.NET Core SignalR rows MIT; Asp.Versioning MIT; AspNetCore.HealthChecks Apache 2.0 (src/70-appJ-pinned-libraries-dn.svg)",
+   "_src": "figures"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 453,
+   "shape_id": 2187,
+   "png": "lgtm-presentation/edits/png/22-hop-cost-nrules.png",
+   "cat": "voice",
+   "_why": "figure footer: 'where p99 goes to die' rewritten without the drama",
+   "_src": "hop"
+  }
+ ]
+}

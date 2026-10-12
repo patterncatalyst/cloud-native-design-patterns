@@ -23,7 +23,8 @@ selected=("$@")
 for l in "${selected[@]}"; do valid_lang "$l" || fail "unknown language '$l' (${LANGS[*]})"; done
 minikube status -p "$PROFILE" >/dev/null 2>&1 || fail "profile $PROFILE is not running. Run k8s/setup-profile.sh first."
 
-foreign="$(docker ps --format '{{.Names}}' | grep -vx "$PROFILE" || true)"
+# The quarkus-agent MCP's doc-search containers (label quarkus-agent-mcp) are tooling, not a workshop.
+foreign="$(docker ps --format '{{.Names}}\t{{.Label "quarkus-agent-mcp"}}' | awk -F'\t' '$2 == "" {print $1}' | grep -vx "$PROFILE" || true)"
 [[ -z "$foreign" ]] || fail "containers are running (one workshop at a time): $(tr '\n' ' ' <<<"$foreign")"
 
 # How many distinct service names Tempo reports in a service.name values reply (0 on any error).

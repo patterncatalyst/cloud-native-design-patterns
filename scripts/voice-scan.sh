@@ -8,9 +8,11 @@
 #                                               with PATHs (relative to the current directory), scan only
 #                                               those; paths under examples/ are scanned as Markdown
 #
-# Two scopes, scanned separately because --ext applies to a whole scan.sh run:
+# Three scopes, scanned separately because --ext applies to a whole scan.sh run:
 #   site      the Jekyll content, layouts, homepage, README and diagram SVGs (default extensions)
 #   examples  the example READMEs and PREREQUISITES.md (--ext md, so example source is not scanned)
+#   decks     lgtm-presentation Markdown only (--ext md): the text copies of the decks, the
+#             policy-deck companions and BUILD.md; the .pptx and .docx files are never scanned
 # Add a new reader-facing surface to SITE_ROOTS. The scanner is vendored from lgtm-skills; see
 # scripts/voice/README.md and fix it upstream rather than here.
 set -euo pipefail
@@ -21,16 +23,18 @@ ROOT="$PWD"
 SCAN=(bash scripts/voice/scan.sh)
 
 SITE_ROOTS=(_docs _parts _example_pages _includes _layouts index.html README.md assets/diagrams)
-# S12: lgtm-presentation joins the gate when the decks are reviewed.
 EXAMPLE_ROOTS=(examples)
+DECK_ROOTS=(lgtm-presentation)
 
-# scan_scopes <site paths...> -- <example paths...> -- <scan.sh options...>
+# scan_scopes <site paths...> -- <example paths...> -- <deck paths...> -- <scan.sh options...>
 # Runs each non-empty scope; returns non-zero if either run fails.
 scan_scopes() {
-    local site=() examples=() opts=() rc=0
+    local site=() examples=() decks=() opts=() rc=0
     while [[ $# -gt 0 && "$1" != -- ]]; do site+=("$1"); shift; done
     shift
     while [[ $# -gt 0 && "$1" != -- ]]; do examples+=("$1"); shift; done
+    shift
+    while [[ $# -gt 0 && "$1" != -- ]]; do decks+=("$1"); shift; done
     shift
     opts=("$@")
     if [[ ${#site[@]} -gt 0 ]]; then
@@ -41,10 +45,14 @@ scan_scopes() {
         echo "== examples (Markdown only; excerpt paths are relative to examples/ when the whole tree is scanned)"
         "${SCAN[@]}" --ext md "${opts[@]}" "${examples[@]}" || rc=1
     fi
+    if [[ ${#decks[@]} -gt 0 ]]; then
+        echo "== decks (Markdown only: text copies, policy-deck companions, BUILD.md)"
+        "${SCAN[@]}" --ext md "${opts[@]}" "${decks[@]}" || rc=1
+    fi
     return "$rc"
 }
 
-run_both() { scan_scopes "${SITE_ROOTS[@]}" -- "${EXAMPLE_ROOTS[@]}" -- "$@"; }
+run_both() { scan_scopes "${SITE_ROOTS[@]}" -- "${EXAMPLE_ROOTS[@]}" -- "${DECK_ROOTS[@]}" -- "$@"; }
 
 if [[ $# -eq 0 ]]; then
     if run_both --tier ban --fail; then
@@ -63,7 +71,7 @@ if [[ "$1" == --all-tiers-summary ]]; then
 fi
 
 # Split options (and their values) from paths. Options that take a value are listed explicitly.
-opts=() site=() examples=()
+opts=() site=() examples=() decks=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --tier|--hits|--ext|--exclude|--patterns)
@@ -77,14 +85,15 @@ while [[ $# -gt 0 ]]; do
             rel="${path#"$ROOT"}"; rel="${rel#/}"; rel="${rel:-.}"
             case "$rel" in
                 examples|examples/*) examples+=("$rel") ;;
+                lgtm-presentation|lgtm-presentation/*) decks+=("$rel") ;;
                 *) site+=("$rel") ;;
             esac
             shift ;;
     esac
 done
 
-if [[ ${#site[@]} -eq 0 && ${#examples[@]} -eq 0 ]]; then
+if [[ ${#site[@]} -eq 0 && ${#examples[@]} -eq 0 && ${#decks[@]} -eq 0 ]]; then
     run_both "${opts[@]}"
 else
-    scan_scopes "${site[@]}" -- "${examples[@]}" -- "${opts[@]}"
+    scan_scopes "${site[@]}" -- "${examples[@]}" -- "${decks[@]}" -- "${opts[@]}"
 fi

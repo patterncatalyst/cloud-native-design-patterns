@@ -60,6 +60,10 @@ check "liveness probe returns ok" \
     '"status":"ok"'
 
 # Readiness probe (DB is up)
+check "readiness probe returns 200 when DB is up" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' $BASE/readyz" \
+    '^200$'
+
 check "readiness probe returns ready when DB is up" \
     "curl $CURL_OPTS -sf $BASE/readyz" \
     '"status":"ready"'
@@ -78,9 +82,17 @@ printf '\n  → stopping postgres to test readiness flip...\n'
 ctr_stop cndp-postgres >/dev/null 2>&1
 sleep 2
 
-check "readiness returns down when DB is stopped" \
-    "curl $CURL_OPTS -sf $BASE/readyz" \
+check "readiness returns 503 when DB is stopped" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' $BASE/readyz" \
+    '^503$'
+
+check "readiness body reports down when DB is stopped" \
+    "curl $CURL_OPTS -s $BASE/readyz" \
     '"status":"down"'
+
+check "liveness still returns 200 when DB is stopped" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' $BASE/healthz" \
+    '^200$'
 
 check "liveness still returns ok when DB is stopped" \
     "curl $CURL_OPTS -sf $BASE/healthz" \

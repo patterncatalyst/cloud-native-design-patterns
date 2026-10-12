@@ -93,9 +93,10 @@ public class Notifier {
 
 ```java
 // producer — order-service (or the Debezium relay) emits the fact
+// channel order-placed → topic order.placed (mp.messaging.*.order-placed.topic)
 @ApplicationScoped
 public class OrderEvents {
-    @Inject @Channel("order.placed") Emitter<Order> emitter;   // Reactive Messaging
+    @Inject @Channel("order-placed") Emitter<Order> emitter;   // Reactive Messaging
     public void publish(Order o) {
         emitter.send(KafkaRecord.of(o.id(), o));   // keyed; schema-aware serde
     }
@@ -104,7 +105,7 @@ public class OrderEvents {
 // consumer — notification-service, Kafka-only by design
 @ApplicationScoped
 public class Notifier {
-    @Incoming("order.placed")                      // offset tracked per group
+    @Incoming("order-placed")                      // offset tracked per group
     public Uni<Void> onOrder(Message<Order> msg) {
         return sendEmail(msg.getPayload())
             .chain(msg::ack);          // ack after the side-effect — at-least-once
@@ -122,7 +123,7 @@ var producer = new ProducerBuilder<Null, string>(
 
 var json = JsonSerializer.Serialize(new { id, sku, quantity, status });
 await producer.ProduceAsync("order.placed",
-    new Message<Null, string> { Value = json });     // fire-and-forget ack
+    new Message<Null, string> { Value = json });     // awaits the broker ack
 
 // consumer — notification-service
 var consumer = new ConsumerBuilder<Ignore, string>(new ConsumerConfig
@@ -154,7 +155,7 @@ async def publish(topic: str, order: Order):
 # consumer — notification-service, Kafka-only by design
 consumer = AIOKafkaConsumer("order.placed",
     bootstrap_servers=settings.kafka_bootstrap,
-    group_id="notification",                 # offset tracked per group
+    group_id="notification-group",           # offset tracked per group
     enable_auto_commit=False)                # commit AFTER the side-effect
 
 async for msg in consumer:
@@ -182,7 +183,7 @@ void publish_order_placed(const Order& o) {
 // consumer — notification-service, Kafka-only by design
 std::unique_ptr<RdKafka::Conf> cconf(RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL));
 cconf->set("bootstrap.servers", cfg.kafka_bootstrap, err);
-cconf->set("group.id", "notification", err);       // offset tracked per group
+cconf->set("group.id", "notification-group", err); // offset tracked per group
 cconf->set("enable.auto.commit", "false", err);    // commit AFTER the side-effect
 std::unique_ptr<RdKafka::KafkaConsumer> consumer(RdKafka::KafkaConsumer::create(cconf.get(), err));
 consumer->subscribe({"order.placed"});
@@ -214,7 +215,7 @@ func publish(ctx context.Context, cl *kgo.Client, topic string, o Order) error {
 func consume(ctx context.Context, cfg Settings) error {
 	cl, err := kgo.NewClient(
 		kgo.SeedBrokers(cfg.Brokers...),
-		kgo.ConsumerGroup("notification"), // offset tracked per group
+		kgo.ConsumerGroup("notification-group"), // offset tracked per group
 		kgo.ConsumeTopics("order.placed"),
 		kgo.DisableAutoCommit(), // commit AFTER the side-effect
 	)
@@ -494,7 +495,7 @@ public OrderValidated process(Order o) {
 ```
 
 ```java
-@Incoming("order.placed")                           // consume  (Reactive Messaging)
+@Incoming("order-placed")                           // consume  (Reactive Messaging)
 @Outgoing("order.validated")                        // produce
 public OrderValidated process(Order o) {
   return new OrderValidated(o.id(), validate(o));   // map: one in, one out
@@ -693,7 +694,7 @@ public void onOrder(Order o) {
 ```
 
 ```java
-@Incoming("order.placed")                           // fold the event into a local view
+@Incoming("order-placed")                           // fold the event into a local view
 public void onOrder(Order o) {
   views.upsert(new OrderView(o.id(), o.customer(),
       o.total(), o.status()));                      // local read model, no call-back
@@ -832,7 +833,7 @@ func aggregate(ctx goka.Context, msg any) {
 ```
 
 On the ecosystem side, Kafka Streams (Spring, Quarkus), its .NET port Streamiz, and
-Python's Faust give you the state store and its changelog as first-class `KTable` / `Table`
+Python's faust-streaming give you the state store and its changelog as first-class `KTable` / `Table`
 abstractions; Go's **goka** does the same with a group table; and in C++, with no such
 framework, you keep the store and mirror writes to a compacted topic by hand — more code,
 the identical pattern.
@@ -982,7 +983,7 @@ public void process(Order o) {
 // SmallRye KafkaTransactions — produce inside the transaction, offsets bound on commit
 @Inject @Channel("order.validated") KafkaTransactions<OrderValidated> tx;
 
-@Incoming("order.placed")
+@Incoming("order-placed")
 public Uni<Void> process(Order o) {
   return tx.withTransaction(em -> {
     em.send(validate(o));                               // produce in-transaction
@@ -1093,7 +1094,7 @@ public void onOrder(Order o) {
 ```
 
 ```java
-@Incoming("order.placed")
+@Incoming("order-placed")
 @Outgoing("payment.result")                          // routed to taken / failed downstream
 public PaymentResult onOrder(Order o) {
   try {

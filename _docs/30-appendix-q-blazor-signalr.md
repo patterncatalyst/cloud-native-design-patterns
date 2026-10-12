@@ -96,11 +96,6 @@ publishes group messages to Redis channels and each pod's subscriber delivers
 them to the local circuits. The `ChannelPrefix` isolates this app's traffic from
 other SignalR apps sharing the same Redis instance.
 
-For teams that want fully managed infrastructure, **Azure SignalR Service** offloads
-the persistent connections entirely: the app server handles Hub logic but the
-connections terminate at Azure, removing the per-pod connection limit from your
-scaling equation.
-
 ## A Blazor Server order dashboard
 
 Here is a minimal but complete example: a Blazor Server page that shows orders in

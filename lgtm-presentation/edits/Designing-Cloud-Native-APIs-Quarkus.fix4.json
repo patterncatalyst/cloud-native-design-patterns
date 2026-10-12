@@ -1,0 +1,288 @@
+{
+ "ops": [
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    269
+   ],
+   "find": "java · Quarkus + SmallRye Health",
+   "repl": "java · Quarkus REST",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 14,
+   "_why": "examples/01 quarkus hand-writes /healthz and /readyz",
+   "_src": "align"
+  },
+  {
+   "op": "set_code",
+   "sldId": 269,
+   "lines": [
+    "// HealthResource.java (excerpt), examples/01-cloud-native-principles/quarkus",
+    "@Path(\"/\") @Produces(MediaType.APPLICATION_JSON)",
+    "public class HealthResource {",
+    "    @ConfigProperty(name = \"quarkus.datasource.jdbc.url\") String jdbcUrl;  // env, factor III",
+    "    @GET @Path(\"healthz\")                    // liveness: the process is up",
+    "    public Map<String, String> healthz() { return Map.of(\"status\", \"ok\"); }",
+    "    @GET @Path(\"readyz\")                     // readiness: SELECT 1 (one retry elided)",
+    "    public Response readyz() {",
+    "        try (var conn = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);",
+    "             var rs = conn.createStatement().executeQuery(\"SELECT 1\")) {",
+    "            return Response.ok(Map.of(\"status\", \"ready\",",
+    "                    \"checks\", Map.of(\"database\", \"ok\"))).build();",
+    "        } catch (Exception e) {              // down: 503, out of rotation",
+    "            return Response.status(Response.Status.SERVICE_UNAVAILABLE)",
+    "                .entity(Map.of(\"status\", \"down\", \"checks\", Map.of(\"database\", \"unreachable\")))",
+    "                .build();",
+    "        }",
+    "    }"
+   ],
+   "cat": "code",
+   "_slide": 14,
+   "_why": "examples/01: hand-written /healthz and /readyz; readiness answers 503 when the database is down",
+   "_src": "align"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 269,
+   "cat": "notes",
+   "_slide": 14,
+   "_why": "notes follow the code",
+   "_src": "align",
+   "text": "Walk the code: config comes from the environment via MicroProfile Config (factor III): QUARKUS_DATASOURCE_JDBC_URL, the username and password and SERVICE_VERSION override application.properties, never a baked-in file. The two probes are plain JAX-RS handlers in Example 01: /healthz is liveness (am I alive? if not, restart me) and never checks a dependency; /readyz is readiness (can I serve?): it runs SELECT 1 over JDBC, retrying once after a second, and when the database is unreachable it answers 503 with status down, which takes the pod out of rotation without killing it. The probe reads the status code, not the body: Kubernetes treats any answer from 200 to 399 as ready. SmallRye Health (@Liveness and @Readiness checks on /q/health/live and /q/health/ready) is the extension that serves the same pair without handler code; the example writes them by hand so every language serves the same paths and bodies. Getting liveness vs readiness wrong is a top cause of cascading restarts, so stress the distinction. Maven with the quarkus-bom (platform 3.40.1) pins every dependency reproducibly."
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    287
+   ],
+   "find": "java · Hibernate Panache + Debezium",
+   "repl": "java · Agroal JDBC + Debezium",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 32,
+   "_why": "examples/04 quarkus: plain JDBC inserts into the outbox table",
+   "_src": "align"
+  },
+  {
+   "op": "set_code",
+   "sldId": 287,
+   "lines": [
+    "// OrderResource.java (excerpt), examples/04-data/quarkus: two rows, one transaction",
+    "@POST @Transactional                       // one JTA transaction around both inserts",
+    "public Response createOrder(CreateOrderRequest request) throws Exception {",
+    "    String orderId = UUID.randomUUID().toString();",
+    "    try (Connection conn = dataSource.getConnection();   // Agroal enlists it in the txn",
+    "         PreparedStatement stmt = conn.prepareStatement(",
+    "             \"INSERT INTO orders (id, sku, quantity, status) VALUES (?, ?, ?, ?) \"",
+    "             + \"RETURNING created_at\")) {",
+    "        // ... bind orderId, sku, quantity, \"confirmed\"; executeQuery (the state change)",
+    "        try (PreparedStatement outboxStmt = conn.prepareStatement(",
+    "                \"INSERT INTO outbox (aggregate_id, event_type, payload) \"",
+    "                + \"VALUES (?, ?, ?::jsonb)\")) {",
+    "            // ... setString: orderId, \"order.placed\", payloadJson {order_id, sku, quantity}",
+    "            outboxStmt.executeUpdate();              // same transaction: the outbox row",
+    "        }",
+    "        return Response.status(Response.Status.CREATED).entity(order).build();",
+    "    }",
+    "}",
+    "// No Kafka call on the request path: Debezium tails the WAL and publishes order.placed."
+   ],
+   "cat": "code",
+   "_slide": 32,
+   "_why": "examples/04 quarkus: plain JDBC inserts into orders and outbox in one @Transactional method",
+   "_src": "align"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 287,
+   "cat": "notes",
+   "_slide": 32,
+   "_why": "notes follow the code",
+   "_src": "align",
+   "paragraphs": [
+    "The whole trick is the @Transactional method: the insert of the order row and the insert of the outbox row run on one Agroal connection inside one JTA transaction, so they commit or roll back together. There is no Kafka call inside the request path: if the broker is down, the order still commits and the event ships later when Debezium tails the write-ahead log and relays the outbox row in commit order. This decouples request latency and availability from Kafka's.",
+    "Example 04 needs no outbox extension: the outbox is a small table (aggregate id, event type, JSON payload, created_at), the payload is serialized with Jackson, and a standard Debezium Postgres connector handles the CDC. The Debezium Outbox Event Router single-message transform unwraps the row into the event envelope on the connector side. The same commit-together discipline reappears in the saga appendix."
+   ]
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    419
+   ],
+   "find": "delay flips readiness DOWN first (a build-time setting), then in-flight HTTP gets `timeout` to finish; only HTTP is automatic — drain the rest in a ShutdownEvent observer.",
+   "repl": "One SIGTERM flips readiness; after DRAIN_DELAY_SECONDS, Quarkus.asyncExit(0) drains in-flight HTTP within quarkus.shutdown.timeout (20 s).",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 164,
+   "_why": "examples/21 quarkus: Signal handler, drain delay, asyncExit (9676f32)",
+   "_src": "align"
+  },
+  {
+   "op": "set_code",
+   "sldId": 419,
+   "lines": [
+    "// SignalHandler.java (excerpt), examples/21-graceful-shutdown/quarkus",
+    "// application.properties: quarkus.shutdown.timeout=20s (bounds the in-flight wait)",
+    "@ApplicationScoped",
+    "public class SignalHandler {",
+    "    @Inject ShutdownState shutdownState;     // GET /readyz answers 503 once it is set",
+    "    void onStart(@Observes StartupEvent ev) { // replaces the JVM's default SIGTERM handler",
+    "        Signal.handle(new Signal(\"TERM\"), signal -> {",
+    "            if (!shutdownState.markShuttingDown()) return;  // one SIGTERM drives the drain",
+    "            long delay = drainDelaySeconds();               // DRAIN_DELAY_SECONDS, default 5",
+    "            new Thread(() -> {",
+    "                try { Thread.sleep(delay * 1000); }         // keep serving: endpoints update",
+    "                catch (InterruptedException e) { Thread.currentThread().interrupt(); }",
+    "                Quarkus.asyncExit(0);   // stop accepting, finish in-flight, close the pool",
+    "            }, \"drain\").start();",
+    "        });",
+    "    }",
+    "}"
+   ],
+   "cat": "code",
+   "_slide": 164,
+   "_why": "examples/21: one SIGTERM -> readiness 503 -> DRAIN_DELAY_SECONDS -> stop accepting -> in-flight drain within 20 s -> cleanup -> exit 0",
+   "_src": "align"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 419,
+   "cat": "notes",
+   "_slide": 164,
+   "_why": "notes follow the code",
+   "_src": "align",
+   "text": "Example 21 handles the signal itself, so the whole sequence is visible. A sun.misc.Signal handler, registered on StartupEvent, replaces the JVM's default SIGTERM handler, which would start the shutdown hooks at once. One SIGTERM, the only signal Kubernetes sends before SIGKILL, drives everything: the handler flips the ShutdownState flag, so the hand-written /readyz answers 503 and the Service stops routing, and a drain thread keeps the service serving for DRAIN_DELAY_SECONDS (5 s; it plays the part of a preStop sleep) while the endpoint removal propagates. It then calls Quarkus.asyncExit(0): Quarkus stops accepting connections, waits for in-flight requests up to quarkus.shutdown.timeout (20 s), closes the datasource and exits 0, inside the 30-second grace period. A ShutdownEvent observer is the hook for what Quarkus leaves to you: Kafka consumers, the scheduler, WebSockets. Quarkus also has a built-in pre-shutdown delay (quarkus.shutdown.delay-enabled, a build-time flag) that reports readiness down through SmallRye Health; the example keeps its own /readyz, as Example 01 does. Pair it with the Kubernetes side: probes, preStop and the grace period."
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    476
+   ],
+   "find": "java · Quarkus + @Scheduled + Redis + Panache",
+   "repl": "java · Quarkus + @Scheduled + Redis + JDBC",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 221,
+   "_why": "examples/25 quarkus flushes with JDBC per-id upserts",
+   "_src": "align"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    476
+   ],
+   "find": "The dirty set is the key idea — it tells the flusher what to drain. Failed batches go back on the set for retry.",
+   "repl": "A write answers 202 Accepted. A failed flush re-queues its ids with backoff; after five attempts an id is parked on metric:failed.",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 221,
+   "_why": "examples/25: 202 and bounded retry (ebca295)",
+   "_src": "align"
+  },
+  {
+   "op": "set_code",
+   "sldId": 476,
+   "lines": [
+    "// CacheResource + BackgroundTasks (excerpt), examples/25-caching/quarkus: write-back",
+    "@PUT @Path(\"write-back/metrics/{mid}\")                // CacheResource",
+    "public Response writeBackWrite(@PathParam(\"mid\") String mid, Map<String, Object> body) {",
+    "    // ... HSET metric:<mid> {value, tags}; SADD metric:dirty <mid> (503 when Redis is down)",
+    "    return Response.accepted(Map.of(\"ok\", true, \"pattern\", \"write-back\",",
+    "            \"action\", \"cached-for-flush\")).build();   // 202: queued, not yet durable",
+    "}",
+    "@Scheduled(every = \"${cache-service.flush-period:1s}\")  // concurrent runs are skipped",
+    "void flusher() {                                       // BackgroundTasks",
+    "    if (System.currentTimeMillis() < nextFlushAt) return;   // backing off after a failure",
+    "    Set<String> ids = cache.spop(\"metric:dirty\", FLUSH_BATCH);",
+    "    if (ids == null || ids.isEmpty()) return;",
+    "    List<String> failed = new ArrayList<>();",
+    "    for (String mid : ids) {",
+    "        try (var conn = dataSource.getConnection(); var ps = conn.prepareStatement(",
+    "                \"INSERT INTO metrics (id, payload) VALUES (?, ?::jsonb) \"",
+    "                + \"ON CONFLICT (id) DO UPDATE SET payload = ?::jsonb, ts = NOW()\")) {",
+    "            // ... bind mid and the cached hash as JSON; executeUpdate (one row per id)",
+    "            cache.hdel(\"metric:attempts\", mid);",
+    "        } catch (Exception e) { failed.add(mid); }       // Log.errorf: flush failed for <mid>",
+    "    }",
+    "    if (failed.isEmpty()) { failures = 0; return; }",
+    "    nextFlushAt = System.currentTimeMillis() + Math.min(FLUSH_PERIOD_MS << ++failures, 8000);",
+    "    requeue(failed);   // HINCRBY metric:attempts; SADD metric:dirty, or metric:failed at 5",
+    "}"
+   ],
+   "cat": "code",
+   "_slide": 221,
+   "_why": "examples/25: /write-back/metrics/{id} answers 202; upsert; bounded retry (metric:attempts, metric:failed, backoff)",
+   "_src": "align"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 476,
+   "cat": "notes",
+   "_slide": 221,
+   "_why": "notes follow the code",
+   "_src": "align",
+   "paragraphs": [
+    "Quarkus write-back, as Example 25 runs it. (1) PUT /write-back/metrics/{mid} writes the metric to a Redis hash, adds the id to a dirty set, which tells the flusher what still has to reach the database, and answers 202 Accepted: the value is queued, not yet durable. (2) A @Scheduled method runs every second (a run is skipped while one is in flight), pops up to FLUSH_BATCH dirty ids with SPOP (atomic, so two flusher instances get distinct subsets and the flusher scales out) and upserts each one over JDBC with INSERT ... ON CONFLICT (id) DO UPDATE, so an id flushed twice stays one row. (3) An id whose upsert fails is re-queued: its count in the metric:attempts hash goes up and it goes back on the dirty set, or, after five attempts, onto metric:failed with its value still in the cache and the failure in the log. After a failed run the flusher waits two seconds, then four, then eight before it tries again.",
+    "This is only safe with Redis persistence (AOF, appendonly yes); without it a Redis crash loses unflushed writes. For data that must not be lost, use write-through. For high-throughput telemetry where losing the last second is acceptable, write-back is what lets the service scale."
+   ]
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    500
+   ],
+   "find": "java · Quarkus + SmallRye Health",
+   "repl": "java · Quarkus",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 245,
+   "_why": "examples/21 quarkus: hand-written /readyz",
+   "_src": "align"
+  },
+  {
+   "op": "set_code",
+   "sldId": 500,
+   "lines": [
+    "// OrderResource + SignalHandler (excerpt), examples/21-graceful-shutdown/quarkus",
+    "@GET @Path(\"readyz\")                                 // OrderResource",
+    "public Response readyz() {",
+    "    if (shutdownState.isShuttingDown())              // 1. readiness flips: 503",
+    "        return Response.status(503)",
+    "                .entity(Map.of(\"ready\", false, \"reason\", \"shutting down\")).build();",
+    "    // ... SELECT 1 on the datasource: 200 {\"ready\": true}, or 503 \"db unreachable\"",
+    "}",
+    "@GET @Path(\"healthz\")                                // liveness stays 200 while draining",
+    "public Map<String, String> healthz() { return Map.of(\"status\", \"ok\"); }",
+    "void onStart(@Observes StartupEvent ev) {            // SignalHandler",
+    "    Signal.handle(new Signal(\"TERM\"), signal -> {    // one SIGTERM drives the drain",
+    "        if (!shutdownState.markShuttingDown()) return;",
+    "        new Thread(() -> {",
+    "            try { Thread.sleep(drainDelaySeconds() * 1000); }   // 2. the LB stops routing",
+    "            catch (InterruptedException e) { Thread.currentThread().interrupt(); }",
+    "            Quarkus.asyncExit(0);   // 3. drain in-flight HTTP (quarkus.shutdown.timeout=20s)",
+    "        }, \"drain\").start();                          // 4. Quarkus closes pools, exit 0",
+    "    });",
+    "}"
+   ],
+   "cat": "code",
+   "_slide": 245,
+   "_why": "Appendix M recap follows examples/21 (one SIGTERM, drain delay, 20 s drain)",
+   "_src": "align"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 500,
+   "cat": "notes",
+   "_slide": 245,
+   "_why": "notes follow the code",
+   "_src": "align",
+   "text": "Example 21 handles SIGTERM itself. A sun.misc.Signal handler, registered on StartupEvent, takes the single SIGTERM: (1) it flips the ShutdownState flag, so the hand-written /readyz answers 503 and Kubernetes stops routing new traffic, while /healthz stays 200; (2) a drain thread keeps the service serving for DRAIN_DELAY_SECONDS so the load balancer's removal propagates; (3) it calls Quarkus.asyncExit(0), and Quarkus stops accepting and drains in-flight HTTP within quarkus.shutdown.timeout (20 s); (4) Quarkus closes the datasource and the process exits 0. Appendix H covers the Kubernetes-side preStop and terminationGracePeriodSeconds."
+  }
+ ]
+}

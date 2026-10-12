@@ -11,8 +11,9 @@ public class ShutdownState {
     private final AtomicBoolean shuttingDown = new AtomicBoolean(false);
     private final AtomicInteger inFlight = new AtomicInteger(0);
 
-    public void markShuttingDown() {
-        shuttingDown.set(true);
+    /** Returns true only for the call that flips the flag. */
+    public boolean markShuttingDown() {
+        return shuttingDown.compareAndSet(false, true);
     }
 
     public boolean isShuttingDown() {

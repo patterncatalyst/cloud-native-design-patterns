@@ -24,7 +24,7 @@ cd .. && ./verify.sh
 
 | Path | Description |
 |------|-------------|
-| `order-service/SignalHandler.java` | Registers a `sun.misc.Signal` handler on `StartupEvent` that replaces the JVM default SIGTERM handler — the process stays alive after SIGTERM |
+| `order-service/SignalHandler.java` | Registers a `sun.misc.Signal` handler on `StartupEvent` that replaces the JVM default SIGTERM handler, flips readiness, waits `DRAIN_DELAY_SECONDS` (default 5), then calls `Quarkus.asyncExit(0)` |
 | `order-service/ShutdownState.java` | CDI `@ApplicationScoped` bean tracking `shuttingDown` flag and `inFlight` counter via atomics |
 | `order-service/OrderResource.java` | REST API — `/healthz`, `/readyz` (flips to 503 on SIGTERM), `/orders`, `/debug/state` |
 
@@ -33,14 +33,14 @@ cd .. && ./verify.sh
 1. `docker kill --signal SIGTERM cndp-order-service` fires
 2. `SignalHandler` catches SIGTERM, calls `shutdownState.markShuttingDown()`
 3. `/readyz` immediately returns 503 — the load balancer (or Kubernetes kubelet) stops routing new traffic
-4. In-flight requests finish normally (tracked by the `inFlight` counter)
-5. The process remains alive until `docker stop` sends SIGKILL after `stop_grace_period` (30 s)
+4. The service keeps serving for `DRAIN_DELAY_SECONDS` (default 5) so endpoints update
+5. The handler calls `Quarkus.asyncExit(0)`: Quarkus stops accepting connections, waits for in-flight requests (`quarkus.shutdown.timeout=20s`), closes the pool and exits 0, inside the 30 s `stop_grace_period`
 
 ## Environment variables
 
 Key variables (set by compose.yaml, override for local dev):
 
-`QUARKUS_DATASOURCE_JDBC_URL, QUARKUS_DATASOURCE_USERNAME, QUARKUS_DATASOURCE_PASSWORD`
+`QUARKUS_DATASOURCE_JDBC_URL, QUARKUS_DATASOURCE_USERNAME, QUARKUS_DATASOURCE_PASSWORD, DRAIN_DELAY_SECONDS`
 
 ## Local development (without containers)
 

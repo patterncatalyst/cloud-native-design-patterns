@@ -26,16 +26,37 @@ class OrderIn(BaseModel):
     quantity: int = Field(gt=0)
 
 
-def handle_sigterm(*_):
+DRAIN_DELAY_SECONDS = float(os.getenv("DRAIN_DELAY_SECONDS", "5"))
+
+# uvicorn's own SIGTERM handler, saved when ours is installed: it starts uvicorn's graceful
+# shutdown (stop accepting, finish open requests, then run the lifespan exit below).
+uvicorn_sigterm = None
+loop: Optional[asyncio.AbstractEventLoop] = None
+
+
+def stop_server(signum, frame):
+    log.info("shutting down HTTP server (in_flight=%d)", in_flight)
+    uvicorn_sigterm(signum, frame)
+
+
+def handle_sigterm(signum, frame):
+    """One SIGTERM drives the whole drain: readiness flips now, uvicorn's shutdown starts after the delay."""
     global shutting_down
+    if shutting_down:
+        return  # already draining
     shutting_down = True
     log.info("SIGTERM received — readiness flipped, draining in-flight requests")
+    log.info("waiting %.0fs for endpoints to update", DRAIN_DELAY_SECONDS)
+    # Keep serving during the delay, then hand over to uvicorn (stop accepting, finish in-flight).
+    loop.call_soon_threadsafe(loop.call_later, DRAIN_DELAY_SECONDS, stop_server, signum, frame)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global db_pool
-    signal.signal(signal.SIGTERM, handle_sigterm)
+    global db_pool, uvicorn_sigterm, loop
+    loop = asyncio.get_running_loop()
+    # uvicorn installs its handlers before the lifespan starts; keep it and chain to it.
+    uvicorn_sigterm = signal.signal(signal.SIGTERM, handle_sigterm)
     db_pool = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=10)
     log.info("order-service started (PID=%d)", os.getpid())
     yield

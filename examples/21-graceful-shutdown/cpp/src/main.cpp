@@ -22,7 +22,12 @@ namespace {
 
 std::unique_ptr<cndp::PgPool> g_pool;
 std::string g_version;
+// Written by the signal handler, so it must be lock-free: the handler does
+// nothing but store to it.
 std::atomic<bool> g_shutting_down{false};
+static_assert(std::atomic<bool>::is_always_lock_free);
+// Tells the watcher thread to exit when the server stops for another reason.
+std::atomic<bool> g_watcher_stop{false};
 std::atomic<int> g_in_flight{0};
 
 const char* env(const char* name, const char* fallback) {
@@ -60,10 +65,36 @@ std::string generate_uuid() {
     return oss.str();
 }
 
-void sigterm_handler(int) {
-    spdlog::info("SIGTERM received, initiating graceful shutdown");
+// Async-signal-safe: a single lock-free atomic store. No logging, allocation
+// or locking here; the watcher thread observes the flag and does the rest.
+extern "C" void sigterm_handler(int) {
     g_shutting_down.store(true, std::memory_order_release);
-    // Do NOT call app().quit() here — we want to keep running to serve readyz
+}
+
+// Runs the shutdown sequence outside signal context, driven by the single
+// SIGTERM. Readiness already reads g_shutting_down, so /readyz returns 503 from
+// the moment the handler ran. The watcher then keeps serving for the pre-stop
+// delay (so endpoints update), waits for in-flight requests (bounded to fit the
+// stop grace period) and asks Drogon to quit: it stops the listeners and
+// app().run() returns.
+void shutdown_watcher() {
+    using namespace std::chrono_literals;
+    while (!g_shutting_down.load(std::memory_order_acquire)) {
+        if (g_watcher_stop.load(std::memory_order_acquire)) return;
+        std::this_thread::sleep_for(50ms);
+    }
+    const int delay = std::atoi(env("DRAIN_DELAY_SECONDS", "5"));
+    spdlog::info("SIGTERM received, readiness flipped, waiting {}s for endpoints to update", delay);
+    std::this_thread::sleep_for(std::chrono::seconds(delay));
+
+    spdlog::info("draining in-flight requests (in_flight={})", g_in_flight.load());
+    const auto deadline = std::chrono::steady_clock::now() + 20s;
+    while (g_in_flight.load(std::memory_order_acquire) > 0 &&
+           std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(100ms);
+    }
+    spdlog::info("shutting down HTTP server (in_flight={})", g_in_flight.load());
+    app().quit();
 }
 
 }  // namespace
@@ -82,8 +113,9 @@ int main() {
     app().setUploadPath("/tmp");
 
     // Re-install SIGTERM handler AFTER Drogon's init — Drogon's run() installs
-    // its own SIGTERM handler that calls quit(). We override it so the process
-    // stays alive and keeps serving while readyz flips to 503.
+    // its own SIGTERM handler that calls quit(). We override it with one that
+    // only sets an atomic flag, so the process stays alive and keeps serving
+    // while readyz flips to 503. SIGINT keeps Drogon's handler (quit).
     app().registerBeginningAdvice([]() {
         std::signal(SIGTERM, sigterm_handler);
         spdlog::info("SIGTERM handler installed (graceful shutdown mode)");
@@ -276,14 +308,20 @@ int main() {
     app().setThreadNum(4);
     app().setLogLevel(trantor::Logger::kInfo);
 
+    std::thread watcher(shutdown_watcher);
+
     spdlog::info("listening on 0.0.0.0:8080");
     app().run();
+
+    g_watcher_stop.store(true, std::memory_order_release);
+    watcher.join();
 
     // After app().run() returns (e.g., from SIGINT or explicit quit)
     spdlog::info("waiting for in-flight requests to complete...");
     while (g_in_flight.load(std::memory_order_acquire) > 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+    g_pool.reset();  // close the database connections
     spdlog::info("graceful shutdown complete");
 
     return 0;

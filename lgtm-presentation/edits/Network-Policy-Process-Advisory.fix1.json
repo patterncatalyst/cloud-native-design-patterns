@@ -1,0 +1,181 @@
+[
+ {
+  "op": "resize_shape",
+  "sldId": 257,
+  "shape_id": 6,
+  "cx": 914400
+ },
+ {
+  "op": "resize_shape",
+  "sldId": 258,
+  "shape_id": 6,
+  "cx": 914400
+ },
+ {
+  "op": "resize_shape",
+  "sldId": 259,
+  "shape_id": 6,
+  "cx": 914400
+ },
+ {
+  "op": "resize_shape",
+  "sldId": 260,
+  "shape_id": 6,
+  "cx": 914400
+ },
+ {
+  "op": "resize_shape",
+  "sldId": 261,
+  "shape_id": 6,
+  "cx": 914400
+ },
+ {
+  "op": "resize_shape",
+  "sldId": 262,
+  "shape_id": 7,
+  "cx": 914400
+ },
+ {
+  "op": "resize_shape",
+  "sldId": 263,
+  "shape_id": 6,
+  "cx": 914400
+ },
+ {
+  "op": "resize_shape",
+  "sldId": 264,
+  "shape_id": 6,
+  "cx": 914400
+ },
+ {
+  "op": "resize_shape",
+  "sldId": 265,
+  "shape_id": 6,
+  "cx": 914400
+ },
+ {
+  "op": "resize_shape",
+  "sldId": 266,
+  "shape_id": 7,
+  "cx": 914400
+ },
+ {
+  "op": "resize_shape",
+  "sldId": 267,
+  "shape_id": 6,
+  "cx": 914400
+ },
+ {
+  "op": "resize_shape",
+  "sldId": 268,
+  "shape_id": 7,
+  "cx": 914400
+ },
+ {
+  "op": "resize_shape",
+  "sldId": 269,
+  "shape_id": 6,
+  "cx": 914400
+ },
+ {
+  "op": "resize_shape",
+  "sldId": 270,
+  "shape_id": 6,
+  "cx": 914400
+ },
+ {
+  "op": "resize_shape",
+  "sldId": 271,
+  "shape_id": 6,
+  "cx": 914400
+ },
+ {
+  "op": "resize_shape",
+  "sldId": 272,
+  "shape_id": 6,
+  "cx": 914400
+ },
+ {
+  "op": "resize_shape",
+  "sldId": 273,
+  "shape_id": 6,
+  "cx": 914400
+ },
+ {
+  "op": "resize_shape",
+  "sldId": 274,
+  "shape_id": 6,
+  "cx": 914400
+ },
+ {
+  "op": "resize_shape",
+  "sldId": 275,
+  "shape_id": 5,
+  "cx": 914400
+ },
+ {
+  "op": "set_geometry",
+  "sldId": 262,
+  "shape": "Picture 4",
+  "x": 0.62,
+  "y": 3.3,
+  "w": 12.09,
+  "h": 3.05
+ },
+ {
+  "op": "replace_picture",
+  "sldId": 262,
+  "shape": "Picture 4",
+  "png": "lgtm-presentation/edits/png/net-advisory-tier-evaluation.png"
+ },
+ {
+  "op": "set_geometry",
+  "sldId": 266,
+  "shape": "Picture 4",
+  "x": 0.62,
+  "y": 3.3,
+  "w": 12.09,
+  "h": 3.05
+ },
+ {
+  "op": "replace_picture",
+  "sldId": 266,
+  "shape": "Picture 4",
+  "png": "lgtm-presentation/edits/png/net-advisory-ci-pipeline.png"
+ },
+ {
+  "op": "set_geometry",
+  "sldId": 268,
+  "shape": "Picture 4",
+  "x": 0.62,
+  "y": 3.3,
+  "w": 12.09,
+  "h": 3.05
+ },
+ {
+  "op": "replace_picture",
+  "sldId": 268,
+  "shape": "Picture 4",
+  "png": "lgtm-presentation/edits/png/net-advisory-team-ownership.png"
+ },
+ {
+  "op": "replace",
+  "scope": "slide",
+  "sldIds": [
+   262
+  ],
+  "find": "Only evaluated if the Admin tier passed the traffic.",
+  "repl": "Evaluated unless an Admin rule accepted or denied it.",
+  "expect": 1
+ },
+ {
+  "op": "replace",
+  "scope": "notes",
+  "sldIds": [
+   262
+  ],
+  "find": "it catches traffic that the Admin tier passed and no NetworkPolicy matched.",
+  "repl": "it decides traffic that no Admin rule accepted or denied and that no NetworkPolicy covers.",
+  "expect": 1
+ }
+]

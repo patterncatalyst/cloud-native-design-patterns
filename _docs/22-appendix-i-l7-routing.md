@@ -44,7 +44,7 @@ decision. A request is a chain of independent L7 decisions across them.
    caption="Figure I.2 — L7 routing is a four-layer stack; the mesh applies the same routing to every internal call, not just at the edge" %}
 
 The **edge / ingress** layer (HAProxy, Nginx, Envoy, Traefik) is where TLS terminates and
-coarse host/path routing happens. The **API gateway** (Kong, Apigee, an Istio gateway,
+coarse host/path routing happens. The **API gateway** (Kong, an Istio gateway,
 Spring Cloud Gateway) handles product-level concerns — authentication, rate limiting,
 transformation. The **service mesh** (Istio with Envoy sidecars, or Linkerd) governs
 east/west traffic, giving every internal call mTLS, retries, outlier detection, and
@@ -186,8 +186,8 @@ experts own, separate from the dispatcher, and changes without redeploying the s
 
 {% include excalidraw.html
    file="22-business-rule-routing"
-   alt="Routing by business rules inside the service. Inputs from REST, WebSocket, or Kafka reach a FastAPI/Starlette router that enriches the order with context, evaluates an externalised durable-rules ruleset (a Rete forward-chaining engine), and dynamically dispatches to a list of destinations. The router fans out to service A on a Kafka topic, service B over HTTP, and a DLQ/audit topic. The durable-rules engine sits beside the router and is consulted per request."
-   caption="Figure I.6 — When routing depends on a business rule, a FastAPI front evaluates an externalised durable-rules ruleset and dispatches to services A, B, or a DLQ" %}
+   alt="Routing by business rules inside the service. Inputs from REST, WebSocket, or Kafka reach an in-service router that enriches the order with context, evaluates an externalised ruleset in a rule engine (Drools, NRules or durable-rules, all forward chaining; Lua in C++ and Go), and dynamically dispatches to a list of destinations. The router fans out to service A on a Kafka topic, service B over HTTP, and a DLQ/audit topic. The rule engine sits beside the router and is consulted per request."
+   caption="Figure I.6 — When routing depends on a business rule, the service's router evaluates an externalised ruleset and dispatches to services A, B, or a DLQ" %}
 
 Each ecosystem composes this from its own rule engine — a Rete forward-chaining engine in
 most cases — feeding a small dispatcher. First the **ruleset**, read as a set of "when … then …"
@@ -248,7 +248,8 @@ end
 ```
 
 ```csharp
-// NRules — same Rete engine, fluent C# rules (NRules.Fluent).
+// NRules — same Rete engine, fluent C# rules (NRules.Fluent). The runnable example
+// (examples/22-l7-routing/dotnet) keeps a runtime-editable rule table instead of NRules.
 [Name("High-value VIP orders go to the priority queue")]
 public class HighValueVipRule : Rule
 {
@@ -596,7 +597,7 @@ timeouts top-down, and give the deepest layer the strictest budget.
 
 {% include excalidraw.html
    file="22-hop-cost"
-   alt="A latency budget per L7 stage: TLS termination 0.5 to 2 ms, L7 path/header routing under 1 ms, Auth/JWT validation 1 to 5 ms, WAF inspection 2 to 5 ms, mesh sidecar 0.5 to 2 ms per hop, rate-limit Redis lookup 1 to 3 ms, body/payload inspection 5 to 50 ms, and in-app rule eval under 1 ms cached. The rule of thumb is to stay under about 10 ms of total L7 on hot paths, so every hop must pay for itself."
+   alt="A latency budget per L7 stage: TLS termination 0.5 to 2 ms, L7 path/header routing under 1 ms, Auth/JWT validation 1 to 5 ms, WAF inspection 2 to 5 ms, mesh sidecar 0.5 to 2 ms per hop, rate-limit Redis lookup 1 to 3 ms, body/payload inspection 5 to 50 ms, and in-app rule evaluation in a rule engine under 1 ms cached. The rule of thumb is to stay under about 10 ms of total L7 on hot paths, so every hop must pay for itself."
    caption="Figure I.7 — Each L7 stage adds latency; stay under ~10 ms of total L7 on hot paths, so every hop must pay for itself" %}
 
 ## East / west — L7 between services

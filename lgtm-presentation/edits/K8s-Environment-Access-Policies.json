@@ -1,0 +1,292 @@
+{
+ "ops": [
+  {
+   "op": "replace",
+   "scope": "notes",
+   "find": "This deck covers environment access governance for Kubernetes — the policies, guardrails, and automation that separate a cluster where developers can safely experiment from one where a single misconfigured kubectl command wipes production.",
+   "repl": "The subject is environment access governance for Kubernetes: the policies, guardrails, and automation that separate a cluster where developers can safely experiment from one where a single misconfigured kubectl command wipes production.",
+   "expect": 1,
+   "sldIds": [
+    256
+   ],
+   "cat": "voice",
+   "_slide": 1
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "find": "The fix is a layered policy model — RBAC, NetworkPolicy, admission control, and GitOps — applied differently per environment.",
+   "repl": "The fix is a layered policy model (RBAC, NetworkPolicy, admission control, and GitOps) applied differently per environment.",
+   "expect": 1,
+   "sldIds": [
+    257
+   ],
+   "cat": "voice",
+   "_slide": 2
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "find": "The fix is not one tool but a layered policy model — RBAC, NetworkPolicy, admission control, and GitOps — applied with increasing strictness as you move from dev through test to production.",
+   "repl": "The fix is not one tool but a layered policy model (RBAC, NetworkPolicy, admission control, and GitOps) applied with increasing strictness from dev through test to production.",
+   "expect": 1,
+   "sldIds": [
+    257
+   ],
+   "cat": "voice",
+   "_slide": 2
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "find": "Three environments, three risk profiles",
+   "repl": "Risk profiles by environment",
+   "expect": 1,
+   "sldIds": [
+    258
+   ],
+   "cat": "voice",
+   "_slide": 3
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "find": "This gradient drives every policy decision in the rest of the deck.",
+   "repl": "This gradient drives every policy decision in the model.",
+   "expect": 1,
+   "sldIds": [
+    258
+   ],
+   "cat": "voice",
+   "_slide": 3
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "find": "Emphasize that RBAC is the foundation — it controls who can act — but it is not sufficient alone.",
+   "repl": "RBAC is the foundation because it controls who can act, but it is not sufficient alone.",
+   "expect": 1,
+   "sldIds": [
+    259
+   ],
+   "cat": "voice",
+   "_slide": 4
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "find": "The next slide maps these verbs to specific environments.",
+   "repl": "The environment-specific RBAC matrix maps these verbs to each environment.",
+   "expect": 1,
+   "sldIds": [
+    259
+   ],
+   "cat": "positional",
+   "_slide": 4
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "find": "CI validates (kubeval, conftest)",
+   "repl": "CI validates (kubeconform, conftest)",
+   "expect": 1,
+   "sldIds": [
+    264
+   ],
+   "cat": "stack",
+   "_slide": 9
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "find": "CI validates — kubeval checks YAML schema, conftest runs OPA policies, a staging deployment proves the change does not break.",
+   "repl": "CI validates: kubeconform v0.8.0 checks the manifests against the Kubernetes and CRD schemas, conftest runs OPA policies, and a staging deployment proves the change does not break.",
+   "expect": 1,
+   "sldIds": [
+    264
+   ],
+   "cat": "stack",
+   "_slide": 9
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "find": "The API gateway layer — Kong, Ambassador, Envoy Gateway — handles authentication, rate limiting, and API key validation.",
+   "repl": "The API gateway layer (Kong, Ambassador, Envoy Gateway) handles authentication, rate limiting, and API key validation.",
+   "expect": 1,
+   "sldIds": [
+    265
+   ],
+   "cat": "voice",
+   "_slide": 10
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "find": "The service mesh layer — Istio with Envoy sidecars — provides mTLS encryption, AuthorizationPolicy for identity-based access control, circuit breaking, and retry budgets.",
+   "repl": "The service mesh layer (Istio with Envoy sidecars) provides mTLS encryption, AuthorizationPolicy for identity-based access control, circuit breaking, and retry budgets.",
+   "expect": 1,
+   "sldIds": [
+    265
+   ],
+   "cat": "voice",
+   "_slide": 10
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "find": "This is particularly powerful in production where you want to guarantee that services can only communicate along defined paths, regardless of what the application code attempts.",
+   "repl": "In production this guarantees that services communicate only along defined paths, regardless of what the application code attempts.",
+   "expect": 1,
+   "sldIds": [
+    266
+   ],
+   "cat": "voice",
+   "_slide": 11
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "find": "Schema validation (kubeval)",
+   "repl": "Schema validation (kubeconform)",
+   "expect": 1,
+   "sldIds": [
+    269
+   ],
+   "cat": "stack",
+   "_slide": 14
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "find": "Every policy change — NetworkPolicy, RBAC Role, OPA Constraint, ResourceQuota — flows through the same validation pipeline before reaching any cluster.",
+   "repl": "Every policy change (NetworkPolicy, RBAC Role, OPA Constraint, ResourceQuota) flows through the same validation pipeline before reaching any cluster.",
+   "expect": 1,
+   "sldIds": [
+    269
+   ],
+   "cat": "voice",
+   "_slide": 14
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "find": "schema validation with kubeval or kubeconform catches invalid YAML and wrong API versions.",
+   "repl": "schema validation with kubeconform v0.8.0 catches invalid YAML, unknown fields and wrong API versions, including custom resources through the CRDs-catalog schemas.",
+   "expect": 1,
+   "sldIds": [
+    269
+   ],
+   "cat": "stack",
+   "_slide": 14
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "find": "OPA decision logs record every admission decision — allow or deny — with the policy that matched and the object that triggered it.",
+   "repl": "OPA decision logs record every admission decision, allow or deny, with the policy that matched and the object that triggered it.",
+   "expect": 1,
+   "sldIds": [
+    270
+   ],
+   "cat": "voice",
+   "_slide": 15
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "find": "ArgoCD — argo-cd.readthedocs.io  ·  Flux — fluxcd.io",
+   "repl": "ArgoCD: argo-cd.readthedocs.io  ·  Flux: fluxcd.io",
+   "expect": 1,
+   "sldIds": [
+    273
+   ],
+   "cat": "voice",
+   "_slide": 18
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "find": "Pod Security Standards define the three levels — privileged, baseline, restricted — that replace the deprecated PodSecurityPolicy.",
+   "repl": "Pod Security Standards define three levels (privileged, baseline, restricted) and replace PodSecurityPolicy, which was removed in Kubernetes 1.25.",
+   "expect": 1,
+   "sldIds": [
+    273
+   ],
+   "cat": "voice",
+   "_slide": 18
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 258,
+   "shape_id": 5,
+   "png": "lgtm-presentation/edits/png/k8s-policy-env-rbac.png",
+   "cat": "stack",
+   "_slide": 3,
+   "_why": "re-rendered from the current assets/diagrams source: kubeconform instead of kubeval, arrows as ASCII, S11 label wording"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 262,
+   "shape_id": 5,
+   "png": "lgtm-presentation/edits/png/k8s-policy-namespace-isolation.png",
+   "cat": "stack",
+   "_slide": 7,
+   "_why": "re-rendered from the current assets/diagrams source: kubeconform instead of kubeval, arrows as ASCII, S11 label wording"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 263,
+   "shape_id": 5,
+   "png": "lgtm-presentation/edits/png/k8s-12-policy-as-code.png",
+   "cat": "stack",
+   "_slide": 8,
+   "_why": "re-rendered from the current assets/diagrams source: kubeconform instead of kubeval, arrows as ASCII, S11 label wording"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 264,
+   "shape_id": 5,
+   "png": "lgtm-presentation/edits/png/k8s-policy-gitops-flow.png",
+   "cat": "stack",
+   "_slide": 9,
+   "_why": "re-rendered from the current assets/diagrams source: kubeconform instead of kubeval, arrows as ASCII, S11 label wording"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 265,
+   "shape_id": 5,
+   "png": "lgtm-presentation/edits/png/k8s-22-l7-layers.png",
+   "cat": "stack",
+   "_slide": 10,
+   "_why": "re-rendered from the current assets/diagrams source: kubeconform instead of kubeval, arrows as ASCII, S11 label wording"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 267,
+   "shape_id": 5,
+   "png": "lgtm-presentation/edits/png/k8s-22-traffic-steering.png",
+   "cat": "stack",
+   "_slide": 12,
+   "_why": "re-rendered from the current assets/diagrams source: kubeconform instead of kubeval, arrows as ASCII, S11 label wording"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 268,
+   "shape_id": 5,
+   "png": "lgtm-presentation/edits/png/k8s-policy-namespace-isolation.png",
+   "cat": "stack",
+   "_slide": 13,
+   "_why": "re-rendered from the current assets/diagrams source: kubeconform instead of kubeval, arrows as ASCII, S11 label wording"
+  },
+  {
+   "op": "replace_picture",
+   "sldId": 269,
+   "shape_id": 5,
+   "png": "lgtm-presentation/edits/png/k8s-policy-ci-pipeline.png",
+   "cat": "stack",
+   "_slide": 14,
+   "_why": "re-rendered from the current assets/diagrams source: kubeconform instead of kubeval, arrows as ASCII, S11 label wording"
+  }
+ ]
+}

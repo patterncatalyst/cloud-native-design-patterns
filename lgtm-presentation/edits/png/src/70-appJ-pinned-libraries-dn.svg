@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1740 1170" font-family="'Red Hat Text', 'Liberation Sans', system-ui, sans-serif">
+<rect width="1740" height="1170" fill="#ffffff"/>
+<text x="870.0" y="48" font-size="26" font-weight="700" fill="#151515" text-anchor="middle">The pinned .NET 10 toolkit</text>
+<text x="870.0" y="78" font-size="16" font-style="italic" fill="#5a5a5a" text-anchor="middle">every library in your csproj: purpose, license, NuGet package</text>
+<text x="46" y="140" font-size="14" font-weight="700" fill="#242424">Concern</text>
+<text x="206" y="140" font-size="14" font-weight="700" fill="#242424">Library</text>
+<text x="506" y="140" font-size="14" font-weight="700" fill="#242424">Purpose</text>
+<text x="1006" y="140" font-size="14" font-weight="700" fill="#242424">License</text>
+<text x="1136" y="140" font-size="14" font-weight="700" fill="#242424">NuGet package</text>
+<line x1="40" y1="150" x2="1690" y2="150" stroke="#151515" stroke-width="1.5"/>
+<rect x="40" y="154" width="1650" height="30" fill="#f4f4f4"/>
+<text x="46" y="174" font-size="13.5" font-style="italic" fill="#5a5a5a">Runtime</text>
+<text x="206" y="174" font-size="13.5" font-weight="700" fill="#151515">.NET 10 (10.0.12)</text>
+<text x="506" y="174" font-size="13.5" fill="#242424">LTS through Nov 2028; cross-platform</text>
+<text x="1006" y="174" font-size="13.5" font-weight="700" fill="#0066CC">MIT</text>
+<text x="1136" y="174" font-size="13.5" fill="#242424">(built in)</text>
+<text x="46" y="204" font-size="13.5" font-style="italic" fill="#5a5a5a">Hosting</text>
+<text x="206" y="204" font-size="13.5" font-weight="700" fill="#151515">ASP.NET Core 10</text>
+<text x="506" y="204" font-size="13.5" fill="#242424">Web host, minimal APIs, controllers, DI, config</text>
+<text x="1006" y="204" font-size="13.5" font-weight="700" fill="#0066CC">MIT</text>
+<text x="1136" y="204" font-size="13.5" fill="#242424">(built in)</text>
+<rect x="40" y="214" width="1650" height="30" fill="#f4f4f4"/>
+<text x="46" y="234" font-size="13.5" font-style="italic" fill="#5a5a5a">REST</text>
+<text x="206" y="234" font-size="13.5" font-weight="700" fill="#151515">Microsoft.AspNetCore.OpenApi</text>
+<text x="506" y="234" font-size="13.5" fill="#242424">OpenAPI 3 spec generation from endpoints</text>
+<text x="1006" y="234" font-size="13.5" font-weight="700" fill="#0066CC">MIT</text>
+<text x="1136" y="234" font-size="13.5" fill="#242424">Microsoft.AspNetCore.OpenApi</text>
+<text x="46" y="264" font-size="13.5" font-style="italic" fill="#5a5a5a">REST</text>
+<text x="206" y="264" font-size="13.5" font-weight="700" fill="#151515">FluentValidation</text>
+<text x="506" y="264" font-size="13.5" fill="#242424">Expressive request validation</text>
+<text x="1006" y="264" font-size="13.5" font-weight="700" fill="#0066CC">Apache 2.0</text>
+<text x="1136" y="264" font-size="13.5" fill="#242424">FluentValidation</text>
+<rect x="40" y="274" width="1650" height="30" fill="#f4f4f4"/>
+<text x="46" y="294" font-size="13.5" font-style="italic" fill="#5a5a5a">Versioning</text>
+<text x="206" y="294" font-size="13.5" font-weight="700" fill="#151515">Asp.Versioning</text>
+<text x="506" y="294" font-size="13.5" fill="#242424">Media-type / header / URI versioning</text>
+<text x="1006" y="294" font-size="13.5" font-weight="700" fill="#0066CC">MIT</text>
+<text x="1136" y="294" font-size="13.5" fill="#242424">Asp.Versioning.Http</text>
+<text x="46" y="324" font-size="13.5" font-style="italic" fill="#5a5a5a">gRPC</text>
+<text x="206" y="324" font-size="13.5" font-weight="700" fill="#151515">Grpc.AspNetCore</text>
+<text x="506" y="324" font-size="13.5" fill="#242424">Server + Grpc.Tools build-time codegen</text>
+<text x="1006" y="324" font-size="13.5" font-weight="700" fill="#0066CC">Apache 2.0</text>
+<text x="1136" y="324" font-size="13.5" fill="#242424">Grpc.AspNetCore</text>
+<rect x="40" y="334" width="1650" height="30" fill="#f4f4f4"/>
+<text x="46" y="354" font-size="13.5" font-style="italic" fill="#5a5a5a">gRPC</text>
+<text x="206" y="354" font-size="13.5" font-weight="700" fill="#151515">Grpc.StatusProto</text>
+<text x="506" y="354" font-size="13.5" fill="#242424">google.rpc.Status rich errors (ToRpcException)</text>
+<text x="1006" y="354" font-size="13.5" font-weight="700" fill="#0066CC">Apache 2.0</text>
+<text x="1136" y="354" font-size="13.5" fill="#242424">Grpc.StatusProto</text>
+<text x="46" y="384" font-size="13.5" font-style="italic" fill="#5a5a5a">GraphQL</text>
+<text x="206" y="384" font-size="13.5" font-weight="700" fill="#151515">HotChocolate</text>
+<text x="506" y="384" font-size="13.5" fill="#242424">Code-first server, DataLoader, federation</text>
+<text x="1006" y="384" font-size="13.5" font-weight="700" fill="#0066CC">MIT</text>
+<text x="1136" y="384" font-size="13.5" fill="#242424">HotChocolate.AspNetCore</text>
+<rect x="40" y="394" width="1650" height="30" fill="#f4f4f4"/>
+<text x="46" y="414" font-size="13.5" font-style="italic" fill="#5a5a5a">Data · ORM</text>
+<text x="206" y="414" font-size="13.5" font-weight="700" fill="#151515">Entity Framework Core</text>
+<text x="506" y="414" font-size="13.5" fill="#242424">Full-fat ORM; LINQ; migrations</text>
+<text x="1006" y="414" font-size="13.5" font-weight="700" fill="#0066CC">MIT</text>
+<text x="1136" y="414" font-size="13.5" fill="#242424">Microsoft.EntityFrameworkCore</text>
+<text x="46" y="444" font-size="13.5" font-style="italic" fill="#5a5a5a">Data · micro</text>
+<text x="206" y="444" font-size="13.5" font-weight="700" fill="#151515">Dapper</text>
+<text x="506" y="444" font-size="13.5" fill="#242424">Lightweight micro-ORM</text>
+<text x="1006" y="444" font-size="13.5" font-weight="700" fill="#0066CC">Apache 2.0</text>
+<text x="1136" y="444" font-size="13.5" fill="#242424">Dapper</text>
+<rect x="40" y="454" width="1650" height="30" fill="#f4f4f4"/>
+<text x="46" y="474" font-size="13.5" font-style="italic" fill="#5a5a5a">Event store</text>
+<text x="206" y="474" font-size="13.5" font-weight="700" fill="#151515">Marten</text>
+<text x="506" y="474" font-size="13.5" fill="#242424">Document + event sourcing on Postgres</text>
+<text x="1006" y="474" font-size="13.5" font-weight="700" fill="#0066CC">MIT</text>
+<text x="1136" y="474" font-size="13.5" fill="#242424">Marten</text>
+<text x="46" y="504" font-size="13.5" font-style="italic" fill="#5a5a5a">Messaging</text>
+<text x="206" y="504" font-size="13.5" font-weight="700" fill="#151515">Confluent.Kafka 2.16.0</text>
+<text x="506" y="504" font-size="13.5" fill="#242424">Kafka client: producers, consumer groups, explicit offset commits</text>
+<text x="1006" y="504" font-size="13.5" font-weight="700" fill="#0066CC">Apache 2.0</text>
+<text x="1136" y="504" font-size="13.5" fill="#242424">Confluent.Kafka</text>
+<rect x="40" y="514" width="1650" height="30" fill="#f4f4f4"/>
+<text x="46" y="534" font-size="13.5" font-style="italic" fill="#5a5a5a">Streaming</text>
+<text x="206" y="534" font-size="13.5" font-weight="700" fill="#151515">Streamiz.Kafka.Net 1.8.2</text>
+<text x="506" y="534" font-size="13.5" fill="#242424">.NET port of Kafka Streams</text>
+<text x="1006" y="534" font-size="13.5" font-weight="700" fill="#0066CC">MIT</text>
+<text x="1136" y="534" font-size="13.5" fill="#242424">Streamiz.Kafka.Net</text>
+<text x="46" y="564" font-size="13.5" font-style="italic" fill="#5a5a5a">Workflow</text>
+<text x="206" y="564" font-size="13.5" font-weight="700" fill="#151515">Temporalio</text>
+<text x="506" y="564" font-size="13.5" fill="#242424">Temporal .NET SDK — durable execution</text>
+<text x="1006" y="564" font-size="13.5" font-weight="700" fill="#0066CC">MIT</text>
+<text x="1136" y="564" font-size="13.5" fill="#242424">Temporalio</text>
+<rect x="40" y="574" width="1650" height="30" fill="#f4f4f4"/>
+<text x="46" y="594" font-size="13.5" font-style="italic" fill="#5a5a5a">Workflow</text>
+<text x="206" y="594" font-size="13.5" font-weight="700" fill="#151515">Stateless</text>
+<text x="506" y="594" font-size="13.5" fill="#242424">In-process state machine library</text>
+<text x="1006" y="594" font-size="13.5" font-weight="700" fill="#0066CC">Apache 2.0</text>
+<text x="1136" y="594" font-size="13.5" fill="#242424">Stateless</text>
+<text x="46" y="624" font-size="13.5" font-style="italic" fill="#5a5a5a">Rules</text>
+<text x="206" y="624" font-size="13.5" font-weight="700" fill="#151515">NRules</text>
+<text x="506" y="624" font-size="13.5" fill="#242424">Rete-algorithm rules engine</text>
+<text x="1006" y="624" font-size="13.5" font-weight="700" fill="#0066CC">MIT</text>
+<text x="1136" y="624" font-size="13.5" fill="#242424">NRules.Fluent</text>
+<rect x="40" y="634" width="1650" height="30" fill="#f4f4f4"/>
+<text x="46" y="654" font-size="13.5" font-style="italic" fill="#5a5a5a">Rules · DSL</text>
+<text x="206" y="654" font-size="13.5" font-weight="700" fill="#151515">NRules.Language</text>
+<text x="506" y="654" font-size="13.5" fill="#242424">External DSL for non-developer rule editing</text>
+<text x="1006" y="654" font-size="13.5" font-weight="700" fill="#0066CC">MIT</text>
+<text x="1136" y="654" font-size="13.5" fill="#242424">NRules.Language</text>
+<text x="46" y="684" font-size="13.5" font-style="italic" fill="#5a5a5a">WebSockets</text>
+<text x="206" y="684" font-size="13.5" font-weight="700" fill="#151515">Microsoft.AspNetCore.SignalR</text>
+<text x="506" y="684" font-size="13.5" fill="#242424">Hub abstraction; auto-reconnect; MessagePack</text>
+<text x="1006" y="684" font-size="13.5" font-weight="700" fill="#0066CC">MIT</text>
+<text x="1136" y="684" font-size="13.5" fill="#242424">(built in)</text>
+<rect x="40" y="694" width="1650" height="30" fill="#f4f4f4"/>
+<text x="46" y="714" font-size="13.5" font-style="italic" fill="#5a5a5a">WebSockets</text>
+<text x="206" y="714" font-size="13.5" font-weight="700" fill="#151515">SignalR.StackExchangeRedis</text>
+<text x="506" y="714" font-size="13.5" fill="#242424">Open-source Redis backplane (no managed SignalR service)</text>
+<text x="1006" y="714" font-size="13.5" font-weight="700" fill="#0066CC">MIT</text>
+<text x="1136" y="714" font-size="13.5" fill="#242424">Microsoft.AspNetCore.SignalR.StackExchangeRedis</text>
+<text x="46" y="744" font-size="13.5" font-style="italic" fill="#5a5a5a">UI · server</text>
+<text x="206" y="744" font-size="13.5" font-weight="700" fill="#151515">Blazor Server</text>
+<text x="506" y="744" font-size="13.5" fill="#242424">BFF + WebSocket UI; SignalR-based</text>
+<text x="1006" y="744" font-size="13.5" font-weight="700" fill="#0066CC">MIT</text>
+<text x="1136" y="744" font-size="13.5" fill="#242424">(built in)</text>
+<rect x="40" y="754" width="1650" height="30" fill="#f4f4f4"/>
+<text x="46" y="774" font-size="13.5" font-style="italic" fill="#5a5a5a">UI · client</text>
+<text x="206" y="774" font-size="13.5" font-weight="700" fill="#151515">Blazor WebAssembly</text>
+<text x="506" y="774" font-size="13.5" fill="#242424">.NET in the browser; static-file hosted</text>
+<text x="1006" y="774" font-size="13.5" font-weight="700" fill="#0066CC">MIT</text>
+<text x="1136" y="774" font-size="13.5" fill="#242424">(built in)</text>
+<text x="46" y="804" font-size="13.5" font-style="italic" fill="#5a5a5a">Resilience</text>
+<text x="206" y="804" font-size="13.5" font-weight="700" fill="#151515">Polly + M.E.Resilience</text>
+<text x="506" y="804" font-size="13.5" fill="#242424">Retry, circuit breaker, hedging, timeout, bulkhead</text>
+<text x="1006" y="804" font-size="13.5" font-weight="700" fill="#0066CC">BSD-3 / MIT</text>
+<text x="1136" y="804" font-size="13.5" fill="#242424">Microsoft.Extensions.Resilience</text>
+<rect x="40" y="814" width="1650" height="30" fill="#f4f4f4"/>
+<text x="46" y="834" font-size="13.5" font-style="italic" fill="#5a5a5a">Health</text>
+<text x="206" y="834" font-size="13.5" font-weight="700" fill="#151515">AspNetCore.HealthChecks</text>
+<text x="506" y="834" font-size="13.5" fill="#242424">Postgres / Redis / Kafka / SQL Server probes (community)</text>
+<text x="1006" y="834" font-size="13.5" font-weight="700" fill="#0066CC">Apache 2.0</text>
+<text x="1136" y="834" font-size="13.5" fill="#242424">AspNetCore.HealthChecks.*</text>
+<text x="46" y="864" font-size="13.5" font-style="italic" fill="#5a5a5a">Observability</text>
+<text x="206" y="864" font-size="13.5" font-weight="700" fill="#151515">OpenTelemetry .NET</text>
+<text x="506" y="864" font-size="13.5" fill="#242424">Tracing, metrics, logs; ActivitySource is in the BCL</text>
+<text x="1006" y="864" font-size="13.5" font-weight="700" fill="#0066CC">Apache 2.0</text>
+<text x="1136" y="864" font-size="13.5" fill="#242424">OpenTelemetry.Extensions.Hosting</text>
+<rect x="40" y="874" width="1650" height="30" fill="#f4f4f4"/>
+<text x="46" y="894" font-size="13.5" font-style="italic" fill="#5a5a5a">Reverse proxy</text>
+<text x="206" y="894" font-size="13.5" font-weight="700" fill="#151515">YARP</text>
+<text x="506" y="894" font-size="13.5" fill="#242424">In-app reverse proxy / gateway library</text>
+<text x="1006" y="894" font-size="13.5" font-weight="700" fill="#0066CC">MIT</text>
+<text x="1136" y="894" font-size="13.5" fill="#242424">Yarp.ReverseProxy</text>
+<text x="46" y="924" font-size="13.5" font-style="italic" fill="#5a5a5a">Mediator</text>
+<text x="206" y="924" font-size="13.5" font-weight="700" fill="#151515">Wolverine</text>
+<text x="506" y="924" font-size="13.5" fill="#242424">Command / handler dispatch (MediatR OSS heir)</text>
+<text x="1006" y="924" font-size="13.5" font-weight="700" fill="#0066CC">MIT</text>
+<text x="1136" y="924" font-size="13.5" fill="#242424">WolverineFx</text>
+<rect x="40" y="934" width="1650" height="30" fill="#f4f4f4"/>
+<text x="46" y="954" font-size="13.5" font-style="italic" fill="#5a5a5a">Scheduling</text>
+<text x="206" y="954" font-size="13.5" font-weight="700" fill="#151515">Quartz.NET</text>
+<text x="506" y="954" font-size="13.5" fill="#242424">Cron / cluster-aware job scheduling</text>
+<text x="1006" y="954" font-size="13.5" font-weight="700" fill="#0066CC">Apache 2.0</text>
+<text x="1136" y="954" font-size="13.5" fill="#242424">Quartz</text>
+<text x="46" y="984" font-size="13.5" font-style="italic" fill="#5a5a5a">Scheduling</text>
+<text x="206" y="984" font-size="13.5" font-weight="700" fill="#151515">DistributedLock</text>
+<text x="506" y="984" font-size="13.5" fill="#242424">Distributed mutex over Postgres / Redis / SQL Server</text>
+<text x="1006" y="984" font-size="13.5" font-weight="700" fill="#0066CC">MIT</text>
+<text x="1136" y="984" font-size="13.5" fill="#242424">DistributedLock.*</text>
+<text x="870.0" y="1034" font-size="15" font-weight="700" fill="#3f7a1f" text-anchor="middle">Every entry is MIT, Apache 2.0 or BSD-3 · every entry runs on plain Kubernetes · no cloud-only dependencies</text>
+<text x="870.0" y="1060" font-size="15" font-weight="400" fill="#5a5a5a" text-anchor="middle" font-style="italic">Kafka through Confluent.Kafka directly; stream processing on Streamiz.Kafka.Net.</text>
+</svg>

@@ -10,10 +10,11 @@ var connString = builder.Configuration.GetConnectionString("Default")
 var dataSource = new NpgsqlDataSourceBuilder(connString).Build();
 builder.Services.AddSingleton(dataSource);
 
-// Replace ConsoleLifetime so SIGTERM doesn't auto-shutdown the server.
-// We handle SIGTERM ourselves: flip readiness, drain, then let the
-// container runtime SIGKILL after stop_grace_period expires.
+// Replace ConsoleLifetime so SIGTERM doesn't stop the server immediately.
+// We handle SIGTERM ourselves: flip readiness, wait the pre-stop delay so endpoints update,
+// then stop the host (Kestrel stops accepting and finishes in-flight requests).
 builder.Services.AddSingleton<IHostLifetime, ManualLifetime>();
+builder.Services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(20));
 
 var app = builder.Build();
 var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("order-service");
@@ -21,11 +22,27 @@ var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("ord
 var shuttingDown = false;
 var inFlight = 0;
 
+var drainDelay = int.TryParse(Environment.GetEnvironmentVariable("DRAIN_DELAY_SECONDS"), out var d) && d >= 0 ? d : 5;
+
 PosixSignalRegistration.Create(PosixSignal.SIGTERM, ctx =>
 {
     ctx.Cancel = true;
+    if (shuttingDown) return; // already draining
     shuttingDown = true;
     logger.LogInformation("SIGTERM received — readiness flipped, draining in-flight requests");
+    logger.LogInformation("waiting {Delay}s for endpoints to update", drainDelay);
+    _ = Task.Run(async () =>
+    {
+        await Task.Delay(TimeSpan.FromSeconds(drainDelay));
+        logger.LogInformation("shutting down HTTP server (in_flight={InFlight})", inFlight);
+        app.Lifetime.StopApplication();
+    });
+});
+
+app.Lifetime.ApplicationStopped.Register(() =>
+{
+    dataSource.Dispose();
+    logger.LogInformation("order-service shutdown complete");
 });
 
 app.MapGet("/healthz", () => new { status = "ok" });

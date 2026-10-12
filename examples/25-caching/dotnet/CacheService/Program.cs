@@ -40,11 +40,38 @@ IDatabase? GetRedis()
 // --- Background tasks ---
 var cts = new CancellationTokenSource();
 
+// Write-back flush policy: a failed upsert is re-queued, with exponential backoff between flush
+// cycles and a bounded number of attempts per id. After MaxFlushAttempts the id moves to
+// metric:failed (its value stays in the cache) and is logged, never dropped silently.
+const int MaxFlushAttempts = 5;
+const int FlushPeriodMs = 1000;
+const int MaxFlushBackoffMs = 8000;
+
+async Task Requeue(IDatabase db, IEnumerable<RedisValue> failed)
+{
+    foreach (var mid in failed)
+    {
+        var n = await db.HashIncrementAsync("metric:attempts", mid, 1);
+        if (n >= MaxFlushAttempts)
+        {
+            await db.SetAddAsync("metric:failed", mid);
+            await db.HashDeleteAsync("metric:attempts", mid);
+            logger.LogError("flusher: giving up on {Id} after {Attempts} attempts, parked on metric:failed", (string?)mid, n);
+        }
+        else
+        {
+            await db.SetAddAsync("metric:dirty", mid);
+            logger.LogWarning("flusher: re-queued {Id} (attempt {Attempt}/{Max})", (string?)mid, n, MaxFlushAttempts);
+        }
+    }
+}
+
 _ = Task.Run(async () =>
 {
+    var failures = 0;
     while (!cts.Token.IsCancellationRequested)
     {
-        await Task.Delay(1000, cts.Token).ConfigureAwait(false);
+        await Task.Delay(Math.Min(FlushPeriodMs << failures, MaxFlushBackoffMs), cts.Token).ConfigureAwait(false);
         try
         {
             var db = GetRedis();
@@ -53,23 +80,39 @@ _ = Task.Run(async () =>
             var ids = await db.SetPopAsync("metric:dirty", 100);
             if (ids.Length == 0) continue;
 
-            await using var conn = await dataSource.OpenConnectionAsync();
+            var failed = new List<RedisValue>();
             foreach (var mid in ids)
             {
-                var data = await db.HashGetAllAsync($"metric:{mid}");
-                if (data.Length > 0)
+                try
                 {
-                    var payload = JsonSerializer.Serialize(
-                        data.ToDictionary(e => (string)e.Name!, e => (string)e.Value!));
-                    await using var cmd = new NpgsqlCommand(
-                        "INSERT INTO metrics (id, payload) VALUES ($1, $2::jsonb) " +
-                        "ON CONFLICT (id) DO UPDATE SET payload = $2::jsonb, ts = NOW()", conn);
-                    cmd.Parameters.AddWithValue((string)mid!);
-                    cmd.Parameters.AddWithValue(payload);
-                    await cmd.ExecuteNonQueryAsync();
+                    var data = await db.HashGetAllAsync($"metric:{mid}");
+                    if (data.Length > 0)
+                    {
+                        var payload = JsonSerializer.Serialize(
+                            data.ToDictionary(e => (string)e.Name!, e => (string)e.Value!));
+                        await using var conn = await dataSource.OpenConnectionAsync();
+                        await using var cmd = new NpgsqlCommand(
+                            "INSERT INTO metrics (id, payload) VALUES ($1, $2::jsonb) " +
+                            "ON CONFLICT (id) DO UPDATE SET payload = $2::jsonb, ts = NOW()", conn);
+                        cmd.Parameters.AddWithValue((string)mid!);
+                        cmd.Parameters.AddWithValue(payload);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    await db.HashDeleteAsync("metric:attempts", mid);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "flusher: flush failed for {Id}", (string?)mid);
+                    failed.Add(mid);
                 }
             }
-            logger.LogInformation("flusher: persisted {Count} metrics", ids.Length);
+            logger.LogInformation("flusher: persisted {Count} metrics", ids.Length - failed.Count);
+            if (failed.Count == 0) { failures = 0; }
+            else
+            {
+                failures = Math.Min(failures + 1, 3);
+                await Requeue(db, failed);
+            }
         }
         catch (Exception ex)
         {
@@ -323,7 +366,9 @@ app.MapPut("/write-back/metrics/{mid}", async (string mid, HttpContext ctx) =>
         new HashEntry("tags", tags)
     ]);
     await db.SetAddAsync("metric:dirty", mid);
-    return Results.Json(new { ok = true, pattern = "write-back", action = "cached-for-flush" });
+    // 202: queued in the cache, not yet durable in Postgres
+    return Results.Json(new { ok = true, pattern = "write-back", action = "cached-for-flush" },
+        statusCode: StatusCodes.Status202Accepted);
 });
 
 app.MapGet("/write-back/metrics/{mid}", async (string mid, NpgsqlDataSource dbSource) =>

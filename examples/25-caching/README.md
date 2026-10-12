@@ -23,7 +23,7 @@ credentials, and the container naming convention.
 | Read-through | `GET /read-through/products/{pid}` | Wrapper class hides the cache/DB decision from callers |
 | Write-through | `PUT /write-through/products/{pid}` | Writes DB first, then SETs cache (never stale for writer) |
 | Write-around | `POST /write-around/events`, `GET .../events/{eid}` | Writes skip cache; reads populate lazily |
-| Write-back | `PUT /write-back/metrics/{mid}` | Writes land in cache; background flusher persists to DB |
+| Write-back | `PUT /write-back/metrics/{mid}` | Answers 202 Accepted (queued, not yet durable); background flusher upserts to DB, re-queues failed entries with backoff and a bounded retry count |
 | Refresh-ahead | `GET /refresh-ahead/products/{pid}` | Background task pre-warms hot keys before TTL expires |
 
 ## Architecture
@@ -57,10 +57,10 @@ curl -s -X PUT -H 'Content-Type: application/json' \
   localhost:8080/write-through/products/p3 | jq .
 curl -s localhost:8080/write-through/products/p3 | jq .
 
-# Write-back: write to cache, wait for flush
-curl -s -X PUT -H 'Content-Type: application/json' \
+# Write-back: write to cache (202 Accepted), wait for flush
+curl -s -w '%{http_code}\n' -X PUT -H 'Content-Type: application/json' \
   -d '{"value":99.9,"tags":{"env":"test"}}' \
-  localhost:8080/write-back/metrics/m1 | jq .
+  localhost:8080/write-back/metrics/m1
 sleep 3
 curl -s localhost:8080/write-back/flush-status | jq .
 

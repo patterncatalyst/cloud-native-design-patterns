@@ -1,0 +1,236 @@
+{
+ "ops": [
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    269
+   ],
+   "find": "java · Spring Boot 4 + Actuator",
+   "repl": "java · Spring Boot 4",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 14,
+   "_why": "examples/01 spring-boot hand-writes /healthz and /readyz",
+   "_src": "align"
+  },
+  {
+   "op": "set_code",
+   "sldId": 269,
+   "lines": [
+    "// HealthController.java (excerpt), examples/01-cloud-native-principles/spring-boot",
+    "// config from env (factor III): SPRING_DATASOURCE_URL, SERVICE_VERSION -> service.version",
+    "@RestController",
+    "public class HealthController {",
+    "    private final DataSource dataSource;",
+    "    @Value(\"${service.version}\")",
+    "    private String serviceVersion;",
+    "    public HealthController(DataSource dataSource) { this.dataSource = dataSource; }",
+    "    @GetMapping(\"/healthz\")                           // liveness: the process is up",
+    "    public Map<String, String> healthz() { return Map.of(\"status\", \"ok\"); }",
+    "    @GetMapping(\"/readyz\")                            // readiness: SELECT 1 on the pool",
+    "    public ResponseEntity<Map<String, Object>> readyz() {",
+    "        try (var conn = dataSource.getConnection()) {",
+    "            conn.createStatement().executeQuery(\"SELECT 1\").close();",
+    "        } catch (Exception e) {                       // down: 503, the pod leaves the Service",
+    "            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)",
+    "                .body(Map.of(\"status\", \"down\", \"checks\", Map.of(\"database\", \"unreachable\")));",
+    "        }",
+    "        return ResponseEntity.ok(Map.of(\"status\", \"ready\",",
+    "                \"checks\", Map.of(\"database\", \"ok\")));",
+    "    }",
+    "}"
+   ],
+   "cat": "code",
+   "_slide": 14,
+   "_why": "examples/01: hand-written /healthz and /readyz; readiness answers 503 when the database is down",
+   "_src": "align"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 269,
+   "cat": "notes",
+   "_slide": 14,
+   "_why": "notes follow the code",
+   "_src": "align",
+   "text": "Walk the code: config comes from the environment through Spring's property resolution (factor III): SPRING_DATASOURCE_URL and its credentials configure the DataSource and SERVICE_VERSION feeds service.version, never a baked-in file; Spring profiles override per environment. The application name (spring.application.name) shows up in Micrometer metrics and traces. The two probes are a plain @RestController in Example 01: /healthz is liveness (am I alive? if not, restart me) and never checks a dependency; /readyz is readiness (can I serve?): it runs SELECT 1 on a pooled connection and, when that fails, answers 503 with status down, which takes the pod out of rotation without killing it. The probe reads the status code, not the body: Kubernetes treats any answer from 200 to 399 as ready. Spring Boot Actuator offers the same pair as /actuator/health/liveness and /actuator/health/readiness with HealthIndicator beans; the example writes them by hand so every language serves the same paths and bodies. Getting liveness vs readiness wrong is a top cause of cascading restarts, so stress the distinction. Maven with spring-boot-starter-parent pins every dependency reproducibly. Constructor injection is the idiomatic Spring style: the bean stays immutable and is unit-testable without a container."
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    423
+   ],
+   "find": "server.shutdown=graceful drains HTTP; publish a Readiness REFUSING_TRAFFIC event to flip the probe; drain everything else in ContextClosedEvent.",
+   "repl": "One SIGTERM flips readiness; after DRAIN_DELAY_SECONDS, System.exit(0) runs Spring's graceful shutdown, bounded at 20 s per phase.",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 168,
+   "_why": "examples/21 spring-boot: Signal handler, drain delay, System.exit (9676f32)",
+   "_src": "align"
+  },
+  {
+   "op": "set_code",
+   "sldId": 423,
+   "lines": [
+    "// OrderServiceApplication.java (excerpt), examples/21-graceful-shutdown/spring-boot",
+    "// application.properties: server.shutdown=graceful",
+    "//                         spring.lifecycle.timeout-per-shutdown-phase=20s",
+    "@SpringBootApplication",
+    "public class OrderServiceApplication {",
+    "    public static void main(String[] args) {",
+    "        // registered before Spring starts: replaces the JVM's default SIGTERM handler",
+    "        Signal.handle(new Signal(\"TERM\"), signal -> {",
+    "            ShutdownState state = ShutdownState.getInstance();  // GET /readyz reads it: 503",
+    "            if (!state.markShuttingDown()) return;   // one SIGTERM drives the drain",
+    "            long delay = drainDelaySeconds();        // DRAIN_DELAY_SECONDS, default 5",
+    "            new Thread(() -> {",
+    "                try { Thread.sleep(delay * 1000); }  // keep serving: endpoints update",
+    "                catch (InterruptedException e) { Thread.currentThread().interrupt(); }",
+    "                System.exit(0);  // shutdown hook: stop accepting, finish in-flight, close pool",
+    "            }, \"drain\").start();",
+    "        });",
+    "        SpringApplication.run(OrderServiceApplication.class, args);",
+    "    }",
+    "}",
+    "// Kafka consumers, the scheduler and WebSockets drain in a ContextClosedEvent listener."
+   ],
+   "cat": "code",
+   "_slide": 168,
+   "_why": "examples/21: one SIGTERM -> readiness 503 -> DRAIN_DELAY_SECONDS -> stop accepting -> in-flight drain within 20 s -> cleanup -> exit 0",
+   "_src": "align"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 423,
+   "cat": "notes",
+   "_slide": 168,
+   "_why": "notes follow the code",
+   "_src": "align",
+   "text": "Example 21 takes the signal itself, so the whole sequence is visible. A sun.misc.Signal handler registered before Spring starts replaces the JVM's default SIGTERM handler, which would run the shutdown hooks at once. One SIGTERM, the only signal Kubernetes sends before SIGKILL, drives everything: the handler flips ShutdownState, so the hand-written /readyz answers 503 and the Service stops routing, and a drain thread keeps the service serving for DRAIN_DELAY_SECONDS (5 s; it plays the part of a preStop sleep) while the endpoint removal propagates. It then calls System.exit(0), which runs Spring's shutdown hook: with server.shutdown=graceful the embedded Tomcat, Jetty or Reactor Netty stops accepting new connections and finishes in-flight HTTP, bounded by spring.lifecycle.timeout-per-shutdown-phase (20 s here; the default is 30 s), then the context closes the pool and the process exits 0, inside the 30-second grace period. Use @EventListener(ContextClosedEvent.class), @PreDestroy or SmartLifecycle to drain what Spring does not drain for you: Kafka consumers (consumer.wakeup() then commit on close), the scheduler (stop accepting new triggers), WebSockets (send a close frame so clients reconnect elsewhere). With Actuator, publishing ReadinessState.REFUSING_TRAFFIC flips /actuator/health/readiness the same way; the example keeps its own /readyz, as Example 01 does. Pair it with the Kubernetes settings: readiness, preStop and the grace period."
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    480
+   ],
+   "find": "java · Spring Boot 4 + @Scheduled + ShedLock + Spring Data Redis + JPA",
+   "repl": "java · Spring Boot 4 + @Scheduled + Spring Data Redis + JdbcClient",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 225,
+   "_why": "examples/25 spring-boot: JdbcClient upserts, no ShedLock",
+   "_src": "align"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    480
+   ],
+   "find": "The dirty set is the key idea — it tells the flusher what to drain. ShedLock ensures only one Pod flushes at a time.",
+   "repl": "A write answers 202 Accepted. A failed flush re-queues its ids with backoff; after five attempts an id is parked on metric:failed.",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 225,
+   "_why": "examples/25: 202 and bounded retry (ebca295)",
+   "_src": "align"
+  },
+  {
+   "op": "set_code",
+   "sldId": 480,
+   "lines": [
+    "@PutMapping(\"/write-back/metrics/{mid}\")   // CacheController (excerpt)",
+    "public ResponseEntity<Map<String, Object>> writeBackWrite(",
+    "        @PathVariable String mid, @RequestBody Map<String, Object> body) {",
+    "    // ... HSET metric:<mid> {value, tags}; SADD metric:dirty <mid> (503 when Redis is down)",
+    "    return ResponseEntity.accepted().body(Map.of(\"ok\", true, \"pattern\", \"write-back\",",
+    "            \"action\", \"cached-for-flush\"));               // 202: queued, not yet durable",
+    "}                                   // examples/25-caching/spring-boot",
+    "@Scheduled(fixedDelayString = \"${cache-service.flush-period-ms:1000}\")",
+    "public void flusher() {                                // BackgroundTasks",
+    "    if (System.currentTimeMillis() < nextFlushAt) return;   // backing off after a failure",
+    "    Set<String> ids = cache.spop(\"metric:dirty\", FLUSH_BATCH);",
+    "    if (ids == null || ids.isEmpty()) return;",
+    "    List<String> failed = new ArrayList<>();",
+    "    for (String mid : ids) {",
+    "        try {                                     // upsert: an id flushed twice is one row",
+    "            jdbc.sql(\"INSERT INTO metrics (id, payload) VALUES (?, ?::jsonb) \"",
+    "                    + \"ON CONFLICT (id) DO UPDATE SET payload = ?::jsonb, ts = NOW()\")",
+    "                    .param(mid).param(json).param(json).update();   // json: the cached hash",
+    "            cache.hdel(\"metric:attempts\", mid);",
+    "        } catch (Exception e) { failed.add(mid); }     // logged: flush failed for <mid>",
+    "    }",
+    "    if (failed.isEmpty()) { failures = 0; return; }",
+    "    nextFlushAt = System.currentTimeMillis() + Math.min(flushPeriodMs << ++failures, 8000);",
+    "    requeue(failed);   // HINCRBY metric:attempts; SADD metric:dirty, or metric:failed at 5"
+   ],
+   "cat": "code",
+   "_slide": 225,
+   "_why": "examples/25: /write-back/metrics/{id} answers 202; upsert; bounded retry (metric:attempts, metric:failed, backoff)",
+   "_src": "align",
+   "shape_id": 2493
+  },
+  {
+   "op": "set_notes",
+   "sldId": 480,
+   "cat": "notes",
+   "_slide": 225,
+   "_why": "notes follow the code",
+   "_src": "align",
+   "text": "Spring's @Scheduled drives write-back in Example 25. (1) PUT /write-back/metrics/{mid} writes the metric to a Redis hash, adds the id to a 'dirty set', which tells the flusher what still has to reach the database, and answers 202 Accepted: the value is queued, not yet durable. (2) @Scheduled(fixedDelayString = ...) runs every second, SPOPs up to FLUSH_BATCH dirty ids and upserts each one through JdbcClient with INSERT ... ON CONFLICT (id) DO UPDATE, so an id flushed twice stays one row. SPOP is atomic, so two replicas each get a distinct subset of ids and no lock is needed to scale out. (3) An id whose upsert fails is re-queued: its count in the metric:attempts hash goes up and it goes back on the dirty set, or, after five attempts, onto metric:failed with its value still in the cache and the failure in the log. After a failed run the flusher skips runs for two seconds, then four, then eight. Caveats: this is only safe with Redis persistence (AOF, appendonly yes); without it a Redis crash loses unflushed writes. For data that must not be lost, use write-through. For high-throughput telemetry where losing the last second is acceptable, write-back is what lets the service scale."
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    504
+   ],
+   "find": "java · Spring Boot 4 + Actuator",
+   "repl": "java · Spring Boot 4",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 249,
+   "_why": "examples/21 spring-boot: hand-written /readyz",
+   "_src": "align"
+  },
+  {
+   "op": "set_code",
+   "sldId": 504,
+   "lines": [
+    "// excerpt, examples/21-graceful-shutdown/spring-boot: one SIGTERM drives the drain",
+    "# application.properties: server.shutdown=graceful, timeout-per-shutdown-phase=20s",
+    "Signal.handle(new Signal(\"TERM\"), signal -> {      // registered before SpringApplication.run",
+    "    ShutdownState state = ShutdownState.getInstance();",
+    "    if (!state.markShuttingDown()) return;          // 1. readiness flips: /readyz answers 503",
+    "    new Thread(() -> {",
+    "        try { Thread.sleep(drainDelaySeconds() * 1000); }   // 2. the LB stops routing (5 s)",
+    "        catch (InterruptedException e) { Thread.currentThread().interrupt(); }",
+    "        System.exit(0);              // 3. graceful shutdown drains in-flight HTTP (20 s)",
+    "    }, \"drain\").start();                            // 4. the context closes the pool, exit 0",
+    "});",
+    "@GetMapping(\"/readyz\")                              // OrderController",
+    "public ResponseEntity<Map<String, Object>> readyz() {",
+    "    if (shutdownState.isShuttingDown())",
+    "        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)",
+    "                .body(Map.of(\"ready\", false, \"reason\", \"shutting down\"));",
+    "    // ... SELECT 1: 200 {\"ready\": true}, or 503 \"db unreachable\"; /healthz stays 200",
+    "}"
+   ],
+   "cat": "code",
+   "_slide": 249,
+   "_why": "Appendix M recap follows examples/21 (one SIGTERM, drain delay, 20 s drain)",
+   "_src": "align"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 504,
+   "cat": "notes",
+   "_slide": 249,
+   "_why": "notes follow the code",
+   "_src": "align",
+   "text": "Example 21 takes SIGTERM itself. A sun.misc.Signal handler registered before Spring starts flips ShutdownState on the single SIGTERM: (1) the hand-written /readyz answers 503, so the Kubernetes readiness probe sees the pod go not-ready and stops routing, while /healthz stays 200; (2) a drain thread keeps the service serving for DRAIN_DELAY_SECONDS so the load balancer's removal propagates; (3) System.exit(0) runs Spring's graceful shutdown, which stops accepting and drains in-flight HTTP within timeout-per-shutdown-phase (20 s); (4) the context closes the pool and the process exits 0. Appendix H covers the Kubernetes preStop + terminationGracePeriodSeconds side."
+  }
+ ]
+}

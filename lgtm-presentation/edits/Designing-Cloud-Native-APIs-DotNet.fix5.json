@@ -1,0 +1,256 @@
+{
+ "ops": [
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    270
+   ],
+   "find": "csharp · .NET 10 + ASP.NET Core + AspNetCore.HealthChecks",
+   "repl": "csharp · .NET 10 + ASP.NET Core + Npgsql",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 15,
+   "_why": "examples/01 dotnet maps /healthz and /readyz by hand",
+   "_src": "align"
+  },
+  {
+   "op": "set_code",
+   "sldId": 270,
+   "lines": [
+    "// Program.cs (excerpt), examples/01-cloud-native-principles/dotnet",
+    "var builder = WebApplication.CreateBuilder(args);",
+    "// ... ConnectionStrings__Default from the environment (factor III) -> NpgsqlDataSource",
+    "var app = builder.Build();",
+    "app.MapGet(\"/healthz\", () => new { status = \"ok\" });          // liveness: the process is up",
+    "app.MapGet(\"/readyz\", async (NpgsqlDataSource db) =>          // readiness: SELECT 1",
+    "{",
+    "    try",
+    "    {",
+    "        await using var conn = await db.OpenConnectionAsync();",
+    "        await using var cmd = conn.CreateCommand();",
+    "        cmd.CommandText = \"SELECT 1\";",
+    "        await cmd.ExecuteScalarAsync();",
+    "        return Results.Ok(new { status = \"ready\", checks = new { database = \"ok\" } });",
+    "    }",
+    "    catch                                                     // down: 503, out of rotation",
+    "    {",
+    "        return Results.Json(new { status = \"down\", checks = new { database = \"unreachable\" } },",
+    "            statusCode: StatusCodes.Status503ServiceUnavailable);",
+    "    }",
+    "});"
+   ],
+   "cat": "code",
+   "_slide": 15,
+   "_why": "examples/01: hand-written /healthz and /readyz; readiness answers 503 when the database is down",
+   "_src": "align"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 270,
+   "cat": "notes",
+   "_slide": 15,
+   "_why": "notes follow the code",
+   "_src": "align",
+   "text": "Walk the code: ASP.NET Core 10 uses minimal hosting (Program.cs as a top-level script). Config flows from appsettings.json overridden by environment variables (factor III): ConnectionStrings__Default reaches GetConnectionString(\"Default\"), the cloud-native equivalent of web.config transforms, except that the cluster injects the values through ConfigMaps and Secrets instead of an MSDeploy package. The two probes are mapped by hand in Example 01: /healthz is liveness (am I alive? if not, restart me, and Kubernetes kills the Pod) and never checks a dependency; /readyz is readiness (can I serve? if not, take me out of rotation but don't kill me): it opens a pooled Npgsql connection and runs SELECT 1, and when that fails it answers 503 with status down, which removes the Pod from the Service endpoints. The probe reads the status code, not the body: Kubernetes treats any answer from 200 to 399 as ready. Getting these wrong is a top cause of cascading restarts, the same way wrong IIS app-pool ping settings used to crash apps under load. AddHealthChecks with MapHealthChecks and the AspNetCore.HealthChecks.* community packages (MIT) are the framework route to the same pair; the example writes the handlers by hand so every language serves the same paths and bodies. The .NET runtime side: the service ships as a Linux container image built from a UBI Containerfile, not an MSI deployed to IIS."
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    427
+   ],
+   "find": "HostOptions.ShutdownTimeout bounds the drain; each BackgroundService's StopAsync is your hook. Flip readiness DOWN first so Kubernetes stops routing.",
+   "repl": "One SIGTERM flips readiness; after DRAIN_DELAY_SECONDS, StopApplication() lets Kestrel drain in-flight requests within ShutdownTimeout (20 s).",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 172,
+   "_why": "examples/21 dotnet: PosixSignalRegistration, drain delay, StopApplication (9676f32)",
+   "_src": "align"
+  },
+  {
+   "op": "set_code",
+   "sldId": 427,
+   "lines": [
+    "// Program.cs (excerpt), examples/21-graceful-shutdown/dotnet: one SIGTERM drives the drain",
+    "builder.Services.AddSingleton<IHostLifetime, ManualLifetime>();  // not ConsoleLifetime",
+    "builder.Services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(20));",
+    "var app = builder.Build();",
+    "var shuttingDown = false;                 // GET /readyz answers 503 once it is set",
+    "var drainDelay = int.TryParse(Environment.GetEnvironmentVariable(\"DRAIN_DELAY_SECONDS\"),",
+    "    out var d) && d >= 0 ? d : 5;",
+    "PosixSignalRegistration.Create(PosixSignal.SIGTERM, ctx =>",
+    "{",
+    "    ctx.Cancel = true;                    // the host does not stop at once",
+    "    if (shuttingDown) return;             // already draining",
+    "    shuttingDown = true;                  // 1. readiness fails first",
+    "    _ = Task.Run(async () =>",
+    "    {",
+    "        await Task.Delay(TimeSpan.FromSeconds(drainDelay));  // 2. serve on: endpoints update",
+    "        app.Lifetime.StopApplication();   // 3. Kestrel stops accepting, finishes in-flight",
+    "    });",
+    "});",
+    "app.Lifetime.ApplicationStopped.Register(() => dataSource.Dispose());   // 4. close the pool",
+    "// ... MapGet /healthz (always 200), /readyz, /orders; app.Run();",
+    "// ManualLifetime : IHostLifetime: WaitForStartAsync and StopAsync return Task.CompletedTask"
+   ],
+   "cat": "code",
+   "_slide": 172,
+   "_why": "examples/21: one SIGTERM -> readiness 503 -> DRAIN_DELAY_SECONDS -> stop accepting -> in-flight drain within 20 s -> cleanup -> exit 0",
+   "_src": "align"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 427,
+   "cat": "notes",
+   "_slide": 172,
+   "_why": "notes follow the code",
+   "_src": "align",
+   "text": "ASP.NET Core's default ConsoleLifetime stops the host as soon as SIGTERM arrives, which leaves no time to fail readiness first. Example 21 replaces it with a ManualLifetime and takes the signal itself through PosixSignalRegistration; one SIGTERM, the only signal Kubernetes sends before SIGKILL, drives everything. The handler cancels the default action and flips a flag, so the hand-written /readyz answers 503 and the Service stops routing, then a task keeps the service serving for DRAIN_DELAY_SECONDS (5 s; it plays the part of a preStop sleep) while the endpoint removal propagates. It then calls StopApplication(): the host signals ApplicationStopping, Kestrel stops accepting and finishes in-flight requests, and every IHostedService gets StopAsync, all bounded by HostOptions.ShutdownTimeout (20 s here; the default is 30 s). ApplicationStopped disposes the data source and the process exits 0, inside the 30-second grace period. The pattern for other work: one BackgroundService per long-running concern (a Kafka consumer, a scheduler, the Temporal worker from Appendix D, the Streamiz processor from Section 6), each draining in its own StopAsync: consumer.Close() commits offsets and leaves the group, a SignalR hub sends close frames, a Temporal worker shuts down. For the WCF refugees: this is the in-box equivalent of ServiceHost.Close, except that SIGTERM triggers it and the budget is HostOptions.ShutdownTimeout rather than a per-binding timeout. The Kubernetes settings (probes, preStop, grace period) are the platform half of the contract."
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    489
+   ],
+   "find": "A BackgroundService drains the cache to the DB",
+   "repl": "A background flusher drains the cache to the DB",
+   "expect": 1,
+   "cat": "notes",
+   "_slide": 234,
+   "_why": "examples/25 dotnet: the flusher is a Task.Run loop",
+   "_src": "align"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    490
+   ],
+   "find": "Write-back with BackgroundService in ASP.NET Core",
+   "repl": "Write-back with a background flusher in ASP.NET Core",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 235,
+   "_why": "examples/25 dotnet: the flusher is a Task.Run loop, not a BackgroundService",
+   "_src": "align"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    490
+   ],
+   "find": "csharp · ASP.NET Core 10 + BackgroundService + StackExchange.Redis + EF Core",
+   "repl": "csharp · ASP.NET Core 10 + StackExchange.Redis + Npgsql",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 235,
+   "_why": "examples/25 dotnet: Npgsql upserts, no EF Core",
+   "_src": "align"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    490
+   ],
+   "find": "The dirty set is the key idea — it tells the flusher what to drain. Failed batches go back on the set for retry.",
+   "repl": "A write answers 202 Accepted. A failed flush re-queues its ids with backoff; after five attempts an id is parked on metric:failed.",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 235,
+   "_why": "examples/25: 202 and bounded retry (ebca295)",
+   "_src": "align"
+  },
+  {
+   "op": "set_code",
+   "sldId": 490,
+   "lines": [
+    "// Program.cs (excerpt), examples/25-caching/dotnet: write-back",
+    "app.MapPut(\"/write-back/metrics/{mid}\", async (string mid, HttpContext ctx) =>",
+    "{",
+    "    // ... HSET metric:<mid> {value, tags}; SADD metric:dirty <mid> (503 when Redis is down)",
+    "    return Results.Json(new { ok = true, pattern = \"write-back\", action = \"cached-for-flush\" },",
+    "        statusCode: StatusCodes.Status202Accepted);          // 202: queued, not yet durable",
+    "});",
+    "_ = Task.Run(async () =>                                     // the flusher, started at boot",
+    "{",
+    "    var failures = 0;",
+    "    while (!cts.Token.IsCancellationRequested)",
+    "    {",
+    "        await Task.Delay(Math.Min(FlushPeriodMs << failures, MaxFlushBackoffMs), cts.Token);",
+    "        var ids = await db.SetPopAsync(\"metric:dirty\", 100);     // atomic batch dequeue",
+    "        if (ids.Length == 0) continue;",
+    "        var failed = new List<RedisValue>();  // Upsert: HGETALL, INSERT ... ON CONFLICT (id)",
+    "        foreach (var mid in ids)",
+    "            try { await Upsert(mid); await db.HashDeleteAsync(\"metric:attempts\", mid); }",
+    "            catch (Exception ex) { logger.LogError(ex, \"flush failed\"); failed.Add(mid); }",
+    "        if (failed.Count == 0) { failures = 0; continue; }",
+    "        failures = Math.Min(failures + 1, 3);                 // back off: 2 s, 4 s, 8 s",
+    "        await Requeue(db, failed);   // HINCRBY metric:attempts: dirty again, failed after 5",
+    "    }",
+    "});"
+   ],
+   "cat": "code",
+   "_slide": 235,
+   "_why": "examples/25: /write-back/metrics/{id} answers 202; upsert; bounded retry (metric:attempts, metric:failed, backoff)",
+   "_src": "align",
+   "shape_id": 2598
+  },
+  {
+   "op": "set_notes",
+   "sldId": 490,
+   "cat": "notes",
+   "_slide": 235,
+   "_why": "notes follow the code",
+   "_src": "align",
+   "text": "Write-back in .NET, as Example 25 runs it. PUT /write-back/metrics/{mid} writes the metric fields to a Redis hash, adds the id to a 'dirty set' that tells the flusher what to drain, and answers 202 Accepted in microseconds: the value is queued, not yet durable. The flusher is a background loop started with the app (a BackgroundService works the same way) that SPOPs up to 100 dirty ids at once. SPOP is the right primitive: it removes and returns elements in one call, so two flusher instances would each get a distinct subset of ids and horizontal scale works. Each id is upserted with INSERT ... ON CONFLICT (id) DO UPDATE, so an id flushed twice stays one row. An id whose upsert fails is re-queued: HashIncrementAsync counts its attempts in metric:attempts and it goes back on the dirty set, or, after five attempts, onto metric:failed with its value still in the cache and the failure in the log; the loop then waits two, four and at most eight seconds between runs. Caveats: this is only safe with Redis persistence (AOF, appendonly yes); without it a Redis crash loses unflushed writes. For data that must not be lost, use write-through. For high-throughput telemetry where losing the last second is acceptable, write-back is what lets the service scale."
+  },
+  {
+   "op": "set_code",
+   "sldId": 514,
+   "lines": [
+    "// OrderService/Program.cs (excerpt, example 21): one SIGTERM drives the drain",
+    "var shuttingDown = false;",
+    "PosixSignalRegistration.Create(PosixSignal.SIGTERM, ctx =>",
+    "{",
+    "    ctx.Cancel = true;           // the app drains; the host does not stop at once",
+    "    if (shuttingDown) return;    // already draining",
+    "    shuttingDown = true;         // 1. readiness → 503: the Service stops routing",
+    "    _ = Task.Run(async () =>",
+    "    {",
+    "        await Task.Delay(TimeSpan.FromSeconds(drainDelay));   // 2. endpoints update (5 s)",
+    "        app.Lifetime.StopApplication();  // 3. Kestrel drains in-flight (ShutdownTimeout 20 s)",
+    "    });",
+    "});",
+    "app.MapGet(\"/healthz\", () => new { status = \"ok\" });        // liveness stays 200",
+    "app.MapGet(\"/readyz\", () => shuttingDown                    // (the example also pings",
+    "    ? Results.Json(new { ready = false, reason = \"shutting down\" }, statusCode: 503)",
+    "    : Results.Ok(new { ready = true }));                    //  Postgres here)",
+    "app.MapPost(\"/orders\", async (HttpContext ctx, NpgsqlDataSource db) =>",
+    "{",
+    "    if (shuttingDown) return Results.Json(new { error = \"shutting down\" }, statusCode: 503);",
+    "    // ... in-flight requests finish before the host stops; 4. the pool is disposed, exit 0",
+    "});"
+   ],
+   "cat": "code",
+   "_slide": 259,
+   "_why": "Appendix M recap follows examples/21 (one SIGTERM, drain delay, 20 s drain)",
+   "_src": "align"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 514,
+   "cat": "notes",
+   "_slide": 259,
+   "_why": "notes follow the code",
+   "_src": "align",
+   "paragraphs": [
+    "The application half of graceful shutdown, from the running example's .NET order-service. PosixSignalRegistration catches the single SIGTERM and cancels the default immediate shutdown; the handler flips a flag so /readyz answers 503 and Kubernetes takes the Pod out of the Service, while /healthz stays 200 so the kubelet does not restart a Pod that is winding down.",
+    "New requests get 503. After DRAIN_DELAY_SECONDS the handler calls StopApplication(): Kestrel stops accepting and finishes in-flight requests within HostOptions.ShutdownTimeout (20 s), the data source is disposed and the process exits 0, inside terminationGracePeriodSeconds. Appendix H covers the hosted-service drain hooks, the preStop hook and the grace period."
+   ]
+  }
+ ]
+}

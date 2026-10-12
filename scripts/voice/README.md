@@ -7,7 +7,7 @@
 |---|---|
 | Source | https://github.com/patterncatalyst/lgtm-skills |
 | Path | `skills/lgtm-professional-voice/scripts/{scan.sh,patterns.tsv}` |
-| Commit | `a3350074a1df343b3bbd58a563f26bf0311a265a` (2026-10-11, lgtm-skills PRs #48 and #49) |
+| Commit | `a93f1288cad4f8a099028814de0ca57d01de0421` (2026-10-12, lgtm-skills PR #51, wider ALL-CAPS emphasis list) |
 | License | the upstream repository has no LICENSE file; both repositories have the same owner (patterncatalyst), who vendored the copy here |
 
 Do not edit these files here. Fix the scanner or its patterns upstream, merge, then re-vendor:

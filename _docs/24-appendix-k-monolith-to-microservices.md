@@ -274,33 +274,29 @@ async def forward(upstream, request, body):
 ```
 
 ```cpp
-// Content-based routing during cutover — Drogon middleware.
-// (In production this typically lives in a sidecar; middleware shows the shape.)
-constexpr auto MONOLITH = "http://monolith.svc.cluster.local:8080";
-constexpr auto NEW_SVC  = "http://orders.svc.cluster.local:8080";
-constexpr auto EU_SVC   = "http://orders-eu.svc.cluster.local:8080";
+// router/src/main.cpp (excerpt): route POST /orders by tenant during cutover
+g_service_urls["monolith"]    = env_m ? env_m : "http://monolith:8080";
+g_service_urls["new-service"] = env_n ? env_n : "http://new-service:8080";
+g_tenant_routes["acme"] = "new-service";            // cut Acme over first
+g_default_service = "monolith";                     // everyone else: legacy
 
-Task<> content_router(HttpRequestPtr req, auto next) {
-  if (!req->path().starts_with("/orders")) {
-    co_await next(req); co_return;             // other routes pass through
-  }
-  auto body = req->bodyJson();                  // nlohmann::json
-  std::string upstream;
-  if (body.value("tenant", "") == "acme") {
-    upstream = NEW_SVC;                         // cut Acme over
-  } else if (body.value("region", "") == "EU") {
-    upstream = EU_SVC;                          // regional service
-  } else {
-    upstream = MONOLITH;                        // default: legacy
-  }
-  cpp_httplib::Client client{upstream};
-  auto r = client.Post(req->path(), req->headers(), req->body(),
-                       "application/json");
-  auto resp = HttpResponse::newHttpResponse();
-  resp->setStatusCode(static_cast<HttpStatusCode>(r->status));
-  resp->setBody(r->body);
-  co_yield resp;
-}
+app().registerHandler("/orders",
+    [](const HttpRequestPtr& req, std::function<void(const HttpResponsePtr&)>&& cb) {
+      auto body = req->getJsonObject();             // decide by content
+      std::string tenant;
+      if (body && body->isMember("tenant")) tenant = (*body)["tenant"].asString();
+      forward_request(resolve_upstream(tenant), Post, "/orders",
+                      std::string(req->body()), std::move(cb));
+    },
+    {Post});
+
+// forward_request(): drogon::HttpClient to the chosen upstream, 502 on failure
+auto client = HttpClient::newHttpClient(upstream);
+auto fwd = HttpRequest::newHttpRequest();
+fwd->setMethod(method); fwd->setPath(path); fwd->setBody(body);
+client->sendRequest(fwd, [cb](ReqResult result, const HttpResponsePtr& resp) {
+  cb(result == ReqResult::Ok ? copy_of(resp) : bad_gateway());   // simplified
+});
 ```
 
 ```go
@@ -519,22 +515,20 @@ class OrdersDecorator : public drogon::HttpController<OrdersDecorator> {
     METHOD_ADD(OrdersDecorator::getOrder,   "/orders/{oid}", Get);
     METHOD_ADD(OrdersDecorator::placeOrder, "/orders",       Post);
   METHOD_LIST_END
-
   Task<> getOrder(HttpRequestPtr req, auto cb, std::string oid) {
     auto key = "order:" + oid;
-    if (auto hit = co_await cache_.get(key)) {  // 1. cache hit
+    if (auto hit = cache_.get(key)) {                    // 1. hit (sw/redis++)
       cb(json_response(*hit)); co_return;
     }
     auto body = co_await legacy_.get("/orders/" + oid);  // 2. miss → legacy
-    co_await cache_.setex(key, 60, body);                // 3. populate
+    cache_.setex(key, 60, body);                         // 3. populate
     cb(json_response(body));
   }
-
   Task<> placeOrder(HttpRequestPtr req, auto cb) {
-    auto body  = co_await legacy_.post("/orders", req->body());  // 1. legacy first
-    auto order = json::parse(body);
-    producer_.send("order.placed", body);                        // 2. emit
-    co_await cache_.del("order:" + order["id"].get<std::string>());  // 3. invalidate
+    auto body = co_await legacy_.post("/orders", req->body());  // 1. legacy first
+    auto id   = json::parse(body)["id"].get<std::string>();
+    produce_to(*producer_, "order.placed", id, body);          // 2. emit (rdkafka++)
+    cache_.del("order:" + id);                                 // 3. invalidate
     cb(json_response(body));
   }
 };

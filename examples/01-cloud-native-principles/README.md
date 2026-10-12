@@ -19,7 +19,7 @@ credentials, and the container naming convention.
 |---------|-------|------|
 | Env-based config | environment variables | `DATABASE_URL`, `KAFKA_BOOTSTRAP`, `SERVICE_VERSION` — one image, many environments |
 | Liveness probe | `/healthz` | Always returns ok if the process is up — never checks dependencies |
-| Readiness probe | `/readyz` | Checks the database — fails when DB is down, recovers when DB recovers |
+| Readiness probe | `/readyz` | Checks the database — answers 503 with `"status":"down"` when DB is down, 200 when it recovers |
 | OTel instrumentation | auto-instrumented | Traces and metrics sent to the LGTM stack |
 
 ## Architecture
@@ -63,7 +63,7 @@ curl -s localhost:8080/orders | jq .
 
 # Stop Postgres and watch readiness flip (liveness stays ok)
 docker stop cndp-postgres
-curl -s localhost:8080/readyz | jq .   # → "status": "down"
+curl -s -w '%{http_code}\n' localhost:8080/readyz   # → 503, "status": "down"
 curl -s localhost:8080/healthz | jq .  # → "status": "ok"
 
 # Restart Postgres and watch readiness recover

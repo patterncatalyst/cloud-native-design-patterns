@@ -1,0 +1,12 @@
+{
+ "ops": [
+  {
+   "op": "replace_picture",
+   "sldId": 286,
+   "shape": "Google Shape;349;p33",
+   "png": "lgtm-presentation/edits/png/04-dual-write-outbox-cpp.png",
+   "cat": "voice",
+   "_why": "figure footer: the absolute 'can never be lost' claim softened (src/04-dual-write-outbox.svg)"
+  }
+ ]
+}

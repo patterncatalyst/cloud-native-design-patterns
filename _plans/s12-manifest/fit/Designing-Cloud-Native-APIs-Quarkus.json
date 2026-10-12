@@ -1,0 +1,610 @@
+{
+ "entries": [
+  {
+   "sldId": 257,
+   "shape_id": 30,
+   "resize": {
+    "y": 1589592,
+    "cy": 4688780
+   },
+   "_why": "slide 2: text overflows its frame by overflow-bottom 13.4 pt; free space around the frame"
+  },
+  {
+   "sldId": 269,
+   "shape_id": 155,
+   "resize": {
+    "cx": 2672050,
+    "keep": "right"
+   },
+   "_why": "slide 14: chip 'java · Quarkus + SmallRye Health' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 272,
+   "shape_id": 190,
+   "pt": 11.0,
+   "_why": "slide 17: 20 code lines, 89 columns; 11.5 pt overflows the box"
+  },
+  {
+   "sldId": 273,
+   "shape_id": 202,
+   "resize": {
+    "cx": 2519650,
+    "keep": "right"
+   },
+   "_why": "slide 18: chip 'protobuf + java · Quarkus gRPC' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 279,
+   "shape_id": 271,
+   "resize": {
+    "cx": 1986250,
+    "keep": "right"
+   },
+   "_why": "slide 24: chip 'java · SmallRye GraphQL' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 284,
+   "shape_id": 327,
+   "resize": {
+    "cx": 4729450,
+    "keep": "right"
+   },
+   "_why": "slide 29: chip 'java · Quarkus REST + Panache + SmallRye Reactive Messaging' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 287,
+   "shape_id": 361,
+   "resize": {
+    "cx": 2900650,
+    "keep": "right"
+   },
+   "_why": "slide 32: chip 'java · Hibernate Panache + Debezium' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 291,
+   "shape_id": 406,
+   "resize": {
+    "cx": 2824450,
+    "keep": "right"
+   },
+   "_why": "slide 36: chip 'java · SmallRye Reactive Messaging' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 298,
+   "shape_id": 484,
+   "resize": {
+    "cx": 2367250,
+    "keep": "right"
+   },
+   "_why": "slide 43: chip 'java · Quarkus Kafka Streams' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 300,
+   "shape_id": 509,
+   "pt": 11.0,
+   "_why": "slide 45: 20 code lines, 85 columns; 12.0 pt overflows the box"
+  },
+  {
+   "sldId": 310,
+   "shape_id": 620,
+   "resize": {
+    "cx": 1910050,
+    "keep": "right"
+   },
+   "_why": "slide 55: chip 'xml · Maven + Apicurio' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 319,
+   "shape_id": 716,
+   "resize": {
+    "cx": 2367250,
+    "keep": "right"
+   },
+   "_why": "slide 64: chip 'java · Quarkus OpenTelemetry' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 321,
+   "shape_id": 740,
+   "resize": {
+    "cx": 3434050,
+    "keep": "right"
+   },
+   "_why": "slide 66: chip 'java · Quarkus + OpenTelemetry baggage API' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 324,
+   "shape_id": 774,
+   "resize": {
+    "cy": 4607500
+   },
+   "_why": "slide 69: text overflows its frame by overflow-bottom 7.0 pt; free space around the frame"
+  },
+  {
+   "sldId": 328,
+   "shape_id": 815,
+   "resize": {
+    "cy": 4607500
+   },
+   "_why": "slide 73: text overflows its frame by overflow-bottom 7.0 pt; free space around the frame"
+  },
+  {
+   "sldId": 329,
+   "shape_id": 825,
+   "resize": {
+    "cy": 4597340
+   },
+   "_why": "slide 74: text overflows its frame by overflow-bottom 6.2 pt; free space around the frame"
+  },
+  {
+   "sldId": 331,
+   "shape_id": 846,
+   "resize": {
+    "cy": 4607500
+   },
+   "_why": "slide 76: text overflows its frame by overflow-bottom 7.0 pt; free space around the frame"
+  },
+  {
+   "sldId": 333,
+   "shape_id": 868,
+   "resize": {
+    "cx": 3815050,
+    "keep": "right"
+   },
+   "_why": "slide 78: chip 'java · Quarkus REST + javax.crypto (HmacSHA256)' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 338,
+   "shape_id": 922,
+   "resize": {
+    "cx": 3357849,
+    "keep": "right"
+   },
+   "_why": "slide 83: chip 'yaml · OPA Gatekeeper  (language-neutral)' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 340,
+   "shape_id": 945,
+   "resize": {
+    "cx": 4500850,
+    "keep": "right"
+   },
+   "_why": "slide 85: chip 'java · Quarkus + SmallRye Fault Tolerance (MicroProfile)' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 342,
+   "shape_id": 968,
+   "resize": {
+    "cx": 3586450,
+    "keep": "right"
+   },
+   "_why": "slide 87: chip 'java · Quarkus + SmallRye Reactive Messaging' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 365,
+   "shape_id": 1212,
+   "resize": {
+    "cx": 1986250,
+    "keep": "right"
+   },
+   "_why": "slide 110: chip 'java · SmallRye GraphQL' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 368,
+   "shape_id": 1245,
+   "resize": {
+    "cx": 2519650,
+    "keep": "right"
+   },
+   "_why": "slide 113: chip 'java · Quarkus WebSockets Next' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 377,
+   "shape_id": 1345,
+   "resize": {
+    "cx": 2062450,
+    "keep": "right"
+   },
+   "_why": "slide 122: chip 'java · Hibernate Panache' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 379,
+   "shape_id": 1369,
+   "resize": {
+    "cx": 2062450,
+    "keep": "right"
+   },
+   "_why": "slide 124: chip 'java · Hibernate Panache' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 389,
+   "shape_id": 1486,
+   "resize": {
+    "cx": 2824450,
+    "keep": "right"
+   },
+   "_why": "slide 134: chip 'java · SmallRye Reactive Messaging' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 391,
+   "shape_id": 1510,
+   "resize": {
+    "cx": 1986250,
+    "keep": "right"
+   },
+   "_why": "slide 136: chip 'java · SmallRye GraphQL' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 401,
+   "shape_id": 1617,
+   "resize": {
+    "cx": 1986250,
+    "keep": "right"
+   },
+   "_why": "slide 146: chip 'java · ports & adapters' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 419,
+   "shape_id": 1807,
+   "resize": {
+    "cy": 436820
+   },
+   "_why": "slide 164: text overflows its frame by overflow-bottom 2.6 pt; free space around the frame"
+  },
+  {
+   "sldId": 420,
+   "shape_id": 1820,
+   "resize": {
+    "cy": 436820
+   },
+   "_why": "slide 165: text overflows its frame by overflow-bottom 2.6 pt; free space around the frame"
+  },
+  {
+   "sldId": 431,
+   "shape_id": 1938,
+   "pt": 11.0,
+   "_why": "slide 176: 20 code lines, 70 columns; 13.0 pt overflows the box"
+  },
+  {
+   "sldId": 432,
+   "shape_id": 1950,
+   "resize": {
+    "cx": 2291050,
+    "keep": "right"
+   },
+   "_why": "slide 177: chip 'yaml · Istio VirtualService' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 437,
+   "shape_id": 2006,
+   "pt": 10.0,
+   "_why": "slide 182: 22 code lines, 73 columns; 11.0 pt overflows the box"
+  },
+  {
+   "sldId": 438,
+   "shape_id": 2018,
+   "resize": {
+    "cx": 2138650,
+    "keep": "right"
+   },
+   "_why": "slide 183: chip 'yaml · Istio header-based' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 443,
+   "shape_id": 2075,
+   "resize": {
+    "cx": 1910050,
+    "keep": "right"
+   },
+   "_why": "slide 188: chip 'java · Quarkus + Camel' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 444,
+   "shape_id": 2089,
+   "pt": 9.0,
+   "_why": "slide 189: 24 code lines, 70 columns; 11.0 pt overflows the box"
+  },
+  {
+   "sldId": 449,
+   "shape_id": 2143,
+   "resize": {
+    "cx": 1910050,
+    "keep": "right"
+   },
+   "_why": "slide 194: chip 'yaml · Istio east/west' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 461,
+   "shape_id": 2273,
+   "resize": {
+    "cx": 2748250,
+    "keep": "right"
+   },
+   "_why": "slide 206: chip 'java · Quarkus REST + REST Client' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 461,
+   "shape_id": 2274,
+   "pt": 9.0,
+   "_why": "slide 206: 25 code lines, 88 columns; 9.5 pt overflows the box",
+   "line_spacing": 1.0
+  },
+  {
+   "sldId": 463,
+   "shape_id": 2297,
+   "resize": {
+    "cx": 4958049,
+    "keep": "right"
+   },
+   "_why": "slide 208: chip 'java · Quarkus REST + REST Client + Redis + Reactive Messaging' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 464,
+   "shape_id": 2309,
+   "resize": {
+    "cy": 4568130
+   },
+   "_why": "slide 209: text overflows its frame by overflow-bottom 3.9 pt; free space around the frame"
+  },
+  {
+   "sldId": 468,
+   "shape_id": 2351,
+   "resize": {
+    "cx": 3053050,
+    "keep": "right"
+   },
+   "_why": "slide 213: chip 'java · Quarkus REST + Panache + Redis' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 470,
+   "shape_id": 2375,
+   "resize": {
+    "cx": 3434050,
+    "keep": "right"
+   },
+   "_why": "slide 215: chip 'java · Quarkus Cache + quarkus-redis-cache' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 470,
+   "shape_id": 2376,
+   "pt": 9.0,
+   "_why": "slide 215: 22 code lines, 83 columns; 9.5 pt overflows the box"
+  },
+  {
+   "sldId": 472,
+   "shape_id": 2399,
+   "resize": {
+    "cx": 3053050,
+    "keep": "right"
+   },
+   "_why": "slide 217: chip 'java · Quarkus REST + Panache + Redis' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 474,
+   "shape_id": 2423,
+   "resize": {
+    "cx": 3053050,
+    "keep": "right"
+   },
+   "_why": "slide 219: chip 'java · Quarkus REST + Panache + Redis' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 476,
+   "shape_id": 2447,
+   "resize": {
+    "cx": 3662650,
+    "keep": "right"
+   },
+   "_why": "slide 221: chip 'java · Quarkus + @Scheduled + Redis + Panache' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 478,
+   "shape_id": 2471,
+   "resize": {
+    "cx": 3738850,
+    "keep": "right"
+   },
+   "_why": "slide 223: chip 'java · Quarkus + @Scheduled + Redis sorted set' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 480,
+   "shape_id": 2493,
+   "resize": {
+    "cy": 4568130
+   },
+   "_why": "slide 225: text overflows its frame by overflow-bottom 3.9 pt; free space around the frame"
+  },
+  {
+   "sldId": 492,
+   "shape_id": 2622,
+   "resize": {
+    "cx": 3662650,
+    "keep": "right"
+   },
+   "_why": "slide 237: chip 'java · Quarkus + MicroProfile Fault Tolerance' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 494,
+   "shape_id": 2645,
+   "resize": {
+    "cx": 3662650,
+    "keep": "right"
+   },
+   "_why": "slide 239: chip 'java · Quarkus + MicroProfile Fault Tolerance' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 496,
+   "shape_id": 2668,
+   "resize": {
+    "cx": 3662650,
+    "keep": "right"
+   },
+   "_why": "slide 241: chip 'java · Quarkus + MicroProfile Fault Tolerance' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 500,
+   "shape_id": 2711,
+   "resize": {
+    "cx": 2672050,
+    "keep": "right"
+   },
+   "_why": "slide 245: chip 'java · Quarkus + SmallRye Health' wraps; one line at 10.0 pt"
+  },
+  {
+   "sldId": 284,
+   "shape_id": 328,
+   "cuts": [
+    {
+     "from": 1,
+     "to": 1,
+     "first": "// Write side  —  command handler"
+    },
+    {
+     "from": 14,
+     "to": 14,
+     "first": "// Read side  —  query handler reads from a different, denormalised store"
+    },
+    {
+     "from": 24,
+     "to": 24,
+     "first": "// Projection  —  consumes events, upserts the read model"
+    }
+   ],
+   "edits": [
+    {
+     "line": 2,
+     "old": "@Path(\"/orders\")",
+     "new": "@Path(\"/orders\")                        // write side: command handler"
+    },
+    {
+     "line": 15,
+     "old": "@Path(\"/orders\")",
+     "new": "@Path(\"/orders\")                        // read side: query handler, denormalised store"
+    },
+    {
+     "line": 25,
+     "old": "@ApplicationScoped",
+     "new": "@ApplicationScoped                      // projection: events upsert the read model"
+    }
+   ],
+   "pt": 9.0,
+   "line_spacing": 1.0,
+   "_why": "slide 29: 30 code lines do not fit the box at 9 pt; excerpt of 27 lines at 9.0 pt (line spacing 1.0), was 8.5 pt"
+  },
+  {
+   "sldId": 338,
+   "shape_id": 923,
+   "cuts": [
+    {
+     "from": 7,
+     "to": 13,
+     "first": "  crd:",
+     "last": "            allowedRegistries: { type: array, items: { type: string } }",
+     "ellipsis": "    # ... crd: kind K8sRequireSignedImages, parameter allowedRegistries (string array)"
+    }
+   ],
+   "pt": 9.0,
+   "line_spacing": 1.0,
+   "_why": "slide 83: 33 code lines do not fit the box at 9 pt; excerpt of 27 lines at 9.0 pt (line spacing 1.0), was 9.5 pt"
+  },
+  {
+   "sldId": 449,
+   "shape_id": 2144,
+   "cuts": [
+    {
+     "from": 7,
+     "to": 8,
+     "first": "    connectionPool:",
+     "last": "      http: { http2MaxRequests: 1000, maxRequestsPerConnection: 10 }",
+     "ellipsis": "    # ... connectionPool: http2MaxRequests 1000, maxRequestsPerConnection 10"
+    },
+    {
+     "from": 13,
+     "to": 14,
+     "first": "    loadBalancer:",
+     "last": "      localityLbSetting: { enabled: true }         # prefer same zone",
+     "ellipsis": "    # ... loadBalancer: localityLbSetting enabled (prefer same zone)"
+    }
+   ],
+   "pt": 9.0,
+   "line_spacing": 1.0,
+   "_why": "slide 194: 27 code lines do not fit the box at 9 pt; excerpt of 25 lines at 9.0 pt (line spacing 1.0), was 10.0 pt"
+  },
+  {
+   "sldId": 463,
+   "shape_id": 2298,
+   "cuts": [
+    {
+     "from": 1,
+     "to": 2,
+     "first": "// Quarkus REST that wraps a legacy /orders API and adds Redis caching and",
+     "last": "// Kafka event emission. The legacy service is unchanged."
+    }
+   ],
+   "pt": 9.0,
+   "_why": "slide 208: 26 code lines do not fit the box at 9 pt; excerpt of 24 lines at 9.0 pt, was 9.0 pt"
+  },
+  {
+   "sldId": 468,
+   "shape_id": 2352,
+   "cuts": [
+    {
+     "from": 1,
+     "to": 1,
+     "first": "// Quarkus REST + Panache + quarkus-redis-client (blocking ValueCommands)."
+    }
+   ],
+   "pt": 9.0,
+   "line_spacing": 1.0,
+   "_why": "slide 213: 26 code lines do not fit the box at 9 pt; excerpt of 25 lines at 9.0 pt (line spacing 1.0), was 9.0 pt"
+  },
+  {
+   "sldId": 476,
+   "shape_id": 2448,
+   "cuts": [
+    {
+     "from": 8,
+     "to": 11,
+     "first": "    public MetricResource(RedisDataSource redis) {",
+     "last": "    }",
+     "ellipsis": "    // ... constructor: cache = redis.hash(String.class), dirty = redis.set(String.class)"
+    }
+   ],
+   "pt": 9.0,
+   "line_spacing": 1.0,
+   "_why": "slide 221: 28 code lines do not fit the box at 9 pt; excerpt of 25 lines at 9.0 pt (line spacing 1.0), was 8.5 pt"
+  },
+  {
+   "op": "fit_font",
+   "sldId": 343,
+   "shape_id": 979,
+   "pt": 15,
+   "_why": "'Choosing the right pattern': eight two-line bullets run 35 pt past the frame into the page number and logo; the frame cannot grow"
+  },
+  {
+   "op": "fit_font",
+   "sldId": 349,
+   "shape_id": 1040,
+   "pt": 14,
+   "_why": "references: the reference lines run past the frame into the page number; the frame cannot grow",
+   "space_before": 6
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "find": "Glossary of acronyms  (2 of 2)  —  platform, security, observability",
+   "repl": "Glossary of acronyms (2 of 2) — platform, security, telemetry",
+   "expect": 1,
+   "sldIds": [
+    352
+   ],
+   "_why": "title wraps to two lines and collides with the eyebrow; 'observability' -> 'telemetry' keeps it on one line"
+  },
+  {
+   "op": "fit_font",
+   "sldId": 479,
+   "shape_id": 2483,
+   "pt": 16,
+   "_why": "caching pitfalls: six long bullets run 15 pt past the frame; the frame cannot grow (page number below)"
+  }
+ ]
+}

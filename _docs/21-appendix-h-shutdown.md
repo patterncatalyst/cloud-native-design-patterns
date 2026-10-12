@@ -73,195 +73,179 @@ Underneath all of it is the safety net: because a hard `SIGKILL` is always possi
 
 ## The application side
 
-The application's job is three steps in order: flip readiness down the instant `SIGTERM`
-arrives, let the HTTP server drain in-flight requests under a bounded timeout, then drain
-everything else — consumers, pools, sockets — in the shutdown hook that runs after HTTP
-is done. Doing the readiness flip *at the signal* rather than later is what makes it
-early enough to matter.
+The application's job is a short sequence, all driven by one `SIGTERM` (Kubernetes sends
+only one, then `SIGKILL` when the grace period runs out): flip readiness down the instant
+the signal arrives, keep serving for a short drain delay while the endpoint removal
+propagates, then stop accepting and let the HTTP server drain in-flight requests under a
+bounded timeout, and finally drain everything else (consumers, pools, sockets) in the
+shutdown hook that runs after HTTP is done, and exit 0. Doing the readiness flip *at the
+signal* rather than later is what makes it early enough to matter. The tabs are excerpts of
+`examples/21-graceful-shutdown`: a 5-second `DRAIN_DELAY_SECONDS` and a 20-second drain
+bound, which together fit the 30-second grace period.
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-// application.yml — enable graceful shutdown and bound the drain:
-//   server.shutdown: graceful
-//   spring.lifecycle.timeout-per-shutdown-phase: 15s
-
-// flip readiness DOWN explicitly so Kubernetes stops routing first
-@Component
-public class ShutdownLifecycle {
-    private final ApplicationEventPublisher events;
-    private final Consumer<?, ?> consumer;     // Kafka consumer
-
-    public ShutdownLifecycle(ApplicationEventPublisher e, Consumer<?, ?> c) {
-        this.events = e; this.consumer = c;
-    }
-
-    @EventListener(ContextClosedEvent.class)
-    public void onShutdown(ContextClosedEvent e) {
-        events.publishEvent(new AvailabilityChangeEvent<>(this,
-            ReadinessState.REFUSING_TRAFFIC));      // readiness → DOWN
-        log.info("draining");
-        consumer.wakeup();                          // stop polling; commit on close
+// OrderServiceApplication.java (excerpt), examples/21-graceful-shutdown/spring-boot
+// application.properties: server.shutdown=graceful
+//                         spring.lifecycle.timeout-per-shutdown-phase=20s
+@SpringBootApplication
+public class OrderServiceApplication {
+    public static void main(String[] args) {
+        // registered before Spring starts: replaces the JVM's default SIGTERM handler
+        Signal.handle(new Signal("TERM"), signal -> {
+            ShutdownState state = ShutdownState.getInstance();  // GET /readyz reads it: 503
+            if (!state.markShuttingDown()) return;   // one SIGTERM drives the drain
+            long delay = drainDelaySeconds();        // DRAIN_DELAY_SECONDS, default 5
+            new Thread(() -> {
+                try { Thread.sleep(delay * 1000); }  // keep serving: endpoints update
+                catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                System.exit(0);  // shutdown hook: stop accepting, finish in-flight, close pool
+            }, "drain").start();
+        });
+        SpringApplication.run(OrderServiceApplication.class, args);
     }
 }
-// HTTP drains automatically (server.shutdown=graceful);
-// Kafka, the scheduler, and WebSockets you drain yourself in onShutdown.
+// Kafka consumers, the scheduler and WebSockets drain in a ContextClosedEvent listener.
 ```
 
 ```java
-// application.properties — the 'graceful' profile:
-//   quarkus.shutdown.timeout=15s          (runtime: wait for in-flight HTTP)
-//   quarkus.shutdown.delay-enabled=true   (BUILD time — must be baked in)
-//   quarkus.shutdown.delay=5s             (pre-shutdown phase: readiness DOWN)
-
-// observe the lifecycle so the sequence is visible in the logs
+// SignalHandler.java (excerpt), examples/21-graceful-shutdown/quarkus
+// application.properties: quarkus.shutdown.timeout=20s (bounds the in-flight wait)
 @ApplicationScoped
-public class ShutdownLifecycle {
-    void onDelay(@Observes ShutdownDelayInitiatedEvent e) {
-        Log.info("readiness now DOWN — HTTP still draining"); // SmallRye reports it
-    }
-    void onStop(@Observes ShutdownEvent e) {
-        Log.info("draining"); consumer.close(); pool.close();   // your drain code
+public class SignalHandler {
+    @Inject ShutdownState shutdownState;     // GET /readyz answers 503 once it is set
+    void onStart(@Observes StartupEvent ev) { // replaces the JVM's default SIGTERM handler
+        Signal.handle(new Signal("TERM"), signal -> {
+            if (!shutdownState.markShuttingDown()) return;  // one SIGTERM drives the drain
+            long delay = drainDelaySeconds();               // DRAIN_DELAY_SECONDS, default 5
+            new Thread(() -> {
+                try { Thread.sleep(delay * 1000); }         // keep serving: endpoints update
+                catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                Quarkus.asyncExit(0);   // stop accepting, finish in-flight, close the pool
+            }, "drain").start();
+        });
     }
 }
-// HTTP drains automatically (Quarkus 3.32+ answers instead of 503-ing);
-// Kafka, the scheduler and WebSockets you drain in onStop yourself.
 ```
 
 ```csharp
-// Program.cs — set the budget; the host honours it on SIGTERM
-builder.Services.Configure<HostOptions>(o =>
+// Program.cs (excerpt), examples/21-graceful-shutdown/dotnet: one SIGTERM drives the drain
+builder.Services.AddSingleton<IHostLifetime, ManualLifetime>();  // not ConsoleLifetime
+builder.Services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(20));
+var app = builder.Build();
+var shuttingDown = false;                 // GET /readyz answers 503 once it is set
+var drainDelay = int.TryParse(Environment.GetEnvironmentVariable("DRAIN_DELAY_SECONDS"),
+    out var d) && d >= 0 ? d : 5;
+PosixSignalRegistration.Create(PosixSignal.SIGTERM, ctx =>
 {
-    o.ShutdownTimeout = TimeSpan.FromSeconds(30);     // total budget
-    o.BackgroundServiceExceptionBehavior =            // tolerate handler errors
-        BackgroundServiceExceptionBehavior.Ignore;
+    ctx.Cancel = true;                    // the host does not stop at once
+    if (shuttingDown) return;             // already draining
+    shuttingDown = true;                  // 1. readiness fails first
+    _ = Task.Run(async () =>
+    {
+        await Task.Delay(TimeSpan.FromSeconds(drainDelay));  // 2. serve on: endpoints update
+        app.Lifetime.StopApplication();   // 3. Kestrel stops accepting, finishes in-flight
+    });
 });
-
-// Flip readiness DOWN on shutdown via a mutable IHealthCheck
-public class ReadinessCheck : IHealthCheck
-{
-    private volatile bool _ready = true;
-    public void MarkUnready() => _ready = false;
-    public Task<HealthCheckResult> CheckHealthAsync(
-        HealthCheckContext ctx, CancellationToken ct) =>
-        Task.FromResult(_ready ? HealthCheckResult.Healthy() : HealthCheckResult.Unhealthy());
-}
-
-// One BackgroundService per long-running concern; StopAsync gets the drain hook
-public class KafkaConsumerHost(IConsumer<string, Order> consumer,
-                               ReadinessCheck readiness,
-                               IHostApplicationLifetime lifetime) : BackgroundService
-{
-    protected override async Task ExecuteAsync(CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            var result = consumer.Consume(ct);
-            await Handle(result, ct);                 // your work
-            consumer.Commit(result);                  // ack after side-effect
-        }
-    }
-    public override async Task StopAsync(CancellationToken ct)        // ← the drain hook
-    {
-        readiness.MarkUnready();                      // /healthz/ready → 503
-        consumer.Close();                             // commit + leave group cleanly
-        await base.StopAsync(ct);                     // bounded by ShutdownTimeout
-    }
-}
+app.Lifetime.ApplicationStopped.Register(() => dataSource.Dispose());   // 4. close the pool
+// ... MapGet /healthz (always 200), /readyz, /orders; app.Run();
+// ManualLifetime : IHostLifetime: WaitForStartAsync and StopAsync return Task.CompletedTask
 ```
 
 ```python
-import signal
+# main.py (excerpt), examples/21-graceful-shutdown/python
+import asyncio, signal
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-
-ready = True                     # the flag the readiness probe reads
-def _drain(*_):                  # SIGTERM -> fail readiness FIRST
-    global ready; ready = False  # Service stops routing new traffic
-signal.signal(signal.SIGTERM, _drain)
-
+DRAIN_DELAY_SECONDS = 5        # lets endpoint removal propagate (the preStop sleep)
+shutting_down, uvicorn_sigterm, loop = False, None, None
+def handle_sigterm(signum, frame):
+    global shutting_down
+    if shutting_down: return     # one SIGTERM drives the whole drain
+    shutting_down = True         # fail readiness now, keep serving for the preStop delay
+    loop.call_soon_threadsafe(loop.call_later, DRAIN_DELAY_SECONDS,
+                              uvicorn_sigterm, signum, frame)   # then uvicorn drains HTTP
 @asynccontextmanager
 async def lifespan(app):
-    yield                        # --- shutdown runs after HTTP has drained ---
-    await consumer.stop()        # aiokafka: finish, commit offsets, leave group
-    await db.close()             # close pools, flush, release resources
-
+    global uvicorn_sigterm, loop # uvicorn's handler is already installed: chain to it
+    loop = asyncio.get_running_loop()
+    uvicorn_sigterm = signal.signal(signal.SIGTERM, handle_sigterm)
+    yield                        # --- runs after uvicorn has drained HTTP ---
+    await db_pool.close()        # close pools, flush, release resources
 app = FastAPI(lifespan=lifespan)
 @app.get("/readyz")
-async def readyz(): return JSONResponse({}, 200 if ready else 503)
-# run: uvicorn app:app --timeout-graceful-shutdown 15   # bounds the HTTP drain
+async def readyz(): return JSONResponse({}, 503 if shutting_down else 200)
+# run: uvicorn main:app --timeout-graceful-shutdown 20   # bounds the HTTP drain
 ```
 
 ```cpp
-// Graceful shutdown in a Drogon binary — SIGTERM + std::stop_token (C++20)
-#include <stop_token>
-#include <drogon/drogon.h>
-std::stop_source g_stop;
-std::atomic<bool> g_ready{true};                  // readiness flag
-extern "C" void handle_sigterm(int) {
-  g_ready.store(false);                           // fail readiness FIRST
-  g_stop.request_stop();                          // cooperative stop
+// order-service (excerpt), examples/21-graceful-shutdown/cpp: one SIGTERM drives the drain
+std::atomic<bool> g_shutting_down{false};     // /readyz answers 503 once it is set
+std::atomic<int>  g_in_flight{0};             // RAII InFlightGuard: one per request
+extern "C" void sigterm_handler(int) {        // async-signal-safe: one atomic store
+  g_shutting_down.store(true, std::memory_order_release);
+}
+void shutdown_watcher() {                     // outside signal context
+  while (!g_shutting_down.load(std::memory_order_acquire))
+    std::this_thread::sleep_for(50ms);        // (also returns on g_watcher_stop)
+  const int delay = std::atoi(env("DRAIN_DELAY_SECONDS", "5"));
+  std::this_thread::sleep_for(std::chrono::seconds(delay));    // endpoints update
+  const auto deadline = std::chrono::steady_clock::now() + 20s; // bounded in-flight wait
+  while (g_in_flight.load() > 0 && std::chrono::steady_clock::now() < deadline)
+    std::this_thread::sleep_for(100ms);
+  app().quit();                               // stop the listeners: run() returns
 }
 int main() {
-  std::signal(SIGTERM, handle_sigterm);
-  std::signal(SIGINT,  handle_sigterm);
-  drogon::app().registerHandler("/readyz", [](auto, auto cb) {
-    auto r = drogon::HttpResponse::newHttpResponse();
-    r->setStatusCode(g_ready ? drogon::k200OK
-                             : drogon::k503ServiceUnavailable);
-    cb(r);
-  });
-  // workers receive the stop_token; consumer threads exit cleanly
-  std::jthread kafka_worker(consume_loop, g_stop.get_token());
-  drogon::app().run();                            // drains HTTP on signal
-  kafka_worker.join();                            // joins on stop_token
-  return 0;                                       // RAII unwinds remaining state
+  app().registerBeginningAdvice([] { std::signal(SIGTERM, sigterm_handler); });  // after init
+  std::thread watcher(shutdown_watcher);      // ... handlers, addListener("0.0.0.0", 8080)
+  app().run();  g_watcher_stop.store(true);  watcher.join();
+  g_pool.reset();                             // close the database connections; exit 0
 }
 ```
 
 ```go
-// graceful shutdown — SIGTERM flips readiness FIRST, then drains within a budget
+// main.go (excerpt), examples/21-graceful-shutdown/go: one SIGTERM drives the drain
+const shutdownTimeout = 20 * time.Second // drain delay + this stays under the 30s grace
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(),
-		syscall.SIGTERM, syscall.SIGINT)
+	// ... pgx pool, s := &server{pool: pool}; GET /readyz answers 503 once s.shuttingDown
+	httpServer := &http.Server{Addr: ":8080", Handler: mux}
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
-
-	var ready atomic.Bool
-	ready.Store(true)
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, _ *http.Request) {
-		if !ready.Load() {
-			w.WriteHeader(http.StatusServiceUnavailable) // 503 → Service stops routing
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-	})
-	srv := &http.Server{Addr: ":8080", Handler: mux}
-	go srv.ListenAndServe()
-
-	<-ctx.Done()       // SIGTERM received
-	ready.Store(false) // fail readiness FIRST, before draining
-
-	shutCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	_ = srv.Shutdown(shutCtx) // bounds the HTTP drain
-	consumer.Close()          // finish, commit offsets, leave the group
-	db.Close()                // close pools, flush, release resources
-}
+	go httpServer.ListenAndServe()
+	<-ctx.Done()               // 1. the single SIGTERM
+	stop()                     //    a later signal terminates at once
+	s.shuttingDown.Store(true) //    readiness fails first, the server keeps serving
+	time.Sleep(drainDelay())   // 2. DRAIN_DELAY_SECONDS (5s): endpoints update
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()             // 3. stop accepting, finish in-flight requests
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		slog.Error("shutdown incomplete", "err", err, "in_flight", s.inFlight.Load())
+	}
+}                             // 4. deferred pool.Close(), exit 0
 ```
 
-The same three moving parts appear in every stack. A `SIGTERM` handler flips the
-readiness flag so the readiness endpoint returns `503` immediately — the "stop new
-traffic" step, registered at the signal so it fires before anything else. The HTTP server
-drains in-flight requests automatically, bounded by an explicit timeout
-(`--timeout-graceful-shutdown`, `timeout-per-shutdown-phase`, `ShutdownTimeout`) so a
-stuck request cannot hang the deploy. And the shutdown hook — FastAPI's `lifespan` after
-the `yield`, Spring's `ContextClosedEvent`, the .NET `StopAsync`, the C++ `jthread` join
-on the `stop_token` — runs once HTTP is done and is where you stop the consumer (which
-commits offsets and leaves the group) and close pools. The order is the whole point:
-readiness down, drain HTTP, then drain everything else.
+The same moving parts appear in every stack. A `SIGTERM` handler flips the readiness flag
+so the readiness endpoint returns `503` immediately (the "stop new traffic" step,
+registered at the signal so it fires before anything else), while `/healthz` stays `200`.
+Each runtime's default handler would start the shutdown at once, so the examples take the
+signal themselves: a `sun.misc.Signal` handler on the JVM, `PosixSignalRegistration` with a
+manual host lifetime in .NET, an async-signal-safe atomic store and a watcher thread in
+C++, `signal.NotifyContext` in Go. After `DRAIN_DELAY_SECONDS` (the in-process form of a
+`preStop` sleep) the service stops accepting and the HTTP server drains in-flight requests,
+bounded by an explicit timeout (`--timeout-graceful-shutdown`, `timeout-per-shutdown-phase`,
+`quarkus.shutdown.timeout`, `ShutdownTimeout`, the `Shutdown` context, the C++ deadline) so a
+stuck request cannot hang the deploy. In Python the readiness handler takes the place of
+uvicorn's own, so it keeps uvicorn's handler and chains to it: the single `SIGTERM` flips
+readiness, and after the drain delay the handler hands over to uvicorn, which then drains. A
+handler installed at import time, before uvicorn starts, would replace uvicorn's for good and
+the server would never drain. And the shutdown hook (FastAPI's `lifespan` after the
+`yield`, a Spring `ContextClosedEvent` listener, a Quarkus `ShutdownEvent` observer, a .NET
+hosted service's `StopAsync`, the C++ code after `run()` returns) runs once HTTP is done and
+is where you stop the consumer (which commits offsets and leaves the group) and close pools
+before the process exits 0. The order is the whole point: readiness down, drain delay, drain
+HTTP, then drain everything else.
 
 ## The Kubernetes side
 
@@ -279,7 +263,7 @@ spec:
         periodSeconds: 5
         failureThreshold: 2                # ~10s to stop routing after DOWN
       livenessProbe:                       # must NOT fail during the drain
-        httpGet: { path: /livez, port: 8080 }
+        httpGet: { path: /healthz, port: 8080 }
       lifecycle:
         preStop:
           exec:
@@ -290,7 +274,7 @@ spec:
 your worst-case drain plus a buffer. The readiness probe's `periodSeconds × failureThreshold`
 sets how fast Kubernetes stops routing after you report `DOWN` — roughly ten
 seconds here — which your `preStop` sleep should cover. Liveness points at a *separate*
-`/livez` that stays up throughout the drain, so the kubelet does not restart a pod that is
+`/healthz` that stays up throughout the drain, so the kubelet does not restart a pod that is
 cleanly winding down. The `preStop` sleep looks crude, but it is the pragmatic fix for the
 asynchronous-deregistration race; align its duration with the probe timing rather than
 picking an arbitrary number.
@@ -340,5 +324,5 @@ A clean rollout under live load, not a green integration test, is evidence that 
 works.
 
 ---
-*Verification status: verified — [`examples/21-graceful-shutdown/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/21-graceful-shutdown/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-10)
-(SIGTERM handling, readiness flip to 503, the shutdown log line, restart recovery, and orders persisting across the restart. In-flight request draining is not checked by the script).*
+*Verification status: verified — [`examples/21-graceful-shutdown/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/21-graceful-shutdown/) passes 17/17 checks in each of the six languages on Docker Engine (2026-10-10)
+(one SIGTERM, readiness flip to 503, the drain log lines, exit code 0 inside the grace period, a `docker stop` timing check, restart recovery, and orders persisting across the restart. In-flight request draining is not checked by the script).*

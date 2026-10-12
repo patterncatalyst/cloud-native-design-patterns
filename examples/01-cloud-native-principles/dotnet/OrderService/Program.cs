@@ -47,7 +47,9 @@ app.MapGet("/readyz", async (NpgsqlDataSource db) =>
     }
     catch
     {
-        return Results.Ok(new { status = "down", checks = new { database = "unreachable" } });
+        return Results.Json(
+            new { status = "down", checks = new { database = "unreachable" } },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
     }
 });
 

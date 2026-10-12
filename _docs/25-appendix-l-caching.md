@@ -807,6 +807,11 @@ few seconds of writes" means for the business. Reserve it for cases where write 
 constraint *and* eventual durability is acceptable — real-time game state, telemetry with a
 downstream aggregator, write-heavy buffering ahead of a slower store.
 
+The API reflects the contract: a write answers `202 Accepted` because the value is queued, not yet
+durable. A failed flush re-queues its entries and retries with backoff, up to a bounded number of
+attempts, logging each failure; an entry that exhausts its attempts is parked on a failed set with its
+value still in the cache, so an outage never drops a write silently.
+
 {% include excalidraw.html
    file="24-write-back"
    alt="A client writes to the application, which writes to the cache and acks immediately. A background flusher drains dirty keys from the cache to the database asynchronously in batches."
@@ -815,235 +820,161 @@ downstream aggregator, write-heavy buffering ahead of a slower store.
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-// @Scheduled flusher drains a dirty-set to the DB; @SchedulerLock = one node.
-@RestController
-@RequestMapping("/metrics")
-public class MetricController {
-    private static final int BATCH = 100;
-    private final RedisTemplate<String, Object> cache;
-    private final MetricRepository repo;
-
-    public MetricController(RedisTemplate<String, Object> cache, MetricRepository repo) {
-        this.cache = cache; this.repo = repo;
+@PutMapping("/write-back/metrics/{mid}")   // CacheController (excerpt)
+public ResponseEntity<Map<String, Object>> writeBackWrite(
+        @PathVariable String mid, @RequestBody Map<String, Object> body) {
+    // ... HSET metric:<mid> {value, tags}; SADD metric:dirty <mid> (503 when Redis is down)
+    return ResponseEntity.accepted().body(Map.of("ok", true, "pattern", "write-back",
+            "action", "cached-for-flush"));               // 202: queued, not yet durable
+}                                   // examples/25-caching/spring-boot
+@Scheduled(fixedDelayString = "${cache-service.flush-period-ms:1000}")
+public void flusher() {                                // BackgroundTasks
+    if (System.currentTimeMillis() < nextFlushAt) return;   // backing off after a failure
+    Set<String> ids = cache.spop("metric:dirty", FLUSH_BATCH);
+    if (ids == null || ids.isEmpty()) return;
+    List<String> failed = new ArrayList<>();
+    for (String mid : ids) {
+        try {                                     // upsert: an id flushed twice is one row
+            jdbc.sql("INSERT INTO metrics (id, payload) VALUES (?, ?::jsonb) "
+                    + "ON CONFLICT (id) DO UPDATE SET payload = ?::jsonb, ts = NOW()")
+                    .param(mid).param(json).param(json).update();   // json: the cached hash
+            cache.hdel("metric:attempts", mid);
+        } catch (Exception e) { failed.add(mid); }     // logged: flush failed for <mid>
     }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<Void> write(@PathVariable String id,
-                                      @RequestBody Map<String, Object> body) {
-        cache.opsForHash().putAll("metric:" + id, body);
-        cache.opsForSet().add("metric:dirty", id);    // mark for flush
-        return ResponseEntity.accepted().build();      // 202 — microseconds
-    }
-
-    @Scheduled(fixedDelay = 1000)                      // every second
-    @SchedulerLock(name = "metrics-flush")            // ShedLock: only one node
-    public void flush() {
-        Set<Object> ids = cache.opsForSet().pop("metric:dirty", BATCH);
-        if (ids == null || ids.isEmpty()) return;
-        try {
-            List<Metric> rows = ids.stream().map(this::loadFromCache)
-                .filter(Objects::nonNull).toList();
-            repo.saveAll(rows);                        // batch insert
-        } catch (DataAccessException e) {
-            cache.opsForSet().add("metric:dirty", ids.toArray());  // retry
-        }
-    }
+    if (failed.isEmpty()) { failures = 0; return; }
+    nextFlushAt = System.currentTimeMillis() + Math.min(flushPeriodMs << ++failures, 8000);
+    requeue(failed);   // HINCRBY metric:attempts; SADD metric:dirty, or metric:failed at 5
 }
 ```
 
 ```java
-// Quarkus blocking: @Scheduled flusher drains the dirty-set to the DB.
-@Path("/metrics")
-@ApplicationScoped
-public class MetricResource {
-    private static final int BATCH = 100;
-    private final HashCommands<String, String, String> cache;
-    private final SetCommands<String, String> dirty;
-
-    public MetricResource(RedisDataSource redis) {
-        this.cache = redis.hash(String.class);
-        this.dirty = redis.set(String.class);
+// CacheResource + BackgroundTasks (excerpt), examples/25-caching/quarkus: write-back
+@PUT @Path("write-back/metrics/{mid}")                // CacheResource
+public Response writeBackWrite(@PathParam("mid") String mid, Map<String, Object> body) {
+    // ... HSET metric:<mid> {value, tags}; SADD metric:dirty <mid> (503 when Redis is down)
+    return Response.accepted(Map.of("ok", true, "pattern", "write-back",
+            "action", "cached-for-flush")).build();   // 202: queued, not yet durable
+}
+@Scheduled(every = "${cache-service.flush-period:1s}")  // concurrent runs are skipped
+void flusher() {                                       // BackgroundTasks
+    if (System.currentTimeMillis() < nextFlushAt) return;   // backing off after a failure
+    Set<String> ids = cache.spop("metric:dirty", FLUSH_BATCH);
+    if (ids == null || ids.isEmpty()) return;
+    List<String> failed = new ArrayList<>();
+    for (String mid : ids) {
+        try (var conn = dataSource.getConnection(); var ps = conn.prepareStatement(
+                "INSERT INTO metrics (id, payload) VALUES (?, ?::jsonb) "
+                + "ON CONFLICT (id) DO UPDATE SET payload = ?::jsonb, ts = NOW()")) {
+            // ... bind mid and the cached hash as JSON; executeUpdate (one row per id)
+            cache.hdel("metric:attempts", mid);
+        } catch (Exception e) { failed.add(mid); }       // Log.errorf: flush failed for <mid>
     }
-
-    @PUT @Path("/{id}")
-    public Response write(String id, Map<String, String> body) {
-        cache.hset("metric:" + id, body);             // 1. cache only; return now
-        dirty.sadd("metric:dirty", id);               // mark for flush
-        return Response.accepted().build();            // 202 — microseconds
-    }
-
-    @Scheduled(every = "1s") @Transactional            // 2. background flush
-    void flush() {
-        Set<String> ids = dirty.spop("metric:dirty", BATCH);
-        if (ids == null || ids.isEmpty()) return;
-        try {
-            Metric.persistAll(loadFromCache(ids));     // batch insert
-        } catch (Exception e) {
-            dirty.sadd("metric:dirty", ids.toArray(new String[0]));  // 3. retry
-        }
-    }
+    if (failed.isEmpty()) { failures = 0; return; }
+    nextFlushAt = System.currentTimeMillis() + Math.min(FLUSH_PERIOD_MS << ++failures, 8000);
+    requeue(failed);   // HINCRBY metric:attempts; SADD metric:dirty, or metric:failed at 5
 }
 ```
 
 ```csharp
-// BackgroundService flusher; IConnectionMultiplexer gives SPOP for batch dequeue.
-[ApiController, Route("metrics")]
-public class MetricsController(IConnectionMultiplexer redis) : ControllerBase
+// Program.cs (excerpt), examples/25-caching/dotnet: write-back
+app.MapPut("/write-back/metrics/{mid}", async (string mid, HttpContext ctx) =>
 {
-    [HttpPut("{id}")]
-    public async Task<IActionResult> Write(string id, Metric body, CancellationToken ct)
-    {
-        var r = redis.GetDatabase();
-        await r.HashSetAsync($"metric:{id}", body.ToHashEntries());  // 1. Redis only
-        await r.SetAddAsync("metric:dirty", id);                     // mark for flush
-        return Accepted();                                            // microseconds
-    }
-}
-
-public class MetricsFlusher(
-    IConnectionMultiplexer redis,
-    IServiceScopeFactory scopes,                  // EF Core needs a scoped DbContext
-    ILogger<MetricsFlusher> log) : BackgroundService
+    // ... HSET metric:<mid> {value, tags}; SADD metric:dirty <mid> (503 when Redis is down)
+    return Results.Json(new { ok = true, pattern = "write-back", action = "cached-for-flush" },
+        statusCode: StatusCodes.Status202Accepted);          // 202: queued, not yet durable
+});
+_ = Task.Run(async () =>                                     // the flusher, started at boot
 {
-    private const int Batch = 100;
-
-    protected override async Task ExecuteAsync(CancellationToken ct)
+    var failures = 0;
+    while (!cts.Token.IsCancellationRequested)
     {
-        var r = redis.GetDatabase();
-        while (!ct.IsCancellationRequested)
-        {
-            var ids = await r.SetPopAsync("metric:dirty", Batch);    // 2. batch dequeue
-            if (ids.Length == 0) { await Task.Delay(1000, ct); continue; }
-            try
-            {
-                using var scope = scopes.CreateScope();
-                var db = scope.ServiceProvider.GetRequiredService<ShopDb>();
-                foreach (var id in ids)
-                {
-                    var hash = await r.HashGetAllAsync($"metric:{id}");
-                    db.Metrics.Add(Metric.FromHash(id!, hash));
-                }
-                await db.SaveChangesAsync(ct);                       // batch insert
-            }
-            catch (Exception ex)
-            {
-                log.LogError(ex, "flush failed; re-marking {Count} dirty", ids.Length);
-                await r.SetAddAsync("metric:dirty", ids);            // 3. retry
-            }
-        }
+        await Task.Delay(Math.Min(FlushPeriodMs << failures, MaxFlushBackoffMs), cts.Token);
+        var ids = await db.SetPopAsync("metric:dirty", 100);     // atomic batch dequeue
+        if (ids.Length == 0) continue;
+        var failed = new List<RedisValue>();  // Upsert: HGETALL, INSERT ... ON CONFLICT (id)
+        foreach (var mid in ids)
+            try { await Upsert(mid); await db.HashDeleteAsync("metric:attempts", mid); }
+            catch (Exception ex) { logger.LogError(ex, "flush failed"); failed.Add(mid); }
+        if (failed.Count == 0) { failures = 0; continue; }
+        failures = Math.Min(failures + 1, 3);                 // back off: 2 s, 4 s, 8 s
+        await Requeue(db, failed);   // HINCRBY metric:attempts: dirty again, failed after 5
     }
-}
-// Program.cs: builder.Services.AddHostedService<MetricsFlusher>();
+});
 ```
 
 ```python
-import asyncio, json
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from redis.asyncio import Redis
-
-cache = Redis.from_url("redis://redis:6379")
-BATCH, PERIOD_S = 100, 1.0
-
-async def flusher():
-    while True:                                       # 2. drain the dirty set to the DB
-        await asyncio.sleep(PERIOD_S)
-        ids = await cache.spop("metric:dirty", BATCH)
+MAX_FLUSH_ATTEMPTS, MAX_FLUSH_BACKOFF = 5, 8   # excerpt, examples/25-caching/python
+async def flusher():                                  # 2. drain the dirty set to the DB
+    failures = 0
+    while True:                                       # back off after a failed flush
+        await asyncio.sleep(min(FLUSH_PERIOD * 2**failures, MAX_FLUSH_BACKOFF))
+        ids = await cache.spop("metric:dirty", FLUSH_BATCH)  # cache: decode_responses=True
         if not ids: continue
-        rows = []
-        for mid in ids:
-            data = await cache.hgetall(f"metric:{mid}")
-            if data: rows.append((mid.decode(), json.dumps(dict(data))))
-        if rows:
-            try:
-                await db.execute_many(
-                    "INSERT INTO metrics (id, payload) VALUES ($1, $2)", rows)
-            except Exception:                         # 3. on failure, re-mark dirty
-                await cache.sadd("metric:dirty", *[m for m, _ in rows])
-
-@asynccontextmanager
-async def lifespan(app):
-    task = asyncio.create_task(flusher())
-    yield
-    task.cancel()
-
-app = FastAPI(lifespan=lifespan)                      # created once, with the flusher
-
-@app.put("/metrics/{mid}")
-async def write_metric(mid: str, body: dict):
-    await cache.hset(f"metric:{mid}", mapping=body)   # 1. cache only; return now
-    await cache.sadd("metric:dirty", mid)             # mark for flush
-    return {"ok": True}                               # fast — microseconds
+        rows = [(m, json.dumps(d)) for m in ids if (d := await cache.hgetall(f"metric:{m}"))]
+        try:                                          # upsert: an id flushed twice is one row
+            async with pool.acquire() as conn:
+                await conn.executemany("INSERT INTO metrics (id, payload) VALUES ($1, $2) "
+                    "ON CONFLICT (id) DO UPDATE SET payload = $2, ts = NOW()", rows)
+            failures = 0
+        except Exception:                             # 3. re-queue, bounded by attempts
+            log.exception("flusher error: flush failed"); failures += 1
+            for mid in ids:
+                n = await cache.hincrby("metric:attempts", mid, 1)
+                key = "metric:failed" if n >= MAX_FLUSH_ATTEMPTS else "metric:dirty"
+                await cache.sadd(key, mid)              # parked after 5 tries, never dropped
+@app.put("/write-back/metrics/{mid}")
+async def write_back_write(mid: str, body: MetricIn):
+    mapping = {"value": str(body.value), "tags": json.dumps(body.tags)}
+    await cache.hset(f"metric:{mid}", mapping=mapping)   # 1. cache only
+    await cache.sadd("metric:dirty", mid)                # mark for flush
+    return JSONResponse(status_code=202, content={"ok": True, "action": "cached-for-flush"})
 ```
 
 ```cpp
-{% raw %}// Write to cache, return immediately; a jthread flusher drains to the DB.
-constexpr int BATCH = 100;
-constexpr auto PERIOD = 1s;
-
-Task<> Metrics::write(HttpRequestPtr req, auto cb, std::string mid) {
-  auto body = req->bodyJson();
-  cache_.hset("metric:" + mid, body_to_map(body));   // to cache
-  cache_.sadd("metric:dirty", mid);                  // mark dirty
-  cb(json_response({{"ok", true}}));                 // microseconds
-}
-
-// Background flusher — std::jthread, exits cleanly on stop_token.
-void flusher(std::stop_token st) {
-  while (!st.stop_requested()) {
-    std::this_thread::sleep_for(PERIOD);
-    std::vector<std::string> ids;
-    cache_.spop("metric:dirty", BATCH, std::back_inserter(ids));
-    if (ids.empty()) continue;
-    try {
-      PgTxn txn = pg_.begin();
-      for (auto& mid : ids) {
-        auto data = cache_.hgetall("metric:" + mid);
-        txn.exec_params("INSERT INTO metrics VALUES ($1, $2)",
-                        mid, to_json(data).dump());
-      }
-      txn.commit();
-    } catch (...) {                                  // retry next cycle
-      for (auto& mid : ids) cache_.sadd("metric:dirty", mid);
-    }
+// cache-service main.cpp (excerpt), examples/25-caching/cpp: write-back
+app().registerHandler("/write-back/metrics/{id}",   // cache_val {id, payload}; body {ok, ...}
+    [](const HttpRequestPtr& req, Callback&& callback, const std::string& id) {
+      redis_set("metric:" + id, writer.write(cache_val), std::chrono::hours(1));  // 1. cache
+      redis_sadd("writeback:dirty", "metric:" + id);  // 2. mark dirty
+      auto resp = HttpResponse::newHttpJsonResponse(body);  resp->setStatusCode(k202Accepted);
+      callback(resp);                                 // 3. 202: queued, not yet durable
+    }, {Put});
+void writeback_flusher() {                          // std::thread, joined at shutdown
+  std::map<std::string, int> attempts;  int failures = 0;   // per-key failure count
+  while (!g_shutdown) {   // ... each cycle first sleeps std::min(2 << failures, 8) s
+    for (const auto& key : redis_smembers("writeback:dirty")) {  // key -> id, cached payload
+      auto res = g_flush_db->exec("INSERT INTO metrics (id, payload) VALUES ($1, $2) "
+          "ON CONFLICT (id) DO UPDATE SET payload = EXCLUDED.payload, ts = NOW()",
+          {id, payload});
+      if (res && PQresultStatus(res.get()) == PGRES_COMMAND_OK) {
+        redis_srem("writeback:dirty", key);  attempts.erase(key);  continue;  // DB has it
+      }                                             // failed: stays dirty, retried next cycle
+      if (++attempts[key] >= kMaxFlushAttempts)     // bounded: park after 5 attempts
+        { redis_sadd("writeback:failed", key);  redis_srem("writeback:dirty", key); }
+    }   // ... failures + 1 (at most 2) after a cycle with a failure, 0 after a clean one
   }
 }
-std::jthread flush_thread{flusher, g_stop.get_token()};{% endraw %}
 ```
 
 ```go
-// write to cache, return immediately; a goroutine flushes to the DB in batches
-const (
-	batch  = 100
-	period = 1 * time.Second
-)
-
-func (s *Server) writeMetric(w http.ResponseWriter, r *http.Request) {
-	mid := r.PathValue("mid")
-	var body map[string]any
-	_ = json.NewDecoder(r.Body).Decode(&body)
-	s.cache.HSet(r.Context(), "metric:"+mid, body) // 1. cache only; return now
-	s.cache.SAdd(r.Context(), "metric:dirty", mid) // mark for flush
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true}) // fast — microseconds
+// main.go (excerpt), examples/25-caching/go: write-back
+func handleWriteBackPut(w http.ResponseWriter, r *http.Request) {
+	key := "metric:" + r.PathValue("id")       // body decoded into parsed, id added: data
+	safeSet(r.Context(), key, string(data), 0) // 1. cache only, no TTL
+	rdb.SAdd(r.Context(), "metric:dirty", key) //    mark for flush
+	writeJSON(w, 202, parsed)                  // 202: queued, not yet durable
 }
-
-// flusher drains the dirty set to the DB; started once, stops on ctx cancel
-func (s *Server) flusher(ctx context.Context) {
-	t := time.NewTicker(period)
-	defer t.Stop()
+func flusher(ctx context.Context) {           // 2. drain the dirty set to the DB
+	failures := 0
 	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
-			ids := s.cache.SPopN(ctx, "metric:dirty", batch).Val() // 2. drain
-			if len(ids) == 0 {
-				continue
-			}
-			if err := s.persist(ctx, ids); err != nil { // 3. on failure, re-mark dirty
-				s.cache.SAdd(ctx, "metric:dirty", toAny(ids)...)
-			}
-		}
+		wait := flushPeriod                     // 1s, doubling to 8s after failures
+		if failures > 0 { wait = min(flushPeriod<<failures, maxFlushBackoff) }
+		select { case <-ctx.Done(): return; case <-time.After(wait): }
+		members, err := rdb.SPopN(ctx, "metric:dirty", flushBatch).Result()
+		// ... skip on err or none; upsert each key (ON CONFLICT (id) DO UPDATE); collect failed
+		if len(failed) == 0 { failures = 0; continue }
+		failures++
+		requeue(ctx, failed) // 3. HINCRBY metric:attempts; dirty again, metric:failed at 5
 	}
 }
 ```
@@ -1369,5 +1300,5 @@ the new value with no DB round trip; for write-around, write then read and confi
 miss (the DB log shows the `SELECT`) while the second is a hit.
 
 ---
-*Verification status: verified — [`examples/25-caching/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/25-caching/) passes 26/26 checks in each of the six languages on Docker Engine (2026-10-10)
-(cache-aside with invalidation on update, read-through, write-through, write-around, write-back, refresh-ahead, hot-set tracking, and degradation with Redis stopped and restarted).*
+*Verification status: verified — [`examples/25-caching/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/25-caching/) passes 29/29 checks in each of the six languages on Docker Engine (2026-10-10)
+(cache-aside with invalidation on update, read-through, write-through, write-around, write-back with 202 and a flush retry across a Postgres outage, refresh-ahead, hot-set tracking, and degradation with Redis stopped and restarted).*
