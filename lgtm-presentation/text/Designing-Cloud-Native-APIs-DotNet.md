@@ -163,29 +163,28 @@ p. 12
 
 ## [015] CLOUD-NATIVE PRINCIPLES · A 12-factor ASP.NET Core service, ready for the platform (sldId 270)
 
-[chip] csharp · .NET 10 + ASP.NET Core + Npgsql
+[chip] csharp · .NET 10 + ASP.NET Core + EF Core health checks
 
 ```csharp
 // Program.cs (excerpt), examples/01-cloud-native-principles/dotnet
-var builder = WebApplication.CreateBuilder(args);
-// ... ConnectionStrings__Default from the environment (factor III) -> NpgsqlDataSource
+builder.Services.AddDbContext<OrdersContext>(o => o.UseNpgsql(connString)); // factor III
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<OrdersContext>("database", tags: ["ready"]);  // readiness: can connect
 var app = builder.Build();
-app.MapGet("/healthz", () => new { status = "ok" });          // liveness: the process is up
-app.MapGet("/readyz", async (NpgsqlDataSource db) =>          // readiness: SELECT 1
+app.MapHealthChecks("/healthz", new HealthCheckOptions               // liveness: process up
 {
-    try
+    Predicate = _ => false,                                           // no dependency checks
+    ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok" }),
+});
+app.MapHealthChecks("/readyz", new HealthCheckOptions                // readiness: 200 or 503
+{
+    Predicate = r => r.Tags.Contains("ready"),
+    ResponseWriter = (ctx, report) =>
     {
-        await using var conn = await db.OpenConnectionAsync();
-        await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT 1";
-        await cmd.ExecuteScalarAsync();
-        return Results.Ok(new { status = "ready", checks = new { database = "ok" } });
-    }
-    catch                                                     // down: 503, out of rotation
-    {
-        return Results.Json(new { status = "down", checks = new { database = "unreachable" } },
-            statusCode: StatusCodes.Status503ServiceUnavailable);
-    }
+        var up = report.Status == HealthStatus.Healthy;               // down: out of rotation
+        return ctx.Response.WriteAsJsonAsync(new { status = up ? "ready" : "down",
+            checks = new { database = up ? "ok" : "unreachable" } });
+    },
 });
 ```
 
@@ -193,7 +192,7 @@ Probes, env-config and a thin Program.cs are the price of admission for a Kubern
 
 p. 13
 
-> Walk the code: ASP.NET Core 10 uses minimal hosting (Program.cs as a top-level script). Config flows from appsettings.json overridden by environment variables (factor III): ConnectionStrings__Default reaches GetConnectionString("Default"), the cloud-native equivalent of web.config transforms, except that the cluster injects the values through ConfigMaps and Secrets instead of an MSDeploy package. The two probes are mapped by hand in Example 01: /healthz is liveness (am I alive? if not, restart me, and Kubernetes kills the Pod) and never checks a dependency; /readyz is readiness (can I serve? if not, take me out of rotation but don't kill me): it opens a pooled Npgsql connection and runs SELECT 1, and when that fails it answers 503 with status down, which removes the Pod from the Service endpoints. The probe reads the status code, not the body: Kubernetes treats any answer from 200 to 399 as ready. Getting these wrong is a top cause of cascading restarts, the same way wrong IIS app-pool ping settings used to crash apps under load. AddHealthChecks with MapHealthChecks and the AspNetCore.HealthChecks.* community packages (MIT) are the framework route to the same pair; the example writes the handlers by hand so every language serves the same paths and bodies. The .NET runtime side: the service ships as a Linux container image built from a UBI Containerfile, not an MSI deployed to IIS.
+> Walk the code: ASP.NET Core 10 uses minimal hosting (Program.cs as a top-level script). Config flows from appsettings.json overridden by environment variables (factor III): ConnectionStrings__Default reaches GetConnectionString("Default"), the cloud-native equivalent of web.config transforms, except that the cluster injects the values through ConfigMaps and Secrets instead of an MSDeploy package. The two probes come from AddHealthChecks and MapHealthChecks in Example 01: /healthz is liveness (am I alive? if not, restart me, and Kubernetes kills the Pod) and runs no dependency check; /readyz is readiness (can I serve? if not, take me out of rotation but don't kill me): its check is AddDbContextCheck, which asks the EF Core context whether it can reach Postgres, and when that fails the endpoint answers 503 with status down, which removes the Pod from the Service endpoints. The probe reads the status code, not the body: Kubernetes treats any answer from 200 to 399 as ready. Getting these wrong is a top cause of cascading restarts, the same way wrong IIS app-pool ping settings used to crash apps under load. A ResponseWriter keeps the bodies identical in every language, so each stack serves the same paths and JSON; the package is Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore. The .NET runtime side: the service ships as a Linux container image built from a UBI Containerfile, not an MSI deployed to IIS.
 
 ## [016] Communications (sldId 271)
 
@@ -445,10 +444,10 @@ public class OrderWriteController(WriteDb writes, IProducer<string, string> prod
 [HttpGet("{id}/summary")]
 public async Task<ActionResult<OrderSummary>> Summary(string id, CancellationToken ct) =>
     await reads.OrderSummaries.FindAsync([id], ct) is { } s ? Ok(s) : NotFound();
-// Projection — a Confluent.Kafka consumer, idempotent upsert into the read model
-var cr = consumer.Consume(ct);
+// Projection — a BackgroundService on Confluent.Kafka, idempotent upsert
+var cr = consumer.Consume(stoppingToken);   // in ExecuteAsync
 var summary = OrderSummary.From(JsonSerializer.Deserialize<Order>(cr.Message.Value)!);
-await reads.UpsertAsync(summary, ct);                         // keyed by order id
+await reads.UpsertAsync(summary, stoppingToken);                        // keyed by order id
 consumer.Commit(cr);                                          // ack after the write
 ```
 
@@ -456,7 +455,7 @@ p. 26
 
 > The .NET shape with primary constructors. OrderWriteController handles writes through WriteDb, an EF Core context on the write database, then produces order.placed with Confluent.Kafka, keyed by the order id. The read side queries ReadDb, a separate context on a denormalised store: another Postgres, or a search index.
 >
-> The projection is a Confluent.Kafka consumer loop. It deserializes each event, upserts the summary row keyed by the order id, and commits the offset only after the write, so a crash means redelivery and the upsert keeps the replay idempotent.
+> The projection is a BackgroundService that runs a Confluent.Kafka consumer loop; the host cancels its stoppingToken on shutdown. It deserializes each event, upserts the summary row keyed by the order id, and commits the offset only after the write, so a crash means redelivery and the upsert keeps the replay idempotent.
 >
 > Producing right after SaveChangesAsync is a dual write; in production the outbox from the Data section closes that gap. Each side scales on its own load: the write side on commands, the read side on queries.
 
@@ -481,27 +480,24 @@ p. 28
 [chip] csharp · EF Core + Debezium CDC
 
 ```csharp
-// EF Core + Debezium CDC — the .NET reading of the outbox pattern.
+// POST /orders (excerpt), examples/04-data/dotnet: EF Core + Debezium CDC, the .NET outbox.
 // For WCF/COM+ refugees: this replaces the MSDTC two-phase commit you used
 // to make 'save the order and queue the event' atomic across databases.
-public class OrderService(OrdersDbContext db) : IOrderService
+app.MapPost("/orders", async (OrderRequest request, OrdersContext db) =>
 {
-    public async Task<Order> CreateAsync(OrderIn body)
+    var order = new Order { Id = Guid.NewGuid().ToString(), Sku = request.Sku,
+                            Quantity = request.Quantity, Status = "confirmed" };
+    var dto = OrderDto.From(order);
+    db.Orders.Add(order);                         // state change
+    db.Outbox.Add(new OutboxEvent                 // same SaveChanges: outbox row
     {
-        await using var tx = await db.Database.BeginTransactionAsync();
-        var order = Order.From(body);
-        db.Orders.Add(order);                       // state change
-        db.Outbox.Add(new OutboxEntry(              // same txn — outbox row
-            EventType:     "order.placed",
-            AggregateType: "orders",
-            AggregateId:   order.Id,
-            Payload:       JsonSerializer.Serialize(order),
-            CreatedAt:     DateTimeOffset.UtcNow));
-        await db.SaveChangesAsync();                // single local commit
-        await tx.CommitAsync();                     // Debezium tails WAL → Kafka
-        return order;
-    }
-}
+        AggregateId = order.Id,
+        EventType = "order.placed",
+        Payload = JsonSerializer.SerializeToElement(dto, JsonSerializerOptions.Web),
+    });
+    await db.SaveChangesAsync();                  // one local txn; Debezium tails the WAL
+    return Results.Json(dto, statusCode: StatusCodes.Status201Created);
+});
 // No Kafka call on the request path: if the broker is down, the order still
 // commits and the event ships when the Debezium connector catches up.
 // Wolverine (MIT) ships an EF Core transactional outbox if you prefer a framework.
@@ -511,7 +507,7 @@ One local DB commit replaces MSDTC. Debezium tails the write-ahead log and turns
 
 p. 29
 
-> For the WCF/COM+ audience this is the most important pattern. You used to write code like 'TransactionScope: save order, write to MSMQ, commit' — and MSDTC made it atomic across the SQL Server and MSMQ resource managers. Kubernetes has no MSDTC. You don't want one (two-phase commits across services don't scale and create coupling). Instead: write the state change and an outbox row in one local database transaction — atomic by definition because it's a single resource manager. There's no Kafka call inside the request path — if Kafka is down, the order still commits, and the event ships later when Debezium tails the Postgres WAL (or SQL Server CDC) and relays the outbox row in commit order. This decouples your request latency and availability from Kafka's, which COM+ never could. Two ways to wire it up in .NET: write the OutboxEntry entity manually as shown (Postgres/SQL Server + the Debezium Outbox Event Router single-message transform handles the unwrap on the connector side); or use a framework outbox such as Wolverine's (MIT) EF Core integration, which gives the same guarantees with framework-managed plumbing. Either way: this same commit-together discipline reappears in the saga appendix.
+> For the WCF/COM+ audience this is the most important pattern. You used to write code like 'TransactionScope: save order, write to MSMQ, commit' — and MSDTC made it atomic across the SQL Server and MSMQ resource managers. Kubernetes has no MSDTC. You don't want one (two-phase commits across services don't scale and create coupling). Instead: write the state change and an outbox row in one local database transaction — atomic by definition because it's a single resource manager. There's no Kafka call inside the request path — if Kafka is down, the order still commits, and the event ships later when Debezium tails the Postgres WAL (or SQL Server CDC) and relays the outbox row in commit order. This decouples your request latency and availability from Kafka's, which COM+ never could. Two ways to wire it up in .NET: write the OutboxEvent entity manually as shown, where one SaveChangesAsync commits the order and the outbox row in a single transaction (Postgres/SQL Server + the Debezium Outbox Event Router single-message transform handles the unwrap on the connector side); or use a framework outbox such as Wolverine's (MIT) EF Core integration, which gives the same guarantees with framework-managed plumbing. Either way: this same commit-together discipline reappears in the saga appendix.
 
 ## [035] DATA · Consistency without distributed transactions: the saga (sldId 290)
 
@@ -547,24 +543,22 @@ p. 31
 // producer — order-service emits the fact
 var producer = new ProducerBuilder<Null, string>(
     new ProducerConfig { BootstrapServers = kafkaBootstrap }).Build();
-var json = JsonSerializer.Serialize(new { id, sku, quantity, status });
 await producer.ProduceAsync("order.placed",
     new Message<Null, string> { Value = json });     // awaits the broker ack
-// consumer — notification-service
-var consumer = new ConsumerBuilder<Ignore, string>(new ConsumerConfig
+// consumer — ShipmentWorker : BackgroundService; the host cancels stoppingToken on SIGTERM
+using var consumer = new ConsumerBuilder<Ignore, string>(new ConsumerConfig
 {
-    BootstrapServers = kafkaBootstrap,
-    GroupId          = "notification-group",
+    BootstrapServers = config.GetValue("KAFKA_BOOTSTRAP", "kafka:9094"),
+    GroupId          = "shipping-group",
     AutoOffsetReset  = AutoOffsetReset.Earliest,
     EnableAutoCommit = false,
 }).Build();
 consumer.Subscribe("order.placed");
-while (!ct.IsCancellationRequested)
+while (!stoppingToken.IsCancellationRequested)
 {
-    var cr = consumer.Consume(TimeSpan.FromSeconds(1));
-    if (cr is null) continue;
-    await ProcessNotification(cr.Message.Value);     // do the work
-    consumer.Commit(cr);                             // ack after — at-least-once
+    var cr = consumer.Consume(stoppingToken);
+    await HandleAsync(cr.Message.Value);   // exists? skip; unique index on order_id backs it
+    consumer.Commit(cr);                   // ack after — at-least-once
 }
 ```
 
@@ -576,7 +570,7 @@ p. 32
 >
 > The producer emits order.placed and awaits the broker's delivery report. The consumer joins notification-group, starts from the earliest offset, and runs with auto-commit off.
 >
-> Two points to drill home. First, the offset is committed only after the work succeeds; a crash before the commit means redelivery, so delivery is at-least-once and handlers must be idempotent (dedupe by order id or an idempotency key). Exactly-once is mostly at-least-once plus idempotency. Second, the loop is yours: retries, dead-letter topics and shutdown are explicit code, shown in Appendix E and Appendix H. In the running example the loop runs in a plain console worker that PosixSignalRegistration cancels on SIGTERM. Apicurio holds the schemas.
+> Two points to drill home. First, the offset is committed only after the work succeeds; a crash before the commit means redelivery, so delivery is at-least-once and handlers must be idempotent (dedupe by order id or an idempotency key). Exactly-once is mostly at-least-once plus idempotency. Second, the loop is yours: retries, dead-letter topics and shutdown are explicit code, shown in Appendix E and Appendix H. In the running example each consumer is a BackgroundService in a Worker SDK host: the host cancels its stoppingToken on SIGTERM, and the handler looks the order up before inserting, with the unique index on order_id as the backstop, so a redelivered record is processed once. Apicurio holds the schemas.
 
 ## [039] EVENT-DRIVEN · Schemas are the contract — the registry enforces them (sldId 294)
 
@@ -631,7 +625,7 @@ p. 37
 [chip] csharp · Streamiz.Kafka.Net 1.8.2
 
 ```csharp
-// StreamProcessor/Program.cs (excerpt) — Streamiz.Kafka.Net 1.8.2
+// StreamProcessor/RevenueStream.cs (excerpt), a BackgroundService — Streamiz.Kafka.Net 1.8.2
 var config = new StreamConfig<StringSerDes, StringSerDes>
 {
     ApplicationId    = "stream-processor",    // also the consumer group
@@ -652,7 +646,7 @@ builder.Stream<string, string>("order.placed")
     .ToStream()
     // .Map(...): window_start, merchant_id, order_count, revenue rounded half-up
     .To<StringSerDes, StringSerDes>("revenue.by-merchant");
-await new KafkaStream(builder.Build(), config).StartAsync(cts.Token);
+await new KafkaStream(builder.Build(), config).StartAsync(stoppingToken);
 ```
 
 Local RocksDB + a Kafka changelog topic gives fault-tolerant aggregation — no JVM, no separate Flink cluster, just C# in a Pod.
@@ -661,7 +655,7 @@ p. 38
 
 > Streamiz.Kafka.Net 1.8.2 (MIT) is a .NET implementation of the Kafka Streams model: the same topology, state-store and changelog design, in native C#, with no JVM in the container.
 >
-> The processor in the running example keys each order by merchant, groups by key, and aggregates into tumbling windows (WINDOW_SECONDS, 10 s in the example) held in a RocksDB window store backed by a Kafka changelog topic. If the Pod dies, the state rebuilds by replaying the changelog. The aggregate keeps an exact decimal total and skips records whose amount does not parse; the output rounds half-up to two places, the same contract as the Spring Boot and Quarkus Kafka Streams processors.
+> The processor in the running example is a BackgroundService in a Worker SDK host; it keys each order by merchant, groups by key, and aggregates into tumbling windows (WINDOW_SECONDS, 10 s in the example) held in a RocksDB window store backed by a Kafka changelog topic. If the Pod dies, the state rebuilds by replaying the changelog. The aggregate keeps an exact decimal total and skips records whose amount does not parse; the output rounds half-up to two places, the same contract as the Spring Boot and Quarkus Kafka Streams processors.
 >
 > ApplicationId is also the consumer group, so KEDA can scale the processor on its lag. For this audience it replaces SQL Server Service Broker activation procedures or a hand-rolled Windows Service draining MSMQ. Alternatives if Streamiz doesn't fit: Apache Flink as a separate service fed by Kafka, Akka.NET Streams for in-process reactive streams, or Orleans Streams on the virtual-actor model.
 
@@ -1109,8 +1103,8 @@ p. 66
 
 ```csharp
 // Program.cs (excerpt), examples/12-security/dotnet: an HMAC-SHA256 valet key
-var valetSecret = Environment.GetEnvironmentVariable("VALET_SECRET")
-    ?? "demo-secret-do-not-use-in-prod";
+var valetSecret = builder.Configuration.GetValue("VALET_SECRET",
+    "demo-secret-do-not-use-in-prod");
 app.MapPost("/valet-key", (HttpContext ctx) =>
 {
     var resource = ctx.Request.Query["resource"].ToString();
@@ -1132,7 +1126,7 @@ app.MapPost("/valet-key", (HttpContext ctx) =>
 
 p. 67
 
-> The handler mints a ticket that authorises one operation (GET or PUT) on one resource for 300 seconds; after that it is worthless. In Example 12 the ticket is an HMAC-SHA256 signature over resource:operation:expires, keyed with VALET_SECRET (HMACSHA256). POST /valet-key returns the resource, the operation, the expiry and the token.
+> The handler mints a ticket that authorises one operation (GET or PUT) on one resource for 300 seconds; after that it is worthless. In Example 12 the ticket is an HMAC-SHA256 signature over resource:operation:expires, keyed with VALET_SECRET, read through IConfiguration (HMACSHA256). POST /valet-key returns the resource, the operation, the expiry and the token.
 >
 > The verifier (GET /verify-valet in the example, the storage gateway in a real system) rejects an expired ticket first, recomputes the signature and compares the two with CryptographicOperations.FixedTimeEquals, a constant-time comparison. A changed resource, operation or expiry gives a different signature, so any tampering is a 403.
 >
@@ -1773,30 +1767,27 @@ p. 106
 [chip] csharp · .NET 10 + EF Core
 
 ```csharp
-static readonly string[] Steps = {
-    "charge_payment", "reserve_stock", "book_shipping" };
-public class SagaCoordinator(SagaDbContext db) : ISagaCoordinator
+// SagaEngine.cs (excerpt), examples/17-sagas/dotnet: one durable step per call
+static readonly string[] Steps = { "charge_payment", "reserve_stock", "book_shipping" };
+public async Task AdvanceAsync(string sagaId, CancellationToken ct = default)
 {
-    public async Task AdvanceAsync(string sagaId, CancellationToken ct)
-    {
-        await using var tx = await db.Database
-            .BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
-        var s = await db.Sagas.FromSqlInterpolated(
-            $"SELECT * FROM sagas WHERE id = {sagaId} FOR UPDATE")
-            .FirstAsync(ct);
-        if (s.Status != "RUNNING") return;       // idempotent: already done/failed
-        var step = Steps[s.StepIndex];
-        try {
-            var result = await InvokeAsync(step, s.Context, ct);  // call the service
-            s.Context[step] = result;             // accumulate output
-            if (++s.StepIndex == Steps.Length) s.Status = "COMPLETED";
-        }
-        catch (StepException) {
-            s.Status = "COMPENSATING";            // hand off to the unwinder
-        }
-        await db.SaveChangesAsync(ct);            // durable after every step
-        await tx.CommitAsync(ct);
+    await using var db = await dbFactory.CreateDbContextAsync(ct);
+    await using var tx = await db.Database.BeginTransactionAsync(ct);
+    var saga = (await db.Sagas.FromSql(                          // pessimistic row lock
+        $"SELECT * FROM sagas WHERE id = {sagaId} FOR UPDATE")
+        .ToListAsync(ct)).SingleOrDefault();
+    if (saga is not { Status: "RUNNING" }) { await tx.CommitAsync(ct); return; }  // idempotent
+    if (saga.StepIndex >= Steps.Length) saga.Status = "COMPLETED";
+    else try {
+        var step = Steps[saga.StepIndex];
+        saga.Context[step] = ExecuteStep(step, saga.Context);   // call the service
+        saga.StepIndex++;
     }
+    catch (Exception) {
+        saga.Status = "COMPENSATING";                           // hand off to the unwinder
+    }
+    await db.SaveChangesAsync(ct);                              // durable after every step
+    await tx.CommitAsync(ct);                                   // the caller advances again
 }
 ```
 
@@ -1804,7 +1795,7 @@ One locked row per saga, advanced one durable step at a time. A crash just means
 
 p. 107
 
-> This is the DB-backed option made concrete with EF Core — the default choice when the saga is bounded and the team wants to own the transitions. Key ideas: one Saga entity row, loaded with a pessimistic lock (FOR UPDATE in Postgres, equivalent in SQL Server) so two workers can't advance the same saga concurrently. The status guard makes AdvanceAsync idempotent — calling it on a finished saga is a no-op, which matters because retries and redeliveries will call it again. Each successful step accumulates its result into the Context dictionary, which is what the data-dependency slide relies on, and bumps the step index; the EF Core SaveChangesAsync makes the row durable after every step. Recovery needs no special path: a BackgroundService with PeriodicTimer (or Quartz.NET on a cron) plus DistributedLock loads RUNNING sagas and calls AdvanceAsync again — the cloud-native equivalent of a Windows Service that processed an MSMQ queue. Temporal .NET and Stateless, both in this appendix, solve the same problem at a different point on the build-vs-buy spectrum.
+> This is the DB-backed option made concrete with EF Core — the default choice when the saga is bounded and the team wants to own the transitions. Key ideas: one Saga entity row, loaded with a pessimistic lock (FOR UPDATE in Postgres, equivalent in SQL Server) so two workers can't advance the same saga concurrently. The status guard makes AdvanceAsync idempotent — calling it on a finished saga is a no-op, which matters because retries and redeliveries will call it again. Each successful step accumulates its result into the Context dictionary, which is what the data-dependency slide relies on, and bumps the step index; the EF Core SaveChangesAsync makes the row durable after every step. Recovery needs no special path: Example 17 resumes RUNNING sagas from an IHostedService at startup by calling AdvanceAsync again, and a BackgroundService with PeriodicTimer (or Quartz.NET on a cron) plus DistributedLock does the same continuously, the cloud-native equivalent of a Windows Service that processed an MSMQ queue. Temporal .NET and Stateless, both in this appendix, solve the same problem at a different point on the build-vs-buy spectrum.
 
 ## [127] APPENDIX D · SAGAS · Compensating transactions unwind a failed saga (sldId 382)
 
@@ -2271,36 +2262,31 @@ p. 132
 
 ```csharp
 // domain — the core declares the interfaces (ports) it needs; no framework
-public interface IOrderRepository { Task SaveAsync(Order order, CancellationToken ct); }
-public interface IEventPublisher  { Task PublishAsync(IDomainEvent e, CancellationToken ct); }
+public interface IOrderRepository { Task SaveAsync(Order order); /* FindByIdAsync, ... */ }
+public interface IEventPublisher  { Task PublishAsync(OrderPlaced evt); }
 // pure application logic; C# 12 primary constructor — no DI annotations needed
-public class PlaceOrder(IOrderRepository repo, IEventPublisher events)
+public class PlaceOrderUseCase(IOrderRepository repo, IEventPublisher events)
 {
-    public async Task<Order> HandleAsync(PlaceOrderCmd cmd, CancellationToken ct)
+    public async Task<Order> ExecuteAsync(PlaceOrderCmd cmd)
     {
         var order = Order.Create(cmd);                // aggregate enforces invariants
-        await repo.SaveAsync(order, ct);
-        await events.PublishAsync(new OrderPlaced(order.Id), ct);
+        await repo.SaveAsync(order);
+        await events.PublishAsync(new OrderPlaced(order.Id, order.Sku, order.Quantity));
         return order;
     }
 }
-// adapter — a driving adapter; gRPC/GraphQL adapters look the same
-[ApiController, Route("orders")]
-public class OrderController(PlaceOrder placeOrder) : ControllerBase
-{
-    [HttpPost] public Task<Order> Place(
-        [FromBody] OrderIn body, CancellationToken ct) =>
-        placeOrder.HandleAsync(body.ToCmd(), ct);
-}
-// outbound adapters (separate project): EfCoreOrderRepository : IOrderRepository,
-//                                       KafkaEventPublisher : IEventPublisher.
+// driving adapter — REST; the CLI adapter calls the same use case on a plain Host
+app.MapPost("/orders", async (PlaceOrderCmd cmd, PlaceOrderUseCase placeOrder) =>
+    Results.Json(OrderView.From(await placeOrder.ExecuteAsync(cmd)), statusCode: 201));
+// driven adapters (Adapters/): EfOrderRepository : IOrderRepository over an OrdersContext,
+//                             LogEventPublisher : IEventPublisher.
 ```
 
-The domain depends only on ports it declares; the .NET container injects the adapters (EF Core repo, Kafka publisher). Swap or add one without touching PlaceOrder.
+The domain depends only on ports it declares; the .NET container injects the adapters (EF Core repo, log or Kafka publisher). Swap or add one without touching PlaceOrderUseCase.
 
 p. 133
 
-> Walk the three blocks. Ports: the domain declares plain C# interfaces, a repository and an event publisher, and depends on nothing else (no ASP.NET Core, no EF Core, no Confluent.Kafka imports anywhere in the domain project). The application service PlaceOrder is pure logic: it creates the aggregate, saves via the port, publishes a domain event via the port, and never references framework types directly. C# 12 primary constructors give you the cleanest possible injection — no [Inject] attribute and no explicit constructor, just the parameter list on the class, available everywhere in the class body. The Microsoft.Extensions.DependencyInjection container resolves them at construction. The REST controller is a thin driving adapter — turn the HTTP body into a command and call the use case; a gRPC service or HotChocolate resolver is the same shape. The outbound ports are implemented by adapters (EfCoreOrderRepository for persistence, KafkaEventPublisher on Confluent.Kafka for events) in separate projects so the domain project has zero infrastructure references — enforced by the .csproj graph. That's dependency inversion serving the boundary: protocols are replaceable, the domain stays stable. For audiences coming from MVC's classic Service → Repository → DAL stack: this is the same instinct, formalised by the .csproj dependency direction (domain depends on nothing; infrastructure depends on domain; web depends on application; nothing depends on web).
+> Walk the three blocks. Ports: the domain declares plain C# interfaces, a repository and an event publisher, and depends on nothing else (no ASP.NET Core, no EF Core, no Confluent.Kafka imports anywhere in the domain project). The application service PlaceOrderUseCase is pure logic: it creates the aggregate, saves via the port, publishes a domain event via the port, and never references framework types directly. C# 12 primary constructors give you the cleanest possible injection — no [Inject] attribute and no explicit constructor, just the parameter list on the class, available everywhere in the class body. The Microsoft.Extensions.DependencyInjection container resolves them at construction. The minimal-API endpoint is a thin driving adapter — turn the HTTP body into a command and call the use case; a gRPC service or HotChocolate resolver is the same shape. The outbound ports are implemented by adapters (EfOrderRepository over an EF Core OrdersContext for persistence, a log publisher in the example and a Kafka publisher on Confluent.Kafka in production) in separate projects so the domain project has zero infrastructure references — enforced by the .csproj graph. That's dependency inversion serving the boundary: protocols are replaceable, the domain stays stable. For audiences coming from MVC's classic Service → Repository → DAL stack: this is the same instinct, formalised by the .csproj dependency direction (domain depends on nothing; infrastructure depends on domain; web depends on application; nothing depends on web).
 
 ## [155] APPENDIX F · DDD · Aggregates and domain events (sldId 410)
 
@@ -2477,34 +2463,35 @@ p. 148
 [chip] csharp · .NET 10 + ASP.NET Core
 
 ```csharp
-// Program.cs (excerpt), examples/21-graceful-shutdown/dotnet: one SIGTERM drives the drain
-builder.Services.AddSingleton<IHostLifetime, ManualLifetime>();  // not ConsoleLifetime
+// Program.cs and DrainService.cs (excerpt), examples/21-graceful-shutdown/dotnet
+// The default ConsoleLifetime turns one SIGTERM into a graceful stop; the drain is a hosted
+// service step and HostOptions.ShutdownTimeout bounds the whole stop.
+builder.Services.AddSingleton<ShutdownState>();
+builder.Services.AddHostedService<DrainService>();
 builder.Services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(20));
-var app = builder.Build();
-var shuttingDown = false;                 // GET /readyz answers 503 once it is set
-var drainDelay = int.TryParse(Environment.GetEnvironmentVariable("DRAIN_DELAY_SECONDS"),
-    out var d) && d >= 0 ? d : 5;
-PosixSignalRegistration.Create(PosixSignal.SIGTERM, ctx =>
+builder.Services.AddHealthChecks().AddCheck<ShutdownHealthCheck>("shutdown", tags: ["ready"]);
+// GET /readyz answers 503 once ShutdownState.ShuttingDown is set; /healthz stays 200
+public sealed class DrainService(ShutdownState state, IConfiguration config,
+    ILogger<DrainService> logger) : IHostedLifecycleService
 {
-    ctx.Cancel = true;                    // the host does not stop at once
-    if (shuttingDown) return;             // already draining
-    shuttingDown = true;                  // 1. readiness fails first
-    _ = Task.Run(async () =>
+    public async Task StoppingAsync(CancellationToken cancellationToken)  // before StopAsync
     {
-        await Task.Delay(TimeSpan.FromSeconds(drainDelay));  // 2. serve on: endpoints update
-        app.Lifetime.StopApplication();   // 3. Kestrel stops accepting, finishes in-flight
-    });
-});
-app.Lifetime.ApplicationStopped.Register(() => dataSource.Dispose());   // 4. close the pool
-// ... MapGet /healthz (always 200), /readyz, /orders; app.Run();
-// ManualLifetime : IHostLifetime: WaitForStartAsync and StopAsync return Task.CompletedTask
+        state.MarkShuttingDown();                          // 1. readiness fails first
+        var delay = TimeSpan.FromSeconds(config.GetValue("DRAIN_DELAY_SECONDS", 5));
+        try { await Task.Delay(delay, cancellationToken); }   // 2. serve on: endpoints update
+        catch (OperationCanceledException) { }
+        logger.LogInformation("shutting down HTTP server (in_flight={InFlight})",
+            state.InFlight);
+    }                       // 3. Kestrel stops in StopAsync: no new requests, drains in-flight
+    // 4. the DbContext services are disposed with the host; exit 0
+}
 ```
 
-One SIGTERM flips readiness; after DRAIN_DELAY_SECONDS, StopApplication() lets Kestrel drain in-flight requests within ShutdownTimeout (20 s).
+One SIGTERM flips readiness; StoppingAsync waits DRAIN_DELAY_SECONDS, then Kestrel drains in-flight requests within ShutdownTimeout (20 s).
 
 p. 149
 
-> ASP.NET Core's default ConsoleLifetime stops the host as soon as SIGTERM arrives, which leaves no time to fail readiness first. Example 21 replaces it with a ManualLifetime and takes the signal itself through PosixSignalRegistration; one SIGTERM, the only signal Kubernetes sends before SIGKILL, drives everything. The handler cancels the default action and flips a flag, so the hand-written /readyz answers 503 and the Service stops routing, then a task keeps the service serving for DRAIN_DELAY_SECONDS (5 s; it plays the part of a preStop sleep) while the endpoint removal propagates. It then calls StopApplication(): the host signals ApplicationStopping, Kestrel stops accepting and finishes in-flight requests, and every IHostedService gets StopAsync, all bounded by HostOptions.ShutdownTimeout (20 s here; the default is 30 s). ApplicationStopped disposes the data source and the process exits 0, inside the 30-second grace period. The pattern for other work: one BackgroundService per long-running concern (a Kafka consumer, a scheduler, the Temporal worker from Appendix D, the Streamiz processor from Section 6), each draining in its own StopAsync: consumer.Close() commits offsets and leaves the group, a SignalR hub sends close frames, a Temporal worker shuts down. For the WCF refugees: this is the in-box equivalent of ServiceHost.Close, except that SIGTERM triggers it and the budget is HostOptions.ShutdownTimeout rather than a per-binding timeout. The Kubernetes settings (probes, preStop, grace period) are the platform half of the contract.
+> ASP.NET Core's default ConsoleLifetime already turns SIGTERM into a graceful stop, so Example 21 keeps it and adds the drain as one more hosted service. DrainService implements IHostedLifecycleService, and the host runs every StoppingAsync before any StopAsync. In StoppingAsync the service flips ShutdownState, so the ShutdownHealthCheck behind /readyz answers 503 and the Service stops routing, then waits DRAIN_DELAY_SECONDS (5 s, read through IConfiguration; it plays the part of a preStop sleep) while the endpoint removal propagates; /healthz stays 200 and Kestrel keeps serving. Kestrel then stops accepting and finishes in-flight requests in its StopAsync, all bounded by HostOptions.ShutdownTimeout (20 s here; the default is 30 s). The host disposes the DbContext services and the process exits 0, inside the 30-second grace period. The pattern for other work: one BackgroundService per long-running concern (a Kafka consumer, a scheduler, the Temporal worker from Appendix D, the Streamiz processor from Section 6), each draining in its own StopAsync: consumer.Close() commits offsets and leaves the group, a SignalR hub sends close frames, a Temporal worker shuts down. For the WCF refugees: this is the in-box equivalent of ServiceHost.Close, except that SIGTERM triggers it and the budget is HostOptions.ShutdownTimeout rather than a per-binding timeout. The Kubernetes settings (probes, preStop, grace period) are the platform half of the contract.
 
 ## [173] APPENDIX H · SHUTDOWN · The Kubernetes side: probes, preStop, grace period (sldId 428)
 
@@ -3115,7 +3102,7 @@ p. 182
 >
 > Highlights: Microsoft.AspNetCore.OpenApi and SignalR are part of ASP.NET Core 10; Confluent.Kafka 2.16.0 is the Kafka client for every producer and consumer, chosen because it keeps the Kafka semantics visible (MassTransit was dropped: it hides those semantics and moved to a commercial license in version 9); Streamiz.Kafka.Net 1.8.2 is the Kafka Streams model in .NET, so windowed aggregations need no Flink cluster; Temporalio pairs with the Temporal Server for durable workflows; Stateless covers the lightweight state-machine slot; NRules covers rules; YARP and Wolverine appear where they fit.
 >
-> The running examples pin every package exactly on .NET 10.0.12: OpenTelemetry 1.19.1, Npgsql 10.0.3, Grpc 2.84.0, StackExchange.Redis 3.4.0, HotChocolate 16.6.8, OpenFeature 2.14.1. Everything runs on plain Kubernetes; nothing requires a cloud-specific service.
+> The running examples pin every package exactly on .NET 10.0.12: OpenTelemetry 1.19.1, EF Core 10.0.12 with Npgsql.EntityFrameworkCore.PostgreSQL 10.0.3, HybridCache 10.10.0, Grpc 2.84.0, StackExchange.Redis 3.4.0, HotChocolate 16.6.8, OpenFeature 2.14.1. Everything runs on plain Kubernetes; nothing requires a cloud-specific service.
 
 ## [208] APPENDIX J · TOOLKIT · The pinned cloud-native platform stack (sldId 463)
 
@@ -3156,7 +3143,7 @@ p. 185
 
 ## [211] APPENDIX J · RECIPE · The five-line recipe for a new .NET 10 cloud-native service (sldId 466)
 
-- 1. dotnet new web; add Microsoft.AspNetCore.OpenApi, AspNetCore.HealthChecks.NpgSql, OpenTelemetry.Extensions.Hosting. Map health checks at /healthz and /readyz; expose ActivitySource-based telemetry from line one.
+- 1. dotnet new web; add Microsoft.AspNetCore.OpenApi, Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore, OpenTelemetry.Extensions.Hosting. AddHealthChecks with AddDbContextCheck, MapHealthChecks at /healthz and /readyz; expose ActivitySource-based telemetry from line one.
 - 2. Pick exactly the protocols you need: ASP.NET Core minimal APIs for REST at the edge, Grpc.AspNetCore for internal service-to-service, HotChocolate only if you need GraphQL aggregation. Don't surface all three by default.
 - 3. For data: EF Core for the OLTP store, with the outbox table in the same DbContext as your aggregates. Add Debezium to Kafka via Strimzi. Produce and consume with Confluent.Kafka directly; it keeps the Kafka semantics (keys, partitions, offsets) visible.
 - 4. For state across calls: Temporal .NET SDK if the saga is durable, long, or cross-service; Stateless if it's small and in-process. Persist every transition; never trust in-memory state to survive a Pod restart.
@@ -3369,40 +3356,38 @@ p. 199
 
 ## [227] APPENDIX L · CACHE-ASIDE · Cache-aside in ASP.NET Core with Redis (sldId 482)
 
-[chip] csharp · ASP.NET Core 10 + EF Core + IDistributedCache
+[chip] csharp · ASP.NET Core 10 + EF Core + Redis
 
 ```csharp
-[ApiController, Route("products")]
-public class ProductsController(ShopDb db, IDistributedCache cache) : ControllerBase
+// Program.cs (excerpt), examples/25-caching/dotnet: cache-aside on a Redis client
+app.MapGet("/cache-aside/products/{pid}", async (string pid, CacheContext db) =>
 {
-    private static readonly DistributedCacheEntryOptions TTL =
-        new() { AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60) };
-    [HttpGet("{id}")]
-    public async Task<ActionResult<Product>> Get(string id, CancellationToken ct)
-    {
-        var key = $"product:{id}";
-        var cached = await cache.GetStringAsync(key, ct);              // 1. cache lookup
-        if (cached is not null) return Ok(JsonSerializer.Deserialize<Product>(cached));
-        if (await db.Products.FindAsync([id], ct) is not { } p) return NotFound(); // 2. DB
-        await cache.SetStringAsync(key, JsonSerializer.Serialize(p), TTL, ct);  // 3. populate
-        return Ok(p);
-    }
-    [HttpPut("{id}")]
-    public async Task<ActionResult<Product>> Update(
-        string id, Product body, CancellationToken ct)
-    {
-        // ... FindAsync (404 when missing), p.Update(body), SaveChangesAsync
-        await cache.RemoveAsync($"product:{id}", ct);                  // 4. invalidate
-        return Ok(p);
-    }
-}
+    var key = $"ca:product:{pid}";
+    var cached = await SafeCacheGet(key);                  // 1. cache lookup
+    if (cached is not null)
+        return Results.Json(Merge("cache", JsonSerializer.Deserialize<JsonElement>(cached)));
+    var product = await db.Products.AsNoTracking().Where(p => p.Id == pid)   // 2. DB on a miss
+        .Select(p => ProductDto.From(p)).FirstOrDefaultAsync();
+    if (product is null) return Results.NotFound(new { error = "not found" });
+    await SafeCacheSet(key, JsonSerializer.Serialize(product, CacheJson.Options)); // 3. fill
+    return Results.Json(Merge("db", product));
+});
+app.MapPut("/cache-aside/products/{pid}",
+    async (string pid, ProductUpdate update, CacheContext db) =>
+{
+    await db.Products.Where(p => p.Id == pid).ExecuteUpdateAsync(s => s
+        .SetProperty(p => p.Name, update.Name)
+        .SetProperty(p => p.PriceCents, update.PriceCents));
+    await SafeCacheDelete($"ca:product:{pid}");            // 4. invalidate
+    return Results.Json(new { ok = true, pattern = "cache-aside", action = "invalidated" });
+});
 ```
 
 Try cache; on miss, EF query and populate. Invalidate on write. Three operations; the rest is naming conventions.
 
 p. 200
 
-> Minimal cache-aside in ASP.NET Core. IDistributedCache is the Microsoft.Extensions.Caching abstraction; AddStackExchangeRedisCache wires it to Redis. The cache stores byte arrays (or strings); we JSON-serialize Product manually for type fidelity. The handler tries the cache first, falls back to EF Core's FindAsync on miss, populates the cache with a 60-second TTL, returns. The PUT path removes the cache entry after a successful DB write — invalidate-on-write. Note: IDistributedCache has no typed get/set API; it is low-level by design. For typed caching with retry, hedging and cache-stampede protection out of the box, FusionCache (the read-through slide) is the modern idiomatic alternative. For Redis failures, IDistributedCache's calls can throw RedisConnectionException — wrap in try/catch (or use Polly's resilience pipelines via Microsoft.Extensions.Http.Resilience) so a Redis outage falls back to EF Core and the read still works. For high-cardinality keys, configure Redis with maxmemory-policy allkeys-lru so the cache doesn't grow unbounded.
+> Cache-aside as Example 25 runs it: the handler owns the three steps on a StackExchange.Redis client, because the steps are the lesson. SafeCacheGet and SafeCacheSet swallow Redis failures, so a Redis outage falls back to the EF Core query and the read still works (the verify script stops Redis to prove it). The handler tries the cache first, queries EF Core on a miss, populates the cache with a 60-second TTL and tags the answer with its source. The PUT path updates the row with ExecuteUpdateAsync and then removes the cache entry: invalidate-on-write. IDistributedCache is the Microsoft.Extensions.Caching abstraction behind HybridCache on the read-through slide, which adds typed access and stampede protection. For high-cardinality keys, configure Redis with maxmemory-policy allkeys-lru so the cache doesn't grow unbounded.
 
 ## [228] APPENDIX L · READ-THROUGH · Read-through — the cache fetches on miss (sldId 483)
 
@@ -3410,45 +3395,39 @@ Application sees one interface; the cache library handles DB fallback transparen
 
 p. 201
 
-> The variation where the cache library, not the application, calls the database on a miss. The .NET BCL doesn't ship a declarative read-through cache, but FusionCache (MIT, open-source) is the modern idiomatic answer — it gives you GetOrSetAsync with a factory function (the loader), built-in stampede protection, fail-safe fallback, and L1+L2 layering (in-memory + Redis). Pros: cleaner application code, single read interface, built-in protection from cache stampedes (no thundering herd). Cons: you're adding a library; less control over what triggers a DB hit. Use when read paths are repetitive and you want declarative caching with safety nets. Alternative for the conservative shop: HybridCache (new in .NET 9, Microsoft-built, similar semantics to FusionCache but Microsoft-supported).
+> The variation where the cache library, not the application, calls the database on a miss. HybridCache (Microsoft.Extensions.Caching.Hybrid, MIT) is the in-box answer: it gives you GetOrCreateAsync with a factory function (the loader), built-in stampede protection and L1+L2 layering (in-memory plus a distributed cache such as Redis). Pros: cleaner application code, single read interface, built-in protection from cache stampedes (no thundering herd). Cons: you're adding a library; less control over what triggers a DB hit. Use when read paths are repetitive and you want declarative caching with safety nets. Alternative with more features: FusionCache (MIT, open-source) adds fail-safe stale fallback, eager refresh and a backplane.
 
-## [229] APPENDIX L · READ-THROUGH · Read-through in ASP.NET Core with FusionCache (sldId 484)
+## [229] APPENDIX L · READ-THROUGH · Read-through in ASP.NET Core with HybridCache (sldId 484)
 
-[chip] csharp · ASP.NET Core 10 + FusionCache (MIT, open-source)
+[chip] csharp · ASP.NET Core 10 + HybridCache + Redis (L2)
 
 ```csharp
-// FusionCache (MIT): GetOrSetAsync is read-through, one factory call per missing key.
-// Program.cs: AddFusionCache() with Redis as L2, a 60 s duration, 5-minute fail-safe.
-[ApiController, Route("products")]
-public class ProductsController(ShopDb db, IFusionCache cache) : ControllerBase
+// Program.cs (excerpt), examples/25-caching/dotnet: HybridCache is read-through
+// builder.Services.AddStackExchangeRedisCache(o => o.Configuration = redisUrl);   // L2
+// builder.Services.AddHybridCache(o => o.DefaultEntryOptions = new HybridCacheEntryOptions
+//     { Expiration = 60 s, LocalCacheExpiration = 60 s });
+app.MapGet("/read-through/products/{pid}",
+    async (string pid, CacheContext db, HybridCache cache) =>
 {
-    [HttpGet("{id}")]
-    public async Task<ActionResult<Product>> Get(string id, CancellationToken ct)
+    var key = $"rt:product:{pid}";
+    var source = "cache";
+    var product = await cache.GetOrCreateAsync<ProductDto?>(key, async ct =>
     {
-        var product = await cache.GetOrSetAsync<Product>(
-            $"product:{id}",
-            async token => await db.Products.FindAsync([id], token),     // loader
-            token: ct);
-        return product is null ? NotFound() : Ok(product);
-    }
-    [HttpPut("{id}")]
-    public async Task<ActionResult<Product>> Update(
-        string id, Product body, CancellationToken ct)
-    {
-        if (await db.Products.FindAsync([id], ct) is not { } p) return NotFound();
-        p.Update(body);
-        await db.SaveChangesAsync(ct);
-        await cache.RemoveAsync($"product:{id}", token: ct);             // invalidate
-        return Ok(p);
-    }
-}
+        source = "db";                                     // the loader ran: a miss
+        return await db.Products.AsNoTracking().Where(p => p.Id == pid)
+            .Select(p => ProductDto.From(p)).FirstOrDefaultAsync(ct);             // loader
+    });
+    if (product is null) { await cache.RemoveAsync(key); return Results.NotFound(); }
+    return Results.Json(Merge(source, product));
+});
+// A write invalidates both levels: await cache.RemoveAsync(key)
 ```
 
-GetOrSetAsync is read-through. Factory runs only on miss. Built-in stampede protection.
+GetOrCreateAsync is read-through. The loader runs only on a miss. Built-in stampede protection.
 
 p. 202
 
-> FusionCache is the modern .NET answer for declarative read-through caching — MIT licensed, actively maintained, with features the BCL caches don't have out of the box (stampede protection, fail-safe with stale-fallback, two-level L1+L2 cache). The Program.cs registration shows the typical setup: AddFusionCache, configure a JSON serializer, pair with IDistributedCache (Redis), set default duration and fail-safe behaviour. The controller uses GetOrSetAsync with a factory. The factory runs only on a cache miss, and FusionCache's built-in concurrency control ensures that if 100 concurrent requests hit the same missing key, the factory runs once and the other 99 await the result: no thundering herd. The fail-safe option (SetFailSafe) is the killer feature: when the factory throws (DB outage), FusionCache returns the stale cached value if available rather than propagating the failure. The trade vs IDistributedCache: you add a library dependency (24KB DLL), get safer caching out of the box. Alternative: HybridCache (Microsoft.Extensions.Caching.Hybrid, .NET 9+) gives similar L1+L2 semantics but is newer and the API is slightly different.
+> HybridCache (Microsoft.Extensions.Caching.Hybrid, MIT) is the in-box answer for declarative read-through caching: a two-level cache with an in-process L1 and any IDistributedCache as L2, here Redis through AddStackExchangeRedisCache. The registration sets a 60-second expiry for both levels. The endpoint calls GetOrCreateAsync with a loader that runs only on a cache miss, and HybridCache's built-in concurrency control ensures that if 100 concurrent requests hit the same missing key, the loader runs once and the other 99 await the result: no thundering herd. The loader also sets a flag, so the response reports source db for the request that loaded the value and cache for the others. A missing product returns null, which the endpoint removes from the cache again so a later insert is visible at once. When Redis is unreachable, HybridCache logs the L2 failure and still runs the loader. The trade against a hand-written cache-aside: a library dependency, in exchange for typed values, serialization and stampede protection. Alternative: FusionCache (MIT) adds fail-safe stale fallback, eager refresh and a backplane for multi-Pod L1 invalidation.
 
 ## [230] APPENDIX L · WRITE-THROUGH · Write-through — cache and DB written synchronously (sldId 485)
 
@@ -3460,39 +3439,33 @@ p. 203
 
 ## [231] APPENDIX L · WRITE-THROUGH · Write-through in ASP.NET Core (sldId 486)
 
-[chip] csharp · ASP.NET Core 10 + IDistributedCache or FusionCache
+[chip] csharp · ASP.NET Core 10 + EF Core + StackExchange.Redis
 
 ```csharp
-// Two flavours: explicit IDistributedCache write, or FusionCache.SetAsync.
-[ApiController, Route("products")]
-public class ProductsController(
-    ShopDb db,
-    IDistributedCache cache) : ControllerBase
+// Program.cs (excerpt), examples/25-caching/dotnet: write-through, DB first then cache
+app.MapPut("/write-through/products/{pid}",
+    async (string pid, ProductUpdate update, CacheContext db) =>
 {
-    private static readonly DistributedCacheEntryOptions TTL =
-        new() { AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60) };
-    [HttpPut("{id}")]
-    public async Task<ActionResult<Product>> Update(
-        string id, Product body, CancellationToken ct)
-    {
-        if (await db.Products.FindAsync([id], ct) is not { } p) return NotFound();
-        p.Update(body);
-        await db.SaveChangesAsync(ct);                                  // 1. DB first
-        await cache.SetStringAsync($"product:{id}",                     // 2. cache second
-            JsonSerializer.Serialize(p), TTL, ct);                      //    set, not remove
-        return Ok(p);
-    }
-}
+    await db.Products.Where(p => p.Id == pid)               // 1. DB first
+        .ExecuteUpdateAsync(s => s.SetProperty(p => p.Name, update.Name)
+                                  .SetProperty(p => p.PriceCents, update.PriceCents));
+    var product = await db.Products.AsNoTracking().Where(p => p.Id == pid)
+        .Select(p => ProductDto.From(p)).FirstOrDefaultAsync();
+    if (product is not null)                                // 2. cache second: set, not remove
+        await SafeCacheSet($"wt:product:{pid}",
+            JsonSerializer.Serialize(product, CacheJson.Options));
+    return Results.Json(new { ok = true, pattern = "write-through", action = "set" });
+});
 // FusionCache flavour — SetAsync writes the value directly.
 // L1 (memory) and L2 (Redis) both get updated; backplane invalidates other Pods' L1.
-// ... same controller on IFusionCache: await cache.SetAsync($"product:{id}", p, token: ct);
+// ... await cache.SetAsync($"product:{id}", p, token: ct);
 ```
 
 DB first (source of truth), cache second (set, not remove). FusionCache.SetAsync handles L1+L2 + backplane.
 
 p. 204
 
-> Two write-through flavours. The first uses IDistributedCache directly: save EF Core changes, then SetStringAsync to update the cache with the new value (set, not remove — the difference between write-through and cache-aside-with-invalidate). The second uses FusionCache.SetAsync, which has a significant advantage in multi-Pod deployments: FusionCache's backplane (Redis pub/sub by default) automatically invalidates the L1 (in-memory) cache on all other Pods when one Pod writes — critical because each Pod's L1 cache otherwise has its own stale view. For mission-critical durability, consider transactional outbox: write the cache invalidation event to an outbox table inside the SaveChanges transaction, then Debezium drains it to Kafka, then a consumer invalidates the cache — this guarantees the cache invalidation happens iff the DB transaction commits, at the cost of a brief invalidation delay.
+> Two write-through flavours. The first is Example 25: update the row through EF Core, read it back, then SET the cache with the new value (set, not remove — the difference between write-through and cache-aside-with-invalidate). The second uses FusionCache.SetAsync, which has a significant advantage in multi-Pod deployments: FusionCache's backplane (Redis pub/sub by default) automatically invalidates the L1 (in-memory) cache on all other Pods when one Pod writes — critical because each Pod's L1 cache otherwise has its own stale view. For mission-critical durability, consider transactional outbox: write the cache invalidation event to an outbox table inside the SaveChanges transaction, then Debezium drains it to Kafka, then a consumer invalidates the cache — this guarantees the cache invalidation happens iff the DB transaction commits, at the cost of a brief invalidation delay.
 
 ## [232] APPENDIX L · WRITE-AROUND · Write-around — writes skip the cache (sldId 487)
 
@@ -3504,34 +3477,29 @@ p. 205
 
 ## [233] APPENDIX L · WRITE-AROUND · Write-around in ASP.NET Core (sldId 488)
 
-[chip] csharp · ASP.NET Core 10 + EF Core + IDistributedCache
+[chip] csharp · ASP.NET Core 10 + EF Core + Redis
 
 ```csharp
-// Append-heavy data: writes hit the DB only; reads use cache-aside.
-[ApiController, Route("events")]
-public class EventsController(ShopDb db, IDistributedCache cache) : ControllerBase
+// Program.cs (excerpt), examples/25-caching/dotnet: writes skip the cache; reads cache-aside
+app.MapPost("/write-around/events", async (EventRequest request, CacheContext db) =>
 {
-    [HttpPost]
-    public async Task<ActionResult<Event>> Record(Event body, CancellationToken ct)
-    {
-        db.Events.Add(body);
-        await db.SaveChangesAsync(ct);                       // DB only, cache untouched
-        return CreatedAtAction(nameof(Get), new { id = body.Id }, body);
-    }
-    [HttpGet("{id}")]
-    public async Task<ActionResult<Event>> Get(string id, CancellationToken ct)
-    {
-        var key = $"event:{id}";
-        var cached = await cache.GetStringAsync(key, ct);
-        if (cached is not null) return Ok(JsonSerializer.Deserialize<Event>(cached));
-        var e = await db.Events.FindAsync([id], ct);
-        if (e is null) return NotFound();
-        await cache.SetStringAsync(key, JsonSerializer.Serialize(e),
-            new DistributedCacheEntryOptions {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60) }, ct);
-        return Ok(e);
-    }
-}
+    db.Events.Add(new EventRecord { Id = request.Id, Type = request.Type,
+        Payload = request.Payload ?? JsonSerializer.SerializeToElement(new { }) });
+    await db.SaveChangesAsync();                           // DB only, cache untouched
+    return Results.Json(new { ok = true, pattern = "write-around", action = "db-only" });
+});
+app.MapGet("/write-around/events/{eid}", async (string eid, CacheContext db) =>
+{
+    var key = $"wa:event:{eid}";
+    var cached = await SafeCacheGet(key);
+    if (cached is not null)
+        return Results.Json(Merge("cache", JsonSerializer.Deserialize<JsonElement>(cached)));
+    var evt = await db.Events.AsNoTracking().Where(e => e.Id == eid)
+        .Select(e => EventDto.From(e)).FirstOrDefaultAsync();
+    if (evt is null) return Results.NotFound(new { error = "not found" });
+    await SafeCacheSet(key, JsonSerializer.Serialize(evt, CacheJson.Options)); // 1st read
+    return Results.Json(Merge("db", evt));
+});
 ```
 
 Writes skip the cache; first read populates. Avoids cache thrash from one-time writes.
@@ -3552,40 +3520,40 @@ p. 207
 
 ## [235] APPENDIX L · WRITE-BACK · Write-back with a background flusher in ASP.NET Core (sldId 490)
 
-[chip] csharp · ASP.NET Core 10 + StackExchange.Redis + Npgsql
+[chip] csharp · ASP.NET Core 10 + StackExchange.Redis + EF Core
 
 ```csharp
-// Program.cs (excerpt), examples/25-caching/dotnet: write-back
-app.MapPut("/write-back/metrics/{mid}", async (string mid, HttpContext ctx) =>
+// Program.cs and CacheWorkers.cs (excerpt), examples/25-caching/dotnet: write-back
+app.MapPut("/write-back/metrics/{mid}", async (string mid, MetricRequest request) =>
 {
     // ... HSET metric:<mid> {value, tags}; SADD metric:dirty <mid> (503 when Redis is down)
     return Results.Json(new { ok = true, pattern = "write-back", action = "cached-for-flush" },
         statusCode: StatusCodes.Status202Accepted);          // 202: queued, not yet durable
 });
-_ = Task.Run(async () =>                                     // the flusher, started at boot
+builder.Services.AddHostedService<MetricFlusher>();      // the flusher, started with the host
+// MetricFlusher : BackgroundService, in ExecuteAsync(CancellationToken stoppingToken):
+var failures = 0;
+while (!stoppingToken.IsCancellationRequested)
 {
-    var failures = 0;
-    while (!cts.Token.IsCancellationRequested)
-    {
-        await Task.Delay(Math.Min(FlushPeriodMs << failures, MaxFlushBackoffMs), cts.Token);
-        var ids = await db.SetPopAsync("metric:dirty", 100);     // atomic batch dequeue
-        if (ids.Length == 0) continue;
-        var failed = new List<RedisValue>();  // Upsert: HGETALL, INSERT ... ON CONFLICT (id)
-        foreach (var mid in ids)
-            try { await Upsert(mid); await db.HashDeleteAsync("metric:attempts", mid); }
-            catch (Exception ex) { logger.LogError(ex, "flush failed"); failed.Add(mid); }
-        if (failed.Count == 0) { failures = 0; continue; }
-        failures = Math.Min(failures + 1, 3);                 // back off: 2 s, 4 s, 8 s
-        await Requeue(db, failed);   // HINCRBY metric:attempts: dirty again, failed after 5
-    }
-});
+    await Task.Delay(Math.Min(FlushPeriodMs << failures, MaxFlushBackoffMs), stoppingToken);
+    var ids = await db.SetPopAsync("metric:dirty", 100);      // atomic batch dequeue
+    if (ids.Length == 0) continue;
+    var failed = new List<RedisValue>();  // Upsert: HGETALL, one ExecuteSqlAsync ON CONFLICT
+    foreach (var mid in ids)
+        try { await Upsert(mid); await db.HashDeleteAsync("metric:attempts", mid); }
+        catch (Exception ex)
+        { logger.LogError(ex, "flush failed for {Id}", (string?)mid); failed.Add(mid); }
+    if (failed.Count == 0) { failures = 0; continue; }
+    failures = Math.Min(failures + 1, 3);                    // back off: 2 s, 4 s, 8 s
+    await Requeue(db, failed);   // HINCRBY metric:attempts: dirty again, failed after 5
+}
 ```
 
 A write answers 202 Accepted. A failed flush re-queues its ids with backoff; after five attempts an id is parked on metric:failed.
 
 p. 208
 
-> Write-back in .NET, as Example 25 runs it. PUT /write-back/metrics/{mid} writes the metric fields to a Redis hash, adds the id to a 'dirty set' that tells the flusher what to drain, and answers 202 Accepted in microseconds: the value is queued, not yet durable. The flusher is a background loop started with the app (a BackgroundService works the same way) that SPOPs up to 100 dirty ids at once. SPOP is the right primitive: it removes and returns elements in one call, so two flusher instances would each get a distinct subset of ids and horizontal scale works. Each id is upserted with INSERT ... ON CONFLICT (id) DO UPDATE, so an id flushed twice stays one row. An id whose upsert fails is re-queued: HashIncrementAsync counts its attempts in metric:attempts and it goes back on the dirty set, or, after five attempts, onto metric:failed with its value still in the cache and the failure in the log; the loop then waits two, four and at most eight seconds between runs. Caveats: this is only safe with Redis persistence (AOF, appendonly yes); without it a Redis crash loses unflushed writes. For data that must not be lost, use write-through. For high-throughput telemetry where losing the last second is acceptable, write-back is what lets the service scale.
+> Write-back in .NET, as Example 25 runs it. PUT /write-back/metrics/{mid} writes the metric fields to a Redis hash, adds the id to a 'dirty set' that tells the flusher what to drain, and answers 202 Accepted in microseconds: the value is queued, not yet durable. The flusher is a BackgroundService registered with AddHostedService, so the host starts it and cancels it on shutdown; each cycle SPOPs up to 100 dirty ids at once. SPOP is the right primitive: it removes and returns elements in one call, so two flusher instances would each get a distinct subset of ids and horizontal scale works. Each id is upserted with one ExecuteSqlAsync statement, INSERT ... ON CONFLICT (id) DO UPDATE, so an id flushed twice stays one row. An id whose upsert fails is re-queued: HashIncrementAsync counts its attempts in metric:attempts and it goes back on the dirty set, or, after five attempts, onto metric:failed with its value still in the cache and the failure in the log; the loop then waits two, four and at most eight seconds between runs. Caveats: this is only safe with Redis persistence (AOF, appendonly yes); without it a Redis crash loses unflushed writes. For data that must not be lost, use write-through. For high-throughput telemetry where losing the last second is acceptable, write-back is what lets the service scale.
 
 ## [236] APPENDIX L · REFRESH-AHEAD · Refresh-ahead — keep hot keys warm (sldId 491)
 
@@ -3908,35 +3876,32 @@ p. 230
 [chip] csharp · ASP.NET Core 10
 
 ```csharp
-// OrderService/Program.cs (excerpt, example 21): one SIGTERM drives the drain
-var shuttingDown = false;
-PosixSignalRegistration.Create(PosixSignal.SIGTERM, ctx =>
+// OrderService (excerpt, example 21): the default ConsoleLifetime plus one hosted service
+builder.Services.AddSingleton<ShutdownState>();
+builder.Services.AddHostedService<DrainService>();     // StoppingAsync runs first
+builder.Services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(20));
+builder.Services.AddHealthChecks()
+    .AddCheck<ShutdownHealthCheck>("shutdown", tags: ["ready"])     // 503 once draining
+    .AddDbContextCheck<OrdersContext>("database", tags: ["ready"]);
+// DrainService.StoppingAsync, on the single SIGTERM:
+state.MarkShuttingDown();                  // 1. readiness → 503: the Service stops routing
+await Task.Delay(delay, cancellationToken);           // 2. endpoints update (5 s)
+// 3. Kestrel stops in StopAsync and drains in-flight (ShutdownTimeout 20 s)
+app.MapHealthChecks("/healthz", ...);                // liveness stays 200
+app.MapHealthChecks("/readyz", ...);                 // ready tag: shutdown + database
+app.MapPost("/orders", async (OrderRequest request, OrdersContext db, ShutdownState state) =>
 {
-    ctx.Cancel = true;           // the app drains; the host does not stop at once
-    if (shuttingDown) return;    // already draining
-    shuttingDown = true;         // 1. readiness → 503: the Service stops routing
-    _ = Task.Run(async () =>
-    {
-        await Task.Delay(TimeSpan.FromSeconds(drainDelay));   // 2. endpoints update (5 s)
-        app.Lifetime.StopApplication();  // 3. Kestrel drains in-flight (ShutdownTimeout 20 s)
-    });
-});
-app.MapGet("/healthz", () => new { status = "ok" });        // liveness stays 200
-app.MapGet("/readyz", () => shuttingDown                    // (the example also pings
-    ? Results.Json(new { ready = false, reason = "shutting down" }, statusCode: 503)
-    : Results.Ok(new { ready = true }));                    //  Postgres here)
-app.MapPost("/orders", async (HttpContext ctx, NpgsqlDataSource db) =>
-{
-    if (shuttingDown) return Results.Json(new { error = "shutting down" }, statusCode: 503);
-    // ... in-flight requests finish before the host stops; 4. the pool is disposed, exit 0
+    if (state.ShuttingDown)
+        return Results.Json(new { error = "shutting down" }, statusCode: 503);
+    // ... in-flight requests finish before the host stops; 4. the context is disposed, exit 0
 });
 ```
 
 p. 231
 
-> The application half of graceful shutdown, from the running example's .NET order-service. PosixSignalRegistration catches the single SIGTERM and cancels the default immediate shutdown; the handler flips a flag so /readyz answers 503 and Kubernetes takes the Pod out of the Service, while /healthz stays 200 so the kubelet does not restart a Pod that is winding down.
+> The application half of graceful shutdown, from the running example's .NET order-service. The default ConsoleLifetime turns the single SIGTERM into a graceful stop, and DrainService, a hosted service, runs first: its StoppingAsync flips a flag so /readyz answers 503 and Kubernetes takes the Pod out of the Service, while /healthz stays 200 so the kubelet does not restart a Pod that is winding down.
 >
-> New requests get 503. After DRAIN_DELAY_SECONDS the handler calls StopApplication(): Kestrel stops accepting and finishes in-flight requests within HostOptions.ShutdownTimeout (20 s), the data source is disposed and the process exits 0, inside terminationGracePeriodSeconds. Appendix H covers the hosted-service drain hooks, the preStop hook and the grace period.
+> New requests get 503. After DRAIN_DELAY_SECONDS StoppingAsync returns and Kestrel stops accepting and finishes in-flight requests within HostOptions.ShutdownTimeout (20 s), the host disposes its services and the process exits 0, inside terminationGracePeriodSeconds. Appendix H covers the hosted-service drain hooks, the preStop hook and the grace period.
 
 ## [260] APPENDIX M · OBSERVE · Observing failure modes (see §11) (sldId 515)
 
