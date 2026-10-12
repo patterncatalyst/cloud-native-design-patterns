@@ -3,8 +3,6 @@ package com.example.stream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KeyValue;
@@ -24,8 +22,6 @@ import org.springframework.kafka.annotation.EnableKafkaStreams;
 import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.KafkaAdmin.NewTopics;
 import org.springframework.kafka.support.serializer.JacksonJsonSerde;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * order.placed -> tumbling window per merchant -> revenue.by-merchant.
@@ -42,8 +38,6 @@ public class RevenueTopology {
 
     static final String ORDERS = "order.placed";
     static final String REVENUE = "revenue.by-merchant";
-
-    private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
     private final int windowSeconds;
 
@@ -70,56 +64,31 @@ public class RevenueTopology {
     }
 
     @Bean
-    public KStream<String, String> revenueStream(StreamsBuilder builder) {
-        JacksonJsonSerde<Acc> accSerde = new JacksonJsonSerde<>(Acc.class).noTypeInfo();
+    public KStream<String, MerchantRevenue> revenueStream(StreamsBuilder builder) {
+        var orderSerde = new JacksonJsonSerde<>(OrderPlaced.class).ignoreTypeHeaders().noTypeInfo();
+        var accSerde = new JacksonJsonSerde<>(Acc.class).noTypeInfo();
+        var revenueSerde = new JacksonJsonSerde<>(MerchantRevenue.class).noTypeInfo();
 
-        var revenue = builder.stream(ORDERS, Consumed.with(Serdes.String(), Serdes.String()))
-                .map((key, json) -> parse(json))
-                .filter((merchant, amount) -> merchant != null)
-                .groupByKey(Grouped.with(Serdes.String(), Serdes.String()))
+        var revenue = builder.stream(ORDERS, Consumed.with(Serdes.String(), orderSerde))
+                .filter((key, order) -> order != null && order.merchantId() != null)
+                .selectKey((key, order) -> order.merchantId())
+                .groupByKey(Grouped.with(Serdes.String(), orderSerde))
                 .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(windowSeconds)))
                 .aggregate(
                         () -> new Acc(0, BigDecimal.ZERO),
-                        (merchant, amount, acc) -> add(merchant, acc, amount),
+                        (merchant, order, acc) -> acc.add(order.total() == null ? BigDecimal.ZERO : order.total()),
                         Materialized.with(Serdes.String(), accSerde))
                 .toStream()
                 .map((window, acc) -> {
                     String merchant = window.key();
                     long start = window.window().start() / 1000;
                     BigDecimal revenueTotal = acc.total().setScale(2, RoundingMode.HALF_UP);
-                    Map<String, Object> out = new LinkedHashMap<>();
-                    out.put("window_start", start);
-                    out.put("window_end", start + windowSeconds);
-                    out.put("merchant_id", merchant);
-                    out.put("order_count", acc.count());
-                    out.put("revenue", revenueTotal);
                     log.info("emitted revenue window={} merchant={} count={} revenue={}",
                             start, merchant, acc.count(), revenueTotal);
-                    return KeyValue.pair(merchant, MAPPER.writeValueAsString(out));
+                    return KeyValue.pair(merchant,
+                            new MerchantRevenue(start, start + windowSeconds, merchant, acc.count(), revenueTotal));
                 });
-        revenue.to(REVENUE, Produced.with(Serdes.String(), Serdes.String()));
+        revenue.to(REVENUE, Produced.with(Serdes.String(), revenueSerde));
         return revenue;
-    }
-
-    /** A total that is not a number skips the record instead of killing the stream thread. */
-    private Acc add(String merchant, Acc acc, String amount) {
-        try {
-            return acc.add(new BigDecimal(amount));
-        } catch (NumberFormatException e) {
-            log.warn("skipping order with invalid total merchant={} total={}", merchant, amount);
-            return acc;
-        }
-    }
-
-    /** Re-keys an order event by merchant; the value is the order total. */
-    private KeyValue<String, String> parse(String json) {
-        try {
-            JsonNode event = MAPPER.readTree(json);
-            JsonNode total = event.get("total");
-            String amount = total == null || total.isNull() ? "0" : total.asString();
-            return KeyValue.pair(event.get("merchant_id").asString(), amount);
-        } catch (Exception e) {
-            return KeyValue.pair(null, null);
-        }
     }
 }

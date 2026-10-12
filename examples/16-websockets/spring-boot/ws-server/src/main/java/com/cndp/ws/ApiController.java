@@ -1,7 +1,6 @@
 package com.cndp.ws;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,11 +19,6 @@ public class ApiController {
     public ApiController(ClientRegistry registry, RedisBackplane backplane) {
         this.registry = registry;
         this.backplane = backplane;
-    }
-
-    @GetMapping("/healthz")
-    public Map<String, String> healthz() {
-        return Map.of("status", "ok", "pod", podName);
     }
 
     /**

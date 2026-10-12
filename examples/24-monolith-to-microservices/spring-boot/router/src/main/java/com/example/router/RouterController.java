@@ -38,11 +38,6 @@ public class RouterController {
         tenantRoutes.put("acme", "new-service");
     }
 
-    @GetMapping("/healthz")
-    public Map<String, String> healthz() {
-        return Map.of("status", "ok");
-    }
-
     @PostMapping("/orders")
     public ResponseEntity<String> routePost(@RequestBody String body) {
         String tenant = extractTenant(body);

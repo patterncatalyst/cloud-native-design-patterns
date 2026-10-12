@@ -115,12 +115,4 @@ public class FlagController {
         result.put("plan", plan);
         return result;
     }
-
-    // -----------------------------------------------------------------------
-    // Health
-    // -----------------------------------------------------------------------
-    @GetMapping("/healthz")
-    public Map<String, String> healthz() {
-        return Map.of("status", "ok");
-    }
 }

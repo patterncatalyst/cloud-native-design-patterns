@@ -63,11 +63,4 @@ public class RouterController {
         logger.info("RULES_UPDATED {}", rules);
         return new LinkedHashMap<>(rules);
     }
-
-    @GetMapping("/healthz")
-    public Map<String, Object> healthz() {
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("status", "ok");
-        return result;
-    }
 }

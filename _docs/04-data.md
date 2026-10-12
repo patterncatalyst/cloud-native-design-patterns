@@ -136,21 +136,15 @@ sits on the request path.
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-// order-service OrderController.java (excerpt): order row and outbox row, one transaction
-@PostMapping("/orders")
-@ResponseStatus(HttpStatus.CREATED)
+// order-service OrderService.java (excerpt): order row and outbox row, one transaction
 @Transactional                                   // single local transaction
-public Map<String, Object> createOrder(@RequestBody Map<String, Object> body) {
-    String orderId = UUID.randomUUID().toString();
-    // sku, quantity and status come from the body (elided)
-    jdbc.sql("INSERT INTO orders (id, sku, quantity, status) VALUES (?, ?, ?, ?)")
-        .param(orderId).param(sku).param(quantity).param(status)
-        .update();                               // state change
-    String payloadJson = objectMapper.writeValueAsString(payload);   // Jackson 3
-    jdbc.sql("INSERT INTO outbox (aggregate_id, event_type, payload) VALUES (?, ?, ?::jsonb)")
-        .param(orderId).param("order.placed").param(payloadJson)
-        .update();                               // same transaction: outbox row
-    return Map.of("id", orderId, "sku", sku, "quantity", quantity, "status", status);
+public OrderView placeOrder(String sku, int quantity) {
+    var order = orders.save(new Order(sku, quantity, "confirmed"));      // state change
+    var view = order.toView();
+    outbox.save(new OutboxEvent(order.getId(), "order.placed", Map.of(   // same transaction: outbox row
+        "id", view.id(), "sku", view.sku(),
+        "quantity", view.quantity(), "status", view.status())));
+    return view;                     // OutboxEvent.payload is a JSONB column (@JdbcTypeCode(SqlTypes.JSON))
 }
 // No Kafka call on the request path: Debezium tails the WAL and publishes order.placed.
 ```

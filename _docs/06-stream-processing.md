@@ -51,20 +51,22 @@ in-process and reaches for Flink only when the state outgrows a single worker.
 @EnableKafkaStreams
 public class RevenueTopology {
     @Bean
-    public KStream<String, String> revenueStream(StreamsBuilder builder) {
-        JacksonJsonSerde<Acc> accSerde = new JacksonJsonSerde<>(Acc.class).noTypeInfo();
-        var revenue = builder.stream(ORDERS, Consumed.with(Serdes.String(), Serdes.String()))
-            .map((key, json) -> parse(json))               // re-key by merchant_id
-            .filter((merchant, amount) -> merchant != null)
-            .groupByKey(Grouped.with(Serdes.String(), Serdes.String()))
+    public KStream<String, MerchantRevenue> revenueStream(StreamsBuilder builder) {
+        var orderSerde = new JacksonJsonSerde<>(OrderPlaced.class).ignoreTypeHeaders().noTypeInfo();
+        var accSerde = new JacksonJsonSerde<>(Acc.class).noTypeInfo();
+        var revenueSerde = new JacksonJsonSerde<>(MerchantRevenue.class).noTypeInfo();
+        var revenue = builder.stream(ORDERS, Consumed.with(Serdes.String(), orderSerde))
+            .filter((key, order) -> order != null && order.merchantId() != null)
+            .selectKey((key, order) -> order.merchantId())     // re-key by merchant_id
+            .groupByKey(Grouped.with(Serdes.String(), orderSerde))
             .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(windowSeconds)))
-            .aggregate(() -> new Acc(0, BigDecimal.ZERO),  // local, changelog-backed
-                (merchant, amount, acc) -> add(merchant, acc, amount),
+            .aggregate(() -> new Acc(0, BigDecimal.ZERO),      // local, changelog-backed
+                (merchant, order, acc) -> acc.add(order.total()),
                 Materialized.with(Serdes.String(), accSerde))
             .toStream()
-            .map((window, acc) -> KeyValue.pair(window.key(), toJson(window, acc)));
-        revenue.to(REVENUE, Produced.with(Serdes.String(), Serdes.String()));
-        return revenue;
+            .map((window, acc) -> KeyValue.pair(window.key(), toRevenue(window, acc)));
+        revenue.to(REVENUE, Produced.with(Serdes.String(), revenueSerde));
+        return revenue;                 // typed records in and out: no JSON strings built by hand
     }
 }
 ```

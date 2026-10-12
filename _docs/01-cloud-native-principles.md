@@ -107,26 +107,31 @@ in each stack — pick your tab.
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-// HealthController.java (excerpt), examples/01-cloud-native-principles/spring-boot
+// application.yaml (excerpt), examples/01-cloud-native-principles/spring-boot
 // config from env (factor III): SPRING_DATASOURCE_URL, SERVICE_VERSION -> service.version
+//
+// management.endpoint.health:
+//   probes.enabled: true
+//   group:
+//     liveness:                                  // liveness: the process is up
+//       include: livenessState
+//       additional-path: "server:/healthz"
+//     readiness:                                 // readiness: the pool answers a connection check
+//       include: readinessState,db
+//       additional-path: "server:/readyz"        // DOWN -> 503, the pod leaves the Service
+//
+// spring-boot-starter-actuator serves both groups; no controller.
 @RestController
-public class HealthController {
-    private final DataSource dataSource;
-    @Value("${service.version}")
-    private String serviceVersion;
-    public HealthController(DataSource dataSource) { this.dataSource = dataSource; }
-    @GetMapping("/healthz")                           // liveness: the process is up
-    public Map<String, String> healthz() { return Map.of("status", "ok"); }
-    @GetMapping("/readyz")                            // readiness: SELECT 1 on the pool
-    public ResponseEntity<Map<String, Object>> readyz() {
-        try (var conn = dataSource.getConnection()) {
-            conn.createStatement().executeQuery("SELECT 1").close();
-        } catch (Exception e) {                       // down: 503, the pod leaves the Service
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(Map.of("status", "down", "checks", Map.of("database", "unreachable")));
-        }
-        return ResponseEntity.ok(Map.of("status", "ready",
-                "checks", Map.of("database", "ok")));
+public class OrderController {
+    private final OrderRepository orders;          // Spring Data JPA over the shared orders table
+    private final String serviceVersion;
+    public OrderController(OrderRepository orders, @Value("${service.version}") String serviceVersion) {
+        this.orders = orders;
+        this.serviceVersion = serviceVersion;
+    }
+    @GetMapping("/orders")
+    public List<OrderResponse> listOrders() {
+        return orders.findAll(Sort.by("id")).stream().map(OrderResponse::of).toList();
     }
 }
 ```

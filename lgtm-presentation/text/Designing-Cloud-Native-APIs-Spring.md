@@ -157,29 +157,32 @@ p. 11
 
 ## [014] CLOUD-NATIVE PRINCIPLES · A 12-factor Spring Boot service, ready for the platform (sldId 269)
 
-[chip] java · Spring Boot 4
+[chip] java · Spring Boot 4 + Actuator
 
 ```java
-// HealthController.java (excerpt), examples/01-cloud-native-principles/spring-boot
+// application.yaml + OrderController (excerpt), examples/01-cloud-native-principles
 // config from env (factor III): SPRING_DATASOURCE_URL, SERVICE_VERSION -> service.version
+// management.endpoint.health:
+//   probes.enabled: true
+//   group:
+//     liveness:                        # liveness: the process is up
+//       include: livenessState
+//       additional-path: "server:/healthz"
+//     readiness:                       # readiness: a pooled connection answers
+//       include: readinessState,db
+//       additional-path: "server:/readyz"   # DOWN: 503, the pod leaves the Service
 @RestController
-public class HealthController {
-    private final DataSource dataSource;
-    @Value("${service.version}")
-    private String serviceVersion;
-    public HealthController(DataSource dataSource) { this.dataSource = dataSource; }
-    @GetMapping("/healthz")                           // liveness: the process is up
-    public Map<String, String> healthz() { return Map.of("status", "ok"); }
-    @GetMapping("/readyz")                            // readiness: SELECT 1 on the pool
-    public ResponseEntity<Map<String, Object>> readyz() {
-        try (var conn = dataSource.getConnection()) {
-            conn.createStatement().executeQuery("SELECT 1").close();
-        } catch (Exception e) {                       // down: 503, the pod leaves the Service
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(Map.of("status", "down", "checks", Map.of("database", "unreachable")));
-        }
-        return ResponseEntity.ok(Map.of("status", "ready",
-                "checks", Map.of("database", "ok")));
+public class OrderController {
+    private final OrderRepository orders;     // Spring Data JPA over the orders table
+    private final String serviceVersion;
+    public OrderController(OrderRepository orders,
+                           @Value("${service.version}") String serviceVersion) {
+        this.orders = orders;
+        this.serviceVersion = serviceVersion;
+    }
+    @GetMapping("/orders")
+    public List<OrderResponse> listOrders() {
+        return orders.findAll(Sort.by("id")).stream().map(OrderResponse::of).toList();
     }
 }
 ```
@@ -188,7 +191,7 @@ Probes, env-config and an explicit application name are the price of admission f
 
 p. 12
 
-> Walk the code: config comes from the environment through Spring's property resolution (factor III): SPRING_DATASOURCE_URL and its credentials configure the DataSource and SERVICE_VERSION feeds service.version, never a baked-in file; Spring profiles override per environment. The application name (spring.application.name) shows up in Micrometer metrics and traces. The two probes are a plain @RestController in Example 01: /healthz is liveness (am I alive? if not, restart me) and never checks a dependency; /readyz is readiness (can I serve?): it runs SELECT 1 on a pooled connection and, when that fails, answers 503 with status down, which takes the pod out of rotation without killing it. The probe reads the status code, not the body: Kubernetes treats any answer from 200 to 399 as ready. Spring Boot Actuator offers the same pair as /actuator/health/liveness and /actuator/health/readiness with HealthIndicator beans; the example writes them by hand so every language serves the same paths and bodies. Getting liveness vs readiness wrong is a top cause of cascading restarts, so stress the distinction. Maven with spring-boot-starter-parent pins every dependency reproducibly. Constructor injection is the idiomatic Spring style: the bean stays immutable and is unit-testable without a container.
+> Walk the code: config comes from the environment through Spring's property resolution (factor III): SPRING_DATASOURCE_URL and its credentials configure the DataSource and SERVICE_VERSION feeds service.version, never a baked-in file; Spring profiles override per environment. The application name (spring.application.name) shows up in Micrometer metrics and traces. The two probes come from Spring Boot Actuator, with no controller code in Example 01: the liveness and readiness health groups are served on the main port at /healthz and /readyz (additional-path), so the compose healthchecks and the Kubernetes probes keep their paths. /healthz is liveness (am I alive? if not, restart me) and includes only livenessState, so it never checks a dependency; /readyz is readiness (can I serve?): its group adds the db contributor, which checks a pooled connection, and when that fails it answers 503 with status DOWN, which takes the pod out of rotation without killing it. The probe reads the status code, not the body: Kubernetes treats any answer from 200 to 399 as ready. A custom check is a HealthIndicator bean added to a group's include list; Example 21 adds one. Persistence is Spring Data JPA: the entity maps the existing orders table and Hibernate only validates it (ddl-auto=validate), because the db/init scripts own the schema. Getting liveness vs readiness wrong is a top cause of cascading restarts, so stress the distinction. Maven with spring-boot-starter-parent pins every dependency reproducibly. Constructor injection is the idiomatic Spring style: the bean stays immutable and is unit-testable without a container.
 
 ## [015] Communications (sldId 270)
 
@@ -456,24 +459,18 @@ p. 26
 
 ## [032] DATA · The outbox write — one transaction, no lost events (sldId 287)
 
-[chip] java · Spring Boot 4 + JdbcClient + Debezium CDC
+[chip] java · Spring Boot 4 + JPA + Debezium CDC
 
 ```java
-// order-service OrderController.java (excerpt): order row and outbox row, one transaction
-@PostMapping("/orders")
-@ResponseStatus(HttpStatus.CREATED)
+// OrderService.java (excerpt): order row and outbox row, one transaction
 @Transactional                                   // single local transaction
-public Map<String, Object> createOrder(@RequestBody Map<String, Object> body) {
-    String orderId = UUID.randomUUID().toString();
-    // sku, quantity and status come from the body (elided)
-    jdbc.sql("INSERT INTO orders (id, sku, quantity, status) VALUES (?, ?, ?, ?)")
-        .param(orderId).param(sku).param(quantity).param(status)
-        .update();                               // state change
-    String payloadJson = objectMapper.writeValueAsString(payload);   // Jackson 3
-    jdbc.sql("INSERT INTO outbox (aggregate_id, event_type, payload) VALUES (?, ?, ?::jsonb)")
-        .param(orderId).param("order.placed").param(payloadJson)
-        .update();                               // same transaction: outbox row
-    return Map.of("id", orderId, "sku", sku, "quantity", quantity, "status", status);
+public OrderView placeOrder(String sku, int quantity) {
+    var order = orders.save(new Order(sku, quantity, "confirmed"));     // state change
+    var view = order.toView();
+    outbox.save(new OutboxEvent(order.getId(), "order.placed", Map.of(  // same transaction
+        "id", view.id(), "sku", view.sku(),
+        "quantity", view.quantity(), "status", view.status())));
+    return view;        // OutboxEvent.payload: a JSONB column (@JdbcTypeCode(SqlTypes.JSON))
 }
 // No Kafka call on the request path: Debezium tails the WAL and publishes order.placed.
 ```
@@ -482,9 +479,9 @@ The database commit is the source of truth. The outbox + CDC turns it into a gua
 
 p. 27
 
-> The whole trick is the @Transactional method: the insert of the order row and the insert of the outbox row happen in one local transaction, through Spring's JdbcClient. There is no Kafka call inside the request path: if the broker is down, the order still commits and the event ships later when Debezium tails the write-ahead log and relays the outbox row in commit order. This decouples request latency and availability from Kafka's.
+> The whole trick is the @Transactional method: the insert of the order row and the insert of the outbox row happen in one local transaction, through two Spring Data JPA repositories. There is no Kafka call inside the request path: if the broker is down, the order still commits and the event ships later when Debezium tails the write-ahead log and relays the outbox row in commit order. This decouples request latency and availability from Kafka's.
 >
-> There is no Spring-specific outbox starter: the outbox is a small table (aggregate id, event type, JSON payload, created_at), the payload is serialized with Jackson 3's JsonMapper, and a standard Debezium Postgres connector handles the CDC. The Debezium Outbox Event Router single-message transform unwraps the row into the event envelope on the connector side. The same commit-together discipline reappears in the saga appendix.
+> There is no Spring-specific outbox starter: the outbox is a small table (aggregate id, event type, JSON payload, created_at), the payload is a JSONB column that Hibernate maps from a Map with @JdbcTypeCode(SqlTypes.JSON), and a standard Debezium Postgres connector handles the CDC. The Debezium Outbox Event Router single-message transform unwraps the row into the event envelope on the connector side. The same commit-together discipline reappears in the saga appendix.
 
 ## [033] DATA · Consistency without distributed transactions: the saga (sldId 288)
 
@@ -596,22 +593,24 @@ p. 35
 
 ```java
 // stream-processor RevenueTopology.java (excerpt): order.placed -> revenue.by-merchant
-@Configuration
-@EnableKafkaStreams
+@Configuration @EnableKafkaStreams
 public class RevenueTopology {
     @Bean
-    public KStream<String, String> revenueStream(StreamsBuilder builder) {
-        JacksonJsonSerde<Acc> accSerde = new JacksonJsonSerde<>(Acc.class).noTypeInfo();
-        var revenue = builder.stream(ORDERS, Consumed.with(Serdes.String(), Serdes.String()))
-            .map((key, json) -> parse(json))               // re-key by merchant_id
-            .groupByKey(Grouped.with(Serdes.String(), Serdes.String()))
+    public KStream<String, MerchantRevenue> revenueStream(StreamsBuilder builder) {
+        var orderSerde = new JacksonJsonSerde<>(OrderPlaced.class)
+            .ignoreTypeHeaders().noTypeInfo();
+        var accSerde = new JacksonJsonSerde<>(Acc.class).noTypeInfo();   // revenueSerde alike
+        var revenue = builder.stream(ORDERS, Consumed.with(Serdes.String(), orderSerde))
+            .filter((key, order) -> order != null && order.merchantId() != null)
+            .selectKey((key, order) -> order.merchantId())     // re-key by merchant_id
+            .groupByKey(Grouped.with(Serdes.String(), orderSerde))
             .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(windowSeconds)))
             .aggregate(() -> new Acc(0, BigDecimal.ZERO),  // local, changelog-backed
-                (merchant, amount, acc) -> add(merchant, acc, amount),
+                (merchant, order, acc) -> acc.add(order.total()),
                 Materialized.with(Serdes.String(), accSerde))
             .toStream()
-            .map((window, acc) -> KeyValue.pair(window.key(), toJson(window, acc)));
-        revenue.to(REVENUE, Produced.with(Serdes.String(), Serdes.String()));
+            .map((window, acc) -> KeyValue.pair(window.key(), toRevenue(window, acc)));
+        revenue.to(REVENUE, Produced.with(Serdes.String(), revenueSerde));
         return revenue;
     }
 }
@@ -623,9 +622,9 @@ p. 36
 
 > Kafka Streams is the JVM-native stream processor; on Spring Boot you get it through spring-kafka with @EnableKafkaStreams, which auto-configures a StreamsBuilderFactoryBean from spring.kafka.streams.* properties and injects the StreamsBuilder. The topology is a regular @Bean.
 >
-> The example re-keys each order.placed event by merchant, groups by key and aggregates into a tumbling window (window.seconds, 10 seconds by default). The accumulator, a count and a BigDecimal total, is serialized with Spring Kafka 4's JacksonJsonSerde on Jackson 3. The Materialized state store is local state backed by a Kafka changelog topic, so if the pod dies the state rebuilds by replaying the changelog: fault-tolerant local state with no external database in the hot path.
+> The example reads each order.placed event as a typed OrderPlaced record (merchant_id and total), re-keys it by merchant, groups by key and aggregates into a tumbling window (window.seconds, 10 seconds by default). The accumulator, a count and a BigDecimal total, is serialized with Spring Kafka 4's JacksonJsonSerde on Jackson 3. The Materialized state store is local state backed by a Kafka changelog topic, so if the pod dies the state rebuilds by replaying the changelog: fault-tolerant local state with no external database in the hot path.
 >
-> Each update to a (merchant, window) row is mapped to a JSON record with the window start, merchant_id, order_count and the revenue rounded HALF_UP, and written to revenue.by-merchant, a stream other services consume. A total that is not a number is skipped instead of killing the stream thread. If you would rather express this as routing than as a topology, Spring Integration is the alternative; Flink is the heavyweight option.
+> Each update to a (merchant, window) row is mapped to a MerchantRevenue record with the window start and end, merchant_id, order_count and the revenue rounded HALF_UP; a JacksonJsonSerde writes it as the same JSON object other services already consume from revenue.by-merchant, so the payload does not change for non-Java readers. An event that cannot be deserialized, such as a total that is not a number, is logged and skipped by the LogAndContinue handler instead of killing the stream thread. If you would rather express this as routing than as a topology, Spring Integration is the alternative; Flink is the heavyweight option.
 
 ## [044] STREAM PROCESSING · KEDA scales workers on the signal that matters (sldId 299)
 
@@ -1789,7 +1788,7 @@ p. 106
 ## [126] APPENDIX D · SAGAS · Two ways to keep a saga durable (sldId 381)
 
 - Two open-source paths, both shown in this appendix with a diagram and code.
-- The hand-rolled orchestrator (Example 17): one sagas row per instance (status, step_index, JSONB context) and a saga_log, written with JdbcClient inside a TransactionTemplate. No extra dependency, no extra cluster.
+- The hand-rolled orchestrator (Example 17): one sagas row per instance (status, step_index, JSONB context) and a saga_log, written through Spring Data JPA, one transaction per step under a row lock. No extra dependency, no extra cluster.
 - Temporal: a durable execution engine (Temporal Server MIT, Java SDK Apache 2.0). Workflows and activities are plain Java; the Server persists every event and replays it on recovery. Most power, a separate cluster to run.
 - Decision rule: keep the hand-rolled orchestrator while the saga is short and lives in one service; reach for Temporal when it is long, shared across services, or needs timers, retries and child workflows as first-class features.
 - Spring Statemachine is not on the list: its repository is archived upstream and 4.0.x was its last open-source line.
@@ -1868,44 +1867,44 @@ p. 110
 
 ## [130] APPENDIX D · SAGAS · The hand-rolled orchestrator: one step per transaction (sldId 385)
 
-[chip] java · Spring Boot 4 + JdbcClient
+[chip] java · Spring Boot 4 + JPA
 
 ```java
-// SagaService.java excerpt (examples/17-sagas); helper names stand for its JdbcClient calls
-private void advance(String sagaId) {
-    String[] statusHolder = new String[1];
-    txTemplate.executeWithoutResult(status -> {         // lock, run one step, commit
-        var row = lockRow(sagaId);          // SELECT ... FROM sagas WHERE id = :id FOR UPDATE
-        if (row == null || !"RUNNING".equals(row[0])) return;      // finished: no-op
-        int stepIndex = (int) row[1]; var context = fromJson((String) row[2]);
-        if (stepIndex >= STEPS.size()) { markStatus(sagaId, "COMPLETED"); return; }
-        SagaStep step = STEPS.get(stepIndex);               // (name, compensation)
-        try {
-            Map<String, Object> result = stepExecutor.execute(step.name(), context);
-            context.put(step.name(), result);                  // output flows forward
-            logStep(sagaId, step.name(), "execute", result);
-            saveProgress(sagaId, stepIndex + 1, context);      // step_index + JSONB context
-            statusHolder[0] = "RUNNING";
-        } catch (Exception e) {
-            markStatus(sagaId, "COMPENSATING"); statusHolder[0] = "COMPENSATING";
-        }
-    });
-    if ("RUNNING".equals(statusHolder[0])) advance(sagaId);    // next step, new transaction
-    else if ("COMPENSATING".equals(statusHolder[0])) compensate(sagaId);
+// SagaEngine.java excerpt (examples/17-sagas); the failed-step log row is left out
+@Transactional                                  // lock, run one step, commit
+public String advanceOnce(String sagaId) {
+    SagaEntity saga = sagas.lockById(sagaId).orElse(null);  // @Lock(PESSIMISTIC_WRITE)
+    if (saga == null) return "NOT_FOUND";
+    if (!"RUNNING".equals(saga.getStatus())) return saga.getStatus();  // finished: no-op
+    int stepIndex = saga.getStepIndex();
+    if (stepIndex >= STEPS.size()) { saga.setStatus("COMPLETED"); return "COMPLETED"; }
+    SagaStep step = STEPS.get(stepIndex);                 // (name, compensation)
+    try {
+        var result = stepExecutor.execute(step.name(), saga.getContext());
+        sagaLog.save(new SagaLogEntity(sagaId, step.name(), "execute", result));
+        saga.setStepIndex(stepIndex + 1);                 // output joins the JSONB context
+        saga.setContext(contextWith(saga, step.name(), result));
+        return "RUNNING";
+    } catch (Exception e) {
+        saga.setStatus("COMPENSATING");                   // dirty checking writes it back
+        return "COMPENSATING";
+    }
 }
+// SagaService.advance(): do { status = engine.advanceOnce(id); } while RUNNING (a new
+// transaction each call), then engine.compensate(id) when the status is COMPENSATING
 ```
 
 The row lock, the step's output and the new state commit together; a failed step hands off to compensate().
 
 p. 111
 
-> The excerpt is advance() from SagaService in Example 17, condensed where it talks to Postgres: lockRow, saveProgress, logStep and markStatus stand for its JdbcClient calls, and the failed-step log row is left out.
+> The excerpt is advanceOnce() from SagaEngine in Example 17: one transaction per step, with the log row for a failed step left out.
 >
-> STEPS is a list of SagaStep records pairing each forward step with its compensation (charge_payment with refund_payment, reserve_stock with release_stock, book_shipping with cancel_shipping), so the unwind order is data. advance() opens a TransactionTemplate, locks the saga row with SELECT ... FOR UPDATE and returns at once unless the status is RUNNING, so a redelivered request or a second worker finds a finished saga and does nothing.
+> STEPS is a list of SagaStep records pairing each forward step with its compensation (charge_payment with refund_payment, reserve_stock with release_stock, book_shipping with cancel_shipping), so the unwind order is data. advanceOnce() is @Transactional and loads the saga through lockById, a repository query annotated @Lock(PESSIMISTIC_WRITE) that Hibernate runs as SELECT ... FOR UPDATE. It returns at once unless the status is RUNNING, so a redelivered request or a second worker finds a finished saga and does nothing.
 >
-> Inside the transaction the step runs, its result goes into the JSONB context under the step's name (this is how book_shipping can read what reserve_stock produced), the log row is written, and step_index moves forward. The lock, the log and the new state commit together, the same rule as the outbox.
+> Inside the transaction the step runs, its result goes into the JSONB context under the step's name (this is how book_shipping can read what reserve_stock produced), the log row is saved, and step_index moves forward. The entity is managed, so Hibernate writes the changes when the transaction commits: the lock, the log and the new state commit together, the same rule as the outbox.
 >
-> After the commit, advance() calls itself for the next step in a new transaction. A crash rolls back at most the step in flight, which runs again on resume, so every step must be idempotent. A thrown exception marks the saga COMPENSATING, and compensate() runs the completed steps' compensations in reverse before setting COMPENSATED.
+> SagaService.advance() calls advanceOnce() in a loop, each call in a new transaction, until the status is no longer RUNNING. A crash rolls back at most the step in flight, which runs again on resume, so every step must be idempotent. A thrown exception marks the saga COMPENSATING, and compensate() runs the completed steps' compensations in reverse before setting COMPENSATED. The transaction boundary lives in SagaEngine, a separate bean, because a @Transactional method called from inside its own class would bypass the proxy.
 >
 > Compared with Temporal: no extra server, but no built-in retries, timers or replay; the retry and resume logic is yours. The step executor in the example simulates the three services.
 
@@ -2398,34 +2397,36 @@ p. 144
 [chip] java · Spring Boot 4
 
 ```java
-// OrderServiceApplication.java (excerpt), examples/21-graceful-shutdown/spring-boot
+// DrainLifecycle.java (excerpt), examples/21-graceful-shutdown/spring-boot
 // application.properties: server.shutdown=graceful
 //                         spring.lifecycle.timeout-per-shutdown-phase=20s
-@SpringBootApplication
-public class OrderServiceApplication {
-    public static void main(String[] args) {
-        // registered before Spring starts: replaces the JVM's default SIGTERM handler
-        Signal.handle(new Signal("TERM"), signal -> {
-            ShutdownState state = ShutdownState.getInstance();  // GET /readyz reads it: 503
-            if (!state.markShuttingDown()) return;   // one SIGTERM drives the drain
-            long delay = drainDelaySeconds();        // DRAIN_DELAY_SECONDS, default 5
-            new Thread(() -> {
-                try { Thread.sleep(delay * 1000); }  // keep serving: endpoints update
-                catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-                System.exit(0);  // shutdown hook: stop accepting, finish in-flight, close pool
-            }, "drain").start();
-        });
-        SpringApplication.run(OrderServiceApplication.class, args);
+//                         ...health.group.readiness.include=readinessState,db,drain
+@Component
+class DrainLifecycle implements SmartLifecycle {
+    @Override
+    public void stop() {                          // SIGTERM: the highest phase stops first
+        if (!state.markShuttingDown()) return;    // one SIGTERM drives the drain
+        AvailabilityChangeEvent.publish(events, this, ReadinessState.REFUSING_TRAFFIC);
+        Thread.sleep(drainDelayMillis);           // DRAIN_DELAY_SECONDS, default 5: serve on
+        // then the web server's graceful phase finishes in-flight HTTP (20 s bound), the
+        // context closes the pool, and the JVM exits (143 = 128 + SIGTERM)
     }
+    @Override
+    public int getPhase() { return DEFAULT_PHASE - 512; }   // stops before the web server
 }
+// A "drain" HealthIndicator reports DOWN "shutting down": /readyz is 503, /healthz stays 200.
 // Kafka consumers, the scheduler and WebSockets drain in a ContextClosedEvent listener.
 ```
 
-One SIGTERM flips readiness; after DRAIN_DELAY_SECONDS, System.exit(0) runs Spring's graceful shutdown, bounded at 20 s per phase.
+One SIGTERM flips readiness; after DRAIN_DELAY_SECONDS the web server's graceful shutdown drains in-flight requests, bounded at 20 s per phase.
 
 p. 145
 
-> Example 21 takes the signal itself, so the whole sequence is visible. A sun.misc.Signal handler registered before Spring starts replaces the JVM's default SIGTERM handler, which would run the shutdown hooks at once. One SIGTERM, the only signal Kubernetes sends before SIGKILL, drives everything: the handler flips ShutdownState, so the hand-written /readyz answers 503 and the Service stops routing, and a drain thread keeps the service serving for DRAIN_DELAY_SECONDS (5 s; it plays the part of a preStop sleep) while the endpoint removal propagates. It then calls System.exit(0), which runs Spring's shutdown hook: with server.shutdown=graceful the embedded Tomcat, Jetty or Reactor Netty stops accepting new connections and finishes in-flight HTTP, bounded by spring.lifecycle.timeout-per-shutdown-phase (20 s here; the default is 30 s), then the context closes the pool and the process exits 0, inside the 30-second grace period. Use @EventListener(ContextClosedEvent.class), @PreDestroy or SmartLifecycle to drain what Spring does not drain for you: Kafka consumers (consumer.wakeup() then commit on close), the scheduler (stop accepting new triggers), WebSockets (send a close frame so clients reconnect elsewhere). With Actuator, publishing ReadinessState.REFUSING_TRAFFIC flips /actuator/health/readiness the same way; the example keeps its own /readyz, as Example 01 does. Pair it with the Kubernetes settings: readiness, preStop and the grace period.
+> Example 21 lets Spring Boot's lifecycle carry the whole sequence. On SIGTERM the JVM's shutdown hook closes the application context, and Spring stops SmartLifecycle beans from the highest phase down. DrainLifecycle runs at DEFAULT_PHASE minus 512, a higher phase than the web server's graceful-shutdown phase, so it stops first. One SIGTERM, the only signal Kubernetes sends before SIGKILL, drives everything: the bean flips ShutdownState and publishes ReadinessState.REFUSING_TRAFFIC through an AvailabilityChangeEvent, so /readyz answers 503 and the Service stops routing, and it then keeps the service serving for DRAIN_DELAY_SECONDS (5 s; it plays the part of a preStop sleep) while the endpoint removal propagates.
+>
+> A drain HealthIndicator is part of the readiness group and reports DOWN with the reason shutting down, which the 503 body shows; the liveness group does not include it, so /healthz stays 200. Then, with server.shutdown=graceful, the embedded Tomcat, Jetty or Reactor Netty stops accepting new connections and finishes in-flight HTTP, bounded by spring.lifecycle.timeout-per-shutdown-phase (20 s here; the default is 30 s), the context closes the pool, and the process ends inside the 30-second grace period. The JVM exits with 143 (128 + SIGTERM) after a clean shutdown, which Kubernetes and the verify script treat as success.
+>
+> Use @EventListener(ContextClosedEvent.class), @PreDestroy or SmartLifecycle to drain what Spring does not drain for you: Kafka consumers (consumer.wakeup() then commit on close), the scheduler (stop accepting new triggers), WebSockets (send a close frame so clients reconnect elsewhere). In a real cluster the drain delay is usually a preStop sleep in the pod spec; the lifecycle bean keeps the example self-contained on compose. Pair it with the Kubernetes settings: readiness, preStop and the grace period.
 
 ## [169] APPENDIX H · SHUTDOWN · The Kubernetes side: probes, preStop, grace period (sldId 424)
 
@@ -3229,43 +3230,43 @@ p. 192
 
 > The variation where the cache abstraction, not the application, calls the database on a miss. The Spring app calls productService.findById(id) and gets the value back. For Spring, the cleanest expression is the Spring Cache abstraction with @Cacheable. Pros: cleaner application code, declarative TTL. Cons: less control over what triggers a DB hit. Use when read paths are repetitive and you want declarative caching.
 
-## [219] APPENDIX L · READ-THROUGH · Read-through in Spring Boot with @Cacheable (sldId 474)
+## [219] APPENDIX L · READ-THROUGH · Read-through in Spring Boot with Cache.get (sldId 474)
 
 [chip] java · Spring Boot 4 + Spring Cache + Spring Data Redis
 
 ```java
-// Spring Cache with Redis backing (Spring Boot 4, Jackson 3).
-@Configuration @EnableCaching
-public class CacheConfig {
+// Spring Cache with Redis backing (Spring Boot 4, Jackson 3), examples/25-caching
+@Configuration
+class ReadThroughCacheConfig {
     @Bean
-    public RedisCacheManager cacheManager(RedisConnectionFactory cf) {
+    RedisCacheManager cacheManager(RedisConnectionFactory cf, CacheServiceProperties props) {
+        var products = RedisCacheConfiguration.defaultCacheConfig()
+            .entryTtl(Duration.ofSeconds(props.ttlSeconds()))
+            .disableCachingNullValues()
+            .computePrefixWith(cacheName -> "rt:product:")        // keys: rt:product:<id>
+            .serializeValuesWith(SerializationPair.fromSerializer(
+                new JacksonJsonRedisSerializer<>(ProductView.class)));   // plain JSON values
         return RedisCacheManager.builder(cf)
-            .cacheDefaults(RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofSeconds(60))
-                .serializeValuesWith(SerializationPair.fromSerializer(
-                    RedisSerializer.json())))   // Jackson 3: hits come back as Product
+            .withInitialCacheConfigurations(Map.of("read-through-products", products))
             .build();
     }
 }
-@Service
-public class ProductService {
-    private final ProductRepository repo;
-    public ProductService(ProductRepository repo) { this.repo = repo; }
-    @Cacheable(value = "products", key = "#id")           // cache-then-load
-    public Product findById(String id) {
-        return repo.findById(id)                          // method body = loader
-            .orElseThrow(() -> new ResponseStatusException(NOT_FOUND));
-    }
-    @CacheEvict(value = "products", key = "#id") @Transactional
-    public Product update(String id, Product body) { /* load, apply, save */ }
+@GetMapping("/read-through/products/{pid}")
+public ResponseEntity<ProductResponse> readThroughGet(@PathVariable String pid) {
+    var loaded = new AtomicBoolean();                   // set only when the loader ran
+    ProductView product = readThroughCache.get(pid, () -> {   // hit: cached; miss: loader
+        loaded.set(true);
+        return products.find(pid).orElseThrow(() -> new UnknownProduct(pid));
+    });
+    return ResponseEntity.ok(product.from(loaded.get() ? "db" : "cache"));   // "source"
 }
 ```
 
-@Cacheable turns the method body into a loader. Callers see one interface; the cache miss path is invisible.
+Cache.get(key, loader) runs the loader only on a miss. Callers see one interface; a hit never touches the database.
 
 p. 193
 
-> Idiomatic Spring read-through. @EnableCaching activates the Cache abstraction. RedisCacheManager configures Redis as backing store with a 60s default TTL and Jackson 3 JSON values (RedisSerializer.json()). @Cacheable transforms findById() into 'try cache, run method body on miss, store result'. @CacheEvict on update() removes the entry after a successful write. The @Cacheable approach requires the service layer (Spring AOP proxies don't catch self-calls), which is also good architecture. Trade vs explicit cache-aside: explicit if/else replaced by declarative annotations. SpEL: key = "#order.id + ':' + #user", condition = "#qty > 100": flexible but harder to debug.
+> Idiomatic Spring read-through. The Cache abstraction is the library's read-through interface: cache.get(key, loader) returns the cached value, or calls the loader on a miss and stores the result. RedisCacheManager configures Redis as the backing store with a TTL from configuration, keys prefixed rt:product: and plain JSON values (JacksonJsonRedisSerializer on Jackson 3), so non-Java readers can parse them. Example 25 calls the Cache directly instead of using @Cacheable because the endpoint reports where the answer came from: a flag set inside the loader becomes the source field, db on a miss and cache on a hit. The loader throws when the product does not exist, which keeps null out of the cache and becomes a 404. If Redis is down, the call fails and the endpoint falls back to the database. The annotation form, @Cacheable on a service method with @CacheEvict on update(), gives the same behavior declaratively; it requires the service layer (Spring AOP proxies don't catch self-calls), which is also good architecture. Trade vs explicit cache-aside: explicit if/else replaced by declarative annotations. SpEL: key = "#order.id + ':' + #user", condition = "#qty > 100": flexible but harder to debug.
 
 ## [220] APPENDIX L · WRITE-THROUGH · Write-through — cache and DB written synchronously (sldId 475)
 
@@ -3365,11 +3366,9 @@ p. 198
 
 ## [225] APPENDIX L · WRITE-BACK · Write-back with @Scheduled in Spring Boot (sldId 480)
 
-```
-java · Spring Boot 4 + @Scheduled + Spring Data Redis + JdbcClient
-```
+[chip] java · Spring Boot 4 + @Scheduled + Spring Data Redis + JPA
 
-```
+```java
 @PutMapping("/write-back/metrics/{mid}")   // CacheController (excerpt)
 public ResponseEntity<Map<String, Object>> writeBackWrite(
         @PathVariable String mid, @RequestBody Map<String, Object> body) {
@@ -3385,22 +3384,21 @@ public void flusher() {                                // BackgroundTasks
     List<String> failed = new ArrayList<>();
     for (String mid : ids) {
         try {                                     // upsert: an id flushed twice is one row
-            jdbc.sql("INSERT INTO metrics (id, payload) VALUES (?, ?::jsonb) "
-                    + "ON CONFLICT (id) DO UPDATE SET payload = ?::jsonb, ts = NOW()")
-                    .param(mid).param(json).param(json).update();   // json: the cached hash
-            cache.hdel("metric:attempts", mid);
+            metrics.upsert(mid, json);             // MetricRepository: @Modifying native
+            cache.hdel("metric:attempts", mid);    // INSERT ... ON CONFLICT (id) DO UPDATE
         } catch (Exception e) { failed.add(mid); }     // logged: flush failed for <mid>
     }
     if (failed.isEmpty()) { failures = 0; return; }
     nextFlushAt = System.currentTimeMillis() + Math.min(flushPeriodMs << ++failures, 8000);
     requeue(failed);   // HINCRBY metric:attempts; SADD metric:dirty, or metric:failed at 5
+}
 ```
 
 A write answers 202 Accepted. A failed flush re-queues its ids with backoff; after five attempts an id is parked on metric:failed.
 
 p. 199
 
-> Spring's @Scheduled drives write-back in Example 25. (1) PUT /write-back/metrics/{mid} writes the metric to a Redis hash, adds the id to a 'dirty set', which tells the flusher what still has to reach the database, and answers 202 Accepted: the value is queued, not yet durable. (2) @Scheduled(fixedDelayString = ...) runs every second, SPOPs up to FLUSH_BATCH dirty ids and upserts each one through JdbcClient with INSERT ... ON CONFLICT (id) DO UPDATE, so an id flushed twice stays one row. SPOP is atomic, so two replicas each get a distinct subset of ids and no lock is needed to scale out. (3) An id whose upsert fails is re-queued: its count in the metric:attempts hash goes up and it goes back on the dirty set, or, after five attempts, onto metric:failed with its value still in the cache and the failure in the log. After a failed run the flusher skips runs for two seconds, then four, then eight. Caveats: this is only safe with Redis persistence (AOF, appendonly yes); without it a Redis crash loses unflushed writes. For data that must not be lost, use write-through. For high-throughput telemetry where losing the last second is acceptable, write-back is what lets the service scale.
+> Spring's @Scheduled drives write-back in Example 25. (1) PUT /write-back/metrics/{mid} writes the metric to a Redis hash, adds the id to a 'dirty set', which tells the flusher what still has to reach the database, and answers 202 Accepted: the value is queued, not yet durable. (2) @Scheduled(fixedDelayString = ...) runs every second, SPOPs up to FLUSH_BATCH dirty ids and upserts each one through a Spring Data repository method, a @Modifying native INSERT ... ON CONFLICT (id) DO UPDATE, so an id flushed twice stays one row. SPOP is atomic, so two replicas each get a distinct subset of ids and no lock is needed to scale out. (3) An id whose upsert fails is re-queued: its count in the metric:attempts hash goes up and it goes back on the dirty set, or, after five attempts, onto metric:failed with its value still in the cache and the failure in the log. After a failed run the flusher skips runs for two seconds, then four, then eight. Caveats: this is only safe with Redis persistence (AOF, appendonly yes); without it a Redis crash loses unflushed writes. For data that must not be lost, use write-through. For high-throughput telemetry where losing the last second is acceptable, write-back is what lets the service scale.
 
 ## [226] APPENDIX L · REFRESH-AHEAD · Refresh-ahead — keep hot keys warm (sldId 481)
 
@@ -3717,29 +3715,30 @@ p. 221
 [chip] java · Spring Boot 4
 
 ```java
-// excerpt, examples/21-graceful-shutdown/spring-boot: one SIGTERM drives the drain
-# application.properties: server.shutdown=graceful, timeout-per-shutdown-phase=20s
-Signal.handle(new Signal("TERM"), signal -> {      // registered before SpringApplication.run
-    ShutdownState state = ShutdownState.getInstance();
-    if (!state.markShuttingDown()) return;          // 1. readiness flips: /readyz answers 503
-    new Thread(() -> {
-        try { Thread.sleep(drainDelaySeconds() * 1000); }   // 2. the LB stops routing (5 s)
-        catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-        System.exit(0);              // 3. graceful shutdown drains in-flight HTTP (20 s)
-    }, "drain").start();                            // 4. the context closes the pool, exit 0
-});
-@GetMapping("/readyz")                              // OrderController
-public ResponseEntity<Map<String, Object>> readyz() {
-    if (shutdownState.isShuttingDown())
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(Map.of("ready", false, "reason", "shutting down"));
-    // ... SELECT 1: 200 {"ready": true}, or 503 "db unreachable"; /healthz stays 200
+// DrainLifecycle.java (excerpt), examples/21-graceful-shutdown/spring-boot
+// application.properties: server.shutdown=graceful, timeout-per-shutdown-phase=20s
+@Component
+class DrainLifecycle implements SmartLifecycle {      // stops before the web server
+    public void stop() {
+        if (!state.markShuttingDown()) return;        // 1. readiness flips: /readyz is 503
+        AvailabilityChangeEvent.publish(events, this, ReadinessState.REFUSING_TRAFFIC);
+        Thread.sleep(drainDelayMillis);               // 2. the LB stops routing (5 s)
+    }                      // 3. graceful shutdown drains in-flight HTTP (20 s)
+    public int getPhase() { return DEFAULT_PHASE - 512; }  // 4. the context closes the pool
+}
+@Component("drain")                                  // part of the readiness group
+class DrainHealthIndicator implements HealthIndicator {
+    public Health health() {
+        return state.isShuttingDown()
+            ? Health.down().withDetail("reason", "shutting down").build()
+            : Health.up().build();                    // /healthz (liveness) stays 200
+    }
 }
 ```
 
 p. 222
 
-> Example 21 takes SIGTERM itself. A sun.misc.Signal handler registered before Spring starts flips ShutdownState on the single SIGTERM: (1) the hand-written /readyz answers 503, so the Kubernetes readiness probe sees the pod go not-ready and stops routing, while /healthz stays 200; (2) a drain thread keeps the service serving for DRAIN_DELAY_SECONDS so the load balancer's removal propagates; (3) System.exit(0) runs Spring's graceful shutdown, which stops accepting and drains in-flight HTTP within timeout-per-shutdown-phase (20 s); (4) the context closes the pool and the process exits 0. Appendix H covers the Kubernetes preStop + terminationGracePeriodSeconds side.
+> Example 21 lets Spring Boot's lifecycle carry the drain. A SmartLifecycle bean (DrainLifecycle) stops before the web server on the single SIGTERM: (1) it flips ShutdownState and publishes REFUSING_TRAFFIC, so the readiness group, which includes a drain HealthIndicator, answers /readyz with 503 and the Kubernetes readiness probe sees the pod go not-ready and stops routing, while /healthz stays 200; (2) it keeps the service serving for DRAIN_DELAY_SECONDS so the load balancer's removal propagates; (3) the web server's graceful shutdown stops accepting and drains in-flight HTTP within timeout-per-shutdown-phase (20 s); (4) the context closes the pool and the JVM exits with 143 (128 + SIGTERM). Appendix H covers the Kubernetes preStop + terminationGracePeriodSeconds side.
 
 ## [250] APPENDIX M · OBSERVE · Observing failure modes (see §11) (sldId 505)
 

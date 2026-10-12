@@ -1,15 +1,12 @@
 package com.example.cache;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -32,22 +29,22 @@ public class BackgroundTasks {
     private long nextFlushAt;
 
     private final SafeRedis cache;
-    private final JdbcClient jdbc;
+    private final MetricRepository metrics;
+    private final ProductService products;
     private final JsonMapper mapper;
+    private final long ttl;
+    private final long flushPeriodMs;
+    private final long refreshBefore;
 
-    @Value("${cache-service.ttl-seconds:60}")
-    private long ttl;
-
-    @Value("${cache-service.flush-period-ms:1000}")
-    private long flushPeriodMs;
-
-    @Value("${cache-service.refresh-before-seconds:10}")
-    private long refreshBefore;
-
-    public BackgroundTasks(SafeRedis cache, JdbcClient jdbc, JsonMapper mapper) {
+    public BackgroundTasks(SafeRedis cache, MetricRepository metrics, ProductService products,
+                           JsonMapper mapper, CacheServiceProperties properties) {
         this.cache = cache;
-        this.jdbc = jdbc;
+        this.metrics = metrics;
+        this.products = products;
         this.mapper = mapper;
+        this.ttl = properties.ttlSeconds();
+        this.flushPeriodMs = properties.flushPeriodMs();
+        this.refreshBefore = properties.refreshBeforeSeconds();
     }
 
     // -----------------------------------------------------------------------
@@ -73,13 +70,7 @@ public class BackgroundTasks {
                 try {
                     Map<String, String> data = cache.hgetall("metric:" + mid);
                     if (!data.isEmpty()) {
-                        String payloadJson = toJson(data);
-                        jdbc.sql("INSERT INTO metrics (id, payload) VALUES (?, ?::jsonb) "
-                                + "ON CONFLICT (id) DO UPDATE SET payload = ?::jsonb, ts = NOW()")
-                                .param(mid)
-                                .param(payloadJson)
-                                .param(payloadJson)
-                                .update();
+                        metrics.upsert(mid, toJson(data));
                     }
                     cache.hdel("metric:attempts", mid);
                 } catch (Exception e) {
@@ -137,19 +128,9 @@ public class BackgroundTasks {
             for (String pid : hotIds) {
                 Long ttlVal = cache.ttl("ra:product:" + pid);
                 if (ttlVal != null && ttlVal > 0 && ttlVal < refreshBefore) {
-                    var optRow = jdbc.sql("SELECT id, name, price_cents FROM products WHERE id = ?")
-                            .param(pid)
-                            .query((rs, rowNum) -> {
-                                Map<String, Object> m = new LinkedHashMap<>();
-                                m.put("id", rs.getString("id"));
-                                m.put("name", rs.getString("name"));
-                                m.put("price_cents", rs.getInt("price_cents"));
-                                return m;
-                            })
-                            .optional();
-
-                    if (optRow.isPresent()) {
-                        cache.setex("ra:product:" + pid, toJson(optRow.get()), ttl);
+                    var product = products.find(pid);
+                    if (product.isPresent()) {
+                        cache.setex("ra:product:" + pid, toJson(product.get()), ttl);
                         log.info("refresher: pre-warmed {}", pid);
                     }
                 }

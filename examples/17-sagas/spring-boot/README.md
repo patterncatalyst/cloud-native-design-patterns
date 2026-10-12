@@ -4,8 +4,8 @@ DB-backed saga orchestrator — three steps forward, reverse-order compensation 
 
 ## Framework & libraries
 
-- **Framework**: Spring Boot 4.1.1, Java 25 (Web, JDBC)
-- **Libraries**: spring-boot-starter-jdbc, PostgreSQL driver, OpenTelemetry Java agent
+- **Framework**: Spring Boot 4.1.1, Java 25 (Web, Data JPA, Actuator)
+- **Libraries**: spring-boot-starter-data-jpa, spring-boot-starter-actuator, PostgreSQL driver, OpenTelemetry Java agent
 - **Container base**: `ubi10/openjdk-25-runtime:1.24-15` (UID 185)
 
 ## Run
