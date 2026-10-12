@@ -10,7 +10,11 @@ CURL_OPTS="${CURL_OPTS:-}"
 # an engine. RUNTIME=docker (default) calls the docker CLI on compose containers.
 # RUNTIME=kubernetes calls `$KUBECTL exec` against the pods that stand in for
 # those containers: ctr_target maps a container name (cndp-kafka, cndp-postgres)
-# to its pod. Set KUBECTL=oc for OpenShift.
+# to its pod. Set KUBECTL=oc for OpenShift Local, with KUBE_CONTEXT=crc-admin and a pod
+# target that exists there (the defaults match the AMQ Streams and sclorg pods). The Routes
+# serve a certificate signed by the cluster's ingress CA, so pass it through curl:
+#   RUNTIME=kubernetes KUBECTL=oc KUBE_CONTEXT=crc-admin BASE=https://order-service-cndp-05.apps-crc.testing \
+#     CURL_OPTS="--cacert $HOME/.local/state/cndp-05-crc/ingress-ca.crt" ./verify.sh
 KUBECTL="${KUBECTL:-kubectl}"
 KUBE_CONTEXT="${KUBE_CONTEXT:-cndp-k8s}"
 KUBE_NAMESPACE="${KUBE_NAMESPACE:-cndp-05}"

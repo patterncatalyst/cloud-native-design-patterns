@@ -1,0 +1,23 @@
+# What changes between the minikube base and OpenShift, independent of language:
+#   - a Route replaces the NodePort, so the Service becomes ClusterIP
+#   - images come from the internal registry, which an updated v1 tag must refresh
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - route.yaml
+patches:
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+  - target:
+      kind: Service
+      name: order-service
+    patch: |-
+      - op: replace
+        path: /spec/type
+        value: ClusterIP
+      - op: remove
+        path: /spec/ports/0/nodePort

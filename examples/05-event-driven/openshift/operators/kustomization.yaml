@@ -1,0 +1,8 @@
+# The AMQ Streams operator in its own namespace with its own OperatorGroup, so
+# teardown.sh can remove all of it. Apply with: oc kustomize operators | oc apply -f -
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - operatorgroup.yaml
+  - subscription.yaml

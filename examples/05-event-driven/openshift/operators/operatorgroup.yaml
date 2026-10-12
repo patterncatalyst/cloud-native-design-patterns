@@ -1,0 +1,11 @@
+# An empty spec selects every namespace (AllNamespaces), which is the install mode
+# the AMQ Streams operator supports alongside OwnNamespace. The operator watches
+# cndp-05 without a second OperatorGroup there.
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: cndp-amq-streams
+  namespace: cndp-amq-streams
+  labels:
+    app.kubernetes.io/part-of: cndp-05
+spec: {}

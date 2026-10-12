@@ -1,0 +1,18 @@
+# Manual approval plus startingCSV pins the operator: OLM creates an InstallPlan for
+# exactly this CSV and waits. deploy.sh approves that one InstallPlan and no other.
+# The CSV and channel come from `oc get packagemanifest amq-streams`; the live run
+# confirms them on the cluster (S10 plan, "Live pin confirmations").
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: amq-streams
+  namespace: cndp-amq-streams
+  labels:
+    app.kubernetes.io/part-of: cndp-05
+spec:
+  name: amq-streams
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  channel: amq-streams-3.2.x
+  startingCSV: amqstreams.v3.2.1-14
+  installPlanApproval: Manual
