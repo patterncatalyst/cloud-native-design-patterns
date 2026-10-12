@@ -132,24 +132,27 @@ public class HealthController {
 ```
 
 ```java
-// HealthResource.java (excerpt), examples/01-cloud-native-principles/quarkus
-@Path("/") @Produces(MediaType.APPLICATION_JSON)
-public class HealthResource {
-    @ConfigProperty(name = "quarkus.datasource.jdbc.url") String jdbcUrl;  // env, factor III
-    @GET @Path("healthz")                    // liveness: the process is up
-    public Map<String, String> healthz() { return Map.of("status", "ok"); }
-    @GET @Path("readyz")                     // readiness: SELECT 1 (one retry elided)
-    public Response readyz() {
-        try (var conn = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
-             var rs = conn.createStatement().executeQuery("SELECT 1")) {
-            return Response.ok(Map.of("status", "ready",
-                    "checks", Map.of("database", "ok"))).build();
-        } catch (Exception e) {              // down: 503, out of rotation
-            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
-                .entity(Map.of("status", "down", "checks", Map.of("database", "unreachable")))
-                .build();
-        }
-    }
+# application.properties (excerpt), examples/01-cloud-native-principles/quarkus
+# SmallRye Health: readiness includes the datasource check (503 when the database is down)
+quarkus.smallrye-health.liveness-path=/healthz
+quarkus.smallrye-health.readiness-path=/readyz
+# db/init owns the schema: Hibernate only validates
+quarkus.hibernate-orm.schema-management.strategy=validate
+// Order.java: active record over the existing table
+@Entity @Table(name = "orders")
+public class Order extends PanacheEntityBase {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) public Integer id;
+    @Column(nullable = false) public String customer;
+    @Column(nullable = false, precision = 10, scale = 2) public BigDecimal total;
+}
+// OrderResource.java (excerpt)
+@ConfigProperty(name = "service.version") String serviceVersion;      // env, factor III
+@POST @Path("orders") @Transactional
+public OrderDto createOrder(@RestQuery String customer, @RestQuery BigDecimal total) {
+    var order = new Order(); order.customer = customer;
+    order.total = total.setScale(2, RoundingMode.HALF_UP);
+    order.persist();                         // INSERT in the request transaction
+    return OrderDto.of(order);               // the DTO, never the entity
 }
 ```
 
