@@ -4,8 +4,8 @@ SIGTERM handling — drain in-flight requests, stop accepting new ones, close DB
 
 ## Framework & libraries
 
-- **Framework**: Spring Boot 4.1.1, Java 25 (Web, JDBC)
-- **Libraries**: spring-boot-starter-webmvc, spring-boot-starter-jdbc
+- **Framework**: Spring Boot 4.1.1, Java 25 (Web, Data JPA, Actuator)
+- **Libraries**: spring-boot-starter-webmvc, spring-boot-starter-data-jpa, spring-boot-starter-actuator
 - **Container base**: `ubi10/openjdk-25-runtime:1.24-15` (UID 185)
 
 ## Run
@@ -28,7 +28,7 @@ cd .. && bash verify.sh
 
 ## Implementation notes
 
-A `sun.misc.Signal` handler registered before Spring starts takes the single SIGTERM: it flips readiness, waits `DRAIN_DELAY_SECONDS` (default 5) while endpoints update, then calls `System.exit(0)`. Spring's shutdown hook and built-in graceful shutdown stop accepting new connections, drain in-flight requests up to `spring.lifecycle.timeout-per-shutdown-phase` (20 s) and close the ApplicationContext. The process exits 0.
+On SIGTERM, Spring stops lifecycle beans from the highest phase down. `DrainLifecycle` (a `SmartLifecycle` bean at `DEFAULT_PHASE - 512`) stops first: it flips readiness with an `AvailabilityChangeEvent`, then sleeps `DRAIN_DELAY_SECONDS` (default 5) while endpoints update. The readiness group includes a `drain` health indicator, so `/readyz` returns 503 with the reason `shutting down` while `/healthz` stays 200. Then the web server's graceful shutdown (`server.shutdown=graceful`) drains in-flight requests up to `spring.lifecycle.timeout-per-shutdown-phase` (20 s) and the ApplicationContext closes. The JVM exits with 143 (128 + SIGTERM) after a clean shutdown.
 
 ## Environment variables
 

@@ -36,23 +36,18 @@ public class DecoratorController {
 
     private final RestClient restClient;
     private final StringRedisTemplate redisTemplate;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaTemplate<String, Map<String, Object>> kafkaTemplate;
     private final JsonMapper objectMapper;
     private final List<Map<String, Object>> publishedEvents = Collections.synchronizedList(new ArrayList<>());
 
     public DecoratorController(RestClient restClient,
                                StringRedisTemplate redisTemplate,
-                               KafkaTemplate<String, String> kafkaTemplate,
+                               KafkaTemplate<String, Map<String, Object>> kafkaTemplate,
                                JsonMapper objectMapper) {
         this.restClient = restClient;
         this.redisTemplate = redisTemplate;
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
-    }
-
-    @GetMapping("/healthz")
-    public Map<String, String> healthz() {
-        return Map.of("status", "ok");
     }
 
     @SuppressWarnings("unchecked")
@@ -89,8 +84,7 @@ public class DecoratorController {
 
         // Publish to Kafka
         try {
-            String eventJson = objectMapper.writeValueAsString(event);
-            kafkaTemplate.send(TOPIC, eventJson);
+            kafkaTemplate.send(TOPIC, event);
             logger.info("EVENT order.placed -> Kafka order_id={}", orderId);
         } catch (Exception e) {
             logger.warn("Kafka publish failed: {}", e.getMessage());

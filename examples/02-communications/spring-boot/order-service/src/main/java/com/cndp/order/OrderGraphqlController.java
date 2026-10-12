@@ -1,34 +1,28 @@
 package com.cndp.order;
 
 import java.util.List;
-import java.util.Map;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Controller;
 
 @Controller
 public class OrderGraphqlController {
 
-    private final JdbcClient jdbc;
+    private final OrderRepository orders;
 
-    public OrderGraphqlController(JdbcClient jdbc) {
-        this.jdbc = jdbc;
+    public OrderGraphqlController(OrderRepository orders) {
+        this.orders = orders;
     }
 
     @QueryMapping
-    public List<Map<String, Object>> orders(@Argument int limit) {
-        return jdbc.sql("SELECT id, sku, quantity, status FROM orders ORDER BY id LIMIT ?")
-                .param(limit)
-                .query().listOfRows();
+    public List<OrderView> orders(@Argument int limit) {
+        return orders.findAllByOrderByIdAsc(PageRequest.ofSize(limit)).stream().map(Order::toView).toList();
     }
 
     @QueryMapping
-    public Map<String, Object> order(@Argument String id) {
-        var rows = jdbc.sql("SELECT id, sku, quantity, status FROM orders WHERE id = ?")
-                .param(id)
-                .query().listOfRows();
-        return rows.isEmpty() ? null : rows.getFirst();
+    public OrderView order(@Argument String id) {
+        return orders.findById(id).map(Order::toView).orElse(null);
     }
 }

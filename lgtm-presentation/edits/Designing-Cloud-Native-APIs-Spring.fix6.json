@@ -1,0 +1,518 @@
+{
+ "ops": [
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    269
+   ],
+   "find": "java · Spring Boot 4",
+   "repl": "java · Spring Boot 4 + Actuator",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 14,
+   "_why": "examples/01 spring-boot serves /healthz and /readyz from Actuator health groups",
+   "_src": "s13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 269,
+   "lines": [
+    "// application.yaml + OrderController (excerpt), examples/01-cloud-native-principles",
+    "// config from env (factor III): SPRING_DATASOURCE_URL, SERVICE_VERSION -> service.version",
+    "// management.endpoint.health:",
+    "//   probes.enabled: true",
+    "//   group:",
+    "//     liveness:                        # liveness: the process is up",
+    "//       include: livenessState",
+    "//       additional-path: \"server:/healthz\"",
+    "//     readiness:                       # readiness: a pooled connection answers",
+    "//       include: readinessState,db",
+    "//       additional-path: \"server:/readyz\"   # DOWN: 503, the pod leaves the Service",
+    "@RestController",
+    "public class OrderController {",
+    "    private final OrderRepository orders;     // Spring Data JPA over the orders table",
+    "    private final String serviceVersion;",
+    "    public OrderController(OrderRepository orders,",
+    "                           @Value(\"${service.version}\") String serviceVersion) {",
+    "        this.orders = orders;",
+    "        this.serviceVersion = serviceVersion;",
+    "    }",
+    "    @GetMapping(\"/orders\")",
+    "    public List<OrderResponse> listOrders() {",
+    "        return orders.findAll(Sort.by(\"id\")).stream().map(OrderResponse::of).toList();",
+    "    }",
+    "}"
+   ],
+   "cat": "code",
+   "_slide": 14,
+   "_why": "examples/01: probes come from Actuator health groups; persistence is Spring Data JPA",
+   "_src": "s13",
+   "max_lines": 25
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    269
+   ],
+   "find": "The two probes are a plain @RestController in Example 01: /healthz is liveness (am I alive? if not, restart me) and never checks a dependency; /readyz is readiness (can I serve?): it runs SELECT 1 on a pooled connection and, when that fails, answers 503 with status down, which takes the pod out of rotation without killing it.",
+   "repl": "The two probes come from Spring Boot Actuator, with no controller code in Example 01: the liveness and readiness health groups are served on the main port at /healthz and /readyz (additional-path), so the compose healthchecks and the Kubernetes probes keep their paths. /healthz is liveness (am I alive? if not, restart me) and includes only livenessState, so it never checks a dependency; /readyz is readiness (can I serve?): its group adds the db contributor, which checks a pooled connection, and when that fails it answers 503 with status DOWN, which takes the pod out of rotation without killing it.",
+   "expect": 1,
+   "cat": "notes",
+   "_slide": 14,
+   "_why": "notes follow the code",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    269
+   ],
+   "find": "Spring Boot Actuator offers the same pair as /actuator/health/liveness and /actuator/health/readiness with HealthIndicator beans; the example writes them by hand so every language serves the same paths and bodies.",
+   "repl": "A custom check is a HealthIndicator bean added to a group's include list; Example 21 adds one. Persistence is Spring Data JPA: the entity maps the existing orders table and Hibernate only validates it (ddl-auto=validate), because the db/init scripts own the schema.",
+   "expect": 1,
+   "cat": "notes",
+   "_slide": 14,
+   "_why": "notes follow the code",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    287
+   ],
+   "find": "java · Spring Boot 4 + JdbcClient + Debezium CDC",
+   "repl": "java · Spring Boot 4 + JPA + Debezium CDC",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 32,
+   "_why": "examples/04 spring-boot writes the order and outbox rows with Spring Data JPA",
+   "_src": "s13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 287,
+   "lines": [
+    "// OrderService.java (excerpt): order row and outbox row, one transaction",
+    "@Transactional                                   // single local transaction",
+    "public OrderView placeOrder(String sku, int quantity) {",
+    "    var order = orders.save(new Order(sku, quantity, \"confirmed\"));     // state change",
+    "    var view = order.toView();",
+    "    outbox.save(new OutboxEvent(order.getId(), \"order.placed\", Map.of(  // same transaction",
+    "        \"id\", view.id(), \"sku\", view.sku(),",
+    "        \"quantity\", view.quantity(), \"status\", view.status())));",
+    "    return view;        // OutboxEvent.payload: a JSONB column (@JdbcTypeCode(SqlTypes.JSON))",
+    "}",
+    "// No Kafka call on the request path: Debezium tails the WAL and publishes order.placed."
+   ],
+   "cat": "code",
+   "_slide": 32,
+   "_why": "examples/04: OrderService saves the order and the outbox row through repositories",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    287
+   ],
+   "find": "through Spring's JdbcClient.",
+   "repl": "through two Spring Data JPA repositories.",
+   "expect": 1,
+   "cat": "notes",
+   "_slide": 32,
+   "_why": "notes follow the code",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    287
+   ],
+   "find": "the payload is serialized with Jackson 3's JsonMapper, and a standard Debezium",
+   "repl": "the payload is a JSONB column that Hibernate maps from a Map with @JdbcTypeCode(SqlTypes.JSON), and a standard Debezium",
+   "expect": 1,
+   "cat": "notes",
+   "_slide": 32,
+   "_why": "notes follow the code",
+   "_src": "s13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 298,
+   "lines": [
+    "// stream-processor RevenueTopology.java (excerpt): order.placed -> revenue.by-merchant",
+    "@Configuration @EnableKafkaStreams",
+    "public class RevenueTopology {",
+    "    @Bean",
+    "    public KStream<String, MerchantRevenue> revenueStream(StreamsBuilder builder) {",
+    "        var orderSerde = new JacksonJsonSerde<>(OrderPlaced.class)",
+    "            .ignoreTypeHeaders().noTypeInfo();",
+    "        var accSerde = new JacksonJsonSerde<>(Acc.class).noTypeInfo();   // revenueSerde alike",
+    "        var revenue = builder.stream(ORDERS, Consumed.with(Serdes.String(), orderSerde))",
+    "            .filter((key, order) -> order != null && order.merchantId() != null)",
+    "            .selectKey((key, order) -> order.merchantId())     // re-key by merchant_id",
+    "            .groupByKey(Grouped.with(Serdes.String(), orderSerde))",
+    "            .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(windowSeconds)))",
+    "            .aggregate(() -> new Acc(0, BigDecimal.ZERO),  // local, changelog-backed",
+    "                (merchant, order, acc) -> acc.add(order.total()),",
+    "                Materialized.with(Serdes.String(), accSerde))",
+    "            .toStream()",
+    "            .map((window, acc) -> KeyValue.pair(window.key(), toRevenue(window, acc)));",
+    "        revenue.to(REVENUE, Produced.with(Serdes.String(), revenueSerde));",
+    "        return revenue;",
+    "    }",
+    "}"
+   ],
+   "cat": "code",
+   "_slide": 43,
+   "_why": "examples/06: typed OrderPlaced and MerchantRevenue records through JacksonJsonSerde",
+   "_src": "s13",
+   "pt": 10
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    298
+   ],
+   "find": "The example re-keys each order.placed event by merchant, groups by key and aggregates into a tumbling window",
+   "repl": "The example reads each order.placed event as a typed OrderPlaced record (merchant_id and total), re-keys it by merchant, groups by key and aggregates into a tumbling window",
+   "expect": 1,
+   "cat": "notes",
+   "_slide": 43,
+   "_why": "notes follow the code",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    298
+   ],
+   "find": "Each update to a (merchant, window) row is mapped to a JSON record with the window start, merchant_id, order_count and the revenue rounded HALF_UP, and written to revenue.by-merchant, a stream other services consume. A total that is not a number is skipped instead of killing the stream thread.",
+   "repl": "Each update to a (merchant, window) row is mapped to a MerchantRevenue record with the window start and end, merchant_id, order_count and the revenue rounded HALF_UP; a JacksonJsonSerde writes it as the same JSON object other services already consume from revenue.by-merchant, so the payload does not change for non-Java readers. An event that cannot be deserialized, such as a total that is not a number, is logged and skipped by the LogAndContinue handler instead of killing the stream thread.",
+   "expect": 1,
+   "cat": "notes",
+   "_slide": 43,
+   "_why": "notes follow the code",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    381
+   ],
+   "find": "written with JdbcClient inside a TransactionTemplate",
+   "repl": "written through Spring Data JPA, one transaction per step under a row lock",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 126,
+   "_why": "examples/17 spring-boot uses repositories and @Transactional",
+   "_src": "s13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 385,
+   "lines": [
+    "// SagaEngine.java excerpt (examples/17-sagas); the failed-step log row is left out",
+    "@Transactional                                  // lock, run one step, commit",
+    "public String advanceOnce(String sagaId) {",
+    "    SagaEntity saga = sagas.lockById(sagaId).orElse(null);  // @Lock(PESSIMISTIC_WRITE)",
+    "    if (saga == null) return \"NOT_FOUND\";",
+    "    if (!\"RUNNING\".equals(saga.getStatus())) return saga.getStatus();  // finished: no-op",
+    "    int stepIndex = saga.getStepIndex();",
+    "    if (stepIndex >= STEPS.size()) { saga.setStatus(\"COMPLETED\"); return \"COMPLETED\"; }",
+    "    SagaStep step = STEPS.get(stepIndex);                 // (name, compensation)",
+    "    try {",
+    "        var result = stepExecutor.execute(step.name(), saga.getContext());",
+    "        sagaLog.save(new SagaLogEntity(sagaId, step.name(), \"execute\", result));",
+    "        saga.setStepIndex(stepIndex + 1);                 // output joins the JSONB context",
+    "        saga.setContext(contextWith(saga, step.name(), result));",
+    "        return \"RUNNING\";",
+    "    } catch (Exception e) {",
+    "        saga.setStatus(\"COMPENSATING\");                   // dirty checking writes it back",
+    "        return \"COMPENSATING\";",
+    "    }",
+    "}",
+    "// SagaService.advance(): do { status = engine.advanceOnce(id); } while RUNNING (a new",
+    "// transaction each call), then engine.compensate(id) when the status is COMPENSATING"
+   ],
+   "cat": "code",
+   "_slide": 130,
+   "_why": "examples/17: SagaEngine locks the row with a repository query and commits one step",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    385
+   ],
+   "find": "java · Spring Boot 4 + JdbcClient",
+   "repl": "java · Spring Boot 4 + JPA",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 130,
+   "_why": "examples/17 spring-boot uses repositories and @Transactional",
+   "_src": "s13"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 385,
+   "paragraphs": [
+    "The excerpt is advanceOnce() from SagaEngine in Example 17: one transaction per step, with the log row for a failed step left out.",
+    "STEPS is a list of SagaStep records pairing each forward step with its compensation (charge_payment with refund_payment, reserve_stock with release_stock, book_shipping with cancel_shipping), so the unwind order is data. advanceOnce() is @Transactional and loads the saga through lockById, a repository query annotated @Lock(PESSIMISTIC_WRITE) that Hibernate runs as SELECT ... FOR UPDATE. It returns at once unless the status is RUNNING, so a redelivered request or a second worker finds a finished saga and does nothing.",
+    "Inside the transaction the step runs, its result goes into the JSONB context under the step's name (this is how book_shipping can read what reserve_stock produced), the log row is saved, and step_index moves forward. The entity is managed, so Hibernate writes the changes when the transaction commits: the lock, the log and the new state commit together, the same rule as the outbox.",
+    "SagaService.advance() calls advanceOnce() in a loop, each call in a new transaction, until the status is no longer RUNNING. A crash rolls back at most the step in flight, which runs again on resume, so every step must be idempotent. A thrown exception marks the saga COMPENSATING, and compensate() runs the completed steps' compensations in reverse before setting COMPENSATED. The transaction boundary lives in SagaEngine, a separate bean, because a @Transactional method called from inside its own class would bypass the proxy.",
+    "Compared with Temporal: no extra server, but no built-in retries, timers or replay; the retry and resume logic is yours. The step executor in the example simulates the three services."
+   ],
+   "cat": "notes",
+   "_slide": 130,
+   "_why": "notes follow the code",
+   "_src": "s13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 423,
+   "lines": [
+    "// DrainLifecycle.java (excerpt), examples/21-graceful-shutdown/spring-boot",
+    "// application.properties: server.shutdown=graceful",
+    "//                         spring.lifecycle.timeout-per-shutdown-phase=20s",
+    "//                         ...health.group.readiness.include=readinessState,db,drain",
+    "@Component",
+    "class DrainLifecycle implements SmartLifecycle {",
+    "    @Override",
+    "    public void stop() {                          // SIGTERM: the highest phase stops first",
+    "        if (!state.markShuttingDown()) return;    // one SIGTERM drives the drain",
+    "        AvailabilityChangeEvent.publish(events, this, ReadinessState.REFUSING_TRAFFIC);",
+    "        Thread.sleep(drainDelayMillis);           // DRAIN_DELAY_SECONDS, default 5: serve on",
+    "        // then the web server's graceful phase finishes in-flight HTTP (20 s bound), the",
+    "        // context closes the pool, and the JVM exits (143 = 128 + SIGTERM)",
+    "    }",
+    "    @Override",
+    "    public int getPhase() { return DEFAULT_PHASE - 512; }   // stops before the web server",
+    "}",
+    "// A \"drain\" HealthIndicator reports DOWN \"shutting down\": /readyz is 503, /healthz stays 200.",
+    "// Kafka consumers, the scheduler and WebSockets drain in a ContextClosedEvent listener."
+   ],
+   "cat": "code",
+   "_slide": 168,
+   "_why": "examples/21: SmartLifecycle drain bean, AvailabilityChangeEvent and a drain health indicator",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    423
+   ],
+   "find": "One SIGTERM flips readiness; after DRAIN_DELAY_SECONDS, System.exit(0) runs Spring's graceful shutdown, bounded at 20 s per phase.",
+   "repl": "One SIGTERM flips readiness; after DRAIN_DELAY_SECONDS the web server's graceful shutdown drains in-flight requests, bounded at 20 s per phase.",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 168,
+   "_why": "caption follows the code",
+   "_src": "s13"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 423,
+   "paragraphs": [
+    "Example 21 lets Spring Boot's lifecycle carry the whole sequence. On SIGTERM the JVM's shutdown hook closes the application context, and Spring stops SmartLifecycle beans from the highest phase down. DrainLifecycle runs at DEFAULT_PHASE minus 512, a higher phase than the web server's graceful-shutdown phase, so it stops first. One SIGTERM, the only signal Kubernetes sends before SIGKILL, drives everything: the bean flips ShutdownState and publishes ReadinessState.REFUSING_TRAFFIC through an AvailabilityChangeEvent, so /readyz answers 503 and the Service stops routing, and it then keeps the service serving for DRAIN_DELAY_SECONDS (5 s; it plays the part of a preStop sleep) while the endpoint removal propagates.",
+    "A drain HealthIndicator is part of the readiness group and reports DOWN with the reason shutting down, which the 503 body shows; the liveness group does not include it, so /healthz stays 200. Then, with server.shutdown=graceful, the embedded Tomcat, Jetty or Reactor Netty stops accepting new connections and finishes in-flight HTTP, bounded by spring.lifecycle.timeout-per-shutdown-phase (20 s here; the default is 30 s), the context closes the pool, and the process ends inside the 30-second grace period. The JVM exits with 143 (128 + SIGTERM) after a clean shutdown, which Kubernetes and the verify script treat as success.",
+    "Use @EventListener(ContextClosedEvent.class), @PreDestroy or SmartLifecycle to drain what Spring does not drain for you: Kafka consumers (consumer.wakeup() then commit on close), the scheduler (stop accepting new triggers), WebSockets (send a close frame so clients reconnect elsewhere). In a real cluster the drain delay is usually a preStop sleep in the pod spec; the lifecycle bean keeps the example self-contained on compose. Pair it with the Kubernetes settings: readiness, preStop and the grace period."
+   ],
+   "cat": "notes",
+   "_slide": 168,
+   "_why": "notes follow the code",
+   "_src": "s13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 504,
+   "lines": [
+    "// DrainLifecycle.java (excerpt), examples/21-graceful-shutdown/spring-boot",
+    "// application.properties: server.shutdown=graceful, timeout-per-shutdown-phase=20s",
+    "@Component",
+    "class DrainLifecycle implements SmartLifecycle {      // stops before the web server",
+    "    public void stop() {",
+    "        if (!state.markShuttingDown()) return;        // 1. readiness flips: /readyz is 503",
+    "        AvailabilityChangeEvent.publish(events, this, ReadinessState.REFUSING_TRAFFIC);",
+    "        Thread.sleep(drainDelayMillis);               // 2. the LB stops routing (5 s)",
+    "    }                      // 3. graceful shutdown drains in-flight HTTP (20 s)",
+    "    public int getPhase() { return DEFAULT_PHASE - 512; }  // 4. the context closes the pool",
+    "}",
+    "@Component(\"drain\")                                  // part of the readiness group",
+    "class DrainHealthIndicator implements HealthIndicator {",
+    "    public Health health() {",
+    "        return state.isShuttingDown()",
+    "            ? Health.down().withDetail(\"reason\", \"shutting down\").build()",
+    "            : Health.up().build();                    // /healthz (liveness) stays 200",
+    "    }",
+    "}"
+   ],
+   "cat": "code",
+   "_slide": 249,
+   "_why": "examples/21: lifecycle drain bean and drain health indicator",
+   "_src": "s13"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 504,
+   "paragraphs": [
+    "Example 21 lets Spring Boot's lifecycle carry the drain. A SmartLifecycle bean (DrainLifecycle) stops before the web server on the single SIGTERM: (1) it flips ShutdownState and publishes REFUSING_TRAFFIC, so the readiness group, which includes a drain HealthIndicator, answers /readyz with 503 and the Kubernetes readiness probe sees the pod go not-ready and stops routing, while /healthz stays 200; (2) it keeps the service serving for DRAIN_DELAY_SECONDS so the load balancer's removal propagates; (3) the web server's graceful shutdown stops accepting and drains in-flight HTTP within timeout-per-shutdown-phase (20 s); (4) the context closes the pool and the JVM exits with 143 (128 + SIGTERM). Appendix H covers the Kubernetes preStop + terminationGracePeriodSeconds side."
+   ],
+   "cat": "notes",
+   "_slide": 249,
+   "_why": "notes follow the code",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    474
+   ],
+   "find": "Read-through in Spring Boot with @Cacheable",
+   "repl": "Read-through in Spring Boot with Cache.get",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 219,
+   "_why": "examples/25 read-through calls Cache.get(key, loader)",
+   "_src": "s13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 474,
+   "lines": [
+    "// Spring Cache with Redis backing (Spring Boot 4, Jackson 3), examples/25-caching",
+    "@Configuration",
+    "class ReadThroughCacheConfig {",
+    "    @Bean",
+    "    RedisCacheManager cacheManager(RedisConnectionFactory cf, CacheServiceProperties props) {",
+    "        var products = RedisCacheConfiguration.defaultCacheConfig()",
+    "            .entryTtl(Duration.ofSeconds(props.ttlSeconds()))",
+    "            .disableCachingNullValues()",
+    "            .computePrefixWith(cacheName -> \"rt:product:\")        // keys: rt:product:<id>",
+    "            .serializeValuesWith(SerializationPair.fromSerializer(",
+    "                new JacksonJsonRedisSerializer<>(ProductView.class)));   // plain JSON values",
+    "        return RedisCacheManager.builder(cf)",
+    "            .withInitialCacheConfigurations(Map.of(\"read-through-products\", products))",
+    "            .build();",
+    "    }",
+    "}",
+    "@GetMapping(\"/read-through/products/{pid}\")",
+    "public ResponseEntity<ProductResponse> readThroughGet(@PathVariable String pid) {",
+    "    var loaded = new AtomicBoolean();                   // set only when the loader ran",
+    "    ProductView product = readThroughCache.get(pid, () -> {   // hit: cached; miss: loader",
+    "        loaded.set(true);",
+    "        return products.find(pid).orElseThrow(() -> new UnknownProduct(pid));",
+    "    });",
+    "    return ResponseEntity.ok(product.from(loaded.get() ? \"db\" : \"cache\"));   // \"source\"",
+    "}"
+   ],
+   "cat": "code",
+   "_slide": 219,
+   "_why": "examples/25: Cache.get(key, loader) with a RedisCacheManager and a source flag",
+   "_src": "s13",
+   "max_lines": 25
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    474
+   ],
+   "find": "@Cacheable turns the method body into a loader. Callers see one interface; the cache miss path is invisible.",
+   "repl": "Cache.get(key, loader) runs the loader only on a miss. Callers see one interface; a hit never touches the database.",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 219,
+   "_why": "caption follows the code",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    474
+   ],
+   "find": "Idiomatic Spring read-through. @EnableCaching activates the Cache abstraction. RedisCacheManager configures Redis as backing store with a 60s default TTL and Jackson 3 JSON values (RedisSerializer.json()). @Cacheable transforms findById() into 'try cache, run method body on miss, store result'. @CacheEvict on update() removes the entry after a successful write. The @Cacheable approach requires the service layer (Spring AOP proxies don't catch self-calls), which is also good architecture.",
+   "repl": "Idiomatic Spring read-through. The Cache abstraction is the library's read-through interface: cache.get(key, loader) returns the cached value, or calls the loader on a miss and stores the result. RedisCacheManager configures Redis as the backing store with a TTL from configuration, keys prefixed rt:product: and plain JSON values (JacksonJsonRedisSerializer on Jackson 3), so non-Java readers can parse them. Example 25 calls the Cache directly instead of using @Cacheable because the endpoint reports where the answer came from: a flag set inside the loader becomes the source field, db on a miss and cache on a hit. The loader throws when the product does not exist, which keeps null out of the cache and becomes a 404. If Redis is down, the call fails and the endpoint falls back to the database. The annotation form, @Cacheable on a service method with @CacheEvict on update(), gives the same behavior declaratively; it requires the service layer (Spring AOP proxies don't catch self-calls), which is also good architecture.",
+   "expect": 1,
+   "cat": "notes",
+   "_slide": 219,
+   "_why": "notes follow the code",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    480
+   ],
+   "find": "java · Spring Boot 4 + @Scheduled + Spring Data Redis + JdbcClient",
+   "repl": "java · Spring Boot 4 + @Scheduled + Spring Data Redis + JPA",
+   "expect": 1,
+   "cat": "code",
+   "_slide": 225,
+   "_why": "examples/25 spring-boot flushes through a repository upsert",
+   "_src": "s13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 480,
+   "lines": [
+    "@PutMapping(\"/write-back/metrics/{mid}\")   // CacheController (excerpt)",
+    "public ResponseEntity<Map<String, Object>> writeBackWrite(",
+    "        @PathVariable String mid, @RequestBody Map<String, Object> body) {",
+    "    // ... HSET metric:<mid> {value, tags}; SADD metric:dirty <mid> (503 when Redis is down)",
+    "    return ResponseEntity.accepted().body(Map.of(\"ok\", true, \"pattern\", \"write-back\",",
+    "            \"action\", \"cached-for-flush\"));               // 202: queued, not yet durable",
+    "}                                   // examples/25-caching/spring-boot",
+    "@Scheduled(fixedDelayString = \"${cache-service.flush-period-ms:1000}\")",
+    "public void flusher() {                                // BackgroundTasks",
+    "    if (System.currentTimeMillis() < nextFlushAt) return;   // backing off after a failure",
+    "    Set<String> ids = cache.spop(\"metric:dirty\", FLUSH_BATCH);",
+    "    if (ids == null || ids.isEmpty()) return;",
+    "    List<String> failed = new ArrayList<>();",
+    "    for (String mid : ids) {",
+    "        try {                                     // upsert: an id flushed twice is one row",
+    "            metrics.upsert(mid, json);             // MetricRepository: @Modifying native",
+    "            cache.hdel(\"metric:attempts\", mid);    // INSERT ... ON CONFLICT (id) DO UPDATE",
+    "        } catch (Exception e) { failed.add(mid); }     // logged: flush failed for <mid>",
+    "    }",
+    "    if (failed.isEmpty()) { failures = 0; return; }",
+    "    nextFlushAt = System.currentTimeMillis() + Math.min(flushPeriodMs << ++failures, 8000);",
+    "    requeue(failed);   // HINCRBY metric:attempts; SADD metric:dirty, or metric:failed at 5",
+    "}"
+   ],
+   "cat": "code",
+   "_slide": 225,
+   "_why": "examples/25: the flusher upserts through MetricRepository",
+   "_src": "s13",
+   "max_lines": 23,
+   "shape_id": 2493
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    480
+   ],
+   "find": "upserts each one through JdbcClient with INSERT ... ON CONFLICT (id) DO UPDATE",
+   "repl": "upserts each one through a Spring Data repository method, a @Modifying native INSERT ... ON CONFLICT (id) DO UPDATE",
+   "expect": 1,
+   "cat": "notes",
+   "_slide": 225,
+   "_why": "notes follow the code",
+   "_src": "s13"
+  }
+ ]
+}

@@ -25,11 +25,6 @@ public class SagaController {
         this.sagaService = sagaService;
     }
 
-    @GetMapping("/healthz")
-    public Map<String, String> healthz() {
-        return Map.of("status", "ok");
-    }
-
     @PostMapping("/sagas")
     public ResponseEntity<Saga> createSaga(@RequestBody SagaRequest request) {
         Saga saga = sagaService.createAndRun(request);

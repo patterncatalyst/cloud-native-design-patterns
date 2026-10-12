@@ -5,7 +5,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,16 +16,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class StubController {
 
-    @Value("${SERVICE_NAME:unknown}")
-    private String serviceName;
+    private final String serviceName;
 
     private final AtomicLong counter = new AtomicLong(0);
     private final Map<String, Map<String, Object>> orders = new ConcurrentHashMap<>();
     private final Map<String, AtomicLong> accessCounts = new ConcurrentHashMap<>();
 
-    @GetMapping("/healthz")
-    public Map<String, String> healthz() {
-        return Map.of("status", "ok", "source", serviceName);
+    public StubController(ServiceProperties service) {
+        this.serviceName = service.name();
     }
 
     @PostMapping("/orders")

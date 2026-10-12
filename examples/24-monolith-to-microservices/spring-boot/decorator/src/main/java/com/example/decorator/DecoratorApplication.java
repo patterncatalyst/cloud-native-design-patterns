@@ -13,7 +13,7 @@ public class DecoratorApplication {
     }
 
     @Bean
-    public RestClient restClient() {
-        return RestClient.create();
+    public RestClient restClient(RestClient.Builder builder) {
+        return builder.build();
     }
 }

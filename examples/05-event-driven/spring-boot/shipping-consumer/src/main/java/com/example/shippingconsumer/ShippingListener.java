@@ -3,7 +3,6 @@ package com.example.shippingconsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -12,23 +11,29 @@ public class ShippingListener {
 
     private static final Logger log = LoggerFactory.getLogger(ShippingListener.class);
 
-    private final JdbcTemplate jdbc;
+    private final ShipmentRepository shipments;
 
-    public ShippingListener(JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
+    public ShippingListener(ShipmentRepository shipments) {
+        this.shipments = shipments;
     }
 
+    /**
+     * Idempotent: a redelivered event is skipped by the existence check, and the unique constraint on
+     * {@code order_id} catches the race between two deliveries. Neither case throws, so the listener
+     * container never redelivers.
+     */
     @KafkaListener(topics = "order.placed", groupId = "shipping-group")
     public void onOrderPlaced(OrderEvent event) {
-        log.info("Received order.placed: orderId={}", event.getId());
+        log.info("Received order.placed: orderId={}", event.id());
+        if (shipments.existsByOrderId(event.id())) {
+            log.info("Duplicate shipment for orderId={}, skipping (idempotent)", event.id());
+            return;
+        }
         try {
-            jdbc.update(
-                "INSERT INTO shipments (order_id, status) VALUES (?, 'scheduled')",
-                event.getId()
-            );
-            log.info("Shipment scheduled for orderId={}", event.getId());
+            shipments.save(new Shipment(event.id(), "scheduled"));
+            log.info("Shipment scheduled for orderId={}", event.id());
         } catch (DataIntegrityViolationException e) {
-            log.info("Duplicate shipment for orderId={}, skipping (idempotent)", event.getId());
+            log.info("Duplicate shipment for orderId={}, skipping (idempotent)", event.id());
         }
     }
 }

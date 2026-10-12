@@ -4,7 +4,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,15 +14,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class OrderController {
 
-    @Value("${app.version}")
-    private String version;
+    private final String version;
 
-    @GetMapping("/healthz")
-    public Map<String, Object> healthz() {
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("status", "ok");
-        result.put("version", version);
-        return result;
+    public OrderController(AppProperties app) {
+        this.version = app.version();
     }
 
     @PostMapping("/orders")

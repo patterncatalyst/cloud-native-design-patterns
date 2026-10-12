@@ -4,8 +4,8 @@ Twelve-factor env-based config and liveness/readiness probes.
 
 ## Framework & libraries
 
-- **Framework**: Spring Boot 4.1.1, Java 25 (Web, JDBC)
-- **Libraries**: spring-boot-starter-webmvc, spring-boot-starter-jdbc, PostgreSQL JDBC driver, OpenTelemetry Java agent
+- **Framework**: Spring Boot 4.1.1, Java 25 (Web, Data JPA, Actuator)
+- **Libraries**: spring-boot-starter-webmvc, spring-boot-starter-data-jpa, spring-boot-starter-actuator, PostgreSQL JDBC driver, OpenTelemetry Java agent
 - **Container base**: `ubi10/openjdk-25-runtime:1.24-15` (UID 185)
 
 ## Run
@@ -24,11 +24,11 @@ cd .. && bash verify.sh
 
 | Path | Description |
 |------|-------------|
-| `order-service/` | OrderController.java — REST endpoints; HealthController.java — probe endpoints |
+| `order-service/` | OrderController.java — REST endpoints; probes come from Actuator health groups at `/healthz` and `/readyz` (see application.yaml) |
 
 ## Implementation notes
 
-Config in application.yaml with `${ENV_VAR:default}` syntax. Uses `JdbcTemplate` for database access.
+Config in application.yaml with `${ENV_VAR:default}` syntax. Uses Spring Data JPA (`OrderRepository`) for database access.
 
 ## Environment variables
 

@@ -87,9 +87,4 @@ public class BackendController {
                 return ResponseEntity.ok(Map.of("status", "ok", "mode", "healthy"));
         }
     }
-
-    @GetMapping("/healthz")
-    public Map<String, String> healthz() {
-        return Map.of("status", "ok");
-    }
 }

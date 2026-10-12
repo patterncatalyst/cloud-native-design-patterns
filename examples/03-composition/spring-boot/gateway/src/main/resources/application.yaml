@@ -13,3 +13,14 @@ inventory:
 
 orderapi:
   url: ${ORDER_API_URL:http://order-api:8081}
+
+# /healthz and /readyz on the main port are the liveness and readiness probe groups.
+management.endpoint.health:
+  probes.enabled: true
+  group:
+    liveness:
+      include: livenessState
+      additional-path: "server:/healthz"
+    readiness:
+      include: readinessState
+      additional-path: "server:/readyz"

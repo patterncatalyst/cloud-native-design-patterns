@@ -4,8 +4,8 @@ Six caching patterns in one service — cache-aside, read-through, write-through
 
 ## Framework & libraries
 
-- **Framework**: Spring Boot 4.1.1, Java 25 (Web, JDBC, Data Redis)
-- **Libraries**: spring-boot-starter-data-redis, spring-boot-starter-jdbc
+- **Framework**: Spring Boot 4.1.1, Java 25 (Web, Data JPA, Actuator, Data Redis)
+- **Libraries**: spring-boot-starter-data-redis, spring-boot-starter-data-jpa, spring-boot-starter-actuator
 - **Container base**: `ubi10/openjdk-25-runtime:1.24-15` (UID 185)
 
 ## Run

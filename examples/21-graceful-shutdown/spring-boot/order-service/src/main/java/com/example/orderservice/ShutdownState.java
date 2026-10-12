@@ -3,23 +3,14 @@ package com.example.orderservice;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Singleton that tracks shutdown state and in-flight request count.
- * Shared between the SIGTERM signal handler (registered before Spring starts)
- * and the Spring-managed beans.
- */
-public final class ShutdownState {
+import org.springframework.stereotype.Component;
 
-    private static final ShutdownState INSTANCE = new ShutdownState();
+/** Shutdown flag and in-flight request count, shared by the controller, the drain bean and the health indicator. */
+@Component
+public class ShutdownState {
 
     private final AtomicBoolean shuttingDown = new AtomicBoolean(false);
     private final AtomicInteger inFlight = new AtomicInteger(0);
-
-    private ShutdownState() {}
-
-    public static ShutdownState getInstance() {
-        return INSTANCE;
-    }
 
     /** Returns true only for the call that flips the flag. */
     public boolean markShuttingDown() {

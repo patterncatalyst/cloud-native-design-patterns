@@ -2,7 +2,6 @@ package com.cndp.order.adapter;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,11 +30,6 @@ public class RestAdapter {
         this.repo = repo;
     }
 
-    @GetMapping("/healthz")
-    public Map<String, String> healthz() {
-        return Map.of("status", "ok");
-    }
-
     @PostMapping("/orders")
     public ResponseEntity<?> createOrder(@RequestBody Map<String, Object> body) {
         String sku = body.get("sku") != null ? body.get("sku").toString() : "";
@@ -51,7 +45,7 @@ public class RestAdapter {
         try {
             PlaceOrderCmd cmd = new PlaceOrderCmd(sku, quantity);
             Order order = placeOrder.execute(cmd);
-            return ResponseEntity.status(HttpStatus.CREATED).body(toMap(order));
+            return ResponseEntity.status(HttpStatus.CREATED).body(OrderView.of(order));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
                     .body(Map.of("detail", e.getMessage()));
@@ -61,21 +55,12 @@ public class RestAdapter {
     @GetMapping("/orders/{id}")
     public ResponseEntity<?> getOrder(@PathVariable String id) {
         return repo.findById(id)
-                .map(order -> ResponseEntity.ok(toMap(order)))
+                .map(order -> ResponseEntity.ok(OrderView.of(order)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/orders")
-    public List<Map<String, Object>> listOrders() {
-        return repo.listAll().stream().map(this::toMap).collect(Collectors.toList());
-    }
-
-    private Map<String, Object> toMap(Order o) {
-        return Map.of(
-                "id", o.id(),
-                "sku", o.sku(),
-                "quantity", o.quantity(),
-                "status", o.status()
-        );
+    public List<OrderView> listOrders() {
+        return repo.listAll().stream().map(OrderView::of).toList();
     }
 }
