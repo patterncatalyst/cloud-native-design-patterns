@@ -7,13 +7,13 @@
 #pragma once
 
 #include <atomic>
-#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <thread>
 
 #include <librdkafka/rdkafkacpp.h>
+#include <trantor/utils/Logger.h>
 
 namespace cndp {
 
@@ -51,7 +51,7 @@ public:
             topic_, RdKafka::Topic::PARTITION_UA, RdKafka::Producer::RK_MSG_COPY,
             const_cast<char*>(payload.data()), payload.size(), nullptr, 0, 0, nullptr);
         if (rc != RdKafka::ERR_NO_ERROR) {
-            std::cerr << "kafka produce failed: " << RdKafka::err2str(rc) << std::endl;
+            LOG_ERROR << "kafka produce failed: " << RdKafka::err2str(rc);
             return false;
         }
         return true;
@@ -62,7 +62,7 @@ private:
     public:
         void dr_cb(RdKafka::Message& m) override {
             if (m.err() != RdKafka::ERR_NO_ERROR) {
-                std::cerr << "kafka delivery failed topic=" << m.topic_name() << ": " << m.errstr() << std::endl;
+                LOG_ERROR << "kafka delivery failed topic=" << m.topic_name() << ": " << m.errstr();
             }
         }
     };

@@ -1,8 +1,8 @@
 #include <grpcpp/grpcpp.h>
+#include <spdlog/spdlog.h>
 #include "inventory.grpc.pb.h"
 #include <mutex>
 #include <unordered_map>
-#include <iostream>
 
 static std::mutex g_mu;
 static std::unordered_map<std::string, int> g_stock;
@@ -21,15 +21,12 @@ class InventoryServiceImpl final : public inventory::Inventory::Service {
             stock = remaining;
             reply->set_reserved(true);
             reply->set_remaining(remaining);
-            std::cerr << "reserved sku=" << req->sku()
-                      << " qty=" << req->quantity()
-                      << " remaining=" << remaining << std::endl;
+            spdlog::info("reserved sku={} qty={} remaining={}", req->sku(), req->quantity(), remaining);
         } else {
             reply->set_reserved(false);
             reply->set_remaining(stock);
-            std::cerr << "insufficient stock sku=" << req->sku()
-                      << " requested=" << req->quantity()
-                      << " available=" << stock << std::endl;
+            spdlog::info("insufficient stock sku={} requested={} available={}",
+                         req->sku(), req->quantity(), stock);
         }
         return grpc::Status::OK;
     }
@@ -45,7 +42,7 @@ int main() {
     builder.AddListeningPort(addr, grpc::InsecureServerCredentials());
     builder.RegisterService(&service);
     auto server = builder.BuildAndStart();
-    std::cerr << "inventory gRPC server listening on " << addr << std::endl;
+    spdlog::info("inventory gRPC server listening on {}", addr);
     server->Wait();
     return 0;
 }

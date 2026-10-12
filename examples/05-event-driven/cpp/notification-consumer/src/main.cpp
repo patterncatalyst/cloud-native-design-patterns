@@ -5,12 +5,12 @@
 
 #include <json/json.h>
 #include <libpq-fe.h>
+#include <spdlog/spdlog.h>
 
 #include <atomic>
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
-#include <iostream>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
@@ -32,12 +32,12 @@ void init_pg() {
 
     g_pg_conn = PQconnectdb(conninfo);
     if (PQstatus(g_pg_conn) != CONNECTION_OK) {
-        std::cerr << "Postgres connection failed: " << PQerrorMessage(g_pg_conn) << "\n";
+        spdlog::error("Postgres connection failed: {}", PQerrorMessage(g_pg_conn));
         PQfinish(g_pg_conn);
         g_pg_conn = nullptr;
         throw std::runtime_error("Postgres connection failed");
     }
-    std::cout << "Connected to Postgres\n";
+    spdlog::info("Connected to Postgres");
 }
 
 enum class Outcome { Done, Skip, Retry };
@@ -51,16 +51,16 @@ Outcome process_event(const std::string& event_json) {
     std::istringstream stream(event_json);
 
     if (!Json::parseFromStream(builder, stream, &root, &errs)) {
-        std::cerr << "JSON parse error: " << errs << "\n";
+        spdlog::warn("JSON parse error: {}", errs);
         return Outcome::Skip;
     }
     if (!root.isObject() || !root.isMember("id")) {
-        std::cerr << "Missing 'id' field in event\n";
+        spdlog::warn("Missing 'id' field in event");
         return Outcome::Skip;
     }
 
     std::string order_id = root["id"].asString();
-    std::cout << "Processing order: " << order_id << "\n";
+    spdlog::info("Processing order: {}", order_id);
 
     if (PQstatus(g_pg_conn) != CONNECTION_OK) PQreset(g_pg_conn);
 
@@ -72,9 +72,9 @@ Outcome process_event(const std::string& event_json) {
 
     bool ok = PQresultStatus(res) == PGRES_COMMAND_OK;
     if (!ok) {
-        std::cerr << "Insert failed: " << PQerrorMessage(g_pg_conn) << "\n";
+        spdlog::error("Insert failed: {}", PQerrorMessage(g_pg_conn));
     } else {
-        std::cout << "Notification created/skipped for order: " << order_id << "\n";
+        spdlog::info("Notification created/skipped for order: {}", order_id);
     }
     PQclear(res);
     return ok ? Outcome::Done : Outcome::Retry;
@@ -89,7 +89,7 @@ int main() {
     try {
         init_pg();
     } catch (const std::exception& e) {
-        std::cerr << "Initialization failed: " << e.what() << "\n";
+        spdlog::error("Initialization failed: {}", e.what());
         return 1;
     }
 
@@ -106,32 +106,32 @@ int main() {
                               {"auto.offset.reset", "earliest"},
                               {"enable.auto.commit", "false"}}) {
         if (conf->set(key, value, errstr) != RdKafka::Conf::CONF_OK) {
-            std::cerr << "Kafka config " << key << ": " << errstr << "\n";
+            spdlog::error("Kafka config {}: {}", key, errstr);
             return 1;
         }
     }
 
     std::unique_ptr<RdKafka::KafkaConsumer> consumer(RdKafka::KafkaConsumer::create(conf.get(), errstr));
     if (!consumer) {
-        std::cerr << "Failed to create consumer: " << errstr << "\n";
+        spdlog::error("Failed to create consumer: {}", errstr);
         return 1;
     }
 
     // subscribe() does not fail when the topic is missing: the consumer keeps polling and
     // picks the partitions up once the producer has created order.placed.
     if (RdKafka::ErrorCode err = consumer->subscribe({"order.placed"}); err != RdKafka::ERR_NO_ERROR) {
-        std::cerr << "Subscribe failed: " << RdKafka::err2str(err) << "\n";
+        spdlog::error("Subscribe failed: {}", RdKafka::err2str(err));
         return 1;
     }
-    std::cout << "Successfully subscribed to order.placed topic\n";
-    std::cout << "Notification consumer started, listening to order.placed...\n";
+    spdlog::info("Successfully subscribed to order.placed topic");
+    spdlog::info("Notification consumer started, listening to order.placed...");
 
     while (!g_shutdown) {
         std::unique_ptr<RdKafka::Message> msg(consumer->consume(1000));
         switch (msg->err()) {
             case RdKafka::ERR_NO_ERROR: {
                 std::string event(static_cast<const char*>(msg->payload()), msg->len());
-                std::cout << "Received event: " << event << "\n";
+                spdlog::info("Received event: {}", event);
 
                 std::string traceparent;
                 if (auto* hdrs = msg->headers()) {
@@ -159,7 +159,7 @@ int main() {
                 if (outcome == Outcome::Retry) break;  // shutting down: leave the offset uncommitted
                 // Commit only after the side effect, so a crash redelivers rather than loses.
                 if (RdKafka::ErrorCode err = consumer->commitSync(msg.get()); err != RdKafka::ERR_NO_ERROR) {
-                    std::cerr << "Commit failed: " << RdKafka::err2str(err) << "\n";
+                    spdlog::error("Commit failed: {}", RdKafka::err2str(err));
                 }
                 break;
             }
@@ -168,7 +168,7 @@ int main() {
                 break;
             default:
                 // e.g. UNKNOWN_TOPIC_OR_PART before the topic exists; librdkafka retries on its own.
-                std::cerr << "Kafka error: " << msg->errstr() << "\n";
+                spdlog::warn("Kafka error: {}", msg->errstr());
                 std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     }
@@ -179,6 +179,6 @@ int main() {
     if (g_pg_conn) PQfinish(g_pg_conn);
 
     cndp::telemetry::shutdown();
-    std::cout << "Notification consumer shutdown complete\n";
+    spdlog::info("Notification consumer shutdown complete");
     return 0;
 }

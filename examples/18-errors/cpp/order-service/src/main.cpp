@@ -2,6 +2,7 @@
 #include <grpcpp/grpcpp.h>
 #include <inventory.grpc.pb.h>
 #include <chrono>
+#include <cstdio>
 #include <random>
 #include <sstream>
 #include <iomanip>
@@ -124,6 +125,8 @@ public:
 };
 
 int main() {
+    // docker logs reads a pipe: line-buffer stdout so LOG_* lines show up as they are written.
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
     // Initialize gRPC stub
     std::string inventoryHost = std::getenv("INVENTORY_HOST")
         ? std::getenv("INVENTORY_HOST")

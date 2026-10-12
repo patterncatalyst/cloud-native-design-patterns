@@ -16,6 +16,7 @@
 #include <curl/curl.h>
 #include <atomic>
 #include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <map>
 #include <mutex>
@@ -260,6 +261,8 @@ CircuitBreaker g_breaker("backend", 5, 10.0);
 Bulkhead g_bulkhead(5);
 
 int main() {
+    // docker logs reads a pipe: line-buffer stdout so LOG_* lines show up as they are written.
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
     // Suppress upload directory warning
     app().setUploadPath("/tmp");
 

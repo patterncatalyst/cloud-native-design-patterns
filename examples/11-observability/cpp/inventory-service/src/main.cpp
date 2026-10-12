@@ -6,12 +6,12 @@
 // (telemetry.hpp); the exporters read OTEL_EXPORTER_OTLP_ENDPOINT.
 #include <grpcpp/grpcpp.h>
 #include <inventory.grpc.pb.h>
+#include <spdlog/spdlog.h>
 
 #include <atomic>
 #include <chrono>
 #include <csignal>
 #include <cstdint>
-#include <iostream>
 #include <map>
 #include <mutex>
 #include <string>
@@ -91,9 +91,8 @@ public:
         response->set_confirmed(confirmed);
         response->set_remaining(remaining);
 
-        std::cerr << "ReserveStock sku=" << sku << " qty=" << quantity
-                  << " confirmed=" << (confirmed ? "true" : "false")
-                  << " remaining=" << remaining << std::endl;
+        spdlog::info("ReserveStock sku={} qty={} confirmed={} remaining={}",
+                     sku, quantity, (confirmed ? "true" : "false"), remaining);
 
         span->SetAttribute("rpc.system", "grpc");
         span->SetAttribute("rpc.service", "inventory.InventoryService");
@@ -130,7 +129,7 @@ int main() {
     builder.RegisterService(&service);
 
     auto server = builder.BuildAndStart();
-    std::cerr << "inventory-service started on " << addr << std::endl;
+    spdlog::info("inventory-service started on {}", addr);
 
     while (!g_shutdown) {
         std::this_thread::sleep_for(std::chrono::milliseconds(500));

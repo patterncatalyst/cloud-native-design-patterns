@@ -3,6 +3,7 @@
 #include <libpq-fe.h>
 #include <algorithm>
 #include <atomic>
+#include <cstdio>
 #include <map>
 #include <thread>
 #include <chrono>
@@ -271,6 +272,8 @@ void writeback_flusher() {
 }
 
 int main() {
+    // docker logs reads a pipe: line-buffer stdout so LOG_* lines show up as they are written.
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
     // Connect to Postgres
     const char* pg_conninfo = std::getenv("PG_CONNINFO");
     if (!pg_conninfo) pg_conninfo = "postgresql://appuser:apppass@localhost:5432/appdb";

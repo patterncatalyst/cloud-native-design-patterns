@@ -1,7 +1,7 @@
 #include <drogon/drogon.h>
 #include <libpq-fe.h>
+#include <cstdio>
 #include <mutex>
-#include <iostream>
 
 using namespace drogon;
 
@@ -9,14 +9,16 @@ static PGconn* g_pg = nullptr;
 static std::mutex g_pg_mu;
 
 int main() {
+    // docker logs reads a pipe: line-buffer stdout so LOG_* lines show up as they are written.
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
     auto env_pg = std::getenv("PG_CONNINFO");
     std::string conninfo = env_pg ? env_pg : "host=postgres port=5432 dbname=appdb user=appuser password=apppass";
     g_pg = PQconnectdb(conninfo.c_str());
     if (PQstatus(g_pg) != CONNECTION_OK) {
-        std::cerr << "pg connect failed: " << PQerrorMessage(g_pg) << std::endl;
+        LOG_ERROR << "pg connect failed: " << PQerrorMessage(g_pg);
         return 1;
     }
-    std::cerr << "order-api started" << std::endl;
+    LOG_INFO << "order-api started";
 
     app().setLogLevel(trantor::Logger::kInfo);
     app().addListener("0.0.0.0", 8081);

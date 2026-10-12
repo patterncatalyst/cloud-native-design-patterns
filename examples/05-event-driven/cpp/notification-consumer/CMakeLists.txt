@@ -18,8 +18,9 @@ find_package(RdKafka CONFIG REQUIRED)  # librdkafka C++ API (rdkafka++) from Con
 find_package(jsoncpp CONFIG REQUIRED)
 find_package(PostgreSQL REQUIRED)      # libpq from Conan (direct C client)
 find_package(opentelemetry-cpp CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
 find_package(Threads REQUIRED)
 
 add_executable(notification-consumer src/main.cpp)
 target_include_directories(notification-consumer PRIVATE src)
-target_link_libraries(notification-consumer PRIVATE RdKafka::rdkafka++ JsonCpp::JsonCpp PostgreSQL::PostgreSQL opentelemetry-cpp::opentelemetry-cpp Threads::Threads)
+target_link_libraries(notification-consumer PRIVATE RdKafka::rdkafka++ JsonCpp::JsonCpp PostgreSQL::PostgreSQL opentelemetry-cpp::opentelemetry-cpp spdlog::spdlog Threads::Threads)

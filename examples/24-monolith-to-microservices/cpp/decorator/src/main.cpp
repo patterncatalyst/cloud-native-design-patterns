@@ -1,10 +1,10 @@
 #include <drogon/drogon.h>
 #include <sw/redis++/redis++.h>
 #include <librdkafka/rdkafkacpp.h>
+#include <cstdio>
 #include <functional>
 #include <mutex>
 #include <vector>
-#include <iostream>
 #include <atomic>
 #include <chrono>
 #include <memory>
@@ -33,9 +33,9 @@ public:
     void dr_cb(RdKafka::Message& message) override {
         std::unique_ptr<Pending> pending(static_cast<Pending*>(message.msg_opaque()));
         if (message.err() != RdKafka::ERR_NO_ERROR) {
-            std::cerr << "kafka send failed: " << message.errstr() << std::endl;
+            LOG_ERROR << "kafka send failed: " << message.errstr();
         } else if (pending) {
-            std::cerr << "EVENT order.placed order_id=" << pending->order_id << std::endl;
+            LOG_INFO << "EVENT order.placed order_id=" << pending->order_id;
         }
         if (pending && pending->done) pending->done();
     }
@@ -110,14 +110,16 @@ static void publish_event(const std::string& order_id, const std::string& order_
             msg.data(), msg.size(), nullptr, 0, 0, opaque);
         if (err == RdKafka::ERR_NO_ERROR) return;
         delete opaque;
-        std::cerr << "kafka send failed: " << RdKafka::err2str(err) << std::endl;
+        LOG_ERROR << "kafka send failed: " << RdKafka::err2str(err);
     } catch (const std::exception& e) {
-        std::cerr << "kafka send failed: " << e.what() << std::endl;
+        LOG_ERROR << "kafka send failed: " << e.what();
     }
     if (done) done();
 }
 
 int main() {
+    // docker logs reads a pipe: line-buffer stdout so LOG_* lines show up as they are written.
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
     auto env_legacy = std::getenv("LEGACY_URL");
     g_legacy_url = env_legacy ? env_legacy : "http://legacy:8080";
 
@@ -134,12 +136,12 @@ int main() {
         conf->set("acks", "all", errstr) != RdKafka::Conf::CONF_OK ||
         conf->set("message.timeout.ms", "10000", errstr) != RdKafka::Conf::CONF_OK ||
         conf->set("dr_cb", &g_dr_cb, errstr) != RdKafka::Conf::CONF_OK) {
-        std::cerr << "kafka config: " << errstr << std::endl;
+        LOG_ERROR << "kafka config: " << errstr;
         return 1;
     }
     g_producer.reset(RdKafka::Producer::create(conf.get(), errstr));
     if (!g_producer) {
-        std::cerr << "kafka producer: " << errstr << std::endl;
+        LOG_ERROR << "kafka producer: " << errstr;
         return 1;
     }
     g_producer_running = true;
@@ -188,7 +190,7 @@ int main() {
             try {
                 auto cached = g_redis->get(cache_key);
                 if (cached) {
-                    std::cerr << "CACHE_HIT order_id=" << order_id << std::endl;
+                    LOG_INFO << "CACHE_HIT order_id=" << order_id;
                     auto r = HttpResponse::newHttpResponse();
                     r->setStatusCode(k200OK);
                     r->setContentTypeCode(CT_APPLICATION_JSON);
@@ -198,7 +200,7 @@ int main() {
                 }
             } catch (...) {}
 
-            std::cerr << "CACHE_MISS order_id=" << order_id << std::endl;
+            LOG_INFO << "CACHE_MISS order_id=" << order_id;
 
             forward_get(order_id,
                 [order_id, cb = std::move(cb)](std::string result) {
