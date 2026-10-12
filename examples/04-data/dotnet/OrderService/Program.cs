@@ -1,4 +1,7 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -9,9 +12,7 @@ builder.WebHost.UseUrls("http://+:8080");
 var connStr = builder.Configuration.GetConnectionString("Default")
     ?? "Host=postgres;Port=5432;Database=appdb;Username=appuser;Password=apppass";
 
-var dsBuilder = new NpgsqlDataSourceBuilder(connStr);
-var dataSource = dsBuilder.Build();
-builder.Services.AddSingleton(dataSource);
+builder.Services.AddDbContext<OrdersContext>(o => o.UseNpgsql(connStr));
 
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("order"))
@@ -20,88 +21,47 @@ builder.Services.AddOpenTelemetry()
         .AddNpgsql()
         .AddOtlpExporter());
 
+builder.Services.ConfigureHttpJsonOptions(opts =>
+    opts.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
+
+builder.Services.AddHealthChecks();
+
 var app = builder.Build();
 
-app.MapGet("/healthz", () => new { status = "ok" });
-
-app.MapPost("/orders", async (HttpContext ctx, NpgsqlDataSource db) =>
+app.MapHealthChecks("/healthz", new HealthCheckOptions
 {
-    using var doc = await JsonDocument.ParseAsync(ctx.Request.Body);
-    var root = doc.RootElement;
-    var sku = root.GetProperty("sku").GetString()!;
-    var quantity = root.GetProperty("quantity").GetInt32();
-    var orderId = Guid.NewGuid().ToString();
-
-    await using var conn = await db.OpenConnectionAsync();
-    await using var tx = await conn.BeginTransactionAsync();
-
-    await using (var cmd = new NpgsqlCommand(
-        "INSERT INTO orders (id, sku, quantity, status) VALUES ($1, $2, $3, 'confirmed')", conn, tx))
-    {
-        cmd.Parameters.AddWithValue(orderId);
-        cmd.Parameters.AddWithValue(sku);
-        cmd.Parameters.AddWithValue(quantity);
-        await cmd.ExecuteNonQueryAsync();
-    }
-
-    var payload = JsonSerializer.Serialize(new { id = orderId, sku, quantity, status = "confirmed" });
-    await using (var cmd = new NpgsqlCommand(
-        "INSERT INTO outbox (aggregate_id, event_type, payload) VALUES ($1, $2, $3::jsonb)", conn, tx))
-    {
-        cmd.Parameters.AddWithValue(orderId);
-        cmd.Parameters.AddWithValue("order.placed");
-        cmd.Parameters.AddWithValue(payload);
-        await cmd.ExecuteNonQueryAsync();
-    }
-
-    await tx.CommitAsync();
-
-    return Results.Json(new { id = orderId, sku, quantity, status = "confirmed" }, statusCode: 201);
+    ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok" }),
 });
 
-app.MapGet("/orders", async (NpgsqlDataSource db, int limit = 50) =>
+// The order and its outbox row commit in one SaveChangesAsync, which is one transaction.
+app.MapPost("/orders", async (OrderRequest request, OrdersContext db) =>
 {
-    await using var conn = await db.OpenConnectionAsync();
-    await using var cmd = new NpgsqlCommand(
-        "SELECT id, sku, quantity, status FROM orders ORDER BY created_at DESC LIMIT $1", conn);
-    cmd.Parameters.AddWithValue(Math.Min(limit, 100));
-    await using var reader = await cmd.ExecuteReaderAsync();
-
-    var orders = new List<object>();
-    while (await reader.ReadAsync())
+    var order = new Order
     {
-        orders.Add(new
-        {
-            id = reader.GetString(0),
-            sku = reader.GetString(1),
-            quantity = reader.GetInt32(2),
-            status = reader.GetString(3)
-        });
-    }
-    return orders;
+        Id = Guid.NewGuid().ToString(),
+        Sku = request.Sku,
+        Quantity = request.Quantity,
+        Status = "confirmed",
+    };
+    var dto = OrderDto.From(order);
+    db.Orders.Add(order);
+    db.Outbox.Add(new OutboxEvent
+    {
+        AggregateId = order.Id,
+        EventType = "order.placed",
+        Payload = JsonSerializer.SerializeToElement(dto, JsonSerializerOptions.Web),
+    });
+    await db.SaveChangesAsync();
+
+    return Results.Json(dto, statusCode: StatusCodes.Status201Created);
 });
 
-app.MapGet("/outbox", async (NpgsqlDataSource db, int limit = 50) =>
-{
-    await using var conn = await db.OpenConnectionAsync();
-    await using var cmd = new NpgsqlCommand(
-        "SELECT id, aggregate_id, event_type, payload, created_at FROM outbox ORDER BY id DESC LIMIT $1", conn);
-    cmd.Parameters.AddWithValue(Math.Min(limit, 100));
-    await using var reader = await cmd.ExecuteReaderAsync();
+app.MapGet("/orders", async (OrdersContext db, int limit = 50) =>
+    await db.Orders.AsNoTracking().OrderByDescending(o => o.CreatedAt).Take(Math.Min(limit, 100))
+        .Select(o => OrderDto.From(o)).ToListAsync());
 
-    var rows = new List<object>();
-    while (await reader.ReadAsync())
-    {
-        rows.Add(new
-        {
-            id = reader.GetInt64(0),
-            aggregate_id = reader.GetString(1),
-            event_type = reader.GetString(2),
-            payload = JsonSerializer.Deserialize<JsonElement>(reader.GetString(3)),
-            created_at = reader.GetDateTime(4).ToString("o")
-        });
-    }
-    return rows;
-});
+app.MapGet("/outbox", async (OrdersContext db, int limit = 50) =>
+    await db.Outbox.AsNoTracking().OrderByDescending(e => e.Id).Take(Math.Min(limit, 100))
+        .Select(e => OutboxDto.From(e)).ToListAsync());
 
 app.Run();
