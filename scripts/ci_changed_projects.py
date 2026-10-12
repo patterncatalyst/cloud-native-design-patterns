@@ -13,7 +13,7 @@ Output is one JSON object with a compact array per kind:
     jvm      directories containing pom.xml
     dotnet   directories containing *.csproj
     go       directories containing go.mod
-    python   directories containing requirements.txt
+    python   directories containing pyproject.toml (uv projects with a committed uv.lock)
     cpp      directories containing conanfile.py (each also has a Containerfile)
     compose  compose*.yaml files
     scripts  verify.sh files and examples/<NN>/{k8s,openshift}/**/*.sh (shellcheck). A script directly
@@ -51,7 +51,7 @@ MARKERS = {
     "jvm": "pom.xml",
     "dotnet": "*.csproj",
     "go": "go.mod",
-    "python": "requirements.txt",
+    "python": "pyproject.toml",
     "cpp": "conanfile.py",
 }
 # language directory names used under examples/NN-*/ -> kinds they hold
