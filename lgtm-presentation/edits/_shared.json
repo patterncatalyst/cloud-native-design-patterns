@@ -1,0 +1,468 @@
+{
+ "ops": [
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Postman collections as an automated gate — on plain P\u006fdman",
+   "repl": "Postman collections as an automated gate on Docker Engine",
+   "expect": 1,
+   "cat": "engine"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "The arc: why Newman, the anatomy of a collection, one collection against five backends, running it and shaping the output, data-driven cases, the CI gate on P\u006fdman, and where Newman sits in the test pyramid.",
+   "repl": "The arc: why Newman, the anatomy of a collection, one collection against six backends, running it and shaping the output, data-driven cases, the CI gate on Docker Engine, and where Newman sits in the test pyramid.",
+   "expect": 1,
+   "cat": "engine"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "This is a quietly powerful idea: the collection is the API specification made executable.",
+   "repl": "The collection is the API specification made executable.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "One collection, five backends",
+   "repl": "One collection, six backends",
+   "expect": 1,
+   "cat": "stack"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "That is the whole point of black-box testing: bring up Spring Boot, Quarkus, .NET, Python, or C++, and run the exact same collection against it.",
+   "repl": "That is the point of black-box testing: bring up Spring Boot, Quarkus, .NET, Python, C++ or Go, and run the same collection against it.",
+   "expect": 1,
+   "cat": "stack"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "In CI you would start the service with p\u006fdman compose rather than a foreground command, but locally a background process and a newman run is the fastest loop.",
+   "repl": "In CI the services start with docker compose up -d --build --wait instead of a foreground command; locally, a background process and a newman run is the fastest loop.",
+   "expect": 1,
+   "cat": "engine"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Bring the stack up on P\u006fdman, wait for readiness, run the collection — a failed assertion fails the build.",
+   "repl": "Bring the stack up with docker compose, wait for readiness, run the collection: a failed assertion fails the build.",
+   "expect": 1,
+   "cat": "engine"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "The services come up on P\u006fdman exactly as they do on a laptop - no managed cloud - and Newman runs against them.",
+   "repl": "The services come up on Docker Engine as they do locally, with no managed cloud, and Newman runs against them.",
+   "expect": 1,
+   "cat": "engine"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "The gate on P\u006fdman",
+   "repl": "The gate on Docker Engine",
+   "expect": 1,
+   "cat": "engine"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "The full gate: a pull request builds the image, p\u006fdman compose brings the order, payment, and inventory services up, Newman runs the collection against them, and the result gates the merge - pass merges, fail blocks.",
+   "repl": "The full gate: a pull request builds the image, docker compose brings the order, payment, and inventory services up, Newman runs the collection against them, and the result gates the merge: pass merges, fail blocks.",
+   "expect": 1,
+   "cat": "engine"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "The important property is parity: the stack in CI is the same stack you run on your laptop, on the same P\u006fdman, so a green run in CI means the contract holds against the real services, not a mocked approximation.",
+   "repl": "The important property is parity: the stack in CI is the stack you run locally, on the same Docker Engine, so a green run in CI means the contract holds against the running services rather than a mock.",
+   "expect": 1,
+   "cat": "engine"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "the API/contract tier — above unit tests, below a thin end-to-end layer",
+   "repl": "the API/contract tier: on top of unit tests, under a thin end-to-end layer",
+   "expect": 1,
+   "cat": "positional"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Newman is not a replacement for unit tests - it is the layer above them.",
+   "repl": "Newman does not replace unit tests; it is the layer on top of them.",
+   "expect": 1,
+   "cat": "positional"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "and reserve a thin layer of full end-to-end tests for the few journeys that genuinely need the whole system.",
+   "repl": "and reserve a thin layer of full end-to-end tests for the few user flows that need the whole system.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "And test the failure paths as deliberately as the happy path - a 401 with WWW-Authenticate, a 403, a 409 or 422 on a business rule, a 429 with RateLimit headers, and idempotency by sending the same key twice - which ties this appendix back to the error-format, security, idempotency, and rate-limiting material.",
+   "repl": "Test the failure paths as carefully as the happy path: a 401 with WWW-Authenticate, a 403, a 409 or 422 on a business rule, a 429 with RateLimit headers, and idempotency by sending the same key twice. Those cases tie this appendix back to the error-format, security, idempotency, and rate-limiting material.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "One collection is the conformance suite for all five implementations: Newman tests over HTTP, as a black box.",
+   "repl": "One collection is the conformance suite for all six implementations: Newman tests over HTTP, as a black box.",
+   "expect": 1,
+   "cat": "stack"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Gate CI on plain P\u006fdman so the build fails on a broken contract; keep Newman in the API/contract tier.",
+   "repl": "Gate CI on plain Docker Engine so the build fails on a broken contract; keep Newman in the API/contract tier.",
+   "expect": 1,
+   "cat": "engine"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Because Newman tests over HTTP, one collection is the conformance suite for all five implementations.",
+   "repl": "Because Newman tests over HTTP, one collection is the conformance suite for all six implementations.",
+   "expect": 1,
+   "cat": "stack"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Wire it into CI on plain P\u006fdman so the build fails on a broken contract, and keep Newman in its lane - the API/contract tier, above unit tests and below a thin end-to-end layer.",
+   "repl": "Wire it into CI on plain Docker Engine so the build fails on a broken contract, and keep Newman in its lane: the API/contract tier, on top of unit tests and under a thin end-to-end layer.",
+   "expect": 1,
+   "cat": "engine"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "AI tooling — Claude, Claude Code, frontier models — turns intent into code at a rate that wasn't possible before.",
+   "repl": "AI tooling (Claude, Claude Code, frontier models) turns intent into code at a rate that was not possible before.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Chaining calls inside services quietly rebuilds the monolith.",
+   "repl": "Chaining calls inside services rebuilds the monolith over the network.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Log tailing — the database commit log IS the event stream",
+   "repl": "Log tailing — the database commit log is the event stream",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Dual-write is a lie — use the outbox",
+   "repl": "Dual-write is unsafe — use the outbox",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Sourcing: events ARE the state.",
+   "repl": "Sourcing: the events are the state.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "A coordinator that commands is easy to follow; events that trigger each other decouple but hide the flow.",
+   "repl": "A coordinator that commands keeps the flow in one place; events that trigger each other decouple but hide the flow.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Easy to reason about, change and audit",
+   "repl": "One place to reason about, change and audit",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Step 1: the gateway terminates TLS, validates JWTs from a modern IdP (Keycloak, Auth0, Azure AD), and translates to whatever the legacy expects — it speaks BOTH languages.",
+   "repl": "Step 1: the gateway terminates TLS, validates JWTs from a modern IdP (Keycloak, Auth0, Azure AD), and translates to whatever the legacy expects; it speaks both languages.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Most production systems use ALL of these, in combinations — not as a checklist, but as deliberate decisions per concern.",
+   "repl": "Most production systems combine all of these, not as a checklist but as a decision per concern.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Match each interaction to its style — REST, gRPC, GraphQL or async — and compose at the edge.",
+   "repl": "Match each interaction to its style (REST, gRPC, GraphQL or async) and compose at the edge.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Messaging & integration — AMQP (Advanced Message Queuing Protocol); ESB (Enterprise Service Bus); DLQ (Dead-Letter Queue — where un-processable messages go); SerDe (Serializer / Deserializer); pub/sub (publish-subscribe).",
+   "repl": "Messaging & integration — AMQP (Advanced Message Queuing Protocol); ESB (Enterprise Service Bus); DLQ (Dead-Letter Queue, where un-processable messages go); SerDe (Serializer / Deserializer); pub/sub (publish-subscribe).",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Domain modelling & flow — DDD (Domain-Driven Design); OHS (Open Host Service — a published, stable interface a context offers others); ACL (Anti-Corruption Layer in DDD — translates between models; note: ACL also means Access Control List in security); Saga (not an acronym — a sequence of local transactions with compensating actions).",
+   "repl": "Domain modelling & flow — DDD (Domain-Driven Design); OHS (Open Host Service: a published, stable interface a context offers others); ACL (Anti-Corruption Layer in DDD, which translates between models; ACL also means Access Control List in security); Saga (not an acronym: a sequence of local transactions with compensating actions).",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Identity & security — SPIFFE (Secure Production Identity Framework For Everyone); SPIRE (the SPIFFE Runtime Environment); OPA (Open Policy Agent); IAP (Identity-Aware Proxy); JWT (JSON Web Token); OIDC (OpenID Connect); OAuth (Open Authorization); SAS (Shared Access Signature — Azure's scoped token); MFA (Multi-Factor Authentication); PII (Personally Identifiable Information); SLSA (Supply-chain Levels for Software Artifacts); CVE (Common Vulnerabilities & Exposures); SBOM (Software Bill of Materials).",
+   "repl": "Identity & security — SPIFFE (Secure Production Identity Framework For Everyone); SPIRE (the SPIFFE Runtime Environment); OPA (Open Policy Agent); IAP (Identity-Aware Proxy); JWT (JSON Web Token); OIDC (OpenID Connect); OAuth (Open Authorization); SAS (Shared Access Signature, Azure's scoped token); MFA (Multi-Factor Authentication); PII (Personally Identifiable Information); SLSA (Supply-chain Levels for Software Artifacts); CVE (Common Vulnerabilities & Exposures); SBOM (Software Bill of Materials).",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Three paradigms, three mental models",
+   "repl": "Three paradigms and their mental models",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "A fact that many consumers react to, decoupled in time → none of the above; emit an event.",
+   "repl": "A fact that many consumers react to, decoupled in time → none of these; emit an event.",
+   "expect": 1,
+   "cat": "positional"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Each makes a different kind of L7 decision.",
+   "repl": "Each makes a different type of L7 decision.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Internal traffic is where most L7 decisions actually happen.",
+   "repl": "Most L7 decisions happen on internal traffic.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Four layers, north/south at the top, east/west at the bottom — each making a different kind of L7 decision.",
+   "repl": "Four layers, north/south at the top, east/west at the bottom, each making a different type of L7 decision.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "A request's L7 journey",
+   "repl": "A request's L7 path",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "One HTTP request is really a chain of L7 decisions made by four independent components.",
+   "repl": "One HTTP request is a chain of L7 decisions made by four independent components.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "TLS passthrough — don't terminate — when you need end-to-end encryption (gRPC client mTLS, regulated payloads); route by SNI only.",
+   "repl": "TLS passthrough (no termination) when you need end-to-end encryption (gRPC client mTLS, regulated payloads); route by SNI only.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "When you actually need them: legacy session state, a stateful WebSocket that hasn't been moved off-process yet, certain rate-limit windows tied to a token bucket per pod.",
+   "repl": "When you need them: legacy session state, a stateful WebSocket that hasn't been moved off-process yet, certain rate-limit windows tied to a token bucket per pod.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Cookie-based is almost always the right choice over IP-hash — it's robust to NAT and lets clients explicitly drop the cookie.",
+   "repl": "Cookie-based is almost always the right choice over IP-hash: it survives NAT and lets clients explicitly drop the cookie.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Pushing those rules into HAProxy ACLs or VirtualService matches doesn't scale — they're owned by domain experts, change often, and depend on the payload, not just the envelope.",
+   "repl": "Pushing those rules into HAProxy ACLs or VirtualService matches does not scale: domain experts own them, they change often, and they depend on the payload, not just the envelope.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Prefer exact / prefix matches; use regex only when truly needed.",
+   "repl": "Prefer exact / prefix matches; use regex only when needed.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Sticky sessions silently breaking elasticity — the auto-scaler can't rebalance, restarts are painful, scale-to-zero is gone.",
+   "repl": "Sticky sessions break elasticity without any error: the auto-scaler can't rebalance, restarts are painful, scale-to-zero is gone.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Useful intermediate state, NOT a destination.",
+   "repl": "Useful intermediate state, not a destination.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "When NOT to cache, and what to watch for",
+   "repl": "When not to cache, and what to watch for",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "The goal is NOT zero failures — that's impossible.",
+   "repl": "The goal is not zero failures; that is impossible.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Nodes are alive and healthy — they simply cannot reach each other.",
+   "repl": "Nodes are alive and healthy; they cannot reach each other.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "A partition where BOTH sides think they are the leader and both accept writes.",
+   "repl": "A partition where both sides think they are the leader and both accept writes.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Istio mesh policies + graceful shutdown + observability — the platform layer underneath all of the above.",
+   "repl": "Istio mesh policies + graceful shutdown + observability: the platform layer underneath all of these patterns.",
+   "expect": 1,
+   "cat": "positional"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "The whole section is built on two CNCF, open-source projects - OpenFeature for the vendor-neutral SDK and flagd for the backend - so it runs on plain Kubernetes with no managed SaaS, consistent with the rest of the book.",
+   "repl": "The whole section is built on two CNCF, open-source projects - OpenFeature for the vendor-neutral SDK and flagd for the backend - so it runs on plain Kubernetes with no managed SaaS, like every other example in the book.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Feature flag covers four genuinely different tools, and conflating them is the root of most flag messes.",
+   "repl": "Feature flag covers four different tools, and conflating them is the root of most flag messes.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Default true = fail open: only a deliberate flip disables it.",
+   "repl": "Default true = fail open: only an operator flipping the flag disables it.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "It is the deliberate, human-driven complement to the circuit breaker from the Failure Modes appendix - the breaker trips automatically on errors; the kill switch is flipped on purpose.",
+   "repl": "It is the human-driven complement to the circuit breaker from the Failure Modes appendix - the breaker trips automatically on errors; an operator flips the kill switch by hand.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Note the default flips with the flag type: a release flag defaults off so half-shipped code stays dark, while this kill switch defaults true, fail-open, so the feature survives a flag-system outage and only a deliberate flip removes it.",
+   "repl": "The default flips with the flag type: a release flag defaults off so half-shipped code stays dark, while this kill switch defaults true, fail-open, so the feature survives a flag-system outage and only an explicit flip removes it.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Test BOTH sides of every flag you depend on - a suite that only hits the default path misses the bug behind the flag.",
+   "repl": "Test both sides of every flag you depend on - a suite that only hits the default path misses the bug behind the flag.",
+   "expect": 1,
+   "cat": "voice"
+  },
+  {
+   "op": "replace",
+   "scope": "both",
+   "find": "Keep the number of simultaneously interacting flags small, and default flags off in test environments unless a test sets them deliberately.",
+   "repl": "Keep the number of simultaneously interacting flags small, and default flags off in test environments unless a test sets them explicitly.",
+   "expect": 1,
+   "cat": "voice"
+  }
+ ]
+}

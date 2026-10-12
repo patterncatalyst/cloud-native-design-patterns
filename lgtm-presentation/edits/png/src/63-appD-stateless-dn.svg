@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 1020" font-family="'Red Hat Text', 'Liberation Sans', system-ui, sans-serif">
+<defs><marker id="g" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#888"/></marker><marker id="r" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#c0474a"/></marker></defs>
+<rect width="2000" height="1020" fill="#ffffff"/>
+<text x="1000.0" y="60" font-size="32" font-weight="700" fill="#2a2a2a" text-anchor="middle">Stateless for in-process sagas in .NET</text>
+<text x="1000.0" y="92" font-size="21" font-style="italic" fill="#6a6a6a" text-anchor="middle">lighter-weight: states + triggers + transitions, persisted in your own DB</text>
+<rect x="200" y="196" width="260" height="102" rx="12" fill="#fcf2e1" stroke="#c9a14a" stroke-width="2.5"/>
+<text x="330" y="232" font-size="24" font-weight="700" fill="#6b4a12" text-anchor="middle">Created</text>
+<line x1="460" y1="247" x2="538" y2="247" stroke="#888" stroke-width="2.5" marker-end="url(#g)"/>
+<text x="499" y="236" font-size="14" font-weight="700" fill="#1d3a6b" text-anchor="middle">PayOk</text>
+<rect x="540" y="196" width="260" height="102" rx="12" fill="#e7eef8" stroke="#2f5ea8" stroke-width="2.5"/>
+<text x="670" y="232" font-size="24" font-weight="700" fill="#1d3a6b" text-anchor="middle">Paid</text>
+<line x1="800" y1="247" x2="878" y2="247" stroke="#888" stroke-width="2.5" marker-end="url(#g)"/>
+<text x="839" y="236" font-size="14" font-weight="700" fill="#1d3a6b" text-anchor="middle">ReserveOk</text>
+<rect x="880" y="196" width="260" height="102" rx="12" fill="#f7e6f0" stroke="#a0457a" stroke-width="2.5"/>
+<text x="1010" y="232" font-size="24" font-weight="700" fill="#6b2a50" text-anchor="middle">Reserved</text>
+<line x1="1140" y1="247" x2="1218" y2="247" stroke="#888" stroke-width="2.5" marker-end="url(#g)"/>
+<text x="1179" y="236" font-size="14" font-weight="700" fill="#1d3a6b" text-anchor="middle">ShipOk</text>
+<rect x="1220" y="196" width="260" height="102" rx="12" fill="#f5ebd6" stroke="#c4904a" stroke-width="2.5"/>
+<text x="1350" y="232" font-size="24" font-weight="700" fill="#6b4a12" text-anchor="middle">Shipped</text>
+<line x1="1480" y1="247" x2="1558" y2="247" stroke="#888" stroke-width="2.5" marker-end="url(#g)"/>
+<text x="1519" y="236" font-size="14" font-weight="700" fill="#1d3a6b" text-anchor="middle">Delivered</text>
+<rect x="1560" y="196" width="260" height="102" rx="12" fill="#e8f2e0" stroke="#4f8a2f" stroke-width="2.5"/>
+<text x="1690" y="232" font-size="24" font-weight="700" fill="#2d5a16" text-anchor="middle">Done</text>
+<line x1="1010" y1="298" x2="1010" y2="362" stroke="#c0474a" stroke-width="2.5" stroke-dasharray="7 5" marker-end="url(#r)"/>
+<text x="1030" y="342" font-size="16" font-style="italic" fill="#a02a2a">on StepFail</text>
+<rect x="880" y="366" width="260" height="84" rx="12" fill="#f8e2e2" stroke="#c0474a" stroke-width="2.5"/>
+<text x="1010" y="402" font-size="23" font-weight="700" fill="#8a2020" text-anchor="middle">Compensating</text>
+<rect x="1220" y="366" width="260" height="84" rx="12" fill="#f8e2e2" stroke="#c0474a" stroke-width="2.5"/>
+<text x="1350" y="402" font-size="23" font-weight="700" fill="#8a2020" text-anchor="middle">Failed</text>
+<line x1="1140" y1="408" x2="1218" y2="408" stroke="#c0474a" stroke-width="2.5" marker-end="url(#r)"/>
+<rect x="102" y="544" width="576" height="304" rx="12" fill="#f5ebd6" stroke="#c4904a" stroke-width="2.5"/>
+<text x="390.0" y="580" font-size="23" font-weight="700" fill="#5a3a08" text-anchor="middle">StateMachine&lt;TState, TTrigger&gt;</text>
+<text x="390.0" y="606" font-size="18" fill="#5a3a08" text-anchor="middle">states · triggers · transitions</text>
+<text x="390.0" y="630" font-size="18" fill="#5a3a08" text-anchor="middle">guards (predicate on edge)</text>
+<text x="390.0" y="654" font-size="18" fill="#5a3a08" text-anchor="middle">entry / exit actions</text>
+<text x="390.0" y="678" font-size="18" fill="#5a3a08" text-anchor="middle">OnTransitioned listeners</text>
+<text x="390.0" y="702" font-size="18" fill="#5a3a08" text-anchor="middle"></text>
+<text x="390.0" y="726" font-size="18" fill="#5a3a08" text-anchor="middle">Stateless package (Apache 2.0)</text>
+<text x="390.0" y="750" font-size="18" fill="#5a3a08" text-anchor="middle">tiny dependency, no extra runtime</text>
+<rect x="746" y="544" width="576" height="304" rx="12" fill="#eeeeee" stroke="#888888" stroke-width="2.5"/>
+<text x="1034.0" y="580" font-size="23" font-weight="700" fill="#3a3a3a" text-anchor="middle">Persist state yourself</text>
+<text x="1034.0" y="606" font-size="18" fill="#3a3a3a" text-anchor="middle">serialize CurrentState → saga row</text>
+<text x="1034.0" y="630" font-size="18" fill="#3a3a3a" text-anchor="middle"></text>
+<text x="1034.0" y="654" font-size="18" fill="#3a3a3a" text-anchor="middle">EF Core · Dapper · Marten</text>
+<text x="1034.0" y="678" font-size="18" fill="#3a3a3a" text-anchor="middle"></text>
+<text x="1034.0" y="702" font-size="18" fill="#3a3a3a" text-anchor="middle">one DbContext transaction per step</text>
+<text x="1034.0" y="726" font-size="18" fill="#3a3a3a" text-anchor="middle">scheduled sweeper for in-flight sagas</text>
+<rect x="1390" y="544" width="542" height="304" rx="12" fill="#e7eef8" stroke="#2f5ea8" stroke-width="2.5"/>
+<text x="1661.0" y="580" font-size="23" font-weight="700" fill="#1d3a6b" text-anchor="middle">Driving the machine</text>
+<text x="1661.0" y="606" font-size="18" font-family="'Red Hat Mono', 'Liberation Mono', monospace" fill="#1d3a6b" text-anchor="middle">await sm.FireAsync(</text>
+<text x="1661.0" y="630" font-size="18" font-family="'Red Hat Mono', 'Liberation Mono', monospace" fill="#1d3a6b" text-anchor="middle">    Trigger.PayOk, payload);</text>
+<text x="1661.0" y="654" font-size="18" fill="#1d3a6b" text-anchor="middle"></text>
+<text x="1661.0" y="678" font-size="18" font-family="'Red Hat Mono', 'Liberation Mono', monospace" fill="#1d3a6b" text-anchor="middle">// guards + actions run on transition</text>
+<text x="1661.0" y="702" font-size="18" font-family="'Red Hat Mono', 'Liberation Mono', monospace" fill="#1d3a6b" text-anchor="middle">// persister saves new CurrentState</text>
+<text x="1661.0" y="726" font-size="18" fill="#1d3a6b" text-anchor="middle"></text>
+<text x="1661.0" y="750" font-size="18" fill="#1d3a6b" text-anchor="middle">need durable timers and retries:</text>
+<text x="1661.0" y="774" font-size="18" fill="#1d3a6b" text-anchor="middle">Temporal (separate server)</text>
+<text x="1000.0" y="922" font-size="21" font-weight="700" fill="#4f8a2f" text-anchor="middle">in-process · no extra cluster to run · open source (Apache 2.0)</text>
+<text x="1000.0" y="988" font-size="21" font-style="italic" fill="#7a5a1a" text-anchor="middle">When the saga is small, in-process, and you do not want a separate Temporal cluster.</text>
+</svg>
