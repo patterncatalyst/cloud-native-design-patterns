@@ -18,15 +18,6 @@ public class OrderResource {
     @ConfigProperty(name = "app.version", defaultValue = "v1")
     String version;
 
-    @GET
-    @Path("healthz")
-    public Map<String, String> healthz() {
-        Map<String, String> response = new LinkedHashMap<>();
-        response.put("status", "ok");
-        response.put("version", version);
-        return response;
-    }
-
     @POST
     @Path("orders")
     public Response createOrder(Map<String, Object> body) {

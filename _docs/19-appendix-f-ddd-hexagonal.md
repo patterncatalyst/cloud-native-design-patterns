@@ -149,27 +149,27 @@ public class OrderController {
 ```
 
 ```java
-// domain — the core declares the interfaces (ports) it needs; no framework
-public interface OrderRepository { void save(Order order); }       // outbound
-public interface EventPublisher  { void publish(DomainEvent e); }  // outbound
-
-@ApplicationScoped                            // pure application logic
-public class PlaceOrder {
-    @Inject OrderRepository repo;
-    @Inject EventPublisher events;
-    public Order handle(PlaceOrderCmd cmd) {
-        Order order = Order.create(cmd);      // aggregate enforces invariants
+// domain: ports and the use case, no framework (examples/19-ddd-hexagonal/quarkus)
+public interface OrderRepository { void save(Order o); Optional<Order> findById(String id); }
+public interface EventPublisher  { void publish(OrderPlaced event); }
+public class PlaceOrderUseCase {                // plain Java: no jakarta.* import
+    private final OrderRepository repo;  private final EventPublisher events;
+    public Order execute(PlaceOrderCmd cmd) {
+        Order order = Order.create(cmd);        // aggregate enforces invariants
         repo.save(order);
-        events.publish(new OrderPlaced(order.id()));
+        events.publish(new OrderPlaced(order.id(), order.sku(), order.quantity()));
         return order;
     }
 }
-
-// adapter — a driving adapter; gRPC/GraphQL adapters look the same
-@Path("/orders")
-public class OrderResource {
-    @Inject PlaceOrder placeOrder;
-    @POST public Order place(OrderIn body) { return placeOrder.handle(body.toCmd()); }
+// wiring: the one place CDI meets the use case
+@Produces @ApplicationScoped
+PlaceOrderUseCase useCase(OrderRepository repo, EventPublisher events) {
+    return new PlaceOrderUseCase(repo, events);
+}
+// driven adapter: Panache behind the port; the REST resource and a CLI call the same use case
+@ApplicationScoped @Transactional
+public class PostgresOrderRepository implements OrderRepository {
+    public void save(Order order) { OrderEntity.from(order).persist(); }
 }
 ```
 

@@ -1,23 +1,31 @@
 package com.cndp.order;
 
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 import com.cndp.proto.Inventory;
 import com.cndp.proto.ReserveReply;
 import com.cndp.proto.ReserveRequest;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.agroal.api.AgroalDataSource;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.quarkus.grpc.GrpcClient;
-import io.smallrye.mutiny.Uni;
+import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.quarkus.panache.common.Sort;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.*;
+import jakarta.transaction.Transactional;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
 import org.jboss.logging.Logger;
-
-import java.sql.*;
-import java.time.Duration;
-import java.util.*;
+import org.jboss.resteasy.reactive.RestQuery;
 
 @Path("/orders")
 @Produces(MediaType.APPLICATION_JSON)
@@ -26,25 +34,20 @@ public class OrderResource {
 
     private static final Logger LOG = Logger.getLogger(OrderResource.class);
 
-    @Inject
-    AgroalDataSource dataSource;
+    public record OrderPage(List<Order> items, @JsonProperty("next_cursor") String nextCursor) {}
 
     @GrpcClient("inventory")
     Inventory inventoryClient;
 
     @Inject
     @Channel("order-placed")
-    Emitter<String> orderPlacedEmitter;
-
-    @Inject
-    ObjectMapper objectMapper;
+    Emitter<OrderPlaced> orderPlacedEmitter;
 
     @POST
-    public Response createOrder(Map<String, Object> request) {
-        String sku = (String) request.get("sku");
-        Integer quantity = (Integer) request.get("quantity");
+    public Response createOrder(OrderRequest request) {
+        String sku = request.sku();
+        Integer quantity = request.quantity();
 
-        // Validation
         if (sku == null || sku.trim().isEmpty()) {
             return Response.status(422)
                     .entity(Map.of("error", "sku cannot be empty"))
@@ -58,44 +61,22 @@ public class OrderResource {
         }
 
         try {
-            // Call gRPC inventory service
-            ReserveRequest reserveRequest = ReserveRequest.newBuilder()
-                    .setSku(sku)
-                    .setQuantity(quantity)
-                    .build();
-
-            ReserveReply reserveReply = inventoryClient.reserveStock(reserveRequest)
+            ReserveReply reserveReply = inventoryClient.reserveStock(
+                            ReserveRequest.newBuilder().setSku(sku).setQuantity(quantity).build())
                     .await()
                     .atMost(Duration.ofSeconds(5));
 
-            String status = reserveReply.getReserved() ? "confirmed" : "rejected";
-            String orderId = UUID.randomUUID().toString();
+            var entity = new OrderEntity();
+            entity.id = UUID.randomUUID().toString();
+            entity.sku = sku;
+            entity.quantity = quantity;
+            entity.status = reserveReply.getReserved() ? "confirmed" : "rejected";
+            QuarkusTransaction.requiringNew().run(entity::persist);
 
-            // Insert into database
-            try (Connection conn = dataSource.getConnection();
-                 PreparedStatement stmt = conn.prepareStatement(
-                         "INSERT INTO orders (id, sku, quantity, status) VALUES (?, ?, ?, ?)")) {
-                stmt.setString(1, orderId);
-                stmt.setString(2, sku);
-                stmt.setInt(3, quantity);
-                stmt.setString(4, status);
-                stmt.executeUpdate();
-            }
+            orderPlacedEmitter.send(new OrderPlaced(entity.id, sku, quantity, entity.status));
 
-            Order order = new Order(orderId, sku, quantity, status);
-
-            // Publish to Kafka
-            Map<String, Object> event = Map.of(
-                    "id", orderId,
-                    "sku", sku,
-                    "quantity", quantity,
-                    "status", status
-            );
-            String eventJson = objectMapper.writeValueAsString(event);
-            orderPlacedEmitter.send(eventJson);
-
-            LOG.infof("Created order: %s", orderId);
-            return Response.status(201).entity(order).build();
+            LOG.infof("Created order: %s", entity.id);
+            return Response.status(201).entity(entity.toDto()).build();
 
         } catch (Exception e) {
             LOG.error("Error creating order", e);
@@ -106,55 +87,18 @@ public class OrderResource {
     }
 
     @GET
-    public Response listOrders(
-            @QueryParam("after") String after,
-            @QueryParam("limit") @DefaultValue("10") int limit) {
+    @Transactional
+    public OrderPage listOrders(@RestQuery String after, @RestQuery @DefaultValue("10") int limit) {
+        var query = after == null || after.isEmpty()
+                ? OrderEntity.<OrderEntity>findAll(Sort.by("id"))
+                : OrderEntity.<OrderEntity>find("id > ?1", Sort.by("id"), after);
+        List<Order> orders = query.page(0, limit + 1).list().stream().map(OrderEntity::toDto).toList();
 
-        try (Connection conn = dataSource.getConnection()) {
-            String sql;
-            PreparedStatement stmt;
-
-            if (after != null && !after.isEmpty()) {
-                sql = "SELECT id, sku, quantity, status FROM orders WHERE id > ? ORDER BY id LIMIT ?";
-                stmt = conn.prepareStatement(sql);
-                stmt.setString(1, after);
-                stmt.setInt(2, limit + 1);
-            } else {
-                sql = "SELECT id, sku, quantity, status FROM orders ORDER BY id LIMIT ?";
-                stmt = conn.prepareStatement(sql);
-                stmt.setInt(1, limit + 1);
-            }
-
-            List<Order> orders = new ArrayList<>();
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    orders.add(new Order(
-                            rs.getString("id"),
-                            rs.getString("sku"),
-                            rs.getInt("quantity"),
-                            rs.getString("status")
-                    ));
-                }
-            }
-            stmt.close();
-
-            String nextCursor = null;
-            if (orders.size() > limit) {
-                nextCursor = orders.get(limit - 1).id;
-                orders = orders.subList(0, limit);
-            }
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("items", orders);
-            response.put("next_cursor", nextCursor);
-
-            return Response.ok(response).build();
-
-        } catch (SQLException e) {
-            LOG.error("Error listing orders", e);
-            return Response.serverError()
-                    .entity(Map.of("error", e.getMessage()))
-                    .build();
+        String nextCursor = null;
+        if (orders.size() > limit) {
+            nextCursor = orders.get(limit - 1).id();
+            orders = orders.subList(0, limit);
         }
+        return new OrderPage(orders, nextCursor);
     }
 }

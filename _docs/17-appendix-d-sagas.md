@@ -48,19 +48,26 @@ public void advance(String sagaId) {
 ```
 
 ```java
-// SagaOrchestrator.java — Quarkus; DB-backed state machine
-private static final List<String> STEPS =
-    List.of("charge_payment", "reserve_stock", "book_shipping");
-
-@Transactional                                   // state + command commit together
-public void advance(String sagaId) {
-    Saga s = repo.findForUpdate(sagaId);         // row lock
-    if (!"RUNNING".equals(s.status)) return;     // idempotent: already done/failed
-    String step = STEPS.get(s.stepIndex);
-    var result = invoke(step, s.context);        // call the owning service
-    s.context.put(step, result);                 // accumulate output into context
-    s.stepIndex++;
-    if (s.stepIndex == STEPS.size()) s.status = "COMPLETED";
+// SagaService.java (excerpt), examples/17-sagas/quarkus: one transaction per step
+// STEPS = charge_payment, reserve_stock, book_shipping; each SagaStep also names its inverse
+private Outcome advanceOneStep(String sagaId) {      // QuarkusTransaction.requiringNew()
+    SagaEntity saga = SagaEntity.findById(sagaId, LockModeType.PESSIMISTIC_WRITE);  // row lock
+    if (saga.stepIndex >= STEPS.size()) { saga.status = "COMPLETED"; return Outcome.DONE; }
+    SagaStep step = STEPS.get(saga.stepIndex);
+    Map<String, Object> context = new HashMap<>(saga.context);
+    try {
+        var result = stepExecutor.execute(step.name(), context);    // call the owning service
+        SagaLogEntity.of(sagaId, step.name(), "execute", result).persist();
+        context.put(step.name(), result);              // accumulate output into the context
+        saga.context = context;
+        saga.stepIndex++;                              // one commit: state + log row
+        return Outcome.CONTINUE;
+    } catch (Exception e) {
+        SagaLogEntity.of(sagaId, step.name(), "failed", Map.of("error", e.getMessage()))
+            .persist();
+        saga.status = "COMPENSATING";                  // hand off to the unwinder
+        return Outcome.COMPENSATE;
+    }
 }
 ```
 
@@ -177,18 +184,22 @@ public void compensate(String sagaId) {
 ```
 
 ```java
-static final Map<String,String> COMPENSATIONS = Map.of(   // inverse per step
-    "charge_payment", "refund_payment",
-    "reserve_stock",  "release_stock",
-    "book_shipping",  "cancel_shipping");
-
-@Transactional
+// SagaService.java (excerpt), examples/17-sagas/quarkus: compensate in reverse
 public void compensate(String sagaId) {
-    Saga s = Saga.findById(sagaId, LockModeType.PESSIMISTIC_WRITE);
-    for (String step : reversed(STEPS.subList(0, s.stepIndex))) {  // newest first
-        invoke(COMPENSATIONS.get(step), s.context);               // semantic inverse
+    Saga saga = getSaga(sagaId);                   // stepIndex = completed steps
+    for (int i = saga.stepIndex() - 1; i >= 0; i--) {         // newest first
+        SagaStep step = STEPS.get(i);
+        try {
+            var result = stepExecutor.execute(step.compensate(), saga.context());
+            logStep(sagaId, step.compensate(), "compensate", result);   // own transaction
+        } catch (Exception e) {
+            logStep(sagaId, step.compensate(), "failed", Map.of("error", e.getMessage()));
+        }
     }
-    s.status = "COMPENSATED";
+    QuarkusTransaction.requiringNew().run(() -> {
+        SagaEntity entity = SagaEntity.findById(sagaId);
+        entity.status = "COMPENSATED";             // Hibernate flushes the change at commit
+    });
 }
 ```
 

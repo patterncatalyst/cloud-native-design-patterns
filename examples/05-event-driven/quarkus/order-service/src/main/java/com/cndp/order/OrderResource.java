@@ -1,93 +1,53 @@
 package com.cndp.order;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.agroal.api.AgroalDataSource;
+import java.util.List;
+import java.util.UUID;
+
+import io.quarkus.logging.Log;
+import io.quarkus.narayana.jta.QuarkusTransaction;
+import io.quarkus.panache.common.Sort;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.*;
+import jakarta.transaction.Transactional;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
-import org.jboss.logging.Logger;
 
-import java.sql.*;
-import java.util.*;
-
-@Path("/")
+@Path("/orders")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class OrderResource {
 
-    private static final Logger log = Logger.getLogger(OrderResource.class);
-
-    @Inject
-    AgroalDataSource dataSource;
-
-    @Inject
-    ObjectMapper objectMapper;
-
     @Inject
     @Channel("order-placed")
-    Emitter<String> orderPlacedEmitter;
-
-    @GET
-    @Path("healthz")
-    public Map<String, String> healthz() {
-        return Map.of("status", "ok");
-    }
+    Emitter<OrderPlaced> orderPlacedEmitter;
 
     @POST
-    @Path("orders")
-    public Response createOrder(Map<String, Object> body) throws Exception {
-        String id = UUID.randomUUID().toString();
-        String sku = (String) body.get("sku");
-        int quantity = ((Number) body.get("quantity")).intValue();
+    public Response createOrder(OrderRequest request) {
+        var entity = new OrderEntity();
+        entity.id = UUID.randomUUID().toString();
+        entity.sku = request.sku();
+        entity.quantity = request.quantity();
+        entity.status = "pending";
+        QuarkusTransaction.requiringNew().run(entity::persist);
+        Log.infof("Order created: id=%s, sku=%s, quantity=%d", entity.id, entity.sku, entity.quantity);
 
-        try (Connection conn = dataSource.getConnection();
-             PreparedStatement ps = conn.prepareStatement(
-                 "INSERT INTO orders (id, sku, quantity, status) VALUES (?, ?, ?, 'pending')")) {
-            ps.setString(1, id);
-            ps.setString(2, sku);
-            ps.setInt(3, quantity);
-            ps.executeUpdate();
-        }
-        log.infof("Order created: id=%s, sku=%s, quantity=%d", id, sku, quantity);
+        orderPlacedEmitter.send(new OrderPlaced(entity.id, entity.sku, entity.quantity, entity.status));
+        Log.infof("Event published to order.placed: orderId=%s", entity.id);
 
-        Map<String, Object> event = Map.of(
-            "id", id,
-            "sku", sku,
-            "quantity", quantity,
-            "status", "pending"
-        );
-        orderPlacedEmitter.send(objectMapper.writeValueAsString(event));
-        log.infof("Event published to order.placed: orderId=%s", id);
-
-        Map<String, Object> response = Map.of(
-            "id", id,
-            "sku", sku,
-            "quantity", quantity,
-            "status", "pending"
-        );
-        return Response.status(Response.Status.CREATED).entity(response).build();
+        return Response.status(Response.Status.CREATED)
+                .entity(new Order(entity.id, entity.sku, entity.quantity, entity.status)).build();
     }
 
     @GET
-    @Path("orders")
-    public List<Map<String, Object>> listOrders() throws Exception {
-        List<Map<String, Object>> orders = new ArrayList<>();
-        try (Connection conn = dataSource.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT id, sku, quantity, status, created_at FROM orders ORDER BY created_at DESC")) {
-            while (rs.next()) {
-                Map<String, Object> order = new LinkedHashMap<>();
-                order.put("id", rs.getString("id"));
-                order.put("sku", rs.getString("sku"));
-                order.put("quantity", rs.getInt("quantity"));
-                order.put("status", rs.getString("status"));
-                order.put("created_at", rs.getString("created_at"));
-                orders.add(order);
-            }
-        }
-        return orders;
+    @Transactional
+    public List<OrderView> listOrders() {
+        return OrderEntity.<OrderEntity>listAll(Sort.descending("createdAt"))
+                .stream().map(OrderEntity::toView).toList();
     }
 }

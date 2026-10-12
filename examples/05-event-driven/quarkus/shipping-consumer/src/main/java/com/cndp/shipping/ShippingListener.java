@@ -1,50 +1,42 @@
 package com.cndp.shipping;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.agroal.api.AgroalDataSource;
+import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
+import jakarta.persistence.PersistenceException;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
-import org.jboss.logging.Logger;
-
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import org.hibernate.exception.ConstraintViolationException;
 
 @ApplicationScoped
 public class ShippingListener {
 
-    private static final Logger log = Logger.getLogger(ShippingListener.class);
+    private static final String UNIQUE_VIOLATION = "23505";
 
-    @Inject
-    AgroalDataSource dataSource;
+    private final ShippingService service;
 
-    @Inject
-    ObjectMapper objectMapper;
+    ShippingListener(ShippingService service) {
+        this.service = service;
+    }
 
+    /**
+     * Idempotent consumer: the service checks for the order first, and the UNIQUE (order_id)
+     * constraint is the backstop when two deliveries race. The transaction lives in the service,
+     * so a rolled-back duplicate is handled here and the offset still commits.
+     */
     @Incoming("order-placed")
-    public void onOrderPlaced(String message) {
+    public void onOrderPlaced(OrderPlaced event) {
+        Log.infof("Received order.placed: orderId=%s", event.id());
         try {
-            JsonNode event = objectMapper.readTree(message);
-            String orderId = event.get("id").asText();
-            log.infof("Received order.placed: orderId=%s", orderId);
-
-            try (Connection conn = dataSource.getConnection();
-                 PreparedStatement ps = conn.prepareStatement(
-                     "INSERT INTO shipments (order_id, status) VALUES (?, 'scheduled')")) {
-                ps.setString(1, orderId);
-                ps.executeUpdate();
-                log.infof("Shipment scheduled for orderId=%s", orderId);
-            }
-        } catch (SQLException e) {
-            if (e.getSQLState() != null && e.getSQLState().equals("23505")) {
-                log.infof("Duplicate shipment, skipping (idempotent)");
+            if (service.record(event.id())) {
+                Log.infof("Shipment scheduled for orderId=%s", event.id());
             } else {
-                throw new RuntimeException(e);
+                Log.info("Duplicate shipment, skipping (idempotent)");
             }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        } catch (PersistenceException e) {
+            if (e instanceof ConstraintViolationException cve && UNIQUE_VIOLATION.equals(cve.getSQLState())) {
+                Log.info("Duplicate shipment, skipping (idempotent)");
+            } else {
+                throw e;
+            }
         }
     }
 }

@@ -1,10 +1,15 @@
 package com.cndp.stub;
 
 import jakarta.inject.Inject;
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.resteasy.reactive.RestPath;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -22,15 +27,6 @@ public class StubResource {
     AtomicLong counter = new AtomicLong(0);
     ConcurrentHashMap<String, Map<String, Object>> orders = new ConcurrentHashMap<>();
     ConcurrentHashMap<String, AtomicLong> accessCounts = new ConcurrentHashMap<>();
-
-    @GET
-    @Path("healthz")
-    public Response healthz() {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("status", "ok");
-        response.put("source", serviceName);
-        return Response.ok(response).build();
-    }
 
     @POST
     @Path("orders")
@@ -52,7 +48,7 @@ public class StubResource {
 
     @GET
     @Path("orders/{orderId}")
-    public Response getOrder(@PathParam("orderId") String orderId) {
+    public Response getOrder(@RestPath String orderId) {
         accessCounts.computeIfAbsent(orderId, k -> new AtomicLong(0)).incrementAndGet();
 
         Map<String, Object> order = orders.get(orderId);
@@ -70,7 +66,7 @@ public class StubResource {
 
     @GET
     @Path("access-count/{orderId}")
-    public Response getAccessCount(@PathParam("orderId") String orderId) {
+    public Response getAccessCount(@RestPath String orderId) {
         long count = accessCounts.getOrDefault(orderId, new AtomicLong(0)).get();
 
         Map<String, Object> response = new LinkedHashMap<>();

@@ -110,21 +110,26 @@ public class OrderServiceApplication {
 ```
 
 ```java
-// SignalHandler.java (excerpt), examples/21-graceful-shutdown/quarkus
-// application.properties: quarkus.shutdown.timeout=20s (bounds the in-flight wait)
+// ShutdownState + DrainReadinessCheck (excerpt), examples/21-graceful-shutdown/quarkus
+// application.properties: quarkus.shutdown.delay-enabled=true, delay=5S, timeout=20s
 @ApplicationScoped
-public class SignalHandler {
-    @Inject ShutdownState shutdownState;     // GET /readyz answers 503 once it is set
-    void onStart(@Observes StartupEvent ev) { // replaces the JVM's default SIGTERM handler
-        Signal.handle(new Signal("TERM"), signal -> {
-            if (!shutdownState.markShuttingDown()) return;  // one SIGTERM drives the drain
-            long delay = drainDelaySeconds();               // DRAIN_DELAY_SECONDS, default 5
-            new Thread(() -> {
-                try { Thread.sleep(delay * 1000); }         // keep serving: endpoints update
-                catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-                Quarkus.asyncExit(0);   // stop accepting, finish in-flight, close the pool
-            }, "drain").start();
-        });
+public class ShutdownState {          // one SIGTERM starts the delay, then HTTP stops, drains
+    void onDelayInitiated(@Observes ShutdownDelayInitiatedEvent event) {   // SIGTERM received
+        shuttingDown.set(true);            // readiness reports DOWN; the pod keeps serving
+        Log.info("SIGTERM received — readiness flipped to 503, draining...");
+    }
+    void onShutdown(@Observes ShutdownEvent event) {      // delay over: HTTP stops, drains
+        Log.infof("shutting down HTTP server (in_flight=%d)", inFlight.get());
+    }
+}
+@Readiness @ApplicationScoped              // /readyz = this check + the datasource check
+public class DrainReadinessCheck implements HealthCheck {
+    @Inject ShutdownState shutdownState;
+    public HealthCheckResponse call() {
+        var builder = HealthCheckResponse.named("drain");
+        return shutdownState.isShuttingDown()
+            ? builder.down().withData("reason", "shutting down").build()
+            : builder.up().build();
     }
 }
 ```

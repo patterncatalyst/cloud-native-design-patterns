@@ -115,7 +115,7 @@ void onStart(@Observes StartupEvent ev) {
 @Path("/checkout")
 public class CheckoutResource {
   @POST
-  public Receipt checkout(Cart cart, @HeaderParam("X-User") String user) {
+  public Receipt checkout(Cart cart, @RestHeader("X-User") String user) {
     Client flags = OpenFeatureAPI.getInstance().getClient();
     var ctx = new MutableContext(user)           // targeting key
         .add("plan", cart.plan()).add("region", cart.region());

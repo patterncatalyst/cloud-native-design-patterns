@@ -39,6 +39,10 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-arc</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-health</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
@@ -49,6 +53,7 @@
                 <version>3.16.0</version>
                 <configuration>
                     <release>25</release>
+                    <parameters>true</parameters>
                 </configuration>
             </plugin>
             <plugin>

@@ -4,7 +4,7 @@ Twelve-factor env-based config and liveness/readiness probes.
 
 ## Framework & libraries
 
-- **Framework**: Quarkus 3.40.1 LTS (RESTEasy Reactive, Agroal)
+- **Framework**: Quarkus 3.40.1 LTS (Quarkus REST, Hibernate ORM with Panache, SmallRye Health)
 - **Libraries**: quarkus-rest, quarkus-jdbc-postgresql, quarkus-opentelemetry
 - **Container base**: `registry.access.redhat.com/ubi10/openjdk-25:1.24-15` (build), `registry.access.redhat.com/ubi10/openjdk-25-runtime:1.24-15` (runtime)
 
@@ -25,11 +25,13 @@ cd .. && bash verify.sh
 | Path | Description |
 |------|-------------|
 | `OrderResource.java` | JAX-RS endpoints for order CRUD |
-| `HealthResource.java` | Probe endpoints (`/healthz`, `/readyz`, `/`) |
+| `Order.java` | Panache entity over the shared `orders` table; `OrderDto` is the response shape |
+
+The probes (`/healthz`, `/readyz`) come from SmallRye Health; readiness includes the datasource check.
 
 ## Implementation notes
 
-Uses `AgroalDataSource` (via `javax.sql.DataSource` injection) for JDBC.
+Uses Hibernate ORM with Panache over the schema in `db/init` (`quarkus.hibernate-orm.schema-management.strategy=validate`).
 Config in `application.properties` with `${ENV_VAR:default}` syntax.
 
 ## Environment variables

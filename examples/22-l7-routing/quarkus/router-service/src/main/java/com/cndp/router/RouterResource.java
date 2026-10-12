@@ -63,12 +63,4 @@ public class RouterResource {
         LOG.info("RULES_UPDATED");
         return new LinkedHashMap<>(rules);
     }
-
-    @GET
-    @Path("healthz")
-    public Map<String, String> healthz() {
-        Map<String, String> response = new LinkedHashMap<>();
-        response.put("status", "ok");
-        return response;
-    }
 }

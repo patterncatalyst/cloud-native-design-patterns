@@ -12,11 +12,11 @@ import dev.openfeature.sdk.OpenFeatureAPI;
 import io.quarkus.logging.Log;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
-import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
+import org.jboss.resteasy.reactive.RestHeader;
 
 @Path("/")
 @Produces(MediaType.APPLICATION_JSON)
@@ -41,17 +41,11 @@ public class FlagResource {
         }
     }
 
-    @GET
-    @Path("healthz")
-    public Map<String, String> healthz() {
-        return Map.of("status", "ok");
-    }
-
     @POST
     @Path("checkout")
     public Map<String, Object> checkout(
-            @HeaderParam("X-User") @DefaultValue("anonymous") String user,
-            @HeaderParam("X-Plan") @DefaultValue("free") String plan) {
+            @RestHeader("X-User") @DefaultValue("anonymous") String user,
+            @RestHeader("X-Plan") @DefaultValue("free") String plan) {
 
         MutableContext ctx = buildContext(user, plan);
         boolean useNew = evalFlag("new-checkout", false, ctx);
@@ -66,7 +60,7 @@ public class FlagResource {
     @GET
     @Path("recommendations")
     public Map<String, Object> recommendations(
-            @HeaderParam("X-User") @DefaultValue("anonymous") String user) {
+            @RestHeader("X-User") @DefaultValue("anonymous") String user) {
 
         MutableContext ctx = buildContext(user, "free");
         boolean enabled = evalFlag("recommendations-enabled", true, ctx);
@@ -85,7 +79,7 @@ public class FlagResource {
     @GET
     @Path("ui-config")
     public Map<String, Object> uiConfig(
-            @HeaderParam("X-User") @DefaultValue("anonymous") String user) {
+            @RestHeader("X-User") @DefaultValue("anonymous") String user) {
 
         MutableContext ctx = buildContext(user, "free");
         boolean dark = evalFlag("dark-mode", false, ctx);
@@ -99,8 +93,8 @@ public class FlagResource {
     @GET
     @Path("flags")
     public Map<String, Object> allFlags(
-            @HeaderParam("X-User") @DefaultValue("anonymous") String user,
-            @HeaderParam("X-Plan") @DefaultValue("free") String plan) {
+            @RestHeader("X-User") @DefaultValue("anonymous") String user,
+            @RestHeader("X-Plan") @DefaultValue("free") String plan) {
 
         MutableContext ctx = buildContext(user, plan);
 

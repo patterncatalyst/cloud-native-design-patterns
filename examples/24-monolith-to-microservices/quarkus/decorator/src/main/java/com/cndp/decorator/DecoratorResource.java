@@ -1,24 +1,26 @@
 package com.cndp.decorator;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 import io.quarkus.redis.datasource.RedisDataSource;
 import io.quarkus.redis.datasource.value.ValueCommands;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
-
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
-import java.util.*;
-import java.util.concurrent.CompletionException;
+import org.jboss.resteasy.reactive.RestPath;
 
 @Path("/")
 @Produces(MediaType.APPLICATION_JSON)
@@ -28,102 +30,64 @@ public class DecoratorResource {
     private static final Logger LOG = Logger.getLogger(DecoratorResource.class);
     private static final String TOPIC = "order.placed";
 
-    @ConfigProperty(name = "legacy.url", defaultValue = "http://legacy:8080")
-    String legacyUrl;
-
-    @Inject
-    ObjectMapper objectMapper;
+    @RestClient
+    LegacyClient legacy;
 
     @Inject
     RedisDataSource redisDataSource;
 
     @Channel("order-events-out")
-    Emitter<String> kafkaEmitter;
+    Emitter<Map<String, Object>> kafkaEmitter;
 
     List<Map<String, Object>> publishedEvents = Collections.synchronizedList(new ArrayList<>());
-    HttpClient httpClient = HttpClient.newHttpClient();
-
-    @GET
-    @Path("healthz")
-    public Response healthz() {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("status", "ok");
-        return Response.ok(response).build();
-    }
 
     @POST
     @Path("orders")
-    public Response createOrder(Map<String, Object> body) throws Exception {
+    public Response createOrder(Map<String, Object> body) {
         // 1. Forward POST to legacy/orders
-        String requestBody = objectMapper.writeValueAsString(body);
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(legacyUrl + "/orders"))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                .build();
-
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-        // 2. Parse response to get order id
-        @SuppressWarnings("unchecked")
-        Map<String, Object> legacyResponse = objectMapper.readValue(response.body(), Map.class);
+        Map<String, Object> legacyResponse = legacy.createOrder(body);
         String orderId = (String) legacyResponse.get("id");
 
-        // 3. Build event
+        // 2. Build event: Jackson writes the map in insertion order (event, order_id, then the request fields)
         Map<String, Object> event = new LinkedHashMap<>();
         event.put("event", TOPIC);
         event.put("order_id", orderId);
         event.putAll(body);
 
-        // 4. Add to publishedEvents list
+        // 3. Remember it and publish to Kafka
         publishedEvents.add(event);
+        kafkaEmitter.send(event);
 
-        // 5. Publish to Kafka
-        String eventJson = objectMapper.writeValueAsString(event);
-        kafkaEmitter.send(eventJson);
-
-        // 6. Log
         LOG.infof("EVENT %s -> Kafka order_id=%s", TOPIC, orderId);
 
-        // 7. Return 201 + legacy response
-        return Response.status(201).entity(response.body()).build();
+        // 4. Return 201 + legacy response
+        return Response.status(201).entity(legacyResponse).build();
     }
 
     @GET
     @Path("orders/{orderId}")
-    public Response getOrder(@PathParam("orderId") String orderId) throws Exception {
+    public Response getOrder(@RestPath String orderId) {
         String cacheKey = "order:" + orderId;
         ValueCommands<String, String> commands = redisDataSource.value(String.class);
 
         // 1. Check Redis
         String cached = commands.get(cacheKey);
         if (cached != null) {
-            // 2. Cache hit
             LOG.infof("CACHE_HIT order_id=%s", orderId);
             return Response.ok(cached).build();
         }
 
-        // 3. Cache miss
+        // 2. Cache miss: GET from legacy and store with a 60s TTL
         LOG.infof("CACHE_MISS order_id=%s", orderId);
+        String body = legacy.getOrder(orderId);
+        commands.setex(cacheKey, 60, body);
 
-        // GET from legacy
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(legacyUrl + "/orders/" + orderId))
-                .GET()
-                .build();
-
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-        // 4. Store in Redis with 60s TTL
-        commands.setex(cacheKey, 60, response.body());
-
-        // 5. Return response
-        return Response.ok(response.body()).build();
+        return Response.ok(body).build();
     }
 
     @GET
     @Path("events")
-    public Response getEvents() {
-        return Response.ok(publishedEvents).build();
+    public List<Map<String, Object>> getEvents() {
+        return publishedEvents;
     }
 }

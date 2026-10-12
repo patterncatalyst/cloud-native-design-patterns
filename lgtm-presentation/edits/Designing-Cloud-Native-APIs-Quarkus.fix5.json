@@ -1,0 +1,787 @@
+{
+ "ops": [
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    269
+   ],
+   "find": "java · Quarkus REST",
+   "repl": "java · Quarkus + SmallRye Health",
+   "expect": 1,
+   "cat": "code",
+   "_why": "examples/01 quarkus: SmallRye Health probes, Panache entity",
+   "_src": "S13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 269,
+   "lines": [
+    "# application.properties (excerpt), examples/01-cloud-native-principles/quarkus",
+    "# SmallRye Health: readiness includes the datasource check (503 when the database is down)",
+    "quarkus.smallrye-health.liveness-path=/healthz",
+    "quarkus.smallrye-health.readiness-path=/readyz",
+    "# db/init owns the schema: Hibernate only validates",
+    "quarkus.hibernate-orm.schema-management.strategy=validate",
+    "// Order.java: active record over the existing table",
+    "@Entity @Table(name = \"orders\")",
+    "public class Order extends PanacheEntityBase {",
+    "    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) public Integer id;",
+    "    @Column(nullable = false) public String customer;",
+    "    @Column(nullable = false, precision = 10, scale = 2) public BigDecimal total;",
+    "}",
+    "// OrderResource.java (excerpt)",
+    "@ConfigProperty(name = \"service.version\") String serviceVersion;      // env, factor III",
+    "@POST @Path(\"orders\") @Transactional",
+    "public OrderDto createOrder(@RestQuery String customer, @RestQuery BigDecimal total) {",
+    "    var order = new Order(); order.customer = customer;",
+    "    order.total = total.setScale(2, RoundingMode.HALF_UP);",
+    "    order.persist();                         // INSERT in the request transaction",
+    "    return OrderDto.of(order);               // the DTO, never the entity",
+    "}"
+   ],
+   "cat": "code",
+   "_why": "examples/01: SmallRye Health on /healthz and /readyz, Hibernate validate, Panache entity",
+   "_src": "S13",
+   "pt": 10.0
+  },
+  {
+   "op": "set_notes",
+   "sldId": 269,
+   "paragraphs": [
+    "Walk the code: config comes from the environment via MicroProfile Config (factor III): QUARKUS_DATASOURCE_JDBC_URL, the username and password and SERVICE_VERSION override application.properties, never a baked-in file. The two probes come from SmallRye Health (quarkus-smallrye-health), mapped to /healthz and /readyz in application.properties. /healthz is liveness (am I alive? if not, restart me) and never checks a dependency. /readyz is readiness (can I serve?) and includes the datasource check, so when the database is unreachable it answers 503 with status DOWN, which takes the pod out of rotation without killing it. The probe reads the status code, not the body: Kubernetes treats any answer from 200 to 399 as ready. Custom checks are @Liveness and @Readiness beans; Example 21 adds one for the drain.",
+    "Persistence is Hibernate ORM with Panache. The Order entity maps the table that db/init creates, and quarkus.hibernate-orm.schema-management.strategy=validate makes Hibernate check the mapping instead of owning the schema. The resource returns a DTO record, never the entity. Getting liveness vs readiness wrong is a top cause of cascading restarts, so stress the distinction. Maven with the quarkus-bom (platform 3.40.1) pins every dependency reproducibly."
+   ],
+   "cat": "notes",
+   "_why": "notes follow the code",
+   "_src": "S13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    284
+   ],
+   "find": "@PathParam(\"id\") String id",
+   "repl": "@RestPath String id",
+   "expect": 1,
+   "cat": "code",
+   "_why": "Quarkus REST path binding without a repeated name",
+   "_src": "S13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    287
+   ],
+   "find": "java · Agroal JDBC + Debezium",
+   "repl": "java · Hibernate Panache + Debezium",
+   "expect": 1,
+   "cat": "code",
+   "_why": "examples/04 quarkus: Panache entities, one transaction",
+   "_src": "S13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 287,
+   "lines": [
+    "// OutboxEvent.java + OrderResource.java (excerpt), examples/04-data/quarkus",
+    "@Entity @Table(name = \"outbox\")",
+    "public class OutboxEvent extends PanacheEntityBase {       // the table Debezium tails",
+    "    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) public Long id;",
+    "    @Column(name = \"aggregate_id\") public String aggregateId;",
+    "    @Column(name = \"event_type\") public String eventType;",
+    "    @JdbcTypeCode(SqlTypes.JSON) public OrderPlacedPayload payload;   // jsonb column",
+    "}",
+    "@POST @Transactional                          // one JTA transaction around both rows",
+    "public Response createOrder(CreateOrderRequest request) {",
+    "    var order = new OrderEntity();",
+    "    order.id = UUID.randomUUID().toString();",
+    "    // ... sku and quantity from the request; status = \"confirmed\"",
+    "    order.persistAndFlush();                   // the state change; created_at read back",
+    "    var event = new OutboxEvent();",
+    "    event.aggregateId = order.id;",
+    "    event.eventType = \"order.placed\";",
+    "    event.payload = new OrderPlacedPayload(order.id, order.sku, order.quantity, order.status);",
+    "    event.persist();                           // same transaction: the outbox row",
+    "    return Response.status(Response.Status.CREATED).entity(order.toView()).build();",
+    "}",
+    "// No Kafka call on the request path: Debezium tails the WAL and publishes order.placed."
+   ],
+   "cat": "code",
+   "_why": "examples/04: order and OutboxEvent entities persisted in one @Transactional method",
+   "_src": "S13",
+   "pt": 10.0
+  },
+  {
+   "op": "set_notes",
+   "sldId": 287,
+   "paragraphs": [
+    "The whole trick is the @Transactional method: the insert of the order row and the insert of the outbox row run in one JTA transaction, so they commit or roll back together. Both rows are Panache entities over tables that db/init creates, and the outbox payload is a record stored in a jsonb column with @JdbcTypeCode(SqlTypes.JSON). There is no Kafka call inside the request path: if the broker is down, the order still commits and the event ships later when Debezium tails the write-ahead log and relays the outbox row in commit order. This decouples request latency and availability from Kafka's.",
+    "Example 04 needs no outbox extension: the outbox is a small table (aggregate id, event type, JSON payload, created_at) mapped by a plain OutboxEvent entity, and a standard Debezium Postgres connector handles the CDC. The Debezium Outbox Event Router single-message transform unwraps the row into the event envelope on the connector side. The Debezium Quarkus outbox extension is not used: it brings its own table layout, and one table and one connector serve every language. The same commit-together discipline reappears in the saga appendix."
+   ],
+   "cat": "notes",
+   "_why": "notes follow the code",
+   "_src": "S13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 298,
+   "lines": [
+    "// stream-processor RevenueTopology.java (excerpt), quarkus-kafka-streams",
+    "@ApplicationScoped",
+    "public class RevenueTopology {",
+    "    @Produces",
+    "    public Topology topology() {",
+    "        var builder = new StreamsBuilder();",
+    "        var orderSerde = new ObjectMapperSerde<>(OrderEvent.class);    // typed JSON in and out",
+    "        var accSerde = new ObjectMapperSerde<>(Acc.class);",
+    "        var outSerde = new ObjectMapperSerde<>(RevenueWindow.class);",
+    "        builder.stream(ORDERS, Consumed.with(Serdes.String(), orderSerde))",
+    "            .filter((key, order) -> order != null && order.merchantId() != null)",
+    "            .groupBy((k, o) -> o.merchantId(), Grouped.with(Serdes.String(), orderSerde))",
+    "            .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(windowSeconds)))",
+    "            .aggregate(() -> new Acc(0, BigDecimal.ZERO),             // local state",
+    "                (merchant, order, acc) -> acc.add(order.total()),",
+    "                Materialized.with(Serdes.String(), accSerde))",
+    "            .toStream().map((window, acc) -> KeyValue.pair(window.key(),",
+    "                new RevenueWindow(/* start, end, merchant, count, revenue */)))",
+    "            .to(REVENUE, Produced.with(Serdes.String(), outSerde));",
+    "        return builder.build();",
+    "    }",
+    "}"
+   ],
+   "cat": "code",
+   "_why": "examples/06: typed serdes for the order event, accumulator and revenue row",
+   "_src": "S13",
+   "pt": 10.0
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    298
+   ],
+   "find": "is serialized with ObjectMapperSerde, and each update",
+   "repl": "is serialized with ObjectMapperSerde, as are the input event (OrderEvent) and the output row (RevenueWindow), so nothing is parsed by hand, and each update",
+   "expect": 1,
+   "cat": "notes",
+   "_why": "notes follow the typed topology",
+   "_src": "S13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 377,
+   "lines": [
+    "// SagaService.java (excerpt), examples/17-sagas/quarkus: one transaction per step",
+    "// STEPS = charge_payment, reserve_stock, book_shipping; each SagaStep also names its inverse",
+    "private Outcome advanceOneStep(String sagaId) {      // QuarkusTransaction.requiringNew()",
+    "    SagaEntity saga = SagaEntity.findById(sagaId, LockModeType.PESSIMISTIC_WRITE);  // row lock",
+    "    if (saga.stepIndex >= STEPS.size()) { saga.status = \"COMPLETED\"; return Outcome.DONE; }",
+    "    SagaStep step = STEPS.get(saga.stepIndex);",
+    "    Map<String, Object> context = new HashMap<>(saga.context);",
+    "    try {",
+    "        var result = stepExecutor.execute(step.name(), context);    // call the owning service",
+    "        SagaLogEntity.of(sagaId, step.name(), \"execute\", result).persist();",
+    "        context.put(step.name(), result);              // accumulate output into the context",
+    "        saga.context = context;",
+    "        saga.stepIndex++;                              // one commit: state + log row",
+    "        return Outcome.CONTINUE;",
+    "    } catch (Exception e) {",
+    "        SagaLogEntity.of(sagaId, step.name(), \"failed\", Map.of(\"error\", e.getMessage()))",
+    "            .persist();",
+    "        saga.status = \"COMPENSATING\";                  // hand off to the unwinder",
+    "        return Outcome.COMPENSATE;",
+    "    }",
+    "}"
+   ],
+   "cat": "code",
+   "_why": "examples/17: one transaction per step, PESSIMISTIC_WRITE row lock, log row in the same commit",
+   "_src": "S13",
+   "pt": 10.5
+  },
+  {
+   "op": "set_notes",
+   "sldId": 377,
+   "paragraphs": [
+    "This is the DB-backed option made concrete with Panache, and the default choice when the team wants to own the transitions. Key ideas: one saga row, loaded with a PESSIMISTIC_WRITE lock (findById with a LockModeType) so two workers cannot advance the same saga concurrently. advanceOneStep runs in its own transaction, one step per transaction: the new context, the new step index and the saga_log row commit together, so a crash leaves either the old state or the new one. The context is a JSON column (@JdbcTypeCode(SqlTypes.JSON)) that accumulates each step's result, which the data-dependency slide builds on. A failed step logs the failure, marks the saga COMPENSATING and returns, and the caller runs the unwinder.",
+    "Recovery needs no special path: on startup the service loads the RUNNING sagas and calls advance() again, and the loop resumes from the stored step index. The managed alternative is Quarkus Flow, which provides this state machine, retries and timers out of the box; the data-dependency slide shows it."
+   ],
+   "cat": "notes",
+   "_why": "notes follow the code",
+   "_src": "S13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 379,
+   "lines": [
+    "// SagaService.java (excerpt), examples/17-sagas/quarkus: compensate in reverse",
+    "public void compensate(String sagaId) {",
+    "    Saga saga = getSaga(sagaId);                   // stepIndex = completed steps",
+    "    for (int i = saga.stepIndex() - 1; i >= 0; i--) {         // newest first",
+    "        SagaStep step = STEPS.get(i);",
+    "        try {",
+    "            var result = stepExecutor.execute(step.compensate(), saga.context());",
+    "            logStep(sagaId, step.compensate(), \"compensate\", result);   // own transaction",
+    "        } catch (Exception e) {",
+    "            logStep(sagaId, step.compensate(), \"failed\", Map.of(\"error\", e.getMessage()));",
+    "        }",
+    "    }",
+    "    QuarkusTransaction.requiringNew().run(() -> {",
+    "        SagaEntity entity = SagaEntity.findById(sagaId);",
+    "        entity.status = \"COMPENSATED\";             // Hibernate flushes the change at commit",
+    "    });",
+    "}"
+   ],
+   "cat": "code",
+   "_why": "examples/17: compensate newest first, every attempt logged, status COMPENSATED",
+   "_src": "S13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    379
+   ],
+   "find": "Compensate only completed steps, in reverse, with an idempotency key so a retry never double-refunds.",
+   "repl": "Compensate only completed steps, in reverse, and log every attempt; make each compensation idempotent so a retry never double-refunds.",
+   "expect": 1,
+   "cat": "code",
+   "_why": "takeaway follows the code",
+   "_src": "S13"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 379,
+   "paragraphs": [
+    "The compensation logic. Each forward step names its inverse (SagaStep holds both), and the saga's step index says how many steps completed. We walk those steps in reverse, newest first, and run each compensation through the same step executor. Every attempt is written to saga_log in its own transaction, as compensate or failed, so a compensation that fails is recorded rather than skipped, and the saga ends COMPENSATED.",
+    "In production you would also make each compensating call idempotent on the receiving service, for example with a key built from the saga id and the step, so a retry can never double-refund a customer, and track per-step compensation status so a crash halfway resumes from the right place. This is why compensations are designed up front, as part of each step, not bolted on after. If you use Quarkus Flow instead, you model these as the workflow's try/catch compensation tasks and the engine drives the unwind."
+   ],
+   "cat": "notes",
+   "_why": "notes follow the code",
+   "_src": "S13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 401,
+   "lines": [
+    "// domain: ports and the use case, no framework (examples/19-ddd-hexagonal/quarkus)",
+    "public interface OrderRepository { void save(Order o); Optional<Order> findById(String id); }",
+    "public interface EventPublisher  { void publish(OrderPlaced event); }",
+    "public class PlaceOrderUseCase {                // plain Java: no jakarta.* import",
+    "    private final OrderRepository repo;  private final EventPublisher events;",
+    "    public Order execute(PlaceOrderCmd cmd) {",
+    "        Order order = Order.create(cmd);        // aggregate enforces invariants",
+    "        repo.save(order);",
+    "        events.publish(new OrderPlaced(order.id(), order.sku(), order.quantity()));",
+    "        return order;",
+    "    }",
+    "}",
+    "// wiring: the one place CDI meets the use case",
+    "@Produces @ApplicationScoped",
+    "PlaceOrderUseCase useCase(OrderRepository repo, EventPublisher events) {",
+    "    return new PlaceOrderUseCase(repo, events);",
+    "}",
+    "// driven adapter: Panache behind the port; the REST resource and a CLI call the same use case",
+    "@ApplicationScoped @Transactional",
+    "public class PostgresOrderRepository implements OrderRepository {",
+    "    public void save(Order order) { OrderEntity.from(order).persist(); }",
+    "}"
+   ],
+   "cat": "code",
+   "_why": "examples/19: plain use case, CDI producer, Panache adapter; REST and CLI driving adapters",
+   "_src": "S13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    401
+   ],
+   "find": "CDI injects the adapters (Panache repo, Kafka emitter). Swap or add one without touching PlaceOrder.",
+   "repl": "CDI injects the adapters (Panache repo, log publisher). Swap or add one without touching the domain.",
+   "expect": 1,
+   "cat": "code",
+   "_why": "takeaway follows the code",
+   "_src": "S13"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 401,
+   "paragraphs": [
+    "Walk the blocks. Ports: the domain declares plain Java interfaces, a repository and an event publisher, and depends on nothing else. The use case, PlaceOrderUseCase, is a plain class with no jakarta or Quarkus import: it creates the aggregate, saves it through the port and publishes a domain event through the port. One CDI producer method is the only place the framework meets it. The outbound ports are implemented by adapters: a Panache-backed repository over an OrderEntity (the domain Order stays free of JPA) and a publisher that logs the event.",
+    "The driving adapters are thin. The REST resource turns the HTTP body into a command and calls the use case. The command-line adapter is a QuarkusApplication started under a profile that turns the HTTP server off, and it calls the same use case and the same repository. That's dependency inversion serving the boundary: protocols are replaceable, the domain stays stable."
+   ],
+   "cat": "notes",
+   "_why": "notes follow the code",
+   "_src": "S13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 419,
+   "lines": [
+    "// ShutdownState + DrainReadinessCheck (excerpt), examples/21-graceful-shutdown/quarkus",
+    "// application.properties: quarkus.shutdown.delay-enabled=true, delay=5S, timeout=20s",
+    "@ApplicationScoped",
+    "public class ShutdownState {          // one SIGTERM starts the delay, then HTTP stops, drains",
+    "    void onDelayInitiated(@Observes ShutdownDelayInitiatedEvent event) {   // SIGTERM received",
+    "        shuttingDown.set(true);            // readiness reports DOWN; the pod keeps serving",
+    "        Log.info(\"SIGTERM received — readiness flipped to 503, draining...\");",
+    "    }",
+    "    void onShutdown(@Observes ShutdownEvent event) {      // delay over: HTTP stops, drains",
+    "        Log.infof(\"shutting down HTTP server (in_flight=%d)\", inFlight.get());",
+    "    }",
+    "}",
+    "@Readiness @ApplicationScoped              // /readyz = this check + the datasource check",
+    "public class DrainReadinessCheck implements HealthCheck {",
+    "    @Inject ShutdownState shutdownState;",
+    "    public HealthCheckResponse call() {",
+    "        var builder = HealthCheckResponse.named(\"drain\");",
+    "        return shutdownState.isShuttingDown()",
+    "            ? builder.down().withData(\"reason\", \"shutting down\").build()",
+    "            : builder.up().build();",
+    "    }",
+    "}"
+   ],
+   "cat": "code",
+   "_why": "examples/21: quarkus.shutdown.delay, ShutdownDelayInitiatedEvent, @Readiness drain check",
+   "_src": "S13",
+   "pt": 10.0
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    419
+   ],
+   "find": "One SIGTERM flips readiness; after DRAIN_DELAY_SECONDS, Quarkus.asyncExit(0) drains in-flight HTTP within quarkus.shutdown.timeout (20 s).",
+   "repl": "One SIGTERM flips readiness; after quarkus.shutdown.delay (5 s) Quarkus stops HTTP and drains in-flight requests within quarkus.shutdown.timeout (20 s).",
+   "expect": 1,
+   "cat": "code",
+   "_why": "takeaway follows the code",
+   "_src": "S13"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 419,
+   "paragraphs": [
+    "Example 21 lets Quarkus run the drain. With quarkus.shutdown.delay-enabled=true, one SIGTERM, the only signal Kubernetes sends before SIGKILL, makes Quarkus fire ShutdownDelayInitiatedEvent and keep serving for quarkus.shutdown.delay (DRAIN_DELAY_SECONDS, 5 s; it plays the part of a preStop sleep) while the endpoint removal propagates. The ShutdownState bean observes the event and flips its flag, so the DrainReadinessCheck, a SmallRye Health @Readiness check, reports DOWN and /readyz answers 503 beside the datasource check, while /healthz keeps answering 200.",
+    "When the delay ends Quarkus stops accepting connections, fires ShutdownEvent, waits for in-flight requests up to quarkus.shutdown.timeout (20 s), closes the datasource and exits, inside the 30-second grace period. A ShutdownEvent observer is also the hook for what Quarkus leaves to you: Kafka consumers, the scheduler, WebSockets. Pair it with the Kubernetes side: probes, preStop and the grace period."
+   ],
+   "cat": "notes",
+   "_why": "notes follow the code",
+   "_src": "S13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 463,
+   "lines": [
+    "// DecoratorResource.java (excerpt), examples/24-monolith-to-microservices/quarkus/decorator",
+    "@RestClient LegacyClient legacy;                   // quarkus.rest-client.legacy.url",
+    "@Channel(\"order-events-out\") Emitter<Map<String, Object>> kafkaEmitter;   // Jackson serializer",
+    "@POST @Path(\"orders\")",
+    "public Response createOrder(Map<String, Object> body) {",
+    "    Map<String, Object> legacyResponse = legacy.createOrder(body);     // 1. legacy first",
+    "    Map<String, Object> event = new LinkedHashMap<>();",
+    "    event.put(\"event\", \"order.placed\");",
+    "    event.put(\"order_id\", legacyResponse.get(\"id\"));",
+    "    event.putAll(body);",
+    "    kafkaEmitter.send(event);                                          // 2. emit the event",
+    "    return Response.status(201).entity(legacyResponse).build();",
+    "}",
+    "@GET @Path(\"orders/{orderId}\")",
+    "public Response getOrder(@RestPath String orderId) {",
+    "    String cacheKey = \"order:\" + orderId;",
+    "    String cached = commands.get(cacheKey);                            // 1. Redis lookup",
+    "    if (cached != null) return Response.ok(cached).build();            //    CACHE_HIT",
+    "    String body = legacy.getOrder(orderId);                            // 2. legacy on a miss",
+    "    commands.setex(cacheKey, 60, body);                                // 3. populate, 60 s TTL",
+    "    return Response.ok(body).build();",
+    "}"
+   ],
+   "cat": "code",
+   "_why": "examples/24: typed REST Client for legacy, Jackson-serialized event map, cache-aside on a raw body",
+   "_src": "S13",
+   "shape": "Google Shape;2298;p210",
+   "pt": 10.0
+  },
+  {
+   "op": "set_notes",
+   "sldId": 463,
+   "paragraphs": [
+    "The Quarkus decorator. LegacyClient is a typed MicroProfile REST Client (quarkus.rest-client.legacy.url), so the call to the legacy service is a method call. The POST path delegates the write to the legacy service, which stays the source of truth, reads the new order id from its answer and emits an order.placed event through a Reactive Messaging Emitter on the order-events-out channel. The event is a map written by the Jackson serializer, so the field order stays event, order_id, then the request fields. The GET path looks in Redis through the Quarkus Redis client (RedisDataSource, quarkus-redis-client), falls back to the legacy service on a miss and populates the cache with a 60-second TTL; the log lines CACHE_HIT and CACHE_MISS show which way it went.",
+    "The legacy service does not know it is wrapped, and clients do not know they talk to a decorator.",
+    "Over time more behaviour moves into the decorator: validation rules, idempotency keys, deduplication, multi-source reads. To retire the legacy service, implement the order storage inside the decorator (or in a new service it calls) and stop forwarding; the API stays the same for clients."
+   ],
+   "cat": "notes",
+   "_why": "notes follow the code",
+   "_src": "S13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 461,
+   "lines": [
+    "// RouterResource.java (excerpt), examples/24-monolith-to-microservices/quarkus/router",
+    "@Path(\"/\")",
+    "public class RouterResource {",
+    "    @RestClient MonolithClient monolith;           // quarkus.rest-client.monolith.url",
+    "    @RestClient NewServiceClient newService;       // quarkus.rest-client.new-service.url",
+    "    ConcurrentHashMap<String, String> tenantRoutes = new ConcurrentHashMap<>();  // acme -> new",
+    "    volatile String defaultRoute = \"monolith\";",
+    "    @POST @Path(\"orders\")",
+    "    public Response createOrder(Map<String, Object> body) {",
+    "        String tenant = (String) body.get(\"tenant\");            // decide by content, not URL",
+    "        String upstreamBody = routesToNewService(tenant == null ? \"\" : tenant)",
+    "                ? newService.createOrder(body)                   // cut the tenant over",
+    "                : monolith.createOrder(body);                    // default: legacy",
+    "        return Response.status(201).entity(upstreamBody).build();",
+    "    }",
+    "    private boolean routesToNewService(String tenant) {",
+    "        return \"new-service\".equals(tenantRoutes.getOrDefault(tenant, defaultRoute));",
+    "    }",
+    "}",
+    "@RegisterRestClient(configKey = \"monolith\") @Path(\"/orders\")     // one client per upstream",
+    "public interface MonolithClient { @POST String createOrder(Map<String, Object> body); }"
+   ],
+   "cat": "code",
+   "_why": "examples/24: one typed REST Client per upstream, tenant decides the route",
+   "_src": "S13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 468,
+   "lines": [
+    "// CacheResource.java (excerpt), examples/25-caching/quarkus: cache-aside",
+    "@GET @Path(\"cache-aside/products/{pid}\")",
+    "public ProductView cacheAsideGet(@RestPath String pid) {",
+    "    return cachedProduct(\"ca:product:\" + pid, pid);",
+    "}",
+    "private ProductView cachedProduct(String key, String pid) {",
+    "    String cached = cache.get(key);                       // 1. Redis lookup (best effort)",
+    "    if (cached != null) {",
+    "        return ProductView.of(fromJson(cached, Product.class), \"cache\");   //    hit",
+    "    }",
+    "    Product row = store.findProduct(pid);                 // 2. database on a miss (Panache)",
+    "    if (row == null) throw new NotFoundException();",
+    "    cache.setex(key, toJson(row), ttl);                   // 3. populate",
+    "    return ProductView.of(row, \"db\");",
+    "}",
+    "@PUT @Path(\"cache-aside/products/{pid}\")",
+    "public Response cacheAsideUpdate(@RestPath String pid, ProductUpdate body) {",
+    "    store.updateProduct(pid, body.name(), body.priceCents());     // write the database",
+    "    cache.delete(\"ca:product:\" + pid);                    // 4. invalidate on write",
+    "    return Response.ok(Map.of(\"ok\", true, \"action\", \"invalidated\")).build();",
+    "}"
+   ],
+   "cat": "code",
+   "_why": "examples/25: cache-aside through Store (Panache) and a best-effort Redis wrapper",
+   "_src": "S13"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 468,
+   "paragraphs": [
+    "Quarkus cache-aside, as Example 25 runs it. SafeRedis wraps the Quarkus Redis client so every call is best effort: a Redis failure is logged and the read falls through to the database. The GET path looks in Redis for ca:product:<id>, falls back to Store.findProduct, a Panache lookup in its own transaction, on a miss and populates the cache with a 60-second TTL; the response says whether the value came from the cache or the db. The PUT path updates the row in a transaction and then deletes the cache key; setting the new value instead is write-through.",
+    "For high-cardinality keys, set a maxmemory-policy on Redis (allkeys-lru is typical) so the cache cannot grow without bound."
+   ],
+   "cat": "notes",
+   "_why": "notes follow the code",
+   "_src": "S13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    470
+   ],
+   "find": "Read-through in Quarkus with @CacheResult",
+   "repl": "Read-through in Quarkus with Cache.get",
+   "expect": 1,
+   "cat": "code",
+   "_why": "title follows the code",
+   "_src": "S13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 470,
+   "lines": [
+    "// CacheResource.java (excerpt), examples/25-caching/quarkus: read-through",
+    "// application.properties: quarkus.cache.redis.read-through.value-type=com.cndp.cache.Product",
+    "//                         quarkus.cache.redis.read-through.expire-after-write=60s",
+    "@CacheName(\"read-through\") Cache readThroughCache;       // quarkus-redis-cache",
+    "@GET @Path(\"read-through/products/{pid}\")",
+    "public ProductView readThroughGet(@RestPath String pid) {",
+    "    var loaded = new AtomicBoolean(false);               // did the loader run?",
+    "    Product product = readThroughCache.<String, Product>get(pid, key -> {",
+    "        loaded.set(true);                                // miss: the cache calls the loader",
+    "        Product row = store.findProduct(key);",
+    "        if (row == null) throw new NotFoundException();  // nothing is cached for a missing id",
+    "        return row;",
+    "    }).await().indefinitely();",
+    "    return ProductView.of(product, loaded.get() ? \"db\" : \"cache\");",
+    "}",
+    "// Cache.get stores the loader's result under rt:product:<id> with the TTL, and falls back",
+    "// to the loader when Redis is unreachable."
+   ],
+   "cat": "code",
+   "_why": "examples/25: quarkus-redis-cache, Cache.get(key, loader), flag reports the source",
+   "_src": "S13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    470
+   ],
+   "find": "@CacheResult turns the method body into a loader. Callers see one interface; the cache miss path is invisible.",
+   "repl": "Cache.get turns the lookup into a loader call: the cache owns the miss path, and a flag in the loader reports where the value came from.",
+   "expect": 1,
+   "cat": "code",
+   "_why": "takeaway follows the code",
+   "_src": "S13"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 470,
+   "paragraphs": [
+    "Read-through in Quarkus uses the Cache API from quarkus-cache with quarkus-redis-cache behind it. Cache.get(key, loader) looks in Redis first and runs the loader only on a miss, then stores the result for the TTL (quarkus.cache.redis.read-through.expire-after-write) under the configured prefix, so the application holds no if/else around the cache. The cache needs the value type (quarkus.cache.redis.read-through.value-type) to read entries back. A flag set inside the loader tells the response whether the value came from the cache or the database.",
+    "A loader that throws, for a missing product, caches nothing, and when Redis is unreachable Cache.get runs the loader and returns its value, so a Redis outage costs hits, not availability. The annotation form, @CacheResult on a service method, expresses the same pattern declaratively; the explicit call is used here because the response reports the source of the value."
+   ],
+   "cat": "notes",
+   "_why": "notes follow the code",
+   "_src": "S13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 472,
+   "lines": [
+    "// CacheResource.java (excerpt), examples/25-caching/quarkus: write-through",
+    "@PUT @Path(\"write-through/products/{pid}\")",
+    "public Response writeThroughUpdate(@RestPath String pid, ProductUpdate body) {",
+    "    store.updateProduct(pid, body.name(), body.priceCents());  // 1. DB first (source of truth)",
+    "    Product row = store.findProduct(pid);                      //    read back the stored row",
+    "    if (row != null) {",
+    "        cache.setex(\"wt:product:\" + pid, toJson(row), ttl);    // 2. cache second: SET",
+    "    }",
+    "    return Response.ok(Map.of(\"ok\", true, \"action\", \"set\")).build();",
+    "}"
+   ],
+   "cat": "code",
+   "_why": "examples/25: write the database first, then SET the cache with the stored row",
+   "_src": "S13"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 472,
+   "paragraphs": [
+    "Write-through in Quarkus. The update writes the row first, then reads it back through Store.findProduct and caches that value: the canonical row, including server-side defaults. The DB write comes first because the DB is the source of truth; if the cache write fails, you lose cache freshness, not data.",
+    "Writing the request body straight to the cache would save a read but can diverge from the row when the database applies defaults, triggers or computed columns. The TTL is the safety net: if cache and DB drift briefly, they converge when the entry expires and the next read repopulates it."
+   ],
+   "cat": "notes",
+   "_why": "notes follow the code",
+   "_src": "S13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 474,
+   "lines": [
+    "// CacheResource.java (excerpt), examples/25-caching/quarkus: write-around",
+    "@POST @Path(\"write-around/events\")",
+    "public Response writeAroundCreate(EventRequest body) {",
+    "    store.insertEvent(body.id(), body.type(), body.payload());    // DB only: cache untouched",
+    "    return Response.ok(Map.of(\"ok\", true, \"action\", \"db-only\")).build();",
+    "}",
+    "@GET @Path(\"write-around/events/{eid}\")",
+    "public Response writeAroundGet(@RestPath String eid) {",
+    "    String key = \"wa:event:\" + eid;",
+    "    String cached = cache.get(key);                               // standard cache-aside read",
+    "    if (cached != null) { /* ... parse the JSON, add \"source\": \"cache\" */ }",
+    "    EventEntity event = store.findEvent(eid);",
+    "    if (event == null) return Response.status(404).build();",
+    "    Map<String, Object> data = new LinkedHashMap<>();             // id, type, payload",
+    "    cache.setex(key, toJson(data), ttl);                          // the first read populates",
+    "    data.put(\"source\", \"db\");",
+    "    return Response.ok(data).build();",
+    "}"
+   ],
+   "cat": "code",
+   "_why": "examples/25: write-around inserts through Store and reads cache-aside",
+   "_src": "S13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    476
+   ],
+   "find": "java · Quarkus + @Scheduled + Redis + JDBC",
+   "repl": "java · Quarkus + @Scheduled + Redis + Panache",
+   "expect": 1,
+   "cat": "code",
+   "_why": "examples/25 quarkus flushes with StatelessSession.upsert",
+   "_src": "S13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 476,
+   "lines": [
+    "// CacheResource + BackgroundTasks + Store (excerpt), examples/25-caching/quarkus: write-back",
+    "// CacheResource: PUT write-back/metrics/{mid} does HSET metric:<mid> {value, tags} and SADD",
+    "// metric:dirty <mid>, then answers 202 (queued, not yet durable); 503 when Redis is down",
+    "@Scheduled(every = \"${cache-service.flush-period:1s}\")  // concurrent runs are skipped",
+    "void flusher() {                                       // BackgroundTasks",
+    "    if (System.currentTimeMillis() < nextFlushAt) return;   // backing off after a failure",
+    "    Set<String> ids = cache.spop(\"metric:dirty\", FLUSH_BATCH);    // atomic: no id twice",
+    "    if (ids == null || ids.isEmpty()) return;",
+    "    List<String> failed = new ArrayList<>();",
+    "    for (String mid : ids) {",
+    "        try {",
+    "            Map<String, String> data = cache.hgetall(\"metric:\" + mid);",
+    "            if (!data.isEmpty()) store.upsertMetric(mid, data);   // one upsert per id",
+    "            cache.hdel(\"metric:attempts\", mid);",
+    "        } catch (Exception e) { failed.add(mid); }       // Log.errorf: flush failed for <mid>",
+    "    }",
+    "    if (failed.isEmpty()) { failures = 0; return; }",
+    "    nextFlushAt = System.currentTimeMillis() + Math.min(FLUSH_PERIOD_MS << ++failures, 8000);",
+    "    requeue(failed);   // HINCRBY metric:attempts; SADD metric:dirty, or metric:failed at 5",
+    "}",
+    "// Store.upsertMetric: statelessSession.upsert(metric), an INSERT ... ON CONFLICT DO UPDATE"
+   ],
+   "cat": "code",
+   "_why": "examples/25: write-back flusher upserts through Store (StatelessSession.upsert)",
+   "_src": "S13"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    476
+   ],
+   "find": "upserts each one over JDBC with INSERT ... ON CONFLICT (id) DO UPDATE",
+   "repl": "upserts each one through Hibernate's StatelessSession.upsert, which issues INSERT ... ON CONFLICT (id) DO UPDATE",
+   "expect": 1,
+   "cat": "notes",
+   "_why": "notes follow the code",
+   "_src": "S13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 478,
+   "lines": [
+    "// BackgroundTasks.java (excerpt), examples/25-caching/quarkus: refresh-ahead",
+    "// CacheResource.refreshAheadGet: zadd(\"product:hot\", now, pid), then the cache-aside read",
+    "@Scheduled(every = \"${cache-service.refresh-period:5s}\")",
+    "void refresher() {",
+    "    double cutoff = (System.currentTimeMillis() / 1000.0) - 300;      // 5-minute hot window",
+    "    cache.zremrangebyscore(\"product:hot\", 0, cutoff);",
+    "    for (String pid : cache.zrange(\"product:hot\", 0, -1)) {",
+    "        long ttlVal = cache.ttl(\"ra:product:\" + pid);",
+    "        if (ttlVal > 0 && ttlVal < refreshBefore) {                   // danger zone",
+    "            Product row = findProduct(pid);                           // store.findProduct",
+    "            if (row != null) {",
+    "                cache.setex(\"ra:product:\" + pid, toJson(row), ttl);   // refresh",
+    "                Log.infof(\"refresher: pre-warmed %s\", pid);",
+    "            }",
+    "        }",
+    "    }",
+    "}"
+   ],
+   "cat": "code",
+   "_why": "examples/25: refresher reads through Store and refreshes entries near expiry",
+   "_src": "S13"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    478
+   ],
+   "find": "findById touches it on every read",
+   "repl": "every read touches it",
+   "expect": 1,
+   "cat": "notes",
+   "_why": "notes follow the code",
+   "_src": "S13"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    478
+   ],
+   "find": "when it is under REFRESH_BEFORE_S",
+   "repl": "when it is under refresh-before-seconds (10 by default)",
+   "expect": 1,
+   "cat": "notes",
+   "_why": "notes follow the code",
+   "_src": "S13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    500
+   ],
+   "find": "java · Quarkus",
+   "repl": "java · Quarkus + SmallRye Health",
+   "expect": 1,
+   "cat": "code",
+   "_why": "examples/21 quarkus: SmallRye Health drain check",
+   "_src": "S13"
+  },
+  {
+   "op": "set_code",
+   "sldId": 500,
+   "lines": [
+    "// application.properties + ShutdownState + DrainReadinessCheck, examples/21-graceful-shutdown",
+    "// quarkus.shutdown.delay-enabled=true, quarkus.shutdown.delay=5S, quarkus.shutdown.timeout=20s",
+    "// 1. SIGTERM: Quarkus fires ShutdownDelayInitiatedEvent and keeps serving for the delay",
+    "void onDelayInitiated(@Observes ShutdownDelayInitiatedEvent event) {     // ShutdownState",
+    "    shuttingDown.set(true);       // readiness flips: /readyz answers 503, /healthz stays 200",
+    "}",
+    "// 2. the delay keeps serving while the load balancer stops routing",
+    "// 3. delay over: HTTP stops, in-flight requests drain, ShutdownEvent fires",
+    "void onShutdown(@Observes ShutdownEvent event) {",
+    "    Log.infof(\"shutting down HTTP server (in_flight=%d)\", inFlight.get());",
+    "}",
+    "// 4. Quarkus closes the pools and the process exits",
+    "@Readiness @ApplicationScoped              // DrainReadinessCheck: /readyz = this + datasource",
+    "public class DrainReadinessCheck implements HealthCheck {",
+    "    public HealthCheckResponse call() {",
+    "        var builder = HealthCheckResponse.named(\"drain\");",
+    "        return shutdownState.isShuttingDown()",
+    "            ? builder.down().withData(\"reason\", \"shutting down\").build()",
+    "            : builder.up().build();",
+    "    }",
+    "}"
+   ],
+   "cat": "code",
+   "_why": "Appendix M recap follows examples/21 (one SIGTERM, delay, 20 s drain)",
+   "_src": "S13"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 500,
+   "paragraphs": [
+    "Example 21 lets Quarkus run the drain: quarkus.shutdown.delay-enabled, quarkus.shutdown.delay and quarkus.shutdown.timeout. On the single SIGTERM: (1) Quarkus fires ShutdownDelayInitiatedEvent and an observer flips the ShutdownState flag, so the SmallRye Health readiness check reports DOWN, /readyz answers 503 and Kubernetes stops routing new traffic, while /healthz stays 200; (2) the delay keeps the service serving, so the load balancer's removal propagates; (3) when it ends, Quarkus stops HTTP and drains in-flight requests within quarkus.shutdown.timeout (20 s); (4) Quarkus closes the datasource and the process exits. Appendix H covers the Kubernetes-side preStop and terminationGracePeriodSeconds."
+   ],
+   "cat": "notes",
+   "_why": "notes follow the code",
+   "_src": "S13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    508
+   ],
+   "find": "@HeaderParam(\"X-User\")",
+   "repl": "@RestHeader(\"X-User\")",
+   "expect": 1,
+   "cat": "code",
+   "_why": "Quarkus REST header binding",
+   "_src": "S13"
+  }
+ ]
+}

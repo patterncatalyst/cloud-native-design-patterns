@@ -7,7 +7,7 @@ Quarkus 3.40.1 LTS implementation demonstrating event-driven microservices with 
 **order-service** (HTTP on port 8080)
 - REST endpoints: `POST /orders`, `GET /orders`, `GET /healthz`
 - Publishes `order.placed` events to Kafka
-- PostgreSQL persistence via Agroal connection pool
+- PostgreSQL persistence via Hibernate ORM with Panache; consumers check for the order first and rely on the UNIQUE (order_id) constraint as the backstop
 
 **shipping-consumer** (headless — no HTTP server)
 - Consumes `order.placed` events from Kafka (group: `shipping-group`)
@@ -70,7 +70,7 @@ docker compose down -v
 
 ## Quarkus-specific features
 
-- **SmallRye Reactive Messaging**: `@Incoming("channel")` for consumers, `@Channel` + `Emitter<String>` for producers
+- **SmallRye Reactive Messaging**: `@Incoming("channel")` for consumers, `@Channel` + `Emitter<OrderPlaced>` for producers (typed record, Jackson serializer)
 - **Headless mode**: `quarkus.http.host-enabled=false` disables the HTTP server entirely
-- **AgroalDataSource**: CDI-injected JDBC connection pool
+- **Panache entities**: active-record `OrderEntity`, `NotificationEntity`, `ShipmentEntity` over the `db/init` tables
 - **Fast-jar layout**: `target/quarkus-app/` with separated dependencies

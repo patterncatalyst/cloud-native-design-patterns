@@ -86,8 +86,8 @@ docker compose down -v
 
 ## Quarkus-specific features
 
-- **java.net.http.HttpClient**: Lightweight HTTP proxy in router/decorator (no RestClient needed)
+- **Quarkus REST Client**: typed `@RegisterRestClient` interfaces for the legacy service (decorator) and the upstreams (router); URLs from `quarkus.rest-client.*.url`
 - **Redis ValueCommands**: `io.quarkus.redis.datasource.value.ValueCommands` with `setex` for TTL
-- **SmallRye Emitter**: `@Channel` + `Emitter<String>` for non-blocking Kafka publish
+- **SmallRye Emitter**: `@Channel` + `Emitter<Map<String, Object>>` for non-blocking Kafka publish (Jackson serializer)
 - **Shared stub JAR**: Single stub-service artifact differentiated via SERVICE_NAME env var
 - **Fast-jar layout**: `target/quarkus-app/` with separated dependencies
