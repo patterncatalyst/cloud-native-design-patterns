@@ -1,4 +1,4 @@
 #!/bin/sh
-# CLI driving adapter entry point: `OrderService place-order` runs before the
-# web host is built, so nothing binds port 8080.
+# CLI driving adapter entry point: `OrderService place-order` runs on a plain host
+# without Kestrel, so nothing binds port 8080.
 exec dotnet /opt/app-root/app/OrderService.dll place-order "$@"
