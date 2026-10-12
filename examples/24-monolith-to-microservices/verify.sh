@@ -179,7 +179,7 @@ printf '\n--- 5. Legacy untouched ---\n'
 
 check "legacy service still identifies as legacy" \
     "ctr_exec cndp-legacy curl $CURL_OPTS -sf http://localhost:8080/healthz" \
-    '"source":"legacy"'
+    '"source": *"legacy"'
 
 LEGACY_MENTIONS=$(ctr_logs cndp-legacy 2>&1 | grep -c 'CACHE\|EVENT' || true)
 if [ "$LEGACY_MENTIONS" = "0" ]; then

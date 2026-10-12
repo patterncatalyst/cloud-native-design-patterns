@@ -19,11 +19,6 @@ public class SidecarTrustFilter implements ContainerRequestFilter {
 
     @Override
     public void filter(ContainerRequestContext context) {
-        String path = context.getUriInfo().getPath();
-        if (path.equals("healthz") || path.equals("/healthz")) {
-            return;
-        }
-
         String spiffe = context.getHeaderString(IDENTITY_HEADER);
         if (spiffe == null || spiffe.isBlank()) {
             context.abortWith(Response.status(Response.Status.FORBIDDEN)

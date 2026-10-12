@@ -178,31 +178,27 @@ public class OrderRouter {
 ```
 
 ```java
-// Quarkus REST + MicroProfile REST Client — a content-aware proxy that reads
-// the body and forwards to the new service or the monolith. In production this
-// typically lives in a sidecar; the resource shows the shape cleanly.
-@Path("/orders")
-public class OrderRouter {
-    @Inject @RestClient MonolithClient monolith;       // legacy
-    @Inject @RestClient OrdersClient   newSvc;          // extracted
-    @Inject @RestClient OrdersEuClient euSvc;           // regional
-
-    @POST
-    @Consumes("application/json")
-    @Produces("application/json")
-    public JsonObject route(JsonObject body) {
-        String tenant = body.getString("tenant", "");   // decide by content, not URL
-        String region = body.getString("region", "");
-        if ("acme".equals(tenant)) return newSvc.placeOrder(body);    // cut Acme over
-        if ("EU".equals(region))   return euSvc.placeOrder(body);     // regional
-        return monolith.placeOrder(body);                             // default: legacy
+// RouterResource.java (excerpt), examples/24-monolith-to-microservices/quarkus/router
+@Path("/")
+public class RouterResource {
+    @RestClient MonolithClient monolith;           // quarkus.rest-client.monolith.url
+    @RestClient NewServiceClient newService;       // quarkus.rest-client.new-service.url
+    ConcurrentHashMap<String, String> tenantRoutes = new ConcurrentHashMap<>();  // acme -> new
+    volatile String defaultRoute = "monolith";
+    @POST @Path("orders")
+    public Response createOrder(Map<String, Object> body) {
+        String tenant = (String) body.get("tenant");            // decide by content, not URL
+        String upstreamBody = routesToNewService(tenant == null ? "" : tenant)
+                ? newService.createOrder(body)                   // cut the tenant over
+                : monolith.createOrder(body);                    // default: legacy
+        return Response.status(201).entity(upstreamBody).build();
+    }
+    private boolean routesToNewService(String tenant) {
+        return "new-service".equals(tenantRoutes.getOrDefault(tenant, defaultRoute));
     }
 }
-
-@RegisterRestClient(configKey = "orders-new")
-public interface OrdersClient {
-    @POST JsonObject placeOrder(JsonObject body);
-}
+@RegisterRestClient(configKey = "monolith") @Path("/orders")     // one client per upstream
+public interface MonolithClient { @POST String createOrder(Map<String, Object> body); }
 ```
 
 ```csharp
@@ -412,34 +408,27 @@ public class OrdersDecorator {
 ```
 
 ```java
-// Quarkus REST that wraps a legacy /orders API and adds Redis caching and
-// Kafka event emission. The legacy service is unchanged.
-@Path("/orders")
-public class OrdersDecorator {
-    @Inject @RestClient LegacyOrdersClient legacy;
-    @Inject @Channel("order-placed") Emitter<Order> events;
-    final ValueCommands<String, Order> cache;
-
-    public OrdersDecorator(RedisDataSource redis) {
-        this.cache = redis.value(Order.class);
-    }
-
-    @GET @Path("/{id}")
-    public Order getOrder(String id) {
-        Order cached = cache.get("order:" + id);                // 1. cache hit
-        if (cached != null) return cached;
-        Order order = legacy.get(id);                           // 2. legacy on miss
-        cache.setex("order:" + id, 60, order);                  // 3. populate
-        return order;
-    }
-
-    @POST
-    public Order placeOrder(Order body) {
-        Order order = legacy.create(body);                      // 1. legacy first
-        events.send(order);                                     // 2. emit event
-        cache.del("order:" + order.id());                       // 3. invalidate
-        return order;
-    }
+// DecoratorResource.java (excerpt), examples/24-monolith-to-microservices/quarkus/decorator
+@RestClient LegacyClient legacy;                   // quarkus.rest-client.legacy.url
+@Channel("order-events-out") Emitter<Map<String, Object>> kafkaEmitter;   // Jackson serializer
+@POST @Path("orders")
+public Response createOrder(Map<String, Object> body) {
+    Map<String, Object> legacyResponse = legacy.createOrder(body);     // 1. legacy first
+    Map<String, Object> event = new LinkedHashMap<>();
+    event.put("event", "order.placed");
+    event.put("order_id", legacyResponse.get("id"));
+    event.putAll(body);
+    kafkaEmitter.send(event);                                          // 2. emit the event
+    return Response.status(201).entity(legacyResponse).build();
+}
+@GET @Path("orders/{orderId}")
+public Response getOrder(@RestPath String orderId) {
+    String cacheKey = "order:" + orderId;
+    String cached = commands.get(cacheKey);                            // 1. Redis lookup
+    if (cached != null) return Response.ok(cached).build();            //    CACHE_HIT
+    String body = legacy.getOrder(orderId);                            // 2. legacy on a miss
+    commands.setex(cacheKey, 60, body);                                // 3. populate, 60 s TTL
+    return Response.ok(body).build();
 }
 ```
 

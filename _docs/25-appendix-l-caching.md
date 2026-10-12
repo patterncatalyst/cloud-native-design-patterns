@@ -84,34 +84,26 @@ public class ProductController {
 ```
 
 ```java
-// Quarkus REST + Panache + quarkus-redis-client (blocking ValueCommands).
-@Path("/products")
-public class ProductResource {
-    private static final int TTL_S = 60;
-    private final ValueCommands<String, Product> cache;
-
-    public ProductResource(RedisDataSource redis) {
-        this.cache = redis.value(Product.class);
+// CacheResource.java (excerpt), examples/25-caching/quarkus: cache-aside
+@GET @Path("cache-aside/products/{pid}")
+public ProductView cacheAsideGet(@RestPath String pid) {
+    return cachedProduct("ca:product:" + pid, pid);
+}
+private ProductView cachedProduct(String key, String pid) {
+    String cached = cache.get(key);                       // 1. Redis lookup (best effort)
+    if (cached != null) {
+        return ProductView.of(fromJson(cached, Product.class), "cache");   //    hit
     }
-
-    @GET @Path("/{id}")
-    public Product get(String id) {
-        String key = "product:" + id;
-        Product cached = cache.get(key);                  // 1. cache lookup
-        if (cached != null) return cached;                //    hit
-        Product p = Product.findById(id);                 // 2. DB on miss (Panache)
-        if (p == null) throw new WebApplicationException(404);
-        cache.setex(key, TTL_S, p);                       // 3. populate
-        return p;
-    }
-
-    @PUT @Path("/{id}") @Transactional
-    public Product update(String id, Product body) {
-        Product p = Product.findById(id);
-        p.update(body);
-        cache.del("product:" + id);                       // 4. invalidate on write
-        return p;
-    }
+    Product row = store.findProduct(pid);                 // 2. database on a miss (Panache)
+    if (row == null) throw new NotFoundException();
+    cache.setex(key, toJson(row), ttl);                   // 3. populate
+    return ProductView.of(row, "db");
+}
+@PUT @Path("cache-aside/products/{pid}")
+public Response cacheAsideUpdate(@RestPath String pid, ProductUpdate body) {
+    store.updateProduct(pid, body.name(), body.priceCents());     // write the database
+    cache.delete("ca:product:" + pid);                    // 4. invalidate on write
+    return Response.ok(Map.of("ok", true, "action", "invalidated")).build();
 }
 ```
 
@@ -253,7 +245,7 @@ Read-through moves the database call from the application into the cache layer: 
 fetch it. The semantics are identical to cache-aside; the win is cleaner code with a single read
 interface and no if/else in every caller. The cost is less control over what triggers a DB hit,
 and you need a cache library that supports loaders. The platform frameworks supply this
-declaratively (Spring's `@Cacheable`, Quarkus's `@CacheResult`, .NET FusionCache's
+declaratively (Spring's `@Cacheable`, Quarkus's `@CacheResult` and `Cache.get`, .NET FusionCache's
 `GetOrSetAsync`); with the raw Redis clients you wrap it yourself.
 
 {% include excalidraw.html
@@ -303,39 +295,23 @@ public class ProductService {
 ```
 
 ```java
-// Quarkus Cache annotations give read-through semantics declaratively.
-// quarkus-cache + quarkus-redis-cache; loader = the method body.
-@ApplicationScoped
-public class ProductService {
-
-    @CacheResult(cacheName = "product-cache")     // runs only on a miss
-    public Product findById(String id) {
-        Product p = Product.findById(id);          // Panache
-        if (p == null) throw new WebApplicationException(404);
-        return p;
-    }
-
-    @CacheInvalidate(cacheName = "product-cache")
-    @Transactional
-    public Product update(String id, Product body) {
-        Product p = Product.findById(id);
-        p.update(body);
-        return p;
-    }
+// CacheResource.java (excerpt), examples/25-caching/quarkus: read-through
+// application.properties: quarkus.cache.redis.read-through.value-type=com.cndp.cache.Product
+//                         quarkus.cache.redis.read-through.expire-after-write=60s
+@CacheName("read-through") Cache readThroughCache;       // quarkus-redis-cache
+@GET @Path("read-through/products/{pid}")
+public ProductView readThroughGet(@RestPath String pid) {
+    var loaded = new AtomicBoolean(false);               // did the loader run?
+    Product product = readThroughCache.<String, Product>get(pid, key -> {
+        loaded.set(true);                                // miss: the cache calls the loader
+        Product row = store.findProduct(key);
+        if (row == null) throw new NotFoundException();  // nothing is cached for a missing id
+        return row;
+    }).await().indefinitely();
+    return ProductView.of(product, loaded.get() ? "db" : "cache");
 }
-
-@Path("/products")
-public class ProductResource {
-    @Inject ProductService products;
-
-    @GET @Path("/{id}")
-    public Product get(String id) {
-        return products.findById(id);              // no if/else; cache invisible
-    }
-}
-// application.properties:
-//   quarkus.cache.type=redis
-//   quarkus.cache.redis.product-cache.expire-after-write=60S
+// Cache.get stores the loader's result under rt:product:<id> with the TTL, and falls back
+// to the loader when Redis is unreachable.
 ```
 
 ```csharp
@@ -524,21 +500,15 @@ public class ProductServiceExplicit {
 ```
 
 ```java
-// Quarkus blocking: write the DB first, SET the cache second.
-@Path("/products")
-public class ProductResource {
-    private final ValueCommands<String, Product> cache;
-    public ProductResource(RedisDataSource redis) {
-        this.cache = redis.value(Product.class);
+// CacheResource.java (excerpt), examples/25-caching/quarkus: write-through
+@PUT @Path("write-through/products/{pid}")
+public Response writeThroughUpdate(@RestPath String pid, ProductUpdate body) {
+    store.updateProduct(pid, body.name(), body.priceCents());  // 1. DB first (source of truth)
+    Product row = store.findProduct(pid);                      //    read back the stored row
+    if (row != null) {
+        cache.setex("wt:product:" + pid, toJson(row), ttl);    // 2. cache second: SET
     }
-
-    @PUT @Path("/{id}") @Transactional
-    public Product update(String id, Product body) {
-        Product p = Product.findById(id);          // 1. DB first (source of truth)
-        p.update(body);
-        cache.setex("product:" + id, 60, p);       // 2. cache second — SET, not invalidate
-        return p;
-    }
+    return Response.ok(Map.of("ok", true, "action", "set")).build();
 }
 ```
 
@@ -660,30 +630,23 @@ public class EventController {
 ```
 
 ```java
-// Quarkus blocking: write the DB only; read side is cache-aside.
-@Path("/events")
-public class EventResource {
-    private final ValueCommands<String, Event> cache;
-    public EventResource(RedisDataSource redis) {
-        this.cache = redis.value(Event.class);
-    }
-
-    @POST @Transactional
-    public Response record(Event body) {
-        body.persist();                                     // DB only — cache untouched
-        return Response.created(URI.create("/events/" + body.id)).entity(body).build();
-    }
-
-    @GET @Path("/{id}")
-    public Event get(String id) {
-        String key = "event:" + id;
-        Event cached = cache.get(key);                      // standard cache-aside read
-        if (cached != null) return cached;
-        Event e = Event.findById(id);
-        if (e == null) throw new WebApplicationException(404);
-        cache.setex(key, 60, e);
-        return e;
-    }
+// CacheResource.java (excerpt), examples/25-caching/quarkus: write-around
+@POST @Path("write-around/events")
+public Response writeAroundCreate(EventRequest body) {
+    store.insertEvent(body.id(), body.type(), body.payload());    // DB only: cache untouched
+    return Response.ok(Map.of("ok", true, "action", "db-only")).build();
+}
+@GET @Path("write-around/events/{eid}")
+public Response writeAroundGet(@RestPath String eid) {
+    String key = "wa:event:" + eid;
+    String cached = cache.get(key);                               // standard cache-aside read
+    if (cached != null) { /* ... parse the JSON, add "source": "cache" */ }
+    EventEntity event = store.findEvent(eid);
+    if (event == null) return Response.status(404).build();
+    Map<String, Object> data = new LinkedHashMap<>();             // id, type, payload
+    cache.setex(key, toJson(data), ttl);                          // the first read populates
+    data.put("source", "db");
+    return Response.ok(data).build();
 }
 ```
 
@@ -848,24 +811,19 @@ public void flusher() {                                // BackgroundTasks
 ```
 
 ```java
-// CacheResource + BackgroundTasks (excerpt), examples/25-caching/quarkus: write-back
-@PUT @Path("write-back/metrics/{mid}")                // CacheResource
-public Response writeBackWrite(@PathParam("mid") String mid, Map<String, Object> body) {
-    // ... HSET metric:<mid> {value, tags}; SADD metric:dirty <mid> (503 when Redis is down)
-    return Response.accepted(Map.of("ok", true, "pattern", "write-back",
-            "action", "cached-for-flush")).build();   // 202: queued, not yet durable
-}
+// CacheResource + BackgroundTasks + Store (excerpt), examples/25-caching/quarkus: write-back
+// CacheResource: PUT write-back/metrics/{mid} does HSET metric:<mid> {value, tags} and SADD
+// metric:dirty <mid>, then answers 202 (queued, not yet durable); 503 when Redis is down
 @Scheduled(every = "${cache-service.flush-period:1s}")  // concurrent runs are skipped
 void flusher() {                                       // BackgroundTasks
     if (System.currentTimeMillis() < nextFlushAt) return;   // backing off after a failure
-    Set<String> ids = cache.spop("metric:dirty", FLUSH_BATCH);
+    Set<String> ids = cache.spop("metric:dirty", FLUSH_BATCH);    // atomic: no id twice
     if (ids == null || ids.isEmpty()) return;
     List<String> failed = new ArrayList<>();
     for (String mid : ids) {
-        try (var conn = dataSource.getConnection(); var ps = conn.prepareStatement(
-                "INSERT INTO metrics (id, payload) VALUES (?, ?::jsonb) "
-                + "ON CONFLICT (id) DO UPDATE SET payload = ?::jsonb, ts = NOW()")) {
-            // ... bind mid and the cached hash as JSON; executeUpdate (one row per id)
+        try {
+            Map<String, String> data = cache.hgetall("metric:" + mid);
+            if (!data.isEmpty()) store.upsertMetric(mid, data);   // one upsert per id
             cache.hdel("metric:attempts", mid);
         } catch (Exception e) { failed.add(mid); }       // Log.errorf: flush failed for <mid>
     }
@@ -873,6 +831,7 @@ void flusher() {                                       // BackgroundTasks
     nextFlushAt = System.currentTimeMillis() + Math.min(FLUSH_PERIOD_MS << ++failures, 8000);
     requeue(failed);   // HINCRBY metric:attempts; SADD metric:dirty, or metric:failed at 5
 }
+// Store.upsertMetric: statelessSession.upsert(metric), an INSERT ... ON CONFLICT DO UPDATE
 ```
 
 ```csharp
@@ -1039,38 +998,19 @@ public class ProductService {
 ```
 
 ```java
-// Quarkus blocking: @Scheduled refreshes hot keys before TTL.
-@ApplicationScoped
-public class ProductService {
-    private static final int TTL_S = 60, REFRESH_BEFORE_S = 10;
-    private final ValueCommands<String, Product> cache;
-    private final SortedSetCommands<String, String> hot;
-    private final KeyCommands<String> keys;
-
-    public ProductService(RedisDataSource redis) {
-        this.cache = redis.value(Product.class);
-        this.hot   = redis.sortedSet(String.class);
-        this.keys  = redis.key();
-    }
-
-    public Product findById(String id) {
-        hot.zadd("product:hot", System.currentTimeMillis(), id);   // touch hot-set
-        Product cached = cache.get("product:" + id);
-        if (cached != null) return cached;
-        Product p = Product.findById(id);
-        cache.setex("product:" + id, TTL_S, p);
-        return p;
-    }
-
-    @Scheduled(every = "5s")
-    void refreshHot() {
-        long cutoff = System.currentTimeMillis() - 5 * 60_000L;
-        hot.zremrangebyscore("product:hot", 0, cutoff);
-        for (String id : hot.zrange("product:hot", 0, -1)) {
-            long ttl = keys.ttl("product:" + id);
-            if (ttl > 0 && ttl < REFRESH_BEFORE_S) {               // danger zone
-                Product p = Product.findById(id);
-                if (p != null) cache.setex("product:" + id, TTL_S, p);  // refresh
+// BackgroundTasks.java (excerpt), examples/25-caching/quarkus: refresh-ahead
+// CacheResource.refreshAheadGet: zadd("product:hot", now, pid), then the cache-aside read
+@Scheduled(every = "${cache-service.refresh-period:5s}")
+void refresher() {
+    double cutoff = (System.currentTimeMillis() / 1000.0) - 300;      // 5-minute hot window
+    cache.zremrangebyscore("product:hot", 0, cutoff);
+    for (String pid : cache.zrange("product:hot", 0, -1)) {
+        long ttlVal = cache.ttl("ra:product:" + pid);
+        if (ttlVal > 0 && ttlVal < refreshBefore) {                   // danger zone
+            Product row = findProduct(pid);                           // store.findProduct
+            if (row != null) {
+                cache.setex("ra:product:" + pid, toJson(row), ttl);   // refresh
+                Log.infof("refresher: pre-warmed %s", pid);
             }
         }
     }

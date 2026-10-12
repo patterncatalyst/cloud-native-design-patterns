@@ -70,24 +70,25 @@ public class RevenueTopology {
 ```
 
 ```java
-// stream-processor RevenueTopology.java (excerpt), quarkus-kafka-streams: a CDI-produced Topology
+// stream-processor RevenueTopology.java (excerpt), quarkus-kafka-streams
 @ApplicationScoped
 public class RevenueTopology {
     @Produces
     public Topology topology() {
-        StreamsBuilder builder = new StreamsBuilder();
-        ObjectMapperSerde<Acc> accSerde = new ObjectMapperSerde<>(Acc.class);
-        builder.stream(ORDERS, Consumed.with(Serdes.String(), Serdes.String()))
-            .map((key, json) -> parse(json))               // re-key by merchant_id
-            .filter((merchant, amount) -> merchant != null)
-            .groupByKey(Grouped.with(Serdes.String(), Serdes.String()))
+        var builder = new StreamsBuilder();
+        var orderSerde = new ObjectMapperSerde<>(OrderEvent.class);    // typed JSON in and out
+        var accSerde = new ObjectMapperSerde<>(Acc.class);
+        var outSerde = new ObjectMapperSerde<>(RevenueWindow.class);
+        builder.stream(ORDERS, Consumed.with(Serdes.String(), orderSerde))
+            .filter((key, order) -> order != null && order.merchantId() != null)
+            .groupBy((k, o) -> o.merchantId(), Grouped.with(Serdes.String(), orderSerde))
             .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(windowSeconds)))
-            .aggregate(() -> new Acc(0, BigDecimal.ZERO),  // local, changelog-backed
-                (merchant, amount, acc) -> add(merchant, acc, amount),
+            .aggregate(() -> new Acc(0, BigDecimal.ZERO),             // local state
+                (merchant, order, acc) -> acc.add(order.total()),
                 Materialized.with(Serdes.String(), accSerde))
-            .toStream()
-            .map((window, acc) -> KeyValue.pair(window.key(), toJson(window, acc)))
-            .to(REVENUE, Produced.with(Serdes.String(), Serdes.String()));
+            .toStream().map((window, acc) -> KeyValue.pair(window.key(),
+                new RevenueWindow(/* start, end, merchant, count, revenue */)))
+            .to(REVENUE, Produced.with(Serdes.String(), outSerde));
         return builder.build();
     }
 }

@@ -41,7 +41,7 @@ done
 
 log "polling http://127.0.0.1:30080/healthz"
 for _ in $(seq 1 60); do
-    if curl -sf http://127.0.0.1:30080/healthz | grep -q '"status":"ok"'; then
+    if curl -sf http://127.0.0.1:30080/healthz | grep -q '"status": *"\(ok\|UP\)"'; then
         log "order-service is healthy on 127.0.0.1:30080"
         exit 0
     fi

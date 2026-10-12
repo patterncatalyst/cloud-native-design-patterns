@@ -5,10 +5,15 @@ import com.cndp.saga.model.SagaLogEntry;
 import com.cndp.saga.model.SagaRequest;
 import com.cndp.saga.service.SagaService;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.jboss.logging.Logger;
+import org.jboss.resteasy.reactive.RestPath;
 
 import java.util.List;
 import java.util.Map;
@@ -21,12 +26,6 @@ public class SagaResource {
 
     @Inject
     SagaService sagaService;
-
-    @GET
-    @Path("healthz")
-    public Map<String, String> healthz() {
-        return Map.of("status", "ok");
-    }
 
     @POST
     @Path("sagas")
@@ -44,7 +43,7 @@ public class SagaResource {
 
     @GET
     @Path("sagas/{id}")
-    public Response getSaga(@PathParam("id") String id) {
+    public Response getSaga(@RestPath String id) {
         try {
             Saga saga = sagaService.getSaga(id);
             if (saga == null) {
@@ -63,7 +62,7 @@ public class SagaResource {
 
     @GET
     @Path("sagas/{id}/log")
-    public Response getSagaLog(@PathParam("id") String id) {
+    public Response getSagaLog(@RestPath String id) {
         try {
             Saga saga = sagaService.getSaga(id);
             if (saga == null) {

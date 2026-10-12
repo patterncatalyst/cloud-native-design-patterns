@@ -1,50 +1,52 @@
 package com.cndp.edge;
 
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.net.http.HttpTimeoutException;
-import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.quarkus.logging.Log;
+import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
+import org.jboss.resteasy.reactive.RestQuery;
 
 @Path("/")
 @ApplicationScoped
 @Produces(MediaType.APPLICATION_JSON)
 public class EdgeResource {
 
-    private static final ObjectMapper mapper = new ObjectMapper();
     private static final Random random = new Random();
 
+    private final BackendClient backend;
     private final String backendUrl;
-    private final HttpClient httpClient;
+    private final ObjectMapper mapper;
     private final CircuitBreaker breaker = new CircuitBreaker("backend", 5, 10);
     private final Semaphore bulkheadSemaphore = new Semaphore(5);
     private final AtomicInteger bulkheadActive = new AtomicInteger(0);
     private final AtomicInteger bulkheadRejected = new AtomicInteger(0);
 
     public EdgeResource(
-            @ConfigProperty(name = "backend.url", defaultValue = "http://backend:8081") String backendUrl) {
+            @RestClient BackendClient backend,
+            @ConfigProperty(name = "quarkus.rest-client.backend.url") String backendUrl,
+            ObjectMapper mapper) {
+        this.backend = backend;
         this.backendUrl = backendUrl;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(5))
-                .build();
+        this.mapper = mapper;
     }
 
     @GET
@@ -52,27 +54,13 @@ public class EdgeResource {
     public Map<String, Object> withTimeout() {
         long start = System.nanoTime();
         try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(backendUrl + "/call"))
-                    .timeout(Duration.ofSeconds(2))
-                    .GET()
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(request,
-                    HttpResponse.BodyHandlers.ofString());
+            Response response = call(backend::call);
 
             double elapsed = elapsedSeconds(start);
             Map<String, Object> result = new LinkedHashMap<>();
-            result.put("status", response.statusCode());
+            result.put("status", response.getStatus());
             result.put("elapsed_s", elapsed);
-            result.put("body", parseBody(response.body()));
-            return result;
-        } catch (HttpTimeoutException e) {
-            double elapsed = elapsedSeconds(start);
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("error", "timeout");
-            result.put("elapsed_s", elapsed);
-            result.put("pattern", "timeout");
+            result.put("body", parseBody(response.readEntity(String.class)));
             return result;
         } catch (Exception e) {
             double elapsed = elapsedSeconds(start);
@@ -95,30 +83,21 @@ public class EdgeResource {
         for (int attempt = 1; attempt <= 3; attempt++) {
             attempts = attempt;
             try {
-                HttpRequest request = HttpRequest.newBuilder()
-                        .uri(URI.create(backendUrl + "/call"))
-                        .timeout(Duration.ofSeconds(2))
-                        .GET()
-                        .build();
+                Response response = call(backend::call);
 
-                HttpResponse<String> response = httpClient.send(request,
-                        HttpResponse.BodyHandlers.ofString());
-
-                int statusCode = response.statusCode();
+                int statusCode = response.getStatus();
                 if (statusCode < 500) {
                     double elapsed = elapsedSeconds(start);
                     Map<String, Object> result = new LinkedHashMap<>();
                     result.put("status", statusCode);
                     result.put("attempts", attempts);
                     result.put("elapsed_s", elapsed);
-                    result.put("body", parseBody(response.body()));
+                    result.put("body", parseBody(response.readEntity(String.class)));
                     return result;
                 }
                 lastError = "HTTP " + statusCode;
-            } catch (HttpTimeoutException e) {
-                lastError = "timeout";
             } catch (Exception e) {
-                lastError = "error: " + e.getMessage();
+                lastError = isTimeout(e) ? "timeout" : "error: " + e.getMessage();
             }
 
             if (attempt < 3) {
@@ -154,16 +133,9 @@ public class EdgeResource {
         }
 
         try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(backendUrl + "/call"))
-                    .timeout(Duration.ofSeconds(2))
-                    .GET()
-                    .build();
+            Response response = call(backend::call);
 
-            HttpResponse<String> response = httpClient.send(request,
-                    HttpResponse.BodyHandlers.ofString());
-
-            int statusCode = response.statusCode();
+            int statusCode = response.getStatus();
             if (statusCode >= 500) {
                 breaker.recordFailure();
                 Map<String, Object> result = new LinkedHashMap<>();
@@ -175,14 +147,7 @@ public class EdgeResource {
             breaker.recordSuccess();
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("source", "live");
-            result.put("body", parseBody(response.body()));
-            result.put("breaker", breaker.getState());
-            return result;
-        } catch (HttpTimeoutException e) {
-            breaker.recordFailure();
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("source", "fallback");
-            result.put("reason", "upstream_unreachable");
+            result.put("body", parseBody(response.readEntity(String.class)));
             result.put("breaker", breaker.getState());
             return result;
         } catch (Exception e) {
@@ -198,7 +163,7 @@ public class EdgeResource {
     @GET
     @Path("with-deadline")
     public Map<String, Object> withDeadline(
-            @QueryParam("budget_ms") @DefaultValue("1000") int budgetMs) {
+            @RestQuery("budget_ms") @DefaultValue("1000") int budgetMs) {
 
         long start = System.nanoTime();
         int edgeOverhead = 50;
@@ -214,31 +179,20 @@ public class EdgeResource {
         }
 
         try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(backendUrl + "/call"))
-                    .timeout(Duration.ofMillis(remaining))
-                    .header("X-Deadline-Remaining", String.valueOf(remaining))
-                    .GET()
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(request,
-                    HttpResponse.BodyHandlers.ofString());
+            // The budget is per request, so this client gets its own read timeout.
+            BackendClient budgeted = QuarkusRestClientBuilder.newBuilder()
+                    .baseUri(URI.create(backendUrl))
+                    .readTimeout(remaining, TimeUnit.MILLISECONDS)
+                    .build(BackendClient.class);
+            Response response = call(() -> budgeted.call(String.valueOf(remaining)));
 
             double elapsed = elapsedSeconds(start);
             Map<String, Object> result = new LinkedHashMap<>();
-            result.put("status", response.statusCode());
+            result.put("status", response.getStatus());
             result.put("budget_ms", budgetMs);
             result.put("remaining_ms", remaining);
             result.put("elapsed_s", elapsed);
-            result.put("body", parseBody(response.body()));
-            return result;
-        } catch (HttpTimeoutException e) {
-            double elapsed = elapsedSeconds(start);
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("error", "deadline_exceeded");
-            result.put("reason", "timed out waiting for backend");
-            result.put("budget_ms", budgetMs);
-            result.put("elapsed_s", elapsed);
+            result.put("body", parseBody(response.readEntity(String.class)));
             return result;
         } catch (Exception e) {
             double elapsed = elapsedSeconds(start);
@@ -265,29 +219,17 @@ public class EdgeResource {
 
         bulkheadActive.incrementAndGet();
         try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(backendUrl + "/call"))
-                    .timeout(Duration.ofSeconds(2))
-                    .GET()
-                    .build();
+            Response response = call(backend::call);
 
-            HttpResponse<String> response = httpClient.send(request,
-                    HttpResponse.BodyHandlers.ofString());
-
-            int statusCode = response.statusCode();
+            int statusCode = response.getStatus();
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("status", statusCode);
-            result.put("body", parseBody(response.body()));
-            result.put("active_slots", bulkheadActive.get());
-            return result;
-        } catch (HttpTimeoutException e) {
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("error", "timeout");
+            result.put("body", parseBody(response.readEntity(String.class)));
             result.put("active_slots", bulkheadActive.get());
             return result;
         } catch (Exception e) {
             Map<String, Object> result = new LinkedHashMap<>();
-            result.put("error", "error");
+            result.put("error", isTimeout(e) ? "timeout" : "error");
             result.put("active_slots", bulkheadActive.get());
             return result;
         } finally {
@@ -312,13 +254,24 @@ public class EdgeResource {
         return result;
     }
 
-    @GET
-    @Path("healthz")
-    public Map<String, String> healthz() {
-        return Map.of("status", "ok");
+    /** Runs a backend call; a 4xx/5xx comes back as a Response so its body can be reported. */
+    private Response call(Supplier<Response> invocation) {
+        try {
+            return invocation.get();
+        } catch (WebApplicationException e) {
+            return e.getResponse();
+        }
     }
 
-    @SuppressWarnings("unchecked")
+    private boolean isTimeout(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof TimeoutException || t.getClass().getSimpleName().contains("Timeout")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private Map<String, Object> parseBody(String body) {
         try {
             return mapper.readValue(body, new TypeReference<Map<String, Object>>() {});

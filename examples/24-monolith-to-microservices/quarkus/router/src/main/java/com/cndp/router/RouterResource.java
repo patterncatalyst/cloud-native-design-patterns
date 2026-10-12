@@ -1,16 +1,15 @@
 package com.cndp.router;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.inject.Inject;
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,56 +19,35 @@ import java.util.concurrent.ConcurrentHashMap;
 @Consumes(MediaType.APPLICATION_JSON)
 public class RouterResource {
 
-    @ConfigProperty(name = "monolith.url", defaultValue = "http://monolith:8080")
-    String monolithUrl;
+    @RestClient
+    MonolithClient monolith;
 
-    @ConfigProperty(name = "new-service.url", defaultValue = "http://new-service:8080")
-    String newServiceUrl;
-
-    @Inject
-    ObjectMapper objectMapper;
+    @RestClient
+    NewServiceClient newService;
 
     ConcurrentHashMap<String, String> tenantRoutes = new ConcurrentHashMap<>();
     volatile String defaultRoute = "monolith";
-
-    HttpClient httpClient = HttpClient.newHttpClient();
 
     public RouterResource() {
         // Initialize default routing: acme -> new-service
         tenantRoutes.put("acme", "new-service");
     }
 
-    @GET
-    @Path("healthz")
-    public Response healthz() {
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("status", "ok");
-        return Response.ok(response).build();
-    }
-
     @POST
     @Path("orders")
-    public Response createOrder(Map<String, Object> body) throws Exception {
+    public Response createOrder(Map<String, Object> body) {
         // Extract tenant from body
         String tenant = (String) body.get("tenant");
         if (tenant == null) {
             tenant = "";
         }
 
-        // Resolve upstream URL
-        String upstreamUrl = resolveUpstream(tenant);
+        // Forward POST to the upstream that owns this tenant
+        String upstreamBody = routesToNewService(tenant)
+                ? newService.createOrder(body)
+                : monolith.createOrder(body);
 
-        // Forward POST to upstream
-        String requestBody = objectMapper.writeValueAsString(body);
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(upstreamUrl + "/orders"))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
-                .build();
-
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-        return Response.status(201).entity(response.body()).build();
+        return Response.status(201).entity(upstreamBody).build();
     }
 
     @GET
@@ -101,15 +79,7 @@ public class RouterResource {
         return Response.ok().build();
     }
 
-    private String resolveUpstream(String tenant) {
-        // Look up tenant in tenantRoutes
-        String route = tenantRoutes.getOrDefault(tenant, defaultRoute);
-
-        // Map route to URL
-        if ("new-service".equals(route)) {
-            return newServiceUrl;
-        } else {
-            return monolithUrl;
-        }
+    private boolean routesToNewService(String tenant) {
+        return "new-service".equals(tenantRoutes.getOrDefault(tenant, defaultRoute));
     }
 }

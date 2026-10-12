@@ -1,18 +1,21 @@
 package com.cndp.order;
 
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.inject.Produces;
+import io.quarkus.runtime.Quarkus;
+import io.quarkus.runtime.annotations.QuarkusMain;
 
-import com.cndp.order.domain.EventPublisher;
-import com.cndp.order.domain.OrderRepository;
-import com.cndp.order.domain.PlaceOrderUseCase;
-
-@ApplicationScoped
+/**
+ * One entry point, two driving adapters. Without arguments the HTTP service runs; with arguments
+ * (cli-place-order starts the jar under the "cli" profile, which turns the HTTP server off) the
+ * CLI adapter runs the same use case and exits.
+ */
+@QuarkusMain
 public class OrderServiceApp {
 
-    @Produces
-    @ApplicationScoped
-    public PlaceOrderUseCase placeOrderUseCase(OrderRepository repo, EventPublisher events) {
-        return new PlaceOrderUseCase(repo, events);
+    public static void main(String... args) {
+        if (args.length > 0) {
+            Quarkus.run(CliPlaceOrder.class, args);
+        } else {
+            Quarkus.run(args);
+        }
     }
 }

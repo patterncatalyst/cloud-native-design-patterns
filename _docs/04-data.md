@@ -156,20 +156,28 @@ public Map<String, Object> createOrder(@RequestBody Map<String, Object> body) {
 ```
 
 ```java
-// Debezium Quarkus Outbox: fire a CDI event inside the same transaction.
-@ApplicationScoped
-public class OrderService {
-    @Inject Event<ExportedEvent<?, ?>> event;    // from debezium-quarkus-outbox
-
-    @Transactional                               // single local transaction
-    public Order create(OrderIn body) {
-        Order order = Order.from(body);
-        order.persist();                         // Panache: state change
-        event.fire(OrderPlaced.of(order));       // same txn -> writes outbox row
-        return order;                            // Debezium tails the WAL, publishes
-    }
+// OutboxEvent.java + OrderResource.java (excerpt), examples/04-data/quarkus
+@Entity @Table(name = "outbox")
+public class OutboxEvent extends PanacheEntityBase {       // the table Debezium tails
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) public Long id;
+    @Column(name = "aggregate_id") public String aggregateId;
+    @Column(name = "event_type") public String eventType;
+    @JdbcTypeCode(SqlTypes.JSON) public OrderPlacedPayload payload;   // jsonb column
 }
-// Broker down? The order still commits; the event ships when CDC catches up.
+@POST @Transactional                          // one JTA transaction around both rows
+public Response createOrder(CreateOrderRequest request) {
+    var order = new OrderEntity();
+    order.id = UUID.randomUUID().toString();
+    // ... sku and quantity from the request; status = "confirmed"
+    order.persistAndFlush();                   // the state change; created_at read back
+    var event = new OutboxEvent();
+    event.aggregateId = order.id;
+    event.eventType = "order.placed";
+    event.payload = new OrderPlacedPayload(order.id, order.sku, order.quantity, order.status);
+    event.persist();                           // same transaction: the outbox row
+    return Response.status(Response.Status.CREATED).entity(order.toView()).build();
+}
+// No Kafka call on the request path: Debezium tails the WAL and publishes order.placed.
 ```
 
 ```csharp
@@ -272,8 +280,9 @@ moves appear:
 3. **Persist the outbox row in the same transaction.** This is the line people
    are tempted to "optimise" into a Kafka call — don't. Writing a row to an
    `outbox` table keeps the event inside the transaction's atomicity. Quarkus
-   hides the row behind `event.fire(...)` via `debezium-quarkus-outbox`, but it
-   is still an outbox-row insert under the hood.
+   can hide the row behind `event.fire(...)` with `debezium-quarkus-outbox`, which
+   brings its own table layout; the example writes a plain Panache `OutboxEvent`
+   entity instead, so one table and one connector serve every language.
 4. **Commit, and stop.** No broker call sits on the request path. Debezium, an
    independent connector, reads the committed outbox rows from the WAL and
    publishes them. If Kafka is down when the request runs, the order still

@@ -1,6 +1,5 @@
 package com.cndp.ws;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.redis.datasource.RedisDataSource;
 import io.quarkus.redis.datasource.pubsub.PubSubCommands;
@@ -10,9 +9,6 @@ import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
-
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 @ApplicationScoped
 public class RedisBackplane {
@@ -39,11 +35,7 @@ public class RedisBackplane {
 
     public void publish(String target, String message) {
         try {
-            Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("pod", podName);
-            payload.put("target", target);
-            payload.put("data", message);
-            String json = mapper.writeValueAsString(payload);
+            String json = mapper.writeValueAsString(new BackplaneMessage(podName, target, message));
             redisDataSource.pubsub(String.class).publish(CHANNEL, json);
         } catch (Exception e) {
             LOG.error("Publish failed", e);
@@ -52,11 +44,10 @@ public class RedisBackplane {
 
     private void handleBackplaneMessage(String json) {
         try {
-            JsonNode node = mapper.readTree(json);
-            String senderPod = node.has("pod") ? node.get("pod").asText() : "";
-            String target = node.has("target") && !node.get("target").isNull()
-                    ? node.get("target").asText() : null;
-            String data = node.has("data") ? node.get("data").asText() : "";
+            BackplaneMessage message = mapper.readValue(json, BackplaneMessage.class);
+            String senderPod = message.pod() != null ? message.pod() : "";
+            String target = message.target();
+            String data = message.data() != null ? message.data() : "";
 
             if (podName.equals(senderPod)) {
                 return;

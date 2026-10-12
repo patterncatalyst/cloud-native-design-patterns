@@ -14,7 +14,7 @@ Quarkus 3.40.1 LTS implementation demonstrating REST, GraphQL, gRPC, and Kafka.
 - GraphQL API at `/graphql` with GraphiQL UI
 - gRPC client calling inventory service
 - Kafka producer publishing to `order.placed` topic
-- PostgreSQL persistence via Agroal connection pool
+- PostgreSQL persistence via Hibernate ORM with Panache (`OrderEntity`); order events are a typed record sent with the Jackson serializer
 
 ## Stack
 
@@ -81,7 +81,7 @@ docker compose down -v
 
 - **Code-first GraphQL**: `@GraphQLApi` + `@Query` annotations (no schema.graphqls file)
 - **Mutiny reactive**: gRPC server extends Mutiny base, returns `Uni<T>`
-- **SmallRye Reactive Messaging**: Kafka producer via `@Channel` + `Emitter<String>`
+- **SmallRye Reactive Messaging**: Kafka producer via `@Channel` + `Emitter<OrderPlaced>` (typed record)
 - **Fast-jar layout**: `target/quarkus-app/` with separated dependencies
 - **gRPC + HTTP on separate ports**: inventory uses 9000 (gRPC) + 8081 (HTTP health); order uses 8080
 
