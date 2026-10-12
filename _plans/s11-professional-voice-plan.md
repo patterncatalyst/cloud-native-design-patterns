@@ -82,16 +82,93 @@ Approved by the user 2026-10-11. Opus plan; Sonnet executes in batches on `docs/
 | 1 vendor + wrapper | done (bf3f9d3) |
 | 2–7 batches | done (B6 15f0f0a, B1 99243f4, B4 79e04a8, B2 d32a858, B5 a7d0874, B3 31d8eb7) |
 | 8 gate | done |
-| 9 validation, PR | pending |
+| 9 validation, PR | validation round 1 done; repair round 1 (lgtm-skills #49 re-vendored, wrapper paths fix aebfb9e, wording 9450973); final recheck pending |
 
-## Results (before Opus validation)
+## Results
 
-| Scope | Before (all tiers / ban) | After (all tiers / ban) |
-|---|---|---|
-| site (`_docs`, `_parts`, `_example_pages`, `_includes`, `_layouts`, `index.html`, `README.md`, `assets/diagrams`) | 289 / 90 | 80 / 0 |
-| examples (`examples/**/*.md`) | 26 / 0 | 24 / 0 |
+Per-file counts from the final scanner (lgtm-skills a335007) run on main 48e7736 (before) and on this branch (after). These counts are authoritative; the batch ledgers further down are the executors' narrative and their hand counts used the earlier pattern set.
 
-Every remaining watch hit is kept with a reason code. Per-batch ledgers (from the executors' hand-backs):
+| File | Ban before | Ban after | Watch before | Watch after |
+|---|---|---|---|---|
+| `README.md` | 0 | 0 | 2 | 1 |
+| `_docs/00-setting-up.md` | 3 | 0 | 4 | 0 |
+| `_docs/01-cloud-native-principles.md` | 2 | 0 | 2 | 0 |
+| `_docs/02-communications.md` | 3 | 0 | 2 | 0 |
+| `_docs/03-composition.md` | 0 | 0 | 2 | 0 |
+| `_docs/04-data.md` | 2 | 0 | 3 | 1 |
+| `_docs/05-event-driven.md` | 16 | 0 | 26 | 11 |
+| `_docs/06-stream-processing.md` | 1 | 0 | 2 | 0 |
+| `_docs/07-workflows-and-jobs.md` | 0 | 0 | 3 | 0 |
+| `_docs/08-api-management.md` | 2 | 0 | 3 | 0 |
+| `_docs/09-api-registry.md` | 1 | 0 | 0 | 0 |
+| `_docs/10-api-metadata.md` | 0 | 0 | 2 | 0 |
+| `_docs/11-observability.md` | 3 | 0 | 3 | 0 |
+| `_docs/12-security.md` | 0 | 0 | 1 | 0 |
+| `_docs/13-anti-patterns.md` | 0 | 0 | 3 | 0 |
+| `_docs/14-appendix-a-protocols.md` | 4 | 0 | 4 | 0 |
+| `_docs/15-appendix-b-versioning.md` | 1 | 0 | 9 | 5 |
+| `_docs/16-appendix-c-websockets.md` | 5 | 0 | 2 | 0 |
+| `_docs/17-appendix-d-sagas.md` | 1 | 0 | 3 | 0 |
+| `_docs/18-appendix-e-errors.md` | 2 | 0 | 1 | 1 |
+| `_docs/19-appendix-f-ddd-hexagonal.md` | 2 | 0 | 7 | 0 |
+| `_docs/20-appendix-g-coupling.md` | 2 | 0 | 7 | 1 |
+| `_docs/21-appendix-h-shutdown.md` | 1 | 0 | 4 | 0 |
+| `_docs/22-appendix-i-l7-routing.md` | 4 | 0 | 10 | 1 |
+| `_docs/23-appendix-j-dotnet-toolkit.md` | 10 | 0 | 6 | 1 |
+| `_docs/24-appendix-k-monolith-to-microservices.md` | 5 | 0 | 8 | 3 |
+| `_docs/25-appendix-l-caching.md` | 3 | 0 | 6 | 0 |
+| `_docs/26-appendix-m-failure-modes.md` | 5 | 0 | 5 | 2 |
+| `_docs/27-appendix-n-feature-flags.md` | 5 | 0 | 4 | 1 |
+| `_docs/28-appendix-o-newman.md` | 3 | 0 | 8 | 2 |
+| `_docs/29-appendix-p-dotnet-on-linux.md` | 0 | 0 | 1 | 0 |
+| `_docs/29-glossary.md` | 0 | 0 | 2 | 1 |
+| `_docs/31-appendix-r-minikube.md` | 0 | 0 | 19 | 19 |
+| `_docs/32-appendix-s-openshift-local.md` | 0 | 0 | 20 | 20 |
+| `_example_pages/index.md` | 0 | 0 | 1 | 1 |
+| `_example_pages/prerequisites.md` | 0 | 0 | 6 | 5 |
+| `assets/diagrams/04-cqrs.svg` | 1 | 0 | 0 | 0 |
+| `assets/diagrams/04-db-per-service.svg` | 0 | 0 | 1 | 1 |
+| `assets/diagrams/05-checkpoint-recovery.svg` | 1 | 0 | 0 | 0 |
+| `assets/diagrams/05-sourcing-vs-streaming.svg` | 0 | 0 | 2 | 0 |
+| `assets/diagrams/08-four-planes.svg` | 0 | 0 | 1 | 0 |
+| `assets/diagrams/12-claim-check.svg` | 0 | 0 | 1 | 0 |
+| `assets/diagrams/13-antipatterns-grid.svg` | 0 | 0 | 1 | 0 |
+| `assets/diagrams/15-rest-versioning.svg` | 0 | 0 | 2 | 2 |
+| `assets/diagrams/17-saga-state.svg` | 1 | 0 | 0 | 0 |
+| `assets/diagrams/18-rest-errors.svg` | 0 | 0 | 2 | 1 |
+| `assets/diagrams/19-strategic-ddd.svg` | 0 | 0 | 1 | 0 |
+| `assets/diagrams/20-cynefin-coupling.svg` | 1 | 0 | 0 | 0 |
+| `assets/diagrams/21-shutdown-sequence.svg` | 1 | 0 | 0 | 0 |
+| `assets/diagrams/22-east-west.svg` | 1 | 0 | 1 | 0 |
+| `assets/diagrams/22-hop-cost.svg` | 1 | 0 | 0 | 0 |
+| `assets/diagrams/22-l7-layers.svg` | 0 | 0 | 2 | 0 |
+| `assets/diagrams/22-sticky-sessions.svg` | 0 | 0 | 1 | 1 |
+| `assets/diagrams/24-monolith-unit.svg` | 0 | 0 | 1 | 0 |
+| `assets/diagrams/25-failure-taxonomy.svg` | 1 | 0 | 1 | 1 |
+| `assets/diagrams/25-gray-failure.svg` | 0 | 0 | 1 | 0 |
+| `assets/diagrams/25-istio-resilience.svg` | 1 | 0 | 0 | 0 |
+| `assets/diagrams/27-ci-gate.svg` | 0 | 0 | 1 | 0 |
+| `assets/diagrams/31-minikube-image-flow.svg` | 0 | 0 | 1 | 1 |
+| `assets/diagrams/31-minikube-topology.svg` | 0 | 0 | 1 | 1 |
+| `assets/diagrams/32-openshift-topology.svg` | 0 | 0 | 1 | 1 |
+| `examples/02-communications/spring-boot/README.md` | 0 | 0 | 1 | 1 |
+| `examples/05-event-driven/README.md` | 0 | 0 | 4 | 4 |
+| `examples/05-event-driven/k8s/README.md` | 0 | 0 | 5 | 5 |
+| `examples/05-event-driven/openshift/README.md` | 0 | 0 | 2 | 2 |
+| `examples/12-security/cpp/README.md` | 0 | 0 | 1 | 1 |
+| `examples/12-security/quarkus/README.md` | 0 | 0 | 1 | 1 |
+| `examples/12-security/spring-boot/README.md` | 0 | 0 | 1 | 1 |
+| `examples/16-websockets/spring-boot/README.md` | 0 | 0 | 1 | 1 |
+| `examples/17-sagas/spring-boot/README.md` | 0 | 0 | 1 | 1 |
+| `examples/19-ddd-hexagonal/cpp/README.md` | 0 | 0 | 1 | 0 |
+| `examples/25-caching/quarkus/README.md` | 0 | 0 | 1 | 1 |
+| `examples/25-caching/spring-boot/README.md` | 0 | 0 | 1 | 1 |
+| `examples/PREREQUISITES.md` | 0 | 0 | 6 | 5 |
+| **Total** | **95** | **0** | **239** | **109** |
+
+Every remaining watch hit is kept with a reason code (literal minikube/OpenShift subjects, machine-subject "silently"/"lie", result tables and table data, survey terms, identifiers, idioms such as "easy to miss", one chapter opener per chapter, misconception contrasts, and "deliberate" where it names a planned stage).
+
+## Batch ledgers
 
 ### B6 (15f0f0a) appendices R-S, example pages, READMEs
 - ban 0 -> 0. watch: site files ~100 -> 49, examples md 24 -> 22 (all kept, reason-coded).
@@ -112,9 +189,21 @@ Every remaining watch hit is kept with a reason code. Per-batch ledgers (from th
 - Headings: 00 "How the rest of the book is ordered" -> "How the book is ordered"; 11 "How correlation actually works" -> "How correlation works" (no inbound anchors).
 - Triples (hand-edited svg+excalidraw): 04-cqrs, 12-claim-check, 08-four-planes, 04-db-per-service, 13-antipatterns-grid (+ alt 13:22). Caption Figure 8.1 rewritten; em-dash alts in 02, 06, 12 split.
 - Review: 08 "never remove one without warning" (was "never silently remove one"; human subject).
-### B5 committed a7d0874 (ledger above)
+### B5 appendices L-Q and glossary (a7d0874)
+- 25: ban 3->0, watch 6->0. 26: ban 4->0, watch 4->2 kept (machine-subject "lie" :37 alt, :724). 27: ban 5->0, watch 3->0. 28: ban 6->0, watch 9->2 kept (misconception-contrast :229, idiom :244). 29-P: watch 1->0. 29-glossary: watch 2->1 kept (idiom :12). 30: no hits.
+- SVG: 25-istio-resilience ban 1->0; 25-gray-failure watch 1->0; 25-failure-taxonomy kept (machine-subject "lie"); 27-ci-gate watch 1->0 (generator string, svg, hand-edited excalidraw, 28 alt).
+- Headings (no inbound anchors): 25 "When NOT to cache, and what to watch for" -> "When not to cache, ..."; 29-P "CIL: what `dotnet build` actually produces" -> "CIL: what `dotnet build` produces".
+- Also removed the positional "Below sits" in a 26 alt.
 ### B3 appendices A-H (31d8eb7)
 - 14: ban 4->0, watch 4->0. 15: ban 1->0, watch 11->5 (idiom :22 :25 :31 :221; machine-subject :108). 16: ban 4->0, watch 1->0. 17: ban 1->0, watch 4->0. 18: ban 2->0, watch 1->1 (machine-subject :406). 19: ban 3->0, watch 8->0. 20: ban 2->0, watch 10->1 (machine-subject :184). 21: ban 1->0, watch 4->0. SVG: ban 4->0, watch 4->3 (15-rest-versioning idiom x2; 18-rest-errors literal-subject payload data).
 - Heading: 14 "Three paradigms, three mental models" -> "Three paradigms and their mental models" (no anchors).
 - Triples: 17-saga-state (+ alt D.1), 18-rest-errors, 19-strategic-ddd (+ alt), 20-cynefin-coupling (+ alt), 21-shutdown-sequence.
 - Review: 16 opener rewrite; 16 "Test what the backplane provides."; 18 added "so nothing about the implementation leaks"; 21 "is evidence that graceful shutdown works".
+
+### Repair round 1 (validator findings)
+- Grammar: Appendix K "if you later need to split". Soft hype: Appendix O "powerful idea" removed.
+- Scanner gaps fixed upstream (lgtm-skills #49, re-vendored at a335007): "the rest of the appendix/section" (ban), adjective "deliberate" and summary markers (watch). Five new ban hits rewritten (26 x2, 16, 20, 25-failure-taxonomy label); summary markers removed (14, 23, 26); "deliberate" rewritten except where it names a planned stage (24 heading, alt and caption; 27 "only a deliberate flip removes it").
+- Claims restored to their original strength: Appendix L caching payoff, random eviction; Appendix J "Minimal built-in DI"; chapter 05 "most consequential choice"; Appendix B "without any error"; 04-db-per-service label "quietly fails" (machine subject).
+- 27-ci-gate label "in CI as they do locally"; chapter 04 positional alt "A band below" -> "A second band".
+- Wrapper: `voice-scan.sh <paths>` scans only those paths (examples/ paths as Markdown); examples output notes its relative paths.
+- Heading changes across S11 (none with inbound anchors): 00, 11, 14, 23, 25, 29-P, plus the "NOT" lowercase headings in the two prerequisites pages (slug unchanged).

@@ -90,6 +90,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
   - Teardown removed the operator, 10 CRDs, namespaces and the registry route change; `crc stop` (not deleted); second teardown exit 0; current-context unset and `~/.kube/config` sha256 unchanged.
   - Details: `_plans/s10-openshift-local-plan.md`, "Live results".
 - S11: voice scan reports zero ban-tier hits and is enforced in CI.
+  Evidence (2026-10-11): ban 95 -> 0 and watch 239 -> 109 over the gated scope (scanner lgtm-skills a335007, vendored in `scripts/voice/`); per-file table and ledgers in `_plans/s11-professional-voice-plan.md`; gate = `scripts/voice-scan.sh` step in `content.yml` (`content-ok`).
 - S12 (scope expanded by the user 2026-10-11): review every presentation in `lgtm-presentation/` (the six Designing-Cloud-Native-APIs decks, K8s-Environment-Access-Policies, Network-Policy-Process-Advisory, and their .md/.docx companions) for:
   - version changes (every version on a slide matches the S2–S8 pins);
   - stack changes (Docker Engine, not the old container engine; locked libraries such as Streamiz, faust-streaming, goka, librdkafka C++, C++23; kafka-ui removed);
