@@ -141,7 +141,7 @@ Order inside a PR: Spring, Quarkus, .NET, Python, Go, C++, one example at a time
 
 | # | Step | PR | Status |
 |---|---|---|---|
-| 0 | Preflight: user decisions D1–D4 (done 2026-10-13); pins (done, see Pins); baseline matrix of 12, 26, 02, 03, 11, 18 on main | – | pending |
+| 0 | Preflight: user decisions D1–D4 (done 2026-10-13); pins (done, see Pins); baseline matrix of 12, 26, 02, 03, 11, 18 on main | – | done: baseline 36/36 PASS on main 6656c0a code (2026-10-13) |
 | 1 | Example 26 + verify.sh + Appendix M prose + decks | 1 | pending |
 | 2 | Example 12 bulkhead + verify.sh + chapter 12 prose + decks | 2 | pending |
 | 3 | Spring gRPC (+ .NET client factory) + gRPC prose and slide fixes | 3 | pending |
