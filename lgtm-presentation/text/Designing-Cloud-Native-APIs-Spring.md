@@ -1193,35 +1193,30 @@ p. 71
 [chip] java · Spring Boot 4 + Resilience4j
 
 ```java
-@Service
-public class OrderService {
-    private final BulkheadRegistry tenantBulkheads;
-    private final PaymentClient payments;
-    // ... constructor injects PaymentClient and the BulkheadRegistry
-    @Bulkhead(name = "orders", type = Bulkhead.Type.SEMAPHORE,
-              fallbackMethod = "placeFallback")
-    @TimeLimiter(name = "orders")
-    public CompletableFuture<Order> place(OrderRequest req) {
-        return payments.chargeAsync(req).thenApply(p -> Order.from(req, p));
-    }
-    public CompletableFuture<Order> placeFallback(OrderRequest req, Throwable t) {
-        return CompletableFuture.failedFuture(
-            new ResponseStatusException(SERVICE_UNAVAILABLE, "bulkhead saturated"));
-    }
-    // Per-tenant bulkheads via programmatic registry
-    public CompletableFuture<Order> placeForTenant(String tenantId, OrderRequest req) {
-        io.github.resilience4j.bulkhead.Bulkhead bh =
-            tenantBulkheads.bulkhead("tenant-" + tenantId);     // maxConcurrentCalls: 5
-        return Decorators.ofCompletionStage(() -> payments.chargeAsync(req))
-            .withBulkhead(bh).get().toCompletableFuture()
-            .thenApply(p -> Order.from(req, p));
-    }
+// examples/12-security/spring-boot/order-service (condensed excerpts)
+// application.properties: one Resilience4j bulkhead per tenant from the "tenant" config
+//   resilience4j.bulkhead.configs.tenant.max-concurrent-calls=5
+//   resilience4j.bulkhead.configs.tenant.max-wait-duration=0     # refuse at once
+// BulkheadService.java
+public Bulkhead forTenant(String tenant) {
+    return registry.bulkhead(tenant, "tenant");   // created on first use
+}
+// OrderController.java, POST /orders: A's storm can't drain B's capacity
+try {
+    Map<String, Object> order = bulkhead.forTenant(body.tenant())
+            .executeSupplier(() -> placeOrder(body, identity, subject));
+    return ResponseEntity.status(HttpStatus.CREATED).body(order);
+} catch (BulkheadFullException e) {   // the tenant's 5 permits are taken
+    return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+            .body(Map.of("detail", "tenant bulkhead full"));
 }
 ```
 
 p. 72
 
-> Resilience4j (the resilience4j-spring-boot4 starter) is the Spring Boot answer to fault tolerance; Hystrix is in maintenance. @Bulkhead declares a named bulkhead; the configuration (maxConcurrentCalls, maxWaitDuration) lives in application.yml under resilience4j.bulkhead.instances.orders. @TimeLimiter pairs with it for fail-fast on slow calls. fallbackMethod runs when the bulkhead rejects: return a sentinel value, a cached response, or fail with a 503. For per-tenant bulkheads, the BulkheadRegistry creates named instances dynamically; metrics are exposed via Micrometer with bulkhead.name labels. As with Quarkus, Istio's DestinationRule gives you mesh-level bulkheading on top of these.
+> Resilience4j (the resilience4j-spring-boot4 starter) provides the bulkhead. Example 12 needs one limit per tenant, so instead of the @Bulkhead annotation, which names a single fixed instance, it asks the BulkheadRegistry for a bulkhead named after the tenant, created on first use from a shared 'tenant' configuration: five concurrent calls and a maximum wait of zero.
+>
+> A tenant that fills its five permits gets BulkheadFullException and a 429 at once, while every other tenant keeps its own five. Refusing instead of queueing matters: a queue in front of a saturated tenant only turns its storm into a pile of waiting requests. At the platform layer, Istio's per-destination connection-pool limits complement these in-process limits.
 
 ## [086] SECURITY · CLAIM-CHECK · Claim-check — send a reference, not the payload (sldId 341)
 

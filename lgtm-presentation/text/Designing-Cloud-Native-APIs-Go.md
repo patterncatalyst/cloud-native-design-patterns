@@ -1142,29 +1142,38 @@ p. 71
 
 ## [085] SECURITY · BULKHEAD · Per-tenant bulkheads with semaphores (sldId 340)
 
-[chip] go · buffered channel
+[chip] go · x/sync/semaphore
 
 ```go
-// per-tenant bulkhead: a buffered channel per tenant; A's storm can't drain B's capacity
-var bulkheads sync.Map // tenant -> chan struct{}
-func tenantSem(tenant string) chan struct{} {
-   v, _ := bulkheads.LoadOrStore(tenant, make(chan struct{}, 5))  // 5 per tenant
-   return v.(chan struct{})
+// examples/12-security/go/cmd/server/main.go (condensed excerpts)
+type bulkhead struct {
+    sem      *semaphore.Weighted
+    inFlight atomic.Int64 // semaphore.Weighted does not report its count
 }
-func handle[T any](tenant string, work func() (T, error)) (T, error) {
-   sem := tenantSem(tenant)
-   sem <- struct{}{} // blocks only this tenant when full
-   defer func() { <-sem }()
-   return work()
+func getTenantBulkhead(tenant string) *bulkhead {
+    v, _ := bulkheads.LoadOrStore(tenant,
+        &bulkhead{sem: semaphore.NewWeighted(bulkheadCapacity)})
+    return v.(*bulkhead)
 }
-// fail fast instead of queueing: select on sem <- struct{}{} and a timer, answer 503
+// POST /orders: A's storm can't drain B's capacity
+bh := getTenantBulkhead(in.Tenant)
+if !bh.sem.TryAcquire(1) { // the tenant's 5 permits are taken
+    writeJSON(w, http.StatusTooManyRequests,
+        map[string]string{"detail": "tenant bulkhead full"})
+    return
+}
+bh.inFlight.Add(1)
+defer func() {
+    bh.inFlight.Add(-1)
+    bh.sem.Release(1)
+}()
 ```
 
 p. 72
 
-> A bulkhead per tenant. Each tenant gets its own buffered channel used as a semaphore: a request takes a slot before the work and gives it back afterwards, so at most 5 requests per tenant run at once. A storm from tenant A fills A's channel and blocks only A; tenant B's capacity is untouched.
+> A bulkhead per tenant on golang.org/x/sync/semaphore: a Weighted semaphore of five per tenant, created on first use in a sync.Map. TryAcquire never waits, so a tenant that already has five orders in flight gets a 429 at once while every other tenant keeps its own five; the permit goes back in a deferred Release.
 >
-> In production, prefer failing fast to queueing: select on the send and a short timer, and answer 503 when the slot does not free up, so callers back off instead of piling up. For socket-level isolation, give each tenant its own http.Client with a bounded Transport (MaxConnsPerHost). For hard isolation, run per-tenant replicas: Kubernetes-level bulkheading.
+> Refusing instead of queueing matters: a send on a full buffered channel, the other common Go idiom, blocks until a slot frees, which turns one tenant's storm into a pile of waiting goroutines. The atomic in-flight count feeds the bulkhead-state endpoint, since the semaphore does not report its own count.
 
 ## [086] SECURITY · CLAIM-CHECK · Claim-check — send a reference, not the payload (sldId 341)
 

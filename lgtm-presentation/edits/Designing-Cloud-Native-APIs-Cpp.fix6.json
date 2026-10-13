@@ -1,0 +1,42 @@
+{
+ "ops": [
+  {
+   "op": "set_code",
+   "sldId": 340,
+   "lines": [
+    "// examples/12-security/cpp/order-service/src/main.cpp (excerpts)",
+    "struct TenantBulkhead {                                     // a lock-free counter per tenant",
+    "    static constexpr int CAPACITY = 5;                        // 5 concurrent per tenant",
+    "    std::atomic<int> active{0};",
+    "    bool try_acquire() {",
+    "        int current = active.load();",
+    "        while (current < CAPACITY) {",
+    "            if (active.compare_exchange_weak(current, current + 1)) return true;",
+    "        }",
+    "        return false;                                         // full: refuse, don't queue",
+    "    }",
+    "    void release() { active.fetch_sub(1); }",
+    "};",
+    "",
+    "// POST /orders (a coroutine handler): A's storm can't drain B's capacity",
+    "auto& bulkhead = bulkhead_manager.get_or_create(tenant);     // map + mutex, one per tenant",
+    "if (!bulkhead.try_acquire()) {",
+    "    co_return reply(k429TooManyRequests, detail(\"tenant bulkhead full\"));",
+    "}",
+    "BulkheadPermit permit{bulkhead};   // released when the handler finishes, however it finishes"
+   ],
+   "_why": "examples/12 per-tenant bulkhead on its library (S14); the slide is an excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 340,
+   "paragraphs": [
+    "The bulkhead from Example 12: one TenantBulkhead per tenant, created on first use in a map guarded by a mutex. Each holds a lock-free std::atomic<int> with a compare-and-swap loop, so taking a slot never blocks; there is no maintained C++ resilience library on ConanCenter to take it from.",
+    "A refused request gets 429 with tenant bulkhead full at once: refuse, don't queue, because a queue in front of a saturated tenant becomes the bottleneck. The order handler is a Drogon coroutine, and a BulkheadPermit gives the slot back however the handler ends. Per-tenant connection pools at the libpq or gRPC layer are a separate bulkhead: the counter caps concurrency, the pool caps sockets."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  }
+ ]
+}
