@@ -12,11 +12,13 @@
 #include <drogon/HttpAppFramework.h>
 #include <drogon/HttpRequest.h>
 #include <drogon/HttpResponse.h>
+#include <drogon/utils/coroutine.h>
 #include <json/json.h>
 #include <spdlog/spdlog.h>
 
 #include "valet.hpp"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <iomanip>
@@ -84,6 +86,12 @@ public:
         }
         return state;
     }
+};
+
+/// Releases a tenant's slot when the request finishes, however it finishes.
+struct BulkheadPermit {
+    TenantBulkhead& bulkhead;
+    ~BulkheadPermit() { bulkhead.release(); }
 };
 
 // Global instances
@@ -167,82 +175,51 @@ int main() {
     // ───────────────────────────────────────────────────────────────────────
     app.registerHandler(
         "/orders",
-        [](const HttpRequestPtr& req,
-           std::function<void(const HttpResponsePtr&)>&& callback) {
-            try {
-                auto json = req->getJsonObject();
-                if (!json) {
-                    Json::Value error;
-                    error["detail"] = "invalid JSON";
-                    auto resp = HttpResponse::newHttpJsonResponse(error);
-                    resp->setStatusCode(k400BadRequest);
-                    callback(resp);
-                    return;
-                }
+        [](HttpRequestPtr req) -> Task<HttpResponsePtr> {
+            auto reply = [](HttpStatusCode code, const Json::Value& body) {
+                auto resp = HttpResponse::newHttpJsonResponse(body);
+                resp->setStatusCode(code);
+                return resp;
+            };
+            auto detail = [](const char* text) {
+                Json::Value v;
+                v["detail"] = text;
+                return v;
+            };
 
-                std::string sku = (*json).get("sku", "").asString();
-                int quantity = (*json).get("quantity", 0).asInt();
-                std::string tenant = (*json).get("tenant", "").asString();
+            auto json = req->getJsonObject();
+            if (!json) co_return reply(k400BadRequest, detail("invalid JSON"));
 
-                if (sku.empty() || tenant.empty()) {
-                    Json::Value error;
-                    error["detail"] = "missing required fields";
-                    auto resp = HttpResponse::newHttpJsonResponse(error);
-                    resp->setStatusCode(k400BadRequest);
-                    callback(resp);
-                    return;
-                }
+            std::string sku = (*json).get("sku", "").asString();
+            int quantity = (*json).get("quantity", 0).asInt();
+            std::string tenant = (*json).get("tenant", "").asString();
+            if (sku.empty() || tenant.empty()) co_return reply(k400BadRequest, detail("missing required fields"));
 
-                // Try to acquire bulkhead slot
-                auto& bulkhead = bulkhead_manager.get_or_create(tenant);
-                if (!bulkhead.try_acquire()) {
-                    Json::Value error;
-                    error["detail"] = "tenant capacity exceeded";
-                    auto resp = HttpResponse::newHttpJsonResponse(error);
-                    resp->setStatusCode(k429TooManyRequests);
-                    callback(resp);
-                    return;
-                }
-
-                // Build response
-                std::string order_id = std::to_string(++order_counter);
-
-                Json::Value resp_json;
-                resp_json["id"] = order_id;
-                resp_json["sku"] = sku;
-                resp_json["quantity"] = quantity;
-                resp_json["tenant"] = tenant;
-
-                // Add identity and subject from request attributes
-                auto identity = req->attributes()->get<std::string>("identity");
-                auto subject = req->attributes()->get<std::string>("subject");
-                resp_json["identity"] = identity;
-                resp_json["subject"] = subject;
-
-                // Store order
-                {
-                    std::lock_guard<std::mutex> lock(orders_mutex);
-                    orders_store[order_id] = resp_json;
-                }
-
-                spdlog::info("Order created: id={}, tenant={}, sku={}",
-                            order_id, tenant, sku);
-
-                // Release bulkhead after processing
-                bulkhead.release();
-
-                auto resp = HttpResponse::newHttpJsonResponse(resp_json);
-                resp->setStatusCode(k201Created);
-                callback(resp);
-
-            } catch (const std::exception& e) {
-                spdlog::error("Error creating order: {}", e.what());
-                Json::Value error;
-                error["detail"] = "internal server error";
-                auto resp = HttpResponse::newHttpJsonResponse(error);
-                resp->setStatusCode(k500InternalServerError);
-                callback(resp);
+            auto& bulkhead = bulkhead_manager.get_or_create(tenant);
+            if (!bulkhead.try_acquire()) {   // the tenant's 5 slots are taken: refuse at once
+                co_return reply(k429TooManyRequests, detail("tenant bulkhead full"));
             }
+            BulkheadPermit permit{bulkhead};   // released when the handler finishes
+
+            // Simulated processing time (processing_ms, default 10, at most 3000), so the bulkhead can be seen
+            // filling up; sleepCoro holds the slot without blocking the event-loop thread.
+            int processing_ms = std::clamp((*json).get("processing_ms", 10).asInt(), 0, 3000);
+            co_await sleepCoro(trantor::EventLoop::getEventLoopOfCurrentThread(), processing_ms / 1000.0);
+
+            std::string order_id = std::to_string(++order_counter);
+            Json::Value order;
+            order["id"] = order_id;
+            order["sku"] = sku;
+            order["quantity"] = quantity;
+            order["tenant"] = tenant;
+            order["identity"] = req->attributes()->get<std::string>("identity");
+            order["subject"] = req->attributes()->get<std::string>("subject");
+            {
+                std::lock_guard<std::mutex> lock(orders_mutex);
+                orders_store[order_id] = order;
+            }
+            spdlog::info("Order created: id={}, tenant={}, sku={}", order_id, tenant, sku);
+            co_return reply(k201Created, order);
         },
         {Post});
 

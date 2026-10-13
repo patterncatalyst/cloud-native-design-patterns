@@ -1162,34 +1162,35 @@ p. 71
 [chip] java · Quarkus + SmallRye Fault Tolerance (MicroProfile)
 
 ```java
-// OrderService.java — declarative bulkhead (SmallRye Fault Tolerance)
-@ApplicationScoped
-public class OrderService {
-    @Inject @RestClient PaymentClient payments;
-    @Bulkhead(value = 50, waitingTaskQueue = 100)        // 50 concurrent, 100 waiting
-    @Timeout(3000)                                        // fail fast after 3 s
-    @AsynchronousNonBlocking                              // Uni return, no worker thread
-    public Uni<Order> place(OrderRequest req) {
-        return payments.charge(req).map(p -> Order.from(req, p));
-    }
+// examples/12-security/quarkus/order-service (condensed excerpts)
+// BulkheadService.java: one SmallRye guard per tenant: 5 concurrent, no queue
+private static Pool newPool() {
+    var inFlight = new AtomicInteger();
+    var guard = Guard.create()
+            .withBulkhead().limit(CAPACITY)
+                .onAccepted(inFlight::incrementAndGet)   // feeds /bulkhead-state
+                .onFinished(inFlight::decrementAndGet)
+                .done()
+            .build();
+    return new Pool(guard, inFlight);
 }
-// TenantBulkhead.java — one semaphore per tenant (as examples/12-security)
-@ApplicationScoped
-public class TenantBulkhead {
-    private final ConcurrentMap<String, Semaphore> sems = new ConcurrentHashMap<>();
-    public <T> T handle(String tenant, Callable<T> work) throws Exception {
-        Semaphore sem = sems.computeIfAbsent(tenant, t -> new Semaphore(5));
-        if (!sem.tryAcquire()) throw new BulkheadException(tenant);   // this tenant only
-        try { return work.call(); } finally { sem.release(); }
-    }
+public <T> T run(String tenant, Supplier<T> work, Class<T> type) {
+    return pools.computeIfAbsent(tenant, t -> newPool()).guard().get(work, type);
+}
+// OrderResource.java, POST /orders: A's storm can't drain B's capacity
+try {
+    return bulkhead.run(body.tenant(),
+            () -> placeOrder(body, identity, subject), Response.class);
+} catch (BulkheadException e) {
+    return Response.status(429).entity(Map.of("detail", "tenant bulkhead full")).build();
 }
 ```
 
 p. 72
 
-> Quarkus ships SmallRye Fault Tolerance, the MicroProfile Fault Tolerance implementation. @Bulkhead(value = 50, waitingTaskQueue = 100) admits at most 50 concurrent invocations, queues up to 100 and rejects the rest; @Timeout fails the call after three seconds. @AsynchronousNonBlocking guards a method that returns a Mutiny Uni without moving it to a worker thread, which is what lets the waiting queue apply.
+> Quarkus ships SmallRye Fault Tolerance, the MicroProfile implementation. Its @Bulkhead annotation caps one method, but example 12 needs one limit per tenant, so it uses the library's programmatic API: a Guard per tenant, created on first use, with a bulkhead of five concurrent calls and no queue.
 >
-> Per-tenant bulkheads need one limit per tenant, so the example keeps a semaphore per tenant: a tenant that fills its 5 slots gets a BulkheadException while every other tenant keeps its capacity. Fault-tolerance metrics are exported through Micrometer, so dashboards can show saturation. At the network layer, Istio's DestinationRule connectionPool adds mesh-level bulkheading on top of these in-process limits.
+> A tenant that fills its five slots gets BulkheadException and a 429 at once, while every other tenant keeps its own five. The guard's onAccepted and onFinished hooks keep the in-flight count that the bulkhead-state endpoint reports. At the platform layer, Istio's per-destination connection-pool limits complement these in-process limits.
 
 ## [086] SECURITY · CLAIM-CHECK · Claim-check — send a reference, not the payload (sldId 341)
 

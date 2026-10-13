@@ -1114,39 +1114,35 @@ p. 71
 
 ## [085] SECURITY · BULKHEAD · Per-tenant bulkheads in asyncio (sldId 340)
 
-[chip] python · asyncio + aiohttp
+[chip] python · asyncio
 
 ```python
-# Per-tenant bulkheads using asyncio.Semaphore
-# One tenant cannot starve others; one compromised tenant cannot cascade
-from asyncio import Semaphore, TimeoutError, wait_for
-from collections import defaultdict
-# 5 concurrent requests per tenant; new ones wait or get rejected
-BULKHEADS: dict[str, Semaphore] = defaultdict(lambda: Semaphore(5))
-@app.post("/orders")
-async def place_order(req: OrderRequest, tenant: str = Depends(current_tenant)):
-    bulkhead = BULKHEADS[tenant]
-    try:
-        # acquire-with-timeout: fail fast if the bulkhead is saturated
-        await wait_for(bulkhead.acquire(), timeout=0.5)
-    except TimeoutError:
-        raise HTTPException(503, f"tenant {tenant} bulkhead saturated")
-    try:
-        return await downstream.place(req)
-    finally:
-        bulkhead.release()
-# Per-tenant HTTP connection pools  —  socket-level isolation
-TENANT_SESSIONS: dict[str, aiohttp.ClientSession] = {}
-def session_for(tenant: str) -> aiohttp.ClientSession:
-    if tenant not in TENANT_SESSIONS:
-        TENANT_SESSIONS[tenant] = aiohttp.ClientSession(
-            connector=aiohttp.TCPConnector(limit=20))    # 20 sockets per tenant
-    return TENANT_SESSIONS[tenant]
+# examples/12-security/python/order-service/main.py (condensed excerpts)
+# One semaphore of 5 permits per tenant; a request that finds them all taken is
+# refused at once (429) instead of waiting.
+BULKHEAD_LIMIT = 5
+_sems: dict[str, asyncio.Semaphore] = {}
+_in_flight: Counter[str] = Counter()
+def _tenant_sem(tenant: str) -> asyncio.Semaphore:
+    return _sems.setdefault(tenant, asyncio.Semaphore(BULKHEAD_LIMIT))
+@app.post("/orders", status_code=201)
+async def create_order(body: OrderIn, request: Request):
+    sem = _tenant_sem(body.tenant)
+    if sem.locked():  # the tenant's 5 permits are taken
+        return JSONResponse(status_code=429, content={"detail": "tenant bulkhead full"})
+    async with sem:  # A's storm can't drain B's capacity
+        _in_flight[body.tenant] += 1  # read by /bulkhead-state
+        try:
+            ...  # create the order
+        finally:
+            _in_flight[body.tenant] -= 1
 ```
 
 p. 72
 
-> Two complementary bulkheads. First, the in-process Semaphore caps concurrent in-flight work per tenant — once 5 are running, a new request waits up to 500ms then fails fast with 503. The fail-fast is critical: if the downstream is slow, we don't queue requests until they pile up, we tell the caller now and let them back off. Second, per-tenant aiohttp.TCPConnector instances cap sockets per tenant — a tenant cannot exhaust the TCP socket pool with one storm. The two together provide both work-isolation (semaphore) and socket-isolation (connector). For critical isolation, you can also run per-tenant Pod replicas of the service: Kubernetes-level bulkheading.
+> In asyncio the standard library is the idiomatic tool: one Semaphore of five permits per tenant, created on first use. Before taking a permit the handler checks locked(); a tenant that already has five orders in flight gets a 429 at once instead of waiting in a queue, while every other tenant keeps its own five.
+>
+> The in-flight counter feeds the bulkhead-state endpoint without reading the semaphore's private state. Per-tenant HTTP connection pools are a separate bulkhead at the socket level: the semaphore caps concurrent work, the pool caps sockets. At the platform layer, Istio's per-destination connection-pool limits complement both.
 
 ## [086] SECURITY · CLAIM-CHECK · Claim-check — send a reference, not the payload (sldId 341)
 

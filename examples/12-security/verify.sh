@@ -149,6 +149,30 @@ check "tenant beta has independent pool" \
     "curl $CURL_OPTS -sf $BASE/bulkhead-state -H 'X-Forwarded-Client-Cert: spiffe://test'" \
     '"beta"'
 
+# Fill tenant gamma's pool: 8 concurrent orders that each take 2 s (processing_ms simulates slow work), so 5 hold
+# the permits and the rest are refused at once; meanwhile tenant delta, with its own pool, is still served.
+printf '  \xe2\x86\x92 sending 8 concurrent slow orders for tenant gamma...\n'
+CODES=$(mktemp)
+for _ in $(seq 1 8); do
+    curl $CURL_OPTS -s -o /dev/null -w '%{http_code}\n' --max-time 10 -X POST "$BASE/orders" \
+        -H 'Content-Type: application/json' \
+        -H 'X-Forwarded-Client-Cert: spiffe://test' \
+        -d '{"sku":"x","quantity":1,"tenant":"gamma","processing_ms":2000}' >>"$CODES" &
+done
+sleep 0.5
+
+check "another tenant is served while gamma's pool is full" \
+    "curl $CURL_OPTS -s -o /dev/null -w '%{http_code}' -X POST $BASE/orders -H 'Content-Type: application/json' -H 'X-Forwarded-Client-Cert: spiffe://test' -d '{\"sku\":\"x\",\"quantity\":1,\"tenant\":\"delta\"}'" \
+    "201"
+
+wait
+REJECTED=$(grep -c '^429$' "$CODES" || true)
+rm -f "$CODES"
+
+check "full tenant pool rejects the overflow with 429" \
+    "echo $REJECTED" \
+    '^[1-9]'
+
 # ===================================================================
 # 4. Policy-as-code (conftest)
 # ===================================================================

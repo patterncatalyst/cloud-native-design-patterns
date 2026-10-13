@@ -5,7 +5,7 @@ Three security patterns — sidecar trust (mTLS header check), valet key (HMAC-s
 ## Framework & libraries
 
 - **Framework**: ASP.NET Core (.NET 10.0.12) minimal API
-- **Libraries**: None beyond ASP.NET Core (patterns are hand-rolled)
+- **Libraries**: ASP.NET Core and System.Threading.RateLimiting (in the box) for the bulkhead; the sidecar-trust and valet-key patterns are written in the service
 - **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520 (runtime), built with ubi9/dotnet-100:9.8-1791421718; runs as UID 1001
 
 ## Run
@@ -24,11 +24,11 @@ cd .. && bash verify.sh
 
 | Path | Description |
 |------|-------------|
-| `OrderService/` | Program.cs — middleware pipeline with sidecar trust check, HMAC valet key, SemaphoreSlim bulkhead |
+| `OrderService/` | Program.cs — middleware pipeline with sidecar trust check, HMAC valet key, partitioned concurrency-limiter bulkhead |
 
 ## Implementation notes
 
-All three patterns in one `Program.cs`. Uses `SemaphoreSlim` for per-tenant bulkhead. No external packages required.
+All three patterns in one `Program.cs`. The per-tenant bulkhead is a `PartitionedRateLimiter` with one `ConcurrencyLimiter` per tenant (5 permits, no queue); a full pool answers 429. No external packages required.
 
 ## Environment variables
 

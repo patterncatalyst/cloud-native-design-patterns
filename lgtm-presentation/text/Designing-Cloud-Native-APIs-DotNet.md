@@ -1223,32 +1223,34 @@ p. 73
 
 ## [087] SECURITY · BULKHEAD · Per-tenant bulkheads in ASP.NET Core (sldId 342)
 
-[chip] csharp · ASP.NET Core 10 + SemaphoreSlim
+[chip] csharp · ASP.NET Core 10 + RateLimiting
 
 ```csharp
-// Per-tenant bulkhead with a SemaphoreSlim; A's storm can't drain B's capacity
-public class TenantBulkhead
-{
-    private readonly ConcurrentDictionary<string, SemaphoreSlim> _sems = new();
-    public async Task<T> HandleAsync<T>(string tenant, Func<Task<T>> work)
+// examples/12-security/dotnet/OrderService/Program.cs (condensed excerpts)
+// One concurrency limiter per tenant (System.Threading.RateLimiting): 5 permits, no queue
+const int BulkheadLimit = 5;
+var bulkhead = PartitionedRateLimiter.Create<string, string>(tenant =>
+    RateLimitPartition.GetConcurrencyLimiter(tenant, _ => new ConcurrencyLimiterOptions
     {
-        var sem = _sems.GetOrAdd(tenant, _ => new SemaphoreSlim(5));   // 5 / tenant
-        await sem.WaitAsync();               // blocks only this tenant when full
-        try { return await work(); }
-        finally { sem.Release(); }
-    }
-}
-// Polly 8 alternative: ResiliencePipelineBuilder().AddConcurrencyLimiter(permitLimit,
-// queueLimit) per tenant, from the Polly.RateLimiting package.
+        PermitLimit = BulkheadLimit,
+        QueueLimit = 0,
+    }));
+// POST /orders: A's storm can't drain B's capacity
+app.MapPost("/orders", async (OrderRequest body, HttpContext ctx) =>
+{
+    using var lease = await bulkhead.AcquireAsync(body.Tenant);
+    if (!lease.IsAcquired)   // the tenant's 5 permits are taken
+        return Results.Json(new { detail = "tenant bulkhead full" },
+                            statusCode: StatusCodes.Status429TooManyRequests);
+    // ... create the order while the lease is held
+});
 ```
 
 p. 74
 
-> The bulkhead in its simplest .NET form: one SemaphoreSlim per tenant, created on first use. A tenant that floods the service fills only its own five slots and waits; other tenants keep their capacity.
+> The bulkhead comes from System.Threading.RateLimiting, which is in the box: a PartitionedRateLimiter keyed by tenant, with one ConcurrencyLimiter per partition, five permits and a queue limit of zero. The endpoint takes a lease for the order's tenant; a tenant that already has five orders in flight gets a lease that is not acquired, and the request is answered with 429 at once while every other tenant keeps its own five.
 >
-> Polly 8 offers the same isolation as a pipeline strategy: AddConcurrencyLimiter (Polly.RateLimiting) with a permit limit and a queue limit, one pipeline per tenant, combined with a timeout so a slow downstream fails fast. Microsoft.Extensions.Http.Resilience can attach such pipelines to named HttpClients.
->
-> At the platform layer, Istio connection-pool limits per destination complement these in-process limits.
+> The same library drives the ASP.NET Core rate-limiting middleware, but the middleware chooses its partition before the request body is read, and the tenant arrives in the body, so the endpoint takes the lease itself. Polly's AddConcurrencyLimiter wraps the same limiter for outbound calls. At the platform layer, Istio connection-pool limits per destination complement these in-process limits.
 
 ## [088] SECURITY · CLAIM-CHECK · Claim-check — send a reference, not the payload (sldId 343)
 

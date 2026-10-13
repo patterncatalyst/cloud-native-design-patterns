@@ -2,7 +2,8 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://+:8080");
@@ -14,11 +15,17 @@ var app = builder.Build();
 var valetSecret = builder.Configuration.GetValue("VALET_SECRET", "demo-secret-do-not-use-in-prod");
 var orders = new ConcurrentDictionary<string, object>();
 var counter = 0;
-var bulkheadLimit = 5;
-var semaphores = new ConcurrentDictionary<string, SemaphoreSlim>();
 
-SemaphoreSlim GetTenantSem(string tenant) =>
-    semaphores.GetOrAdd(tenant, _ => new SemaphoreSlim(bulkheadLimit, bulkheadLimit));
+// Per-tenant bulkhead: one concurrency limiter per tenant (System.Threading.RateLimiting), 5 permits and no queue,
+// so the sixth concurrent order for a tenant is refused at once.
+const int BulkheadLimit = 5;
+var bulkhead = PartitionedRateLimiter.Create<string, string>(tenant =>
+    RateLimitPartition.GetConcurrencyLimiter(tenant, _ => new ConcurrencyLimiterOptions
+    {
+        PermitLimit = BulkheadLimit,
+        QueueLimit = 0,
+    }));
+var tenants = new ConcurrentDictionary<string, byte>();   // the limiter does not list its partitions
 
 // Sidecar trust middleware
 var openPaths = new HashSet<string> { "/healthz", "/docs", "/openapi.json" };
@@ -48,37 +55,26 @@ app.MapHealthChecks("/healthz", new HealthCheckOptions
     ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok" }),
 });
 
-app.MapPost("/orders", async (HttpContext ctx) =>
+app.MapPost("/orders", async (OrderRequest body, HttpContext ctx) =>
 {
-    using var doc = await JsonDocument.ParseAsync(ctx.Request.Body);
-    var root = doc.RootElement;
-    var sku = root.GetProperty("sku").GetString()!;
-    var quantity = root.GetProperty("quantity").GetInt32();
-    var tenant = root.GetProperty("tenant").GetString()!;
+    tenants.TryAdd(body.Tenant, 0);
+    using var lease = await bulkhead.AcquireAsync(body.Tenant);
+    if (!lease.IsAcquired)   // the tenant's 5 permits are taken
+        return Results.Json(new { detail = "tenant bulkhead full" }, statusCode: StatusCodes.Status429TooManyRequests);
 
-    var sem = GetTenantSem(tenant);
-    await sem.WaitAsync();
-    try
+    await Task.Delay(body.ProcessingTimeMs);   // simulated processing time
+    var oid = Interlocked.Increment(ref counter).ToString();
+    var order = new
     {
-        await Task.Delay(10);
-        var oid = Interlocked.Increment(ref counter).ToString();
-        var order = new
-        {
-            id = oid,
-            sku,
-            quantity,
-            tenant,
-            identity = ctx.Items["identity"]?.ToString(),
-            subject = ctx.Items["subject"]?.ToString()
-        };
-        orders[oid] = order;
-        ctx.Response.StatusCode = 201;
-        return Results.Json(order, statusCode: 201);
-    }
-    finally
-    {
-        sem.Release();
-    }
+        id = oid,
+        sku = body.Sku,
+        quantity = body.Quantity,
+        tenant = body.Tenant,
+        identity = ctx.Items["identity"]?.ToString(),
+        subject = ctx.Items["subject"]?.ToString()
+    };
+    orders[oid] = order;
+    return Results.Json(order, statusCode: StatusCodes.Status201Created);
 });
 
 app.MapGet("/orders/{orderId}", (string orderId) =>
@@ -125,9 +121,10 @@ app.MapGet("/verify-valet", (HttpContext ctx) =>
 app.MapGet("/bulkhead-state", () =>
 {
     var result = new Dictionary<string, object>();
-    foreach (var (tenant, sem) in semaphores)
+    foreach (var tenant in tenants.Keys)
     {
-        result[tenant] = new { available = sem.CurrentCount, capacity = bulkheadLimit };
+        var available = bulkhead.GetStatistics(tenant)?.CurrentAvailablePermits ?? BulkheadLimit;
+        result[tenant] = new { available, capacity = BulkheadLimit };
     }
     return result;
 });
@@ -139,4 +136,15 @@ static string ComputeHmac(string secret, string payload)
     using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
     var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(payload));
     return Convert.ToHexStringLower(hash);
+}
+
+/// <summary>Inbound order. processing_ms (optional, default 10, at most 3000) simulates slow work, so the
+/// per-tenant bulkhead can be seen filling up.</summary>
+public record OrderRequest(
+    string Sku,
+    int Quantity,
+    string Tenant,
+    [property: JsonPropertyName("processing_ms")] int? ProcessingMs)
+{
+    public int ProcessingTimeMs => Math.Clamp(ProcessingMs ?? 10, 0, 3000);
 }

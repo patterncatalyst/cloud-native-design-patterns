@@ -12,13 +12,12 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
+import org.eclipse.microprofile.faulttolerance.exceptions.BulkheadException;
 import org.jboss.resteasy.reactive.RestQuery;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Path("/")
@@ -41,36 +40,29 @@ public class OrderResource {
         String identity = (String) ctx.getProperty(SidecarTrustFilter.IDENTITY_PROPERTY);
         String subject = (String) ctx.getProperty(SidecarTrustFilter.SUBJECT_PROPERTY);
 
-        Semaphore sem = bulkhead.forTenant(body.tenant());
         try {
-            if (!sem.tryAcquire(5, TimeUnit.SECONDS)) {
-                return Response.status(429)
-                        .entity(Map.of("detail", "tenant bulkhead full"))
-                        .build();
-            }
-            try {
-                Thread.sleep(10);
+            return bulkhead.run(body.tenant(), () -> placeOrder(body, identity, subject), Response.class);
+        } catch (BulkheadException e) {   // the tenant's 5 permits are taken: refuse at once
+            return Response.status(429).entity(Map.of("detail", "tenant bulkhead full")).build();
+        }
+    }
 
-                String id = String.valueOf(counter.incrementAndGet());
-                Map<String, Object> order = new LinkedHashMap<>();
-                order.put("id", id);
-                order.put("sku", body.sku());
-                order.put("quantity", body.quantity());
-                order.put("tenant", body.tenant());
-                order.put("identity", identity);
-                order.put("jwt_sub", subject);
-
-                orders.put(id, order);
-                return Response.status(Response.Status.CREATED).entity(order).build();
-            } finally {
-                sem.release();
-            }
+    private Response placeOrder(OrderRequest body, String identity, String subject) {
+        try {
+            Thread.sleep(body.processingTimeMs());   // simulated processing time
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
-                    .entity(Map.of("detail", "interrupted"))
-                    .build();
         }
+        String id = String.valueOf(counter.incrementAndGet());
+        Map<String, Object> order = new LinkedHashMap<>();
+        order.put("id", id);
+        order.put("sku", body.sku());
+        order.put("quantity", body.quantity());
+        order.put("tenant", body.tenant());
+        order.put("identity", identity);
+        order.put("jwt_sub", subject);
+        orders.put(id, order);
+        return Response.status(Response.Status.CREATED).entity(order).build();
     }
 
     @POST

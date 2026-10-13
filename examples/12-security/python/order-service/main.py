@@ -2,12 +2,13 @@ import asyncio
 import hashlib
 import hmac
 import time
+from collections import Counter
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, Field
-from starlette.responses import JSONResponse
 from pydantic_settings import BaseSettings
+from starlette.responses import JSONResponse
 
 
 class Settings(BaseSettings):
@@ -47,8 +48,10 @@ async def trust_sidecar(request: Request, call_next):
 # -------------------------------------------------------------------
 # 2. Per-tenant bulkhead — bounded concurrency per tenant
 # -------------------------------------------------------------------
+# One semaphore of 5 permits per tenant; a request that finds them all taken is refused at once (429).
 BULKHEAD_LIMIT = 5
 _sems: dict[str, asyncio.Semaphore] = {}
+_in_flight: Counter[str] = Counter()
 
 
 def _tenant_sem(tenant: str) -> asyncio.Semaphore:
@@ -86,6 +89,8 @@ class OrderIn(BaseModel):
     sku: str = Field(..., min_length=1)
     quantity: int = Field(..., gt=0)
     tenant: str = Field(..., min_length=1)
+    # Simulated processing time, so the per-tenant bulkhead can be seen filling up.
+    processing_ms: int = Field(default=10, ge=0, le=3000)
 
 
 @app.get("/healthz")
@@ -96,19 +101,26 @@ async def healthz():
 @app.post("/orders", status_code=201)
 async def create_order(body: OrderIn, request: Request):
     global _counter
-    async with _tenant_sem(body.tenant):
-        await asyncio.sleep(0.01)
-        _counter += 1
-        oid = str(_counter)
-        orders[oid] = {
-            "id": oid,
-            "sku": body.sku,
-            "quantity": body.quantity,
-            "tenant": body.tenant,
-            "identity": request.state.identity,
-            "subject": request.state.subject,
-        }
-        return orders[oid]
+    sem = _tenant_sem(body.tenant)
+    if sem.locked():  # the tenant's 5 permits are taken
+        return JSONResponse(status_code=429, content={"detail": "tenant bulkhead full"})
+    async with sem:
+        _in_flight[body.tenant] += 1
+        try:
+            await asyncio.sleep(body.processing_ms / 1000)
+            _counter += 1
+            oid = str(_counter)
+            orders[oid] = {
+                "id": oid,
+                "sku": body.sku,
+                "quantity": body.quantity,
+                "tenant": body.tenant,
+                "identity": request.state.identity,
+                "subject": request.state.subject,
+            }
+            return orders[oid]
+        finally:
+            _in_flight[body.tenant] -= 1
 
 
 @app.get("/orders/{order_id}")
@@ -133,6 +145,6 @@ async def verify_key(resource: str, operation: str, expires: int, token: str):
 @app.get("/bulkhead-state")
 async def bulkhead_state():
     return {
-        t: {"available": sem._value, "capacity": BULKHEAD_LIMIT}
-        for t, sem in _sems.items()
+        t: {"available": BULKHEAD_LIMIT - _in_flight[t], "capacity": BULKHEAD_LIMIT}
+        for t in _sems
     }

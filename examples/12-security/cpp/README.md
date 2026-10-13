@@ -75,7 +75,7 @@ Drogon uses `registerPreHandlingAdvice` for request preprocessing. The sidecar t
 C++23 with GCC 15 (`gcc-toolset-15` on `ubi10/ubi:10.2`), CMake 4.4.4, Ninja 1.13.2 and Conan 2.33.0; the runtime image is `ubi10/ubi-minimal` with libstdc++ linked statically. Dependencies are pinned in `conanfile.py` and `conan.lock`.
 
 ### Atomic Bulkhead
-The bulkhead uses `std::atomic<int>` with compare-exchange for lock-free concurrency. Each tenant has an independent counter.
+The bulkhead uses `std::atomic<int>` with compare-exchange for lock-free concurrency. Each tenant has an independent counter; a full pool answers 429 at once. The `/orders` handler is a Drogon coroutine, so its simulated processing time (`processing_ms`) holds the slot without blocking an event-loop thread.
 
 ## Running
 

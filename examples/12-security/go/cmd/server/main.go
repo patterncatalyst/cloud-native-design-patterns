@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/sync/semaphore"
 )
 
 var (
@@ -25,12 +26,14 @@ var (
 
 const bulkheadCapacity = 5
 
+// bulkhead is one tenant's pool: 5 permits; TryAcquire refuses the sixth concurrent order at once.
 type bulkhead struct {
-	sem chan struct{}
+	sem      *semaphore.Weighted
+	inFlight atomic.Int64 // semaphore.Weighted does not report its count
 }
 
 func getTenantBulkhead(tenant string) *bulkhead {
-	v, _ := bulkheads.LoadOrStore(tenant, &bulkhead{sem: make(chan struct{}, bulkheadCapacity)})
+	v, _ := bulkheads.LoadOrStore(tenant, &bulkhead{sem: semaphore.NewWeighted(bulkheadCapacity)})
 	return v.(*bulkhead)
 }
 
@@ -47,6 +50,16 @@ type orderIn struct {
 	SKU      string `json:"sku"`
 	Quantity int    `json:"quantity"`
 	Tenant   string `json:"tenant"`
+	// ProcessingMs simulates slow work (default 10, at most 3000), so the bulkhead can be seen filling up.
+	ProcessingMs *int `json:"processing_ms"`
+}
+
+func (in orderIn) processingTime() time.Duration {
+	ms := 10
+	if in.ProcessingMs != nil {
+		ms = min(max(*in.ProcessingMs, 0), 3000)
+	}
+	return time.Duration(ms) * time.Millisecond
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -145,10 +158,17 @@ func main() {
 		}
 
 		bh := getTenantBulkhead(in.Tenant)
-		bh.sem <- struct{}{}
-		defer func() { <-bh.sem }()
+		if !bh.sem.TryAcquire(1) { // the tenant's 5 permits are taken
+			writeJSON(w, http.StatusTooManyRequests, map[string]string{"detail": "tenant bulkhead full"})
+			return
+		}
+		bh.inFlight.Add(1)
+		defer func() {
+			bh.inFlight.Add(-1)
+			bh.sem.Release(1)
+		}()
 
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(in.processingTime()) // simulated processing time
 
 		id := strconv.FormatInt(orderCounter.Add(1), 10)
 		o := orderData{
@@ -203,7 +223,7 @@ func main() {
 			tenant := key.(string)
 			bh := value.(*bulkhead)
 			state[tenant] = map[string]any{
-				"available": bulkheadCapacity - len(bh.sem),
+				"available": bulkheadCapacity - bh.inFlight.Load(),
 				"capacity":  bulkheadCapacity,
 			}
 			return true

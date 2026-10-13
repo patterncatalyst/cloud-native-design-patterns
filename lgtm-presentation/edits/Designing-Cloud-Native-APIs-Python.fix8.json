@@ -1,0 +1,57 @@
+{
+ "ops": [
+  {
+   "op": "set_code",
+   "sldId": 340,
+   "lines": [
+    "# examples/12-security/python/order-service/main.py (condensed excerpts)",
+    "# One semaphore of 5 permits per tenant; a request that finds them all taken is",
+    "# refused at once (429) instead of waiting.",
+    "BULKHEAD_LIMIT = 5",
+    "_sems: dict[str, asyncio.Semaphore] = {}",
+    "_in_flight: Counter[str] = Counter()",
+    "",
+    "",
+    "def _tenant_sem(tenant: str) -> asyncio.Semaphore:",
+    "    return _sems.setdefault(tenant, asyncio.Semaphore(BULKHEAD_LIMIT))",
+    "",
+    "",
+    "@app.post(\"/orders\", status_code=201)",
+    "async def create_order(body: OrderIn, request: Request):",
+    "    sem = _tenant_sem(body.tenant)",
+    "    if sem.locked():  # the tenant's 5 permits are taken",
+    "        return JSONResponse(status_code=429, content={\"detail\": \"tenant bulkhead full\"})",
+    "    async with sem:  # A's storm can't drain B's capacity",
+    "        _in_flight[body.tenant] += 1  # read by /bulkhead-state",
+    "        try:",
+    "            ...  # create the order",
+    "        finally:",
+    "            _in_flight[body.tenant] -= 1"
+   ],
+   "_why": "examples/12 per-tenant bulkhead on its library (S14); the slide is an excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    340
+   ],
+   "find": "asyncio + aiohttp",
+   "repl": "asyncio",
+   "expect": 1,
+   "_why": "chip follows the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 340,
+   "paragraphs": [
+    "In asyncio the standard library is the idiomatic tool: one Semaphore of five permits per tenant, created on first use. Before taking a permit the handler checks locked(); a tenant that already has five orders in flight gets a 429 at once instead of waiting in a queue, while every other tenant keeps its own five.",
+    "The in-flight counter feeds the bulkhead-state endpoint without reading the semaphore's private state. Per-tenant HTTP connection pools are a separate bulkhead at the socket level: the semaphore caps concurrent work, the pool caps sockets. At the platform layer, Istio's per-destination connection-pool limits complement both."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  }
+ ]
+}

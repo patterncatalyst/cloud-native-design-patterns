@@ -1,0 +1,44 @@
+{
+ "ops": [
+  {
+   "op": "set_code",
+   "sldId": 340,
+   "lines": [
+    "// examples/12-security/quarkus/order-service (condensed excerpts)",
+    "// BulkheadService.java: one SmallRye guard per tenant: 5 concurrent, no queue",
+    "private static Pool newPool() {",
+    "    var inFlight = new AtomicInteger();",
+    "    var guard = Guard.create()",
+    "            .withBulkhead().limit(CAPACITY)",
+    "                .onAccepted(inFlight::incrementAndGet)   // feeds /bulkhead-state",
+    "                .onFinished(inFlight::decrementAndGet)",
+    "                .done()",
+    "            .build();",
+    "    return new Pool(guard, inFlight);",
+    "}",
+    "public <T> T run(String tenant, Supplier<T> work, Class<T> type) {",
+    "    return pools.computeIfAbsent(tenant, t -> newPool()).guard().get(work, type);",
+    "}",
+    "// OrderResource.java, POST /orders: A's storm can't drain B's capacity",
+    "try {",
+    "    return bulkhead.run(body.tenant(),",
+    "            () -> placeOrder(body, identity, subject), Response.class);",
+    "} catch (BulkheadException e) {",
+    "    return Response.status(429).entity(Map.of(\"detail\", \"tenant bulkhead full\")).build();",
+    "}"
+   ],
+   "_why": "examples/12 per-tenant bulkhead on its library (S14); the slide is an excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 340,
+   "paragraphs": [
+    "Quarkus ships SmallRye Fault Tolerance, the MicroProfile implementation. Its @Bulkhead annotation caps one method, but example 12 needs one limit per tenant, so it uses the library's programmatic API: a Guard per tenant, created on first use, with a bulkhead of five concurrent calls and no queue.",
+    "A tenant that fills its five slots gets BulkheadException and a 429 at once, while every other tenant keeps its own five. The guard's onAccepted and onFinished hooks keep the in-flight count that the bulkhead-state endpoint reports. At the platform layer, Istio's per-destination connection-pool limits complement these in-process limits."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  }
+ ]
+}
