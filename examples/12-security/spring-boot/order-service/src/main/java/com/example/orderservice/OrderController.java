@@ -1,5 +1,6 @@
 package com.example.orderservice;
 
+import io.github.resilience4j.bulkhead.BulkheadFullException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,8 +14,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @RestController
@@ -42,35 +41,32 @@ public class OrderController {
         String identity = (String) request.getAttribute(SidecarTrustFilter.ATTR_IDENTITY);
         String subject = (String) request.getAttribute(SidecarTrustFilter.ATTR_SUBJECT);
 
-        Semaphore sem = bulkhead.forTenant(body.tenant());
         try {
-            if (!sem.tryAcquire(5, TimeUnit.SECONDS)) {
-                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                        .body(Map.of("detail", "tenant bulkhead full"));
-            }
-            try {
-                // Simulate a short processing delay
-                Thread.sleep(10);
+            Map<String, Object> order = bulkhead.forTenant(body.tenant())
+                    .executeSupplier(() -> placeOrder(body, identity, subject));
+            return ResponseEntity.status(HttpStatus.CREATED).body(order);
+        } catch (BulkheadFullException e) {   // the tenant's 5 permits are taken: refuse at once
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("detail", "tenant bulkhead full"));
+        }
+    }
 
-                String id = String.valueOf(counter.incrementAndGet());
-                Map<String, Object> order = new LinkedHashMap<>();
-                order.put("id", id);
-                order.put("sku", body.sku());
-                order.put("quantity", body.quantity());
-                order.put("tenant", body.tenant());
-                order.put("identity", identity);
-                order.put("subject", subject);
-
-                orders.put(id, order);
-                return ResponseEntity.status(HttpStatus.CREATED).body(order);
-            } finally {
-                sem.release();
-            }
+    private Map<String, Object> placeOrder(OrderRequest body, String identity, String subject) {
+        try {
+            Thread.sleep(body.processingTimeMs());   // simulated processing time
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body(Map.of("detail", "interrupted"));
         }
+        String id = String.valueOf(counter.incrementAndGet());
+        Map<String, Object> order = new LinkedHashMap<>();
+        order.put("id", id);
+        order.put("sku", body.sku());
+        order.put("quantity", body.quantity());
+        order.put("tenant", body.tenant());
+        order.put("identity", identity);
+        order.put("subject", subject);
+        orders.put(id, order);
+        return order;
     }
 
     // -----------------------------------------------------------------
