@@ -78,10 +78,10 @@ each language gets a generated client from the one `.proto`.
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-// a Spring bean wraps the generated blocking stub (grpc-java, plaintext channel)
-@Bean InventoryGrpc.InventoryBlockingStub inventoryStub() {
-  return InventoryGrpc.newBlockingStub(
-      ManagedChannelBuilder.forAddress(host, port).usePlaintext().build());
+// a Spring bean wraps the generated blocking stub; Spring gRPC builds and owns the channel
+// (spring.grpc.client.channel.inventory.target, plaintext inside the cluster)
+@Bean InventoryGrpc.InventoryBlockingStub inventoryStub(GrpcChannelFactory channels) {
+  return InventoryGrpc.newBlockingStub(channels.createChannel("inventory"));
 }
 // constructor-injected: OrderService(InventoryGrpc.InventoryBlockingStub inventory)
 
@@ -180,7 +180,8 @@ note how every one expresses "push many, then finish."
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-// server-streaming RPC; registered with ServerBuilder.forPort(port).addService(...)
+// server-streaming RPC; Spring gRPC registers the @GrpcService bean on its server
+@GrpcService
 public class OrderEvents extends OrderEventsGrpc.OrderEventsImplBase {
   @Override
   public void streamOrderEvents(StreamRequest req,

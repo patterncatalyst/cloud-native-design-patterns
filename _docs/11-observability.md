@@ -80,12 +80,13 @@ ENV JAVA_TOOL_OPTIONS="-javaagent:/deployments/opentelemetry-javaagent.jar"
 // OpenTelemetry API annotation (io.opentelemetry.instrumentation.annotations):
 @Service
 public class OrderService {
-    private final InventoryGrpcClient inventory;
-    public OrderService(InventoryGrpcClient i) { this.inventory = i; }
+    private final InventoryServiceGrpc.InventoryServiceBlockingStub inventory;   // Spring gRPC
+    public OrderService(InventoryServiceGrpc.InventoryServiceBlockingStub i) { this.inventory = i; }
 
     @WithSpan("reserve_stock")                 // custom span
     public ReserveReply reserve(String sku, int qty) {
-        return inventory.reserveStock(sku, qty);
+        return inventory.reserveStock(
+            ReserveRequest.newBuilder().setSku(sku).setQuantity(qty).build());
     }
     // trace_id flows: REST -> gRPC -> Kafka -> consumer
 }

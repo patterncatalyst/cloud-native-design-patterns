@@ -5,7 +5,7 @@ API gateway pattern — BFF gateway aggregating order-api and inventory-service 
 ## Framework & libraries
 
 - **Framework**: Spring Boot 4.1.1, Java 25 (Web, GraphQL, gRPC)
-- **Libraries**: spring-boot-starter-graphql, grpc-netty-shaded, grpc-protobuf, OpenTelemetry Java agent 2.32.0
+- **Libraries**: spring-boot-starter-graphql, spring-boot-starter-grpc-server (inventory) and spring-boot-starter-grpc-client (callers), Spring gRPC 1.1.1, OpenTelemetry Java agent 2.32.0
 - **Container base**: `ubi10/openjdk-25-runtime:1.24-15` (UID 185)
 
 ## Run
@@ -26,7 +26,7 @@ cd .. && bash verify.sh
 |------|-------------|
 | `gateway/` | GraphQL gateway with Spring @QueryMapping resolvers |
 | `order-api/` | REST order service |
-| `inventory-service/` | gRPC service |
+| `inventory-service/` | InventoryService.java — `@GrpcService` bean served by Spring gRPC |
 
 ## Implementation notes
 
@@ -38,7 +38,7 @@ The gRPC contract lives in `proto/` next to the services. The poms set the proto
 
 Key variables (set by compose.yaml, override for local dev):
 
-`order-api.url, inventory.grpc.host`
+`orderapi.url, spring.grpc.client.channel.inventory.target` (from `INVENTORY_ADDR`)
 
 ## Local development (without containers)
 

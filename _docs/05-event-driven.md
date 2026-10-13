@@ -576,8 +576,10 @@ the service:
 
 ```java
 // the sidecar (localhost, same pod) owns Kafka — no broker client here
-@GrpcClient("sidecar")
-private EventBusGrpc.EventBusBlockingStub sidecar;
+// Spring gRPC channel: spring.grpc.client.channel.sidecar.target=localhost:50051
+@Bean EventBusGrpc.EventBusBlockingStub sidecar(GrpcChannelFactory channels) {
+  return EventBusGrpc.newBlockingStub(channels.createChannel("sidecar"));
+}
 
 void emit(Order o) {
   sidecar.publish(PublishRequest.newBuilder()

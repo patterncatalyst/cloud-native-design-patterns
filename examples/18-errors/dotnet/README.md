@@ -5,7 +5,7 @@ RFC 9457 Problem Details for REST errors, gRPC status codes with rich error deta
 ## Framework & libraries
 
 - **Framework**: ASP.NET Core (.NET 10.0.12) minimal API
-- **Libraries**: Grpc.Net.Client, Google.Protobuf, Grpc.Tools
+- **Libraries**: Grpc.Net.ClientFactory (`AddGrpcClient`), Google.Protobuf, Grpc.Tools
 - **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520 (runtime), built with ubi9/dotnet-100:9.8-1791421718; runs as UID 1001
 
 ## Run
@@ -35,7 +35,7 @@ Uses ASP.NET Core's built-in `Results.Problem()` which produces compliant Proble
 
 Key variables (set by compose.yaml, override for local dev):
 
-`INVENTORY_GRPC_HOST`
+`INVENTORY_ADDR`
 
 ## Local development (without containers)
 

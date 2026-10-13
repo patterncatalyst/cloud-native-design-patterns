@@ -247,14 +247,10 @@ produces and fill in the one method, never touching the wire format itself.
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-// inventory-service (excerpt): grpc-java server; protobuf-maven-plugin generates the stubs
-@SpringBootApplication
-public class InventoryServiceApplication extends InventoryGrpc.InventoryImplBase
-        implements CommandLineRunner {
-    @Override public void run(String... args) throws Exception {
-        server = ServerBuilder.forPort(grpcPort).addService(this).build().start();
-        server.awaitTermination();
-    }
+// inventory-service (excerpt): a @GrpcService bean; spring-boot-starter-grpc-server hosts it on
+// spring.grpc.server.port (graceful shutdown, standard health service); protoc generates the stubs
+@GrpcService
+public class InventoryService extends InventoryGrpc.InventoryImplBase {
     @Override public void reserveStock(ReserveRequest req, StreamObserver<ReserveReply> obs) {
         stock.putIfAbsent(req.getSku(), initialStock);
         int remaining = stock.get(req.getSku()) - req.getQuantity();
@@ -263,6 +259,10 @@ public class InventoryServiceApplication extends InventoryGrpc.InventoryImplBase
             .setRemaining(stock.get(req.getSku())).build());
         obs.onCompleted();
     }
+}
+// order-service: the channel comes from spring.grpc.client.channel.inventory.target
+@Bean InventoryGrpc.InventoryBlockingStub inventoryStub(GrpcChannelFactory channels) {
+    return InventoryGrpc.newBlockingStub(channels.createChannel("inventory"));
 }
 ```
 
