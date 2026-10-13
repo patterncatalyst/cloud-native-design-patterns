@@ -35,7 +35,7 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 | S10 | feature/openshift-local-appendix | 8 | done (PR #68, 48e7736) |
 | S11 | docs/professional-voice | 9 | done (PR #69, 2d8c2a8) |
 | S12 | docs/deck-refresh | 10 (expanded 2026-10-11) | done (plan: _plans/s12-deck-refresh-plan.md; examples 01, 21, 25 fixed and verified 6/6) |
-| S13 | refactor/idiomatic-examples (5 PRs) | 11 (added 2026-10-12) | in progress (plan: _plans/s13-idiomatic-plan.md) |
+| S13 | refactor/idiomatic-examples (5 PRs) | 11 (added 2026-10-12) | done (PRs #73-#77; 111/111 PASS 2026-10-12; plan: _plans/s13-idiomatic-plan.md) |
 | S14 | refactor/resilience-libraries | 12 (added 2026-10-12) | next: circuit breaker, bulkhead, Spring gRPC via libraries |
 
 
