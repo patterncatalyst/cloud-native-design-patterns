@@ -246,7 +246,7 @@ p. 14
 
 ## [018] COMMUNICATIONS · gRPC for internal service-to-service calls (sldId 273)
 
-[chip] protobuf + java · Spring Boot 4 + grpc-java
+[chip] protobuf + java · Spring gRPC
 
 ```protobuf+java
 // inventory.proto — the contract, registered in Apicurio
@@ -254,21 +254,21 @@ syntax = "proto3";
 service Inventory { rpc ReserveStock (ReserveRequest) returns (ReserveReply); }
 message ReserveRequest { string sku = 1; int32 quantity = 2; }
 message ReserveReply   { bool reserved = 1; int32 remaining = 2; }
-// inventory-service (excerpt): grpc-java server; protobuf-maven-plugin generates the stubs
-@SpringBootApplication
-public class InventoryServiceApplication extends InventoryGrpc.InventoryImplBase
-        implements CommandLineRunner {
-    @Override public void run(String... args) throws Exception {
-        server = ServerBuilder.forPort(grpcPort).addService(this).build().start();
-        server.awaitTermination();
-    }
+// inventory-service (excerpt): Spring gRPC serves this bean on spring.grpc.server.port
+@GrpcService
+public class InventoryService extends InventoryGrpc.InventoryImplBase {
     @Override public void reserveStock(ReserveRequest req, StreamObserver<ReserveReply> obs) {
+        stock.putIfAbsent(req.getSku(), initialStock);
         int remaining = stock.get(req.getSku()) - req.getQuantity();
         if (remaining >= 0) stock.put(req.getSku(), remaining);      // reserve
         obs.onNext(ReserveReply.newBuilder().setReserved(remaining >= 0)
-            .setRemaining(remaining >= 0 ? remaining : stock.get(req.getSku())).build());
+            .setRemaining(stock.get(req.getSku())).build());
         obs.onCompleted();
     }
+}
+// order-service: the channel comes from spring.grpc.client.channel.inventory.target
+@Bean InventoryGrpc.InventoryBlockingStub inventoryStub(GrpcChannelFactory channels) {
+    return InventoryGrpc.newBlockingStub(channels.createChannel("inventory"));
 }
 ```
 
@@ -278,7 +278,7 @@ p. 15
 
 > gRPC for the internal paths. The .proto is the contract, and it lives in the registry like OpenAPI. The protobuf-maven-plugin runs protoc at build time; the service extends the generated InventoryImplBase and fills in the one method, never touching the wire format.
 >
-> The example starts a plain grpc-java server from a CommandLineRunner inside the Spring Boot application, so no gRPC starter sits between the code and the library. The field numbers (=1, =2) are the wire contract; Appendix B explains why they can never be reused.
+> The inventory service is a @GrpcService bean: spring-boot-starter-grpc-server starts the server on spring.grpc.server.port, drains it on shutdown and adds the standard gRPC health service, and the order service gets its channel from GrpcChannelFactory. The field numbers (=1, =2) are the wire contract; Appendix B explains why they can never be reused.
 >
 > gRPC is binary and multiplexed over HTTP/2, so it is fast and supports streaming: the right default for chatty service-to-service calls where you control both ends. Load-test it with ghz.
 
@@ -349,8 +349,8 @@ p. 19
 @Controller                                   // spring-boot-starter-graphql
 public class OrderGraphQLController {
     private final OrderClient orderClient;
-    private final InventoryGrpcClient inventory;
-    public OrderGraphQLController(OrderClient o, InventoryGrpcClient i) {
+    private final InventoryGrpc.InventoryBlockingStub inventory;   // Spring gRPC channel bean
+    public OrderGraphQLController(OrderClient o, InventoryGrpc.InventoryBlockingStub i) {
         this.orderClient = o; this.inventory = i;
     }
     @QueryMapping                              // REST call to order-service
@@ -359,7 +359,8 @@ public class OrderGraphQLController {
     }
     @SchemaMapping(typeName = "Order", field = "stock")   // resolved on demand
     public Integer stock(Order order) {                   // via gRPC
-        return inventory.remaining(order.sku());
+        return inventory.getStock(GetStockRequest.newBuilder().setSku(order.sku()).build())
+                .getAvailable();
     }
     // @BatchMapping("stock") batches N orders into one gRPC call: no N+1
 }
@@ -882,11 +883,12 @@ ENV JAVA_TOOL_OPTIONS="-javaagent:/deployments/opentelemetry-javaagent.jar"
 // OpenTelemetry API annotation (io.opentelemetry.instrumentation.annotations):
 @Service
 public class OrderService {
-    private final InventoryGrpcClient inventory;
-    public OrderService(InventoryGrpcClient i) { this.inventory = i; }
+    private final InventoryServiceGrpc.InventoryServiceBlockingStub inventory;   // Spring gRPC
+    public OrderService(InventoryServiceGrpc.InventoryServiceBlockingStub i) { inventory = i; }
     @WithSpan("reserve_stock")                 // custom span
     public ReserveReply reserve(String sku, int qty) {
-        return inventory.reserveStock(sku, qty);
+        return inventory.reserveStock(
+            ReserveRequest.newBuilder().setSku(sku).setQuantity(qty).build());
     }
     // trace_id flows: REST -> gRPC -> Kafka -> consumer
 }

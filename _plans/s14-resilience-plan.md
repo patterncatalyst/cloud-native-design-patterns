@@ -32,7 +32,7 @@ language; do not hand-roll what a maintained library provides.
 | Spring Boot 4.1.1 | `io.github.resilience4j:resilience4j-spring-boot4` | 2.4.0 (built against Boot 4.0.0) | Maven Central |
 | Spring Boot 4.1.1 | `spring-boot-starter-aspectj` (the Boot 4 name of the AOP starter) | BOM 4.1.1 | Boot BOM |
 | Spring Boot 4.1.1 | `spring-boot-starter-grpc-server` / `-client` (Spring gRPC) | 1.1.1 via BOM 4.1.1 | Boot BOM |
-| Spring Boot 4.1.1 | `io.github.ascopes:protobuf-maven-plugin` | 5.1.8 via BOM 4.1.1 | Boot BOM |
+| Spring Boot 4.1.1 | `io.github.ascopes:protobuf-maven-plugin` | not adopted: fails under the UBI packaged Maven; xolstice 0.6.1 stays | Boot BOM |
 | Quarkus 3.40.1 | `quarkus-smallrye-fault-tolerance` | BOM 3.40.1 | Quarkus BOM |
 | .NET 10 | `Microsoft.Extensions.Http.Resilience` | 10.10.0 (Polly.Core 8.8.0) | NuGet |
 | .NET 10 | `Grpc.Net.ClientFactory` | 2.84.0 (matches Grpc.Net.Client) | NuGet |
@@ -120,8 +120,9 @@ example has. Deck slides per language: bulkhead [085] (.NET [087]); Appendix M t
 - **Spring gRPC:** `spring-boot-starter-grpc-server` in the four inventory services (`@Service` beans extending the
   generated `ImplBase`, `spring.grpc.server.port=50051`, graceful shutdown by the starter, standard health service),
   `spring-boot-starter-grpc-client` in the callers (`GrpcChannelFactory` / `@ImportGrpcClients`,
-  `spring.grpc.client.channels.inventory.address`), the protobuf plugin switched to the Boot-managed
-  `io.github.ascopes` plugin. 18 keeps its deadline (`withDeadlineAfter`) and its `StatusRuntimeException` mapping.
+  `spring.grpc.client.channels.inventory.address`), the protobuf plugin stays xolstice 0.6.1:
+  the Boot-managed `io.github.ascopes` plugin fails to load under the UBI image's packaged Maven (Guice cannot
+  find ASM), and replacing Maven in every Java image is out of scope. 18 keeps its deadline (`withDeadlineAfter`) and its `StatusRuntimeException` mapping.
   The OTel agent keeps instrumenting grpc-java; 11's cross-service trace check is the acceptance gate.
 
 ## PRs (sequential, each merged green before the next)
@@ -144,7 +145,7 @@ Order inside a PR: Spring, Quarkus, .NET, Python, Go, C++, one example at a time
 | 0 | Preflight: user decisions D1–D4 (done 2026-10-13); pins (done, see Pins); baseline matrix of 12, 26, 02, 03, 11, 18 on main | – | done: baseline 36/36 PASS on main 6656c0a code (2026-10-13) |
 | 1 | Example 26 + verify.sh + Appendix M prose + decks | 1 | done: 26 × 6 PASS (22/22 each); Appendix M tabs, READMEs, 18 deck slides |
 | 2 | Example 12 bulkhead + verify.sh + chapter 12 prose + decks | 2 | done: 12 × 6 PASS (18/18 each); chapter 12 tab, READMEs, 6 deck slides |
-| 3 | Spring gRPC (+ .NET client factory) + gRPC prose and slide fixes | 3 | pending |
+| 3 | Spring gRPC (+ .NET client factory) + gRPC prose and slide fixes | 3 | done: 02, 03, 11, 18 Spring and .NET PASS; gRPC health SERVING; protobuf plugin stays xolstice (see Approach) |
 | 4 | CLAUDE.md, modernization plan, final 111 matrix, footers | 4 | pending |
 
 ## Acceptance criteria

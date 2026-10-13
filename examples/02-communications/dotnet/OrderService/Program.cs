@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Confluent.Kafka;
-using Grpc.Net.Client;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -30,12 +29,11 @@ builder.Services
     .AddQueryType<Query>();
 
 builder.Services.AddHealthChecks();
+// gRPC client factory: the channel and its HTTP/2 handler are managed like any typed HttpClient.
+builder.Services.AddGrpcClient<Inventory.InventoryClient>(o => o.Address = new Uri($"http://{inventoryAddr}"))
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { EnableMultipleHttp2Connections = true });
 
 var app = builder.Build();
-
-var channel = GrpcChannel.ForAddress($"http://{inventoryAddr}",
-    new GrpcChannelOptions { HttpHandler = new SocketsHttpHandler { EnableMultipleHttp2Connections = true } });
-var inventoryClient = new Inventory.InventoryClient(channel);
 
 IProducer<Null, string>? producer = null;
 for (var i = 0; i < 30; i++)
@@ -54,7 +52,7 @@ app.MapHealthChecks("/healthz", new HealthCheckOptions
     ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok" }),
 });
 
-app.MapPost("/orders", async (HttpContext ctx, OrdersContext db) =>
+app.MapPost("/orders", async (HttpContext ctx, OrdersContext db, Inventory.InventoryClient inventoryClient) =>
 {
     using var doc = await JsonDocument.ParseAsync(ctx.Request.Body);
     var root = doc.RootElement;

@@ -4,5 +4,5 @@ spring:
   main:
     web-application-type: none
 
-grpc:
-  port: ${GRPC_PORT:50051}
+# Spring gRPC: the server port; the standard health and reflection services are on by default.
+spring.grpc.server.port: ${GRPC_PORT:50051}

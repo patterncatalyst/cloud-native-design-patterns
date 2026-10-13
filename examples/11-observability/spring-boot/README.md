@@ -5,7 +5,7 @@ Distributed tracing, structured logging, and metrics across REST + gRPC + Kafka 
 ## Framework & libraries
 
 - **Framework**: Spring Boot 4.1.1, Java 25 (Web, gRPC, Kafka)
-- **Libraries**: spring-boot-starter-webmvc, spring-boot-starter-kafka (Spring Kafka 4), grpc-netty-shaded, OpenTelemetry API (agent supplies the SDK)
+- **Libraries**: spring-boot-starter-webmvc, spring-boot-starter-kafka (Spring Kafka 4), spring-boot-starter-grpc-server (inventory) and spring-boot-starter-grpc-client (callers), Spring gRPC 1.1.1, OpenTelemetry API (agent supplies the SDK)
 - **Container base**: `ubi10/openjdk-25-runtime:1.24-15` (UID 185)
 
 ## Run
@@ -25,7 +25,7 @@ cd .. && bash verify.sh
 | Path | Description |
 |------|-------------|
 | `order-service/` | REST + gRPC client + Kafka publisher with auto-traced spans |
-| `inventory-service/` | gRPC server with OTel instrumentation |
+| `inventory-service/` | `@GrpcService` bean served by Spring gRPC; the OTel agent instruments grpc-java underneath |
 | `notification-consumer/` | @KafkaListener with trace context extracted from headers |
 
 ## Implementation notes

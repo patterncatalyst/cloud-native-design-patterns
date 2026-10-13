@@ -5,7 +5,7 @@ API gateway pattern — BFF gateway aggregating order-api and inventory-service 
 ## Framework & libraries
 
 - **Framework**: ASP.NET Core (.NET 10.0.12) minimal API
-- **Libraries**: HotChocolate.AspNetCore (GraphQL), Grpc.Net.Client, Google.Protobuf
+- **Libraries**: HotChocolate.AspNetCore (GraphQL), Grpc.Net.ClientFactory (`AddGrpcClient`), Google.Protobuf
 - **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520 (runtime), built with ubi9/dotnet-100:9.8-1791421718; runs as UID 1001
 
 ## Run
@@ -36,7 +36,7 @@ Gateway uses HotChocolate code-first GraphQL with resolvers that aggregate from 
 
 Key variables (set by compose.yaml, override for local dev):
 
-`ORDER_API_URL, INVENTORY_GRPC_HOST`
+`ORDER_API_URL, INVENTORY_ADDR`
 
 ## Local development (without containers)
 

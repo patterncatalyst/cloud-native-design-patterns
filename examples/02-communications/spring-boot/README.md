@@ -5,7 +5,7 @@ Four communication styles — REST, gRPC, async events (Kafka), and GraphQL — 
 ## Framework & libraries
 
 - **Framework**: Spring Boot 4.1.1, Java 25 (Web, GraphQL, gRPC)
-- **Libraries**: spring-boot-starter-graphql, spring-boot-starter-kafka (Spring Kafka 4), grpc-netty-shaded, grpc-protobuf, OpenTelemetry Java agent 2.32.0
+- **Libraries**: spring-boot-starter-graphql, spring-boot-starter-kafka (Spring Kafka 4), spring-boot-starter-grpc-server (inventory) and spring-boot-starter-grpc-client (callers), Spring gRPC 1.1.1, OpenTelemetry Java agent 2.32.0
 - **Container base**: `ubi10/openjdk-25-runtime:1.24-15` (UID 185)
 
 ## Run
@@ -24,8 +24,8 @@ cd .. && bash verify.sh
 
 | Path | Description |
 |------|-------------|
-| `order-service/` | OrderController.java — REST + GraphQL; KafkaProducerConfig — async events; InventoryGrpcClient — gRPC calls |
-| `inventory-service/` | InventoryGrpcService.java — gRPC server |
+| `order-service/` | OrderController.java — REST + GraphQL; KafkaProducerConfig — async events; inventory stub from Spring gRPC's GrpcChannelFactory — gRPC calls |
+| `inventory-service/` | InventoryService.java — `@GrpcService` bean served by Spring gRPC |
 
 ## Implementation notes
 
@@ -37,7 +37,7 @@ The gRPC contract lives in `proto/` next to the services. The poms set the proto
 
 Key variables (set by compose.yaml, override for local dev):
 
-`spring.datasource.url, spring.kafka.bootstrap-servers, inventory.grpc.host`
+`spring.datasource.url, spring.kafka.bootstrap-servers, spring.grpc.client.channel.inventory.target` (from `INVENTORY_ADDR`)
 
 ## Local development (without containers)
 

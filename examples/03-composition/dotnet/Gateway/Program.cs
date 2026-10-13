@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using GreenDonut;
-using Grpc.Net.Client;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Proto;
@@ -11,9 +10,9 @@ builder.WebHost.UseUrls("http://+:8080");
 var orderApiUrl = builder.Configuration.GetValue("ORDER_API_URL", "http://order-api:8081");
 var inventoryAddr = builder.Configuration.GetValue("INVENTORY_ADDR", "inventory:50051");
 
-var channel = GrpcChannel.ForAddress($"http://{inventoryAddr}",
-    new GrpcChannelOptions { HttpHandler = new SocketsHttpHandler { EnableMultipleHttp2Connections = true } });
-builder.Services.AddSingleton(new Inventory.InventoryClient(channel));
+// gRPC client factory: the channel and its HTTP/2 handler are managed like any typed HttpClient.
+builder.Services.AddGrpcClient<Inventory.InventoryClient>(o => o.Address = new Uri($"http://{inventoryAddr}"))
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { EnableMultipleHttp2Connections = true });
 builder.Services.AddHttpClient<OrderApiClient>(c => c.BaseAddress = new Uri(orderApiUrl));
 
 builder.Services.AddOpenTelemetry()
