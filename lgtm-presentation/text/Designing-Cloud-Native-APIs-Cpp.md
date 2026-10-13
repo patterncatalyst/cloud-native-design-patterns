@@ -1393,22 +1393,22 @@ p. 79
 - Cloud-Native Patterns and Architecture
 - Building Microservices, 2nd ed. — Sam Newman (O'Reilly)
 - Designing Data-Intensive Applications, 2nd ed. — Martin Kleppmann & Chris Riccomini (O'Reilly)
-- Building Event-Driven Microservices — Adam Bellemare (O'Reilly)
+- Building Event-Driven Microservices, 2nd ed. — Adam Bellemare (O'Reilly)
 - Cloud Native Patterns — Cornelia Davis (Manning)
 - Patterns of Distributed Systems — Unmesh Joshi (Addison-Wesley)
 - Architecture Modernization — Nick Tune & Jean-Georges Perrin (Manning)
-- Cloud Native Anti-Patterns — Gerald Bachlmayr
+- Cloud Native Anti-Patterns — Gerald Bachlmayr et al. (Packt)
 - API Design
 - Principles of Web API Design — James Higginbotham (Addison-Wesley)
 - Patterns for API Design — Olaf Zimmermann et al. (Addison-Wesley)
 - API Design Patterns — JJ Geewax (Manning)
 - Domain modelling
-- Learning Domain-Driven Design — Vlad Khononov (O'Reilly)
-- Balancing Coupling in Software Design — Vlad Khononov (Addison-Wesley)
+- Learning Domain-Driven Design (O'Reilly) and Balancing Coupling in Software Design (Addison-Wesley) — Vlad Khononov
+- The full list, with publisher links: patterncatalyst.github.io/cloud-native-design-patterns/bibliography/
 
 p. 80
 
-> The reference list. These are the books that the architectural patterns in this deck draw from — read them in roughly the order listed if you're building up the model from scratch; cherry-pick if you're filling in a specific gap. Newman and Kleppmann are the table-stakes baseline; Bellemare is the event-driven deep dive; Khononov on coupling is the synthesis that ties API design to domain modelling. For C++-specific references on the implementation side: the C++ Core Guidelines, Sutter & Alexandrescu's C++ Coding Standards, and two Apache-2.0 companion projects: cpp-statelessness (patterncatalyst.github.io/cpp-statelessness/) on stateless C++ services in containers, and the C++ container optimization tutorial (patterncatalyst.github.io/cpp-container-optimization-tutorial/).
+> The reference list. These are the books that the architectural patterns in this deck draw from — read them in roughly the order listed if you're building up the model from scratch; cherry-pick if you're filling in a specific gap. Newman and Kleppmann are the table-stakes baseline; Bellemare is the event-driven deep dive; Khononov on coupling is the synthesis that ties API design to domain modelling. For C++-specific references on the implementation side: the C++ Core Guidelines, Sutter & Alexandrescu's C++ Coding Standards, and two Apache-2.0 companion projects: cpp-statelessness (patterncatalyst.github.io/cpp-statelessness/) on stateless C++ services in containers, and the C++ container optimization tutorial (patterncatalyst.github.io/cpp-container-optimization-tutorial/). The full list, with a publisher link for every title, is on the site's Bibliography page (patterncatalyst.github.io/cloud-native-design-patterns/bibliography/).
 
 ## [095] THANK YOU · Questions? (sldId 350)
 
