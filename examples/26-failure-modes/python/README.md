@@ -5,7 +5,7 @@ Circuit breaker, retry with backoff, timeout, and fallback — edge-service call
 ## Framework & libraries
 
 - **Framework**: FastAPI + Uvicorn
-- **Libraries**: httpx (HTTP client), pydantic
+- **Libraries**: httpx (HTTP client), tenacity (retry), pybreaker (circuit breaker), pydantic-settings
 - **Container base**: `ubi10/python-314-minimal` (Python 3.14, non-root UID 1001)
 
 ## Run
@@ -29,7 +29,7 @@ cd .. && bash verify.sh
 
 ## Implementation notes
 
-Circuit breaker implemented manually (state machine with CLOSED/OPEN/HALF-OPEN). Retry uses exponential backoff with jitter. Backend failure modes configurable via query params.
+Retry is tenacity's `AsyncRetrying` with exponential jitter; the circuit breaker is pybreaker, used around the awaited call through its `calling()` context manager. The bulkhead is an `asyncio.Semaphore` that answers 429 when full. One `httpx.AsyncClient`, opened in the lifespan, serves every call. The backend's failure mode is set with `POST /mode`.
 
 ## Environment variables
 

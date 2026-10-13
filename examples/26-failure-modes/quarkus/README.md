@@ -5,7 +5,7 @@ Circuit breaker, retry with backoff, timeout, and fallback — edge-service call
 ## Framework & libraries
 
 - **Framework**: Quarkus 3.40.1 LTS (REST + Jackson)
-- **Libraries**: quarkus-rest, quarkus-rest-jackson, quarkus-rest-client-jackson, quarkus-smallrye-health
+- **Libraries**: quarkus-rest, quarkus-rest-jackson, quarkus-rest-client-jackson, quarkus-smallrye-fault-tolerance, quarkus-smallrye-health
 - **Container base**: `registry.access.redhat.com/ubi10/openjdk-25:1.24-15` (build), `registry.access.redhat.com/ubi10/openjdk-25-runtime:1.24-15` (runtime)
 
 ## Run
@@ -29,7 +29,7 @@ cd .. && bash verify.sh
 
 ## Implementation notes
 
-Resilience patterns hand-rolled (no SmallRye Fault Tolerance) to show the mechanics explicitly. Circuit breaker uses `AtomicReference<State>`. The backend is called through a typed Quarkus REST Client (`BackendClient`).
+The breaker, retry and bulkhead are SmallRye Fault Tolerance annotations (`@CircuitBreaker` with `@Fallback`, `@Retry` with `@ExponentialBackoff`, `@Bulkhead`) on the `Backend` bean, which wraps the typed Quarkus REST Client (`BackendClient`); they are CDI interceptors, so the resource calls through that bean. A full bulkhead's `BulkheadException` is mapped to 429, and `/breaker-state` reads `CircuitBreakerMaintenance`.
 
 ## Environment variables
 
