@@ -1235,8 +1235,8 @@ p. 71
 [chip] c++ · std::atomic
 
 ```c++
-// main.cpp (excerpt), examples/12-security/cpp: one lock-free counter per tenant
-struct TenantBulkhead {
+// examples/12-security/cpp/order-service/src/main.cpp (excerpts)
+struct TenantBulkhead {                                     // a lock-free counter per tenant
     static constexpr int CAPACITY = 5;                        // 5 concurrent per tenant
     std::atomic<int> active{0};
     bool try_acquire() {
@@ -1244,30 +1244,26 @@ struct TenantBulkhead {
         while (current < CAPACITY) {
             if (active.compare_exchange_weak(current, current + 1)) return true;
         }
-        return false;                                         // full: shed, don't queue
+        return false;                                         // full: refuse, don't queue
     }
     void release() { active.fetch_sub(1); }
 };
-auto& bulkhead = bulkhead_manager.get_or_create(tenant);     // POST /orders: per tenant
+
+// POST /orders (a coroutine handler): A's storm can't drain B's capacity
+auto& bulkhead = bulkhead_manager.get_or_create(tenant);     // map + mutex, one per tenant
 if (!bulkhead.try_acquire()) {
-    Json::Value error;
-    error["detail"] = "tenant capacity exceeded";
-    auto resp = HttpResponse::newHttpJsonResponse(error);
-    resp->setStatusCode(k429TooManyRequests);
-    callback(resp);
-    return;
+    co_return reply(k429TooManyRequests, detail("tenant bulkhead full"));
 }
+BulkheadPermit permit{bulkhead};   // released when the handler finishes, however it finishes
 ```
 
 5 concurrent requests per tenant; the sixth gets 429 at once instead of waiting in a queue.
 
 p. 72
 
-> The bulkhead from Example 12: one TenantBulkhead per tenant, created on first use in a map guarded by a mutex. Each holds a lock-free std::atomic<int> with a capacity of five; try_acquire increments it with a compare-and-swap loop only while it is under capacity, so a full tenant is refused without blocking a Drogon worker.
+> The bulkhead from Example 12: one TenantBulkhead per tenant, created on first use in a map guarded by a mutex. Each holds a lock-free std::atomic<int> with a compare-and-swap loop, so taking a slot never blocks; there is no maintained C++ resilience library on ConanCenter to take it from.
 >
-> A refused request gets 429 with "tenant capacity exceeded" at once: shed, don't queue, because a queue in front of a saturated tenant becomes the bottleneck. The example releases the slot after the order is stored; in production code an RAII guard makes the release exception-safe. One tenant's storm fills only its own five slots; other tenants keep their capacity.
->
-> Per-tenant connection pools at the libpq or gRPC layer are a separate bulkhead: the counter caps concurrency, the pool caps sockets.
+> A refused request gets 429 with tenant bulkhead full at once: refuse, don't queue, because a queue in front of a saturated tenant becomes the bottleneck. The order handler is a Drogon coroutine, and a BulkheadPermit gives the slot back however the handler ends. Per-tenant connection pools at the libpq or gRPC layer are a separate bulkhead: the counter caps concurrency, the pool caps sockets.
 
 ## [086] SECURITY · CLAIM-CHECK · Claim-check — send a reference, not the payload (sldId 341)
 

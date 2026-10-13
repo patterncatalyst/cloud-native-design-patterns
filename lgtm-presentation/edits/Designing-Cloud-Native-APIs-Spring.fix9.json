@@ -1,0 +1,41 @@
+{
+ "ops": [
+  {
+   "op": "set_code",
+   "sldId": 340,
+   "lines": [
+    "// examples/12-security/spring-boot/order-service (condensed excerpts)",
+    "// application.properties: one Resilience4j bulkhead per tenant from the \"tenant\" config",
+    "//   resilience4j.bulkhead.configs.tenant.max-concurrent-calls=5",
+    "//   resilience4j.bulkhead.configs.tenant.max-wait-duration=0     # refuse at once",
+    "",
+    "// BulkheadService.java",
+    "public Bulkhead forTenant(String tenant) {",
+    "    return registry.bulkhead(tenant, \"tenant\");   // created on first use",
+    "}",
+    "",
+    "// OrderController.java, POST /orders: A's storm can't drain B's capacity",
+    "try {",
+    "    Map<String, Object> order = bulkhead.forTenant(body.tenant())",
+    "            .executeSupplier(() -> placeOrder(body, identity, subject));",
+    "    return ResponseEntity.status(HttpStatus.CREATED).body(order);",
+    "} catch (BulkheadFullException e) {   // the tenant's 5 permits are taken",
+    "    return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)",
+    "            .body(Map.of(\"detail\", \"tenant bulkhead full\"));",
+    "}"
+   ],
+   "_why": "examples/12 per-tenant bulkhead on its library (S14); the slide is an excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 340,
+   "paragraphs": [
+    "Resilience4j (the resilience4j-spring-boot4 starter) provides the bulkhead. Example 12 needs one limit per tenant, so instead of the @Bulkhead annotation, which names a single fixed instance, it asks the BulkheadRegistry for a bulkhead named after the tenant, created on first use from a shared 'tenant' configuration: five concurrent calls and a maximum wait of zero.",
+    "A tenant that fills its five permits gets BulkheadFullException and a 429 at once, while every other tenant keeps its own five. Refusing instead of queueing matters: a queue in front of a saturated tenant only turns its storm into a pile of waiting requests. At the platform layer, Istio's per-destination connection-pool limits complement these in-process limits."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  }
+ ]
+}

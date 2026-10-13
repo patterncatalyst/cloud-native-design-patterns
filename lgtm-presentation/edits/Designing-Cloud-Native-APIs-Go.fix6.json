@@ -1,0 +1,56 @@
+{
+ "ops": [
+  {
+   "op": "set_code",
+   "sldId": 340,
+   "lines": [
+    "// examples/12-security/go/cmd/server/main.go (condensed excerpts)",
+    "type bulkhead struct {",
+    "\tsem      *semaphore.Weighted",
+    "\tinFlight atomic.Int64 // semaphore.Weighted does not report its count",
+    "}",
+    "func getTenantBulkhead(tenant string) *bulkhead {",
+    "\tv, _ := bulkheads.LoadOrStore(tenant,",
+    "\t\t&bulkhead{sem: semaphore.NewWeighted(bulkheadCapacity)})",
+    "\treturn v.(*bulkhead)",
+    "}",
+    "// POST /orders: A's storm can't drain B's capacity",
+    "bh := getTenantBulkhead(in.Tenant)",
+    "if !bh.sem.TryAcquire(1) { // the tenant's 5 permits are taken",
+    "\twriteJSON(w, http.StatusTooManyRequests,",
+    "\t\tmap[string]string{\"detail\": \"tenant bulkhead full\"})",
+    "\treturn",
+    "}",
+    "bh.inFlight.Add(1)",
+    "defer func() {",
+    "\tbh.inFlight.Add(-1)",
+    "\tbh.sem.Release(1)",
+    "}()"
+   ],
+   "_why": "examples/12 per-tenant bulkhead on its library (S14); the slide is an excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    340
+   ],
+   "find": "buffered channel",
+   "repl": "x/sync/semaphore",
+   "expect": 1,
+   "_why": "chip follows the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 340,
+   "paragraphs": [
+    "A bulkhead per tenant on golang.org/x/sync/semaphore: a Weighted semaphore of five per tenant, created on first use in a sync.Map. TryAcquire never waits, so a tenant that already has five orders in flight gets a 429 at once while every other tenant keeps its own five; the permit goes back in a deferred Release.",
+    "Refusing instead of queueing matters: a send on a full buffered channel, the other common Go idiom, blocks until a slot frees, which turns one tenant's storm into a pile of waiting goroutines. The atomic in-flight count feeds the bulkhead-state endpoint, since the semaphore does not report its own count."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  }
+ ]
+}

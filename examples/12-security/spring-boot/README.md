@@ -5,7 +5,7 @@ Three security patterns — sidecar trust (mTLS header check), valet key (HMAC-s
 ## Framework & libraries
 
 - **Framework**: Spring Boot 4.1.1, Java 25 (Web)
-- **Libraries**: spring-boot-starter-webmvc (no Spring Security — patterns are hand-rolled)
+- **Libraries**: spring-boot-starter-webmvc, resilience4j-spring-boot4 2.4.0 for the bulkhead (no Spring Security: the sidecar-trust and valet-key patterns are written in the service)
 - **Container base**: `ubi10/openjdk-25-runtime:1.24-15` (UID 185)
 
 ## Run
@@ -24,11 +24,11 @@ cd .. && bash verify.sh
 
 | Path | Description |
 |------|-------------|
-| `order-service/` | SidecarTrustFilter.java — servlet filter; ValetKeyService.java — HMAC signing; BulkheadService.java — Semaphore per tenant |
+| `order-service/` | SidecarTrustFilter.java — servlet filter; ValetKeyService.java — HMAC signing; BulkheadService.java — one Resilience4j bulkhead per tenant |
 
 ## Implementation notes
 
-Each pattern is a separate class. SidecarTrustFilter rejects requests without mTLS client cert header. Bulkhead uses `java.util.concurrent.Semaphore`.
+Each pattern is a separate class. SidecarTrustFilter rejects requests without mTLS client cert header. The bulkhead is one Resilience4j bulkhead per tenant from the `BulkheadRegistry`, configured under `resilience4j.bulkhead.configs.tenant` (5 concurrent, no wait); a full pool answers 429.
 
 ## Environment variables
 

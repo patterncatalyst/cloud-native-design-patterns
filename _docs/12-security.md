@@ -423,75 +423,95 @@ a per-call thread group, or a semaphore that caps concurrency:
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-// BulkheadService.java + OrderController.java (excerpt), examples/12-security/spring-boot
-@Service
-public class BulkheadService {
-    static final int CAPACITY = 5;                             // 5 concurrent per tenant
-    private final ConcurrentHashMap<String, Semaphore> semaphores = new ConcurrentHashMap<>();
-    public Semaphore forTenant(String tenant) {
-        return semaphores.computeIfAbsent(tenant, k -> new Semaphore(CAPACITY));
-    }
+// examples/12-security/spring-boot/order-service: BulkheadService.java, OrderController.java (excerpts)
+// application.properties: one Resilience4j bulkhead per tenant, created from the "tenant" config
+//   resilience4j.bulkhead.configs.tenant.max-concurrent-calls=5
+//   resilience4j.bulkhead.configs.tenant.max-wait-duration=0      <- refuse at once, don't queue
+public Bulkhead forTenant(String tenant) {
+    return registry.bulkhead(tenant, "tenant");
 }
+
 // POST /orders: A's storm can't drain B's capacity
-Semaphore sem = bulkhead.forTenant(body.tenant());
-if (!sem.tryAcquire(5, TimeUnit.SECONDS)) {                    // wait briefly, then shed
+try {
+    Map<String, Object> order = bulkhead.forTenant(body.tenant())
+            .executeSupplier(() -> placeOrder(body, identity, subject));
+    return ResponseEntity.status(HttpStatus.CREATED).body(order);
+} catch (BulkheadFullException e) {   // the tenant's 5 permits are taken
     return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
             .body(Map.of("detail", "tenant bulkhead full"));
 }
-try { /* create the order */ } finally { sem.release(); }
 ```
 
 ```java
-// BulkheadService.java + OrderResource.java (excerpt), examples/12-security/quarkus
-@ApplicationScoped
-public class BulkheadService {
-    static final int CAPACITY = 5;                             // 5 concurrent per tenant
-    private final ConcurrentHashMap<String, Semaphore> semaphores = new ConcurrentHashMap<>();
-    public Semaphore forTenant(String tenant) {
-        return semaphores.computeIfAbsent(tenant, k -> new Semaphore(CAPACITY));
-    }
+// examples/12-security/quarkus/order-service: BulkheadService.java, OrderResource.java (excerpts)
+// One SmallRye Fault Tolerance guard per tenant (an annotation cannot be keyed by tenant):
+// 5 concurrent calls and no queue, so the sixth fails at once with BulkheadException.
+public <T> T run(String tenant, Supplier<T> work, Class<T> type) {
+    return pools.computeIfAbsent(tenant, t -> newPool()).guard().get(work, type);
 }
+
+private static Pool newPool() {
+    var inFlight = new AtomicInteger();
+    var guard = Guard.create()
+            .withBulkhead().limit(CAPACITY)
+                .onAccepted(inFlight::incrementAndGet)   // feeds /bulkhead-state
+                .onFinished(inFlight::decrementAndGet)
+                .done()
+            .build();
+    return new Pool(guard, inFlight);
+}
+
 // POST /orders: A's storm can't drain B's capacity
-Semaphore sem = bulkhead.forTenant(body.tenant());
-if (!sem.tryAcquire(5, TimeUnit.SECONDS)) {                    // wait briefly, then shed
-    return Response.status(429)
-            .entity(Map.of("detail", "tenant bulkhead full")).build();
+try {
+    return bulkhead.run(body.tenant(), () -> placeOrder(body, identity, subject), Response.class);
+} catch (BulkheadException e) {
+    return Response.status(429).entity(Map.of("detail", "tenant bulkhead full")).build();
 }
-try { /* create the order */ } finally { sem.release(); }
 ```
 
 ```csharp
-// Per-tenant bulkhead with a SemaphoreSlim; A's storm can't drain B's capacity
-public class TenantBulkhead
-{
-    private readonly ConcurrentDictionary<string, SemaphoreSlim> _sems = new();
-
-    public async Task<T> HandleAsync<T>(string tenant, Func<Task<T>> work)
+// examples/12-security/dotnet/OrderService/Program.cs (excerpts)
+// One concurrency limiter per tenant (System.Threading.RateLimiting): 5 permits, no queue.
+const int BulkheadLimit = 5;
+var bulkhead = PartitionedRateLimiter.Create<string, string>(tenant =>
+    RateLimitPartition.GetConcurrencyLimiter(tenant, _ => new ConcurrencyLimiterOptions
     {
-        var sem = _sems.GetOrAdd(tenant, _ => new SemaphoreSlim(5));   // 5 / tenant
-        await sem.WaitAsync();               // blocks only this tenant when full
-        try { return await work(); }
-        finally { sem.Release(); }
-    }
-}
+        PermitLimit = BulkheadLimit,
+        QueueLimit = 0,
+    }));
+
+// POST /orders: A's storm can't drain B's capacity
+app.MapPost("/orders", async (OrderRequest body, HttpContext ctx) =>
+{
+    using var lease = await bulkhead.AcquireAsync(body.Tenant);
+    if (!lease.IsAcquired)   // the tenant's 5 permits are taken
+        return Results.Json(new { detail = "tenant bulkhead full" }, statusCode: StatusCodes.Status429TooManyRequests);
+    // ... create the order while the lease is held
+});
 ```
 
 ```python
-import asyncio
-
-# one bounded compartment per tenant; A's storm can't drain B's capacity
+# examples/12-security/python/order-service/main.py (excerpts)
+# One semaphore of 5 permits per tenant; a request that finds them all taken is refused at once.
+BULKHEAD_LIMIT = 5
 _sems: dict[str, asyncio.Semaphore] = {}
 
-def _tenant_sem(tenant: str) -> asyncio.Semaphore:
-    return _sems.setdefault(tenant, asyncio.Semaphore(5))    # 5 concurrent / tenant
 
-async def handle(tenant: str, work):
-    async with _tenant_sem(tenant):        # blocks only this tenant when full
-        return await work()
+def _tenant_sem(tenant: str) -> asyncio.Semaphore:
+    return _sems.setdefault(tenant, asyncio.Semaphore(BULKHEAD_LIMIT))
+
+
+@app.post("/orders", status_code=201)
+async def create_order(body: OrderIn, request: Request):
+    sem = _tenant_sem(body.tenant)
+    if sem.locked():  # the tenant's 5 permits are taken
+        return JSONResponse(status_code=429, content={"detail": "tenant bulkhead full"})
+    async with sem:  # A's storm can't drain B's capacity
+        ...
 ```
 
 ```cpp
-// main.cpp (excerpt), examples/12-security/cpp: one lock-free counter per tenant
+// examples/12-security/cpp/order-service/src/main.cpp (excerpts): one lock-free counter per tenant
 struct TenantBulkhead {
     static constexpr int CAPACITY = 5;                        // 5 concurrent per tenant
     std::atomic<int> active{0};
@@ -500,43 +520,50 @@ struct TenantBulkhead {
         while (current < CAPACITY) {
             if (active.compare_exchange_weak(current, current + 1)) return true;
         }
-        return false;                                         // full: shed, don't queue
+        return false;                                         // full: refuse, don't queue
     }
     void release() { active.fetch_sub(1); }
 };
-// POST /orders: A's storm can't drain B's capacity
+
+// POST /orders (a coroutine handler): A's storm can't drain B's capacity
 auto& bulkhead = bulkhead_manager.get_or_create(tenant);     // map + mutex, one per tenant
 if (!bulkhead.try_acquire()) {
-    Json::Value error;
-    error["detail"] = "tenant capacity exceeded";
-    auto resp = HttpResponse::newHttpJsonResponse(error);
-    resp->setStatusCode(k429TooManyRequests);
-    callback(resp);
-    return;
+    co_return reply(k429TooManyRequests, detail("tenant bulkhead full"));
 }
+BulkheadPermit permit{bulkhead};   // released when the handler finishes, however it finishes
 ```
 
 ```go
-// Per-tenant bulkhead with a buffered channel; A's storm can't drain B's capacity
-var (
-	bulkheads sync.Map // map[string]chan struct{}
-)
-
-func tenantSem(tenant string) chan struct{} {
-	v, _ := bulkheads.LoadOrStore(tenant, make(chan struct{}, 5))  // 5 / tenant
-	return v.(chan struct{})
+// examples/12-security/go/cmd/server/main.go (excerpts)
+// One golang.org/x/sync semaphore per tenant: 5 permits; TryAcquire refuses the sixth at once.
+type bulkhead struct {
+	sem      *semaphore.Weighted
+	inFlight atomic.Int64 // semaphore.Weighted does not report its count
 }
 
-func handle[T any](tenant string, work func() (T, error)) (T, error) {
-	sem := tenantSem(tenant)
-	sem <- struct{}{} // blocks only this tenant when full
-	defer func() { <-sem }()
-	return work()
+func getTenantBulkhead(tenant string) *bulkhead {
+	v, _ := bulkheads.LoadOrStore(tenant, &bulkhead{sem: semaphore.NewWeighted(bulkheadCapacity)})
+	return v.(*bulkhead)
 }
+
+// POST /orders: A's storm can't drain B's capacity
+bh := getTenantBulkhead(in.Tenant)
+if !bh.sem.TryAcquire(1) { // the tenant's 5 permits are taken
+	writeJSON(w, http.StatusTooManyRequests, map[string]string{"detail": "tenant bulkhead full"})
+	return
+}
+bh.inFlight.Add(1)
+defer func() {
+	bh.inFlight.Add(-1)
+	bh.sem.Release(1)
+}()
 ```
 
-Frameworks ship this directly — Resilience4j and Polly bulkheads, or Istio
-per-destination connection-pool limits at the mesh.
+Every version refuses at once with 429 when a tenant's pool is full, rather than queueing, so a storm fails
+fast for that tenant instead of piling up waiting requests. The JVM examples take the bulkhead from their
+resilience library (Resilience4j, SmallRye Fault Tolerance) and .NET from System.Threading.RateLimiting; Python
+and Go use a semaphore from the standard library and `golang.org/x/sync`. At the mesh, Istio's per-destination
+connection-pool limits do the same job for every service at once.
 
 ## Claim-check: send a reference, not the payload
 

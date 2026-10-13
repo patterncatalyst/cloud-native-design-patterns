@@ -5,7 +5,7 @@ Three security patterns — sidecar trust (mTLS header check), valet key (HMAC-s
 ## Framework & libraries
 
 - **Framework**: FastAPI + Uvicorn
-- **Libraries**: pydantic (no external security libs — patterns are hand-rolled)
+- **Libraries**: pydantic (no external security libs: the patterns are written in the service)
 - **Container base**: `ubi10/python-314-minimal` (Python 3.14, non-root UID 1001)
 
 ## Run
@@ -28,7 +28,7 @@ cd .. && bash verify.sh
 
 ## Implementation notes
 
-No OTel or DB in this example — purely demonstrates security middleware patterns. Bulkhead uses `asyncio.Semaphore` per tenant ID.
+No OTel or DB in this example — purely demonstrates security middleware patterns. The bulkhead is an `asyncio.Semaphore` per tenant ID; a request that finds the tenant's permits taken gets 429 at once.
 
 ## Environment variables
 
