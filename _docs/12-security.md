@@ -753,5 +753,5 @@ step pre-merge. A request without identity being refused, and an unsigned image
 being blocked twice, is the layered model working.
 
 ---
-*Verification status: verified — [`examples/12-security/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/12-security/) passes 16/16 checks in each of the six languages on Docker Engine (2026-10-12)
-(sidecar identity trust (403 without X-Forwarded-Client-Cert, health-check bypass), propagation of the JWT subject claim, valet-key mint, verify and tamper rejection, per-tenant bulkhead state, and conftest Rego policy evaluation of a good and a bad manifest. JWT signature validation, RBAC enforcement and rate limiting are not covered).*
+*Verification status: verified — [`examples/12-security/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/12-security/) passes 18/18 checks in each of the six languages on Docker Engine (2026-10-13)
+(sidecar identity trust (403 without X-Forwarded-Client-Cert, health-check bypass), propagation of the JWT subject claim, valet-key mint, verify and tamper rejection, per-tenant bulkhead state, a full tenant pool refusing the overflow with 429 while another tenant is still served, and conftest Rego policy evaluation of a good and a bad manifest. JWT signature validation, RBAC enforcement and rate limiting are not covered).*

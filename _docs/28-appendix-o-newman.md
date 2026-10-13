@@ -276,5 +276,5 @@ service and fails against one that wrongly accepts it. A suite that goes red on 
 break, and only then, is the whole value of this appendix.
 
 ---
-*Verification status: verified — [`examples/28-newman/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/28-newman/) passes 11/11 checks on Docker Engine (2026-10-12)
+*Verification status: verified — [`examples/28-newman/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/28-newman/) passes 11/11 checks on Docker Engine (2026-10-13)
 (a Newman collection run with status-code and state assertions (201, 422, 404, 204, cancel) and JUnit XML export).*

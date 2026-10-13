@@ -772,5 +772,5 @@ This appendix touches difficult operational territory; if you are diagnosing a l
 Google SRE cascading-failures chapter is the fastest way to a shared vocabulary with your team.
 
 ---
-*Verification status: verified — [`examples/26-failure-modes/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/26-failure-modes/) passes 20/20 checks in each of the six languages on Docker Engine (2026-10-12)
-(timeout, retry exhaustion, circuit breaker closed, open and recovered with fallback, deadline-budget propagation, bulkhead limit).*
+*Verification status: verified — [`examples/26-failure-modes/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/26-failure-modes/) passes 22/22 checks in each of the six languages on Docker Engine (2026-10-13)
+(timeout, retry exhaustion, circuit breaker closed, open and recovered with fallback, deadline-budget propagation, bulkhead limit, a full bulkhead refusing the overflow with 429 and admitting again).*
