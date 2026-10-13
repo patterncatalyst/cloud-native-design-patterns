@@ -1,12 +1,19 @@
 import asyncio
 import logging
-import random
 import time
 from contextlib import asynccontextmanager
 
 import httpx
+import pybreaker
 from fastapi import FastAPI, Query
+from fastapi.responses import JSONResponse
 from pydantic_settings import BaseSettings
+from tenacity import (
+    AsyncRetrying,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
 
 log = logging.getLogger("edge")
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -18,208 +25,102 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
+# Circuit breaker: 5 failed calls open it, it stays open 10 s, then 2 successful trial calls close it.
+# throw_new_error_on_trip=False keeps the real cause on the call that trips it.
+breaker = pybreaker.CircuitBreaker(
+    fail_max=5, reset_timeout=10, success_threshold=2, throw_new_error_on_trip=False, name="backend"
+)
 
-# ---------------------------------------------------------------------------
-# Circuit breaker — hand-rolled for transparent state observation
-# ---------------------------------------------------------------------------
-class CircuitBreaker:
-    CLOSED = "closed"
-    OPEN = "open"
-    HALF_OPEN = "half-open"
-
-    def __init__(self, name, threshold=5, reset_timeout=10):
-        self.name = name
-        self.state = self.CLOSED
-        self.failure_count = 0
-        self.success_count = 0
-        self.threshold = threshold
-        self.reset_timeout = reset_timeout
-        self.opened_at = 0.0
-        self.total_calls = 0
-        self.total_rejected = 0
-
-    def allow(self):
-        if self.state == self.CLOSED:
-            return True
-        if self.state == self.OPEN:
-            if time.monotonic() - self.opened_at >= self.reset_timeout:
-                self.state = self.HALF_OPEN
-                self.success_count = 0
-                log.info("breaker [%s] → half-open", self.name)
-                return True
-            return False
-        return True
-
-    def record_success(self):
-        self.total_calls += 1
-        if self.state == self.HALF_OPEN:
-            self.success_count += 1
-            if self.success_count >= 2:
-                self.state = self.CLOSED
-                self.failure_count = 0
-                log.info("breaker [%s] → closed (recovered)", self.name)
-        else:
-            self.failure_count = 0
-
-    def record_failure(self):
-        self.total_calls += 1
-        self.failure_count += 1
-        if self.state == self.HALF_OPEN:
-            self.state = self.OPEN
-            self.opened_at = time.monotonic()
-            log.info("breaker [%s] → open (half-open trial failed)", self.name)
-        elif self.failure_count >= self.threshold:
-            self.state = self.OPEN
-            self.opened_at = time.monotonic()
-            log.info("breaker [%s] → open (threshold reached)", self.name)
-
-    def info(self):
-        return {
-            "name": self.name,
-            "state": self.state,
-            "failure_count": self.failure_count,
-            "threshold": self.threshold,
-            "total_calls": self.total_calls,
-            "total_rejected": self.total_rejected,
-        }
+# Bulkhead: at most 5 calls in flight; a sixth is turned away at once.
+BULKHEAD = 5
+bulkhead = asyncio.Semaphore(BULKHEAD)
 
 
-breaker = CircuitBreaker("backend", threshold=5, reset_timeout=10)
-
-# ---------------------------------------------------------------------------
-# Bulkhead — bounded concurrency via semaphore
-# ---------------------------------------------------------------------------
-bulkhead = asyncio.Semaphore(5)
-bulkhead_rejected = 0
-bulkhead_active = 0
-
-
-# ---------------------------------------------------------------------------
-# App lifecycle
-# ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    yield
+    # One client for the process; every call gives up after 2 s (0.5 s to connect).
+    async with httpx.AsyncClient(base_url=settings.backend_url, timeout=httpx.Timeout(2.0, connect=0.5)) as client:
+        app.state.client = client
+        yield
 
 
 app = FastAPI(lifespan=lifespan)
 
 
-# ---------------------------------------------------------------------------
-# 1. No timeout — shows what goes wrong
-# ---------------------------------------------------------------------------
+def client() -> httpx.AsyncClient:
+    return app.state.client
+
+
+def elapsed_s(start: float) -> float:
+    return round(time.monotonic() - start, 2)
+
+
+# 1. No timeout: shows what goes wrong
 @app.get("/no-timeout")
 async def no_timeout():
     start = time.monotonic()
     try:
-        async with httpx.AsyncClient() as client:
-            r = await client.get(f"{settings.backend_url}/process", timeout=None)
-            elapsed = time.monotonic() - start
-            return {"status": r.status_code, "elapsed_s": round(elapsed, 2), "body": r.json()}
-    except Exception as e:
-        elapsed = time.monotonic() - start
-        return {"error": str(e), "elapsed_s": round(elapsed, 2)}
+        r = await client().get("/process", timeout=None)
+        return {"status": r.status_code, "elapsed_s": elapsed_s(start), "body": r.json()}
+    except httpx.HTTPError as e:
+        return {"error": str(e), "elapsed_s": elapsed_s(start)}
 
 
-# ---------------------------------------------------------------------------
-# 2. With timeout — fails fast on slow downstream
-# ---------------------------------------------------------------------------
+# 2. Timeout: fails fast on a slow downstream
 @app.get("/with-timeout")
 async def with_timeout():
     start = time.monotonic()
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(2.0, connect=0.5)) as client:
-            r = await client.get(f"{settings.backend_url}/process")
-            elapsed = time.monotonic() - start
-            return {"status": r.status_code, "elapsed_s": round(elapsed, 2), "body": r.json()}
+        r = await client().get("/process")
+        return {"status": r.status_code, "elapsed_s": elapsed_s(start), "body": r.json()}
     except httpx.TimeoutException:
-        elapsed = time.monotonic() - start
-        return {"error": "timeout", "elapsed_s": round(elapsed, 2), "pattern": "timeout"}
+        return {"error": "timeout", "elapsed_s": elapsed_s(start), "pattern": "timeout"}
 
 
-# ---------------------------------------------------------------------------
-# 3. With retry + exponential backoff + jitter
-# ---------------------------------------------------------------------------
+# 3. Retry with exponential backoff and jitter (tenacity): 3 attempts, 100 ms doubling to 2 s
 @app.get("/with-retry")
 async def with_retry():
     start = time.monotonic()
     attempts = 0
-    last_error = None
-    wait = 0.1
-
-    async with httpx.AsyncClient(timeout=httpx.Timeout(2.0, connect=0.5)) as client:
-        for attempt in range(1, 4):
-            attempts = attempt
-            try:
-                r = await client.get(f"{settings.backend_url}/process")
-                if r.status_code < 500:
-                    elapsed = time.monotonic() - start
-                    return {
-                        "status": r.status_code,
-                        "attempts": attempts,
-                        "elapsed_s": round(elapsed, 2),
-                        "body": r.json(),
-                    }
-                last_error = f"HTTP {r.status_code}"
-            except httpx.TimeoutException:
-                last_error = "timeout"
-
-            if attempt < 3:
-                jitter = random.uniform(0, wait * 0.5)
-                await asyncio.sleep(wait + jitter)
-                wait = min(wait * 2, 2.0)
-
-    elapsed = time.monotonic() - start
-    return {
-        "error": last_error,
-        "attempts": attempts,
-        "elapsed_s": round(elapsed, 2),
-        "pattern": "retry-exhausted",
-    }
+    try:
+        async for attempt in AsyncRetrying(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential_jitter(initial=0.1, max=2.0, jitter=0.05),
+            retry=retry_if_exception_type((httpx.HTTPStatusError, httpx.TransportError)),
+            reraise=True,
+        ):
+            with attempt:
+                attempts = attempt.retry_state.attempt_number
+                r = await client().get("/process")
+                r.raise_for_status()
+        return {"status": r.status_code, "attempts": attempts, "elapsed_s": elapsed_s(start), "body": r.json()}
+    except (httpx.HTTPStatusError, httpx.TransportError) as e:
+        error = f"HTTP {e.response.status_code}" if isinstance(e, httpx.HTTPStatusError) else "timeout"
+        return {"error": error, "attempts": attempts, "elapsed_s": elapsed_s(start), "pattern": "retry-exhausted"}
 
 
-# ---------------------------------------------------------------------------
-# 4. With circuit breaker + fallback
-# ---------------------------------------------------------------------------
+# 4. Circuit breaker with a fallback (pybreaker)
 @app.get("/with-breaker")
 async def with_breaker():
-    if not breaker.allow():
-        breaker.total_rejected += 1
-        return {
-            "source": "fallback",
-            "reason": "circuit_open",
-            "breaker": breaker.state,
-        }
-
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(2.0, connect=0.5)) as client:
-            r = await client.get(f"{settings.backend_url}/process")
-            if r.status_code >= 500:
-                breaker.record_failure()
-                return {
-                    "source": "fallback",
-                    "reason": f"upstream_{r.status_code}",
-                    "breaker": breaker.state,
-                }
-            breaker.record_success()
-            return {"source": "live", "body": r.json(), "breaker": breaker.state}
-    except (httpx.TimeoutException, httpx.ConnectError):
-        breaker.record_failure()
-        return {
-            "source": "fallback",
-            "reason": "upstream_unreachable",
-            "breaker": breaker.state,
-        }
+        with breaker.calling():
+            r = await client().get("/process")
+            r.raise_for_status()
+        return {"source": "live", "body": r.json(), "breaker": breaker.current_state}
+    except pybreaker.CircuitBreakerError:
+        reason = "circuit_open"
+    except httpx.HTTPStatusError as e:
+        reason = f"upstream_{e.response.status_code}"
+    except httpx.TransportError:
+        reason = "upstream_unreachable"
+    return {"source": "fallback", "reason": reason, "breaker": breaker.current_state}
 
 
-# ---------------------------------------------------------------------------
-# 5. Deadline propagation
-# ---------------------------------------------------------------------------
+# 5. Deadline propagation: the backend gets what is left of the caller's budget
 @app.get("/with-deadline")
 async def with_deadline(budget_ms: int = Query(default=1000)):
     start = time.monotonic()
-    edge_overhead = 50
-    remaining = budget_ms - edge_overhead
+    remaining = budget_ms - 50  # edge overhead
 
     if remaining < 50:
         return {
@@ -230,74 +131,49 @@ async def with_deadline(budget_ms: int = Query(default=1000)):
         }
 
     try:
-        timeout_s = remaining / 1000.0
-        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout_s, connect=0.5)) as client:
-            r = await client.get(
-                f"{settings.backend_url}/process",
-                headers={"X-Deadline-Ms": str(remaining)},
-            )
-            elapsed = time.monotonic() - start
-            return {
-                "status": r.status_code,
-                "budget_ms": budget_ms,
-                "remaining_ms": remaining,
-                "elapsed_s": round(elapsed, 2),
-                "body": r.json(),
-            }
+        r = await client().get(
+            "/process",
+            headers={"X-Deadline-Ms": str(remaining)},
+            timeout=httpx.Timeout(remaining / 1000.0, connect=0.5),
+        )
+        return {
+            "status": r.status_code,
+            "budget_ms": budget_ms,
+            "remaining_ms": remaining,
+            "elapsed_s": elapsed_s(start),
+            "body": r.json(),
+        }
     except httpx.TimeoutException:
-        elapsed = time.monotonic() - start
         return {
             "error": "deadline_exceeded",
             "reason": "timed out waiting for backend",
             "budget_ms": budget_ms,
-            "elapsed_s": round(elapsed, 2),
+            "elapsed_s": elapsed_s(start),
         }
 
 
-# ---------------------------------------------------------------------------
-# 6. Bulkhead — bounded concurrency
-# ---------------------------------------------------------------------------
+# 6. Bulkhead: bounded concurrency, the overflow refused with 429
 @app.get("/with-bulkhead")
 async def with_bulkhead():
-    global bulkhead_rejected, bulkhead_active
-
     if bulkhead.locked():
-        bulkhead_rejected += 1
-        return {"error": "bulkhead_full", "pattern": "bulkhead", "active": bulkhead_active}
-
-    try:
-        await asyncio.wait_for(bulkhead.acquire(), timeout=0.01)
-    except asyncio.TimeoutError:
-        bulkhead_rejected += 1
-        return {"error": "bulkhead_full", "pattern": "bulkhead", "active": bulkhead_active}
-
-    bulkhead_active += 1
-    try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(2.0, connect=0.5)) as client:
-            r = await client.get(f"{settings.backend_url}/process")
-            return {"status": r.status_code, "body": r.json(), "active_slots": bulkhead_active}
-    except httpx.TimeoutException:
-        return {"error": "timeout", "active_slots": bulkhead_active}
-    finally:
-        bulkhead_active -= 1
-        bulkhead.release()
+        return JSONResponse({"error": "bulkhead_full", "pattern": "bulkhead"}, status_code=429)
+    async with bulkhead:
+        try:
+            r = await client().get("/process")
+            return {"status": r.status_code, "body": r.json()}
+        except httpx.TimeoutException:
+            return {"error": "timeout"}
 
 
-# ---------------------------------------------------------------------------
 # State endpoints
-# ---------------------------------------------------------------------------
 @app.get("/breaker-state")
 async def breaker_state():
-    return breaker.info()
+    return {"name": breaker.name, "state": breaker.current_state, "fail_counter": breaker.fail_counter}
 
 
 @app.get("/bulkhead-state")
 async def bulkhead_state():
-    return {
-        "max_concurrent": 5,
-        "active": bulkhead_active,
-        "rejected": bulkhead_rejected,
-    }
+    return {"max_concurrent": BULKHEAD, "full": bulkhead.locked()}
 
 
 @app.get("/healthz")
