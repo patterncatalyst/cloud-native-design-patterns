@@ -11,6 +11,8 @@
          {% if page.url contains '/examples/prerequisites' %}aria-current="page"{% endif %}>Prerequisites</a>
       <a href="{{ '/examples/' | relative_url }}"
          {% if page.url == '/examples/' or page.url == '/cloud-native-design-patterns/examples/' %}aria-current="page"{% endif %}>Examples</a>
+      <a href="{{ '/bibliography/' | relative_url }}"
+         {% if page.url contains '/bibliography/' %}aria-current="page"{% endif %}>Bibliography</a>
       <a href="https://github.com/{{ site.github_username }}/{{ site.github_repo }}"
          rel="noopener">GitHub ↗</a>
     </nav>
