@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using Grpc.Core;
 using GrpcStatusCode = Grpc.Core.StatusCode;
-using Grpc.Net.Client;
 using Inventory.Grpc;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using OpenTelemetry.Resources;
@@ -22,7 +21,8 @@ builder.Services.AddProblemDetails(o => o.CustomizeProblemDetails = c =>
 builder.Services.AddHealthChecks();
 
 var inventoryAddr = builder.Configuration.GetValue("INVENTORY_ADDR", "http://inventory:50051");
-builder.Services.AddSingleton(new InventoryService.InventoryServiceClient(GrpcChannel.ForAddress(inventoryAddr)));
+// gRPC client factory: the channel is managed like any typed HttpClient.
+builder.Services.AddGrpcClient<InventoryService.InventoryServiceClient>(o => o.Address = new Uri(inventoryAddr));
 
 var app = builder.Build();
 

@@ -3,7 +3,6 @@ using System.Diagnostics.Metrics;
 using System.Text;
 using System.Text.Json;
 using Confluent.Kafka;
-using Grpc.Net.Client;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using OpenTelemetry.Metrics;
@@ -32,12 +31,11 @@ builder.Services.AddOpenTelemetry()
         .AddOtlpExporter());
 
 builder.Services.AddHealthChecks();
+// gRPC client factory: the channel and its HTTP/2 handler are managed like any typed HttpClient.
+builder.Services.AddGrpcClient<InventoryService.InventoryServiceClient>(o => o.Address = new Uri($"http://{inventoryAddr}"))
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { EnableMultipleHttp2Connections = true });
 
 var app = builder.Build();
-
-var channel = GrpcChannel.ForAddress($"http://{inventoryAddr}",
-    new GrpcChannelOptions { HttpHandler = new SocketsHttpHandler { EnableMultipleHttp2Connections = true } });
-var inventoryClient = new InventoryService.InventoryServiceClient(channel);
 
 IProducer<Null, string>? producer = null;
 for (var i = 0; i < 30; i++)
@@ -60,7 +58,7 @@ app.MapHealthChecks("/healthz", new HealthCheckOptions
     ResponseWriter = (ctx, _) => ctx.Response.WriteAsJsonAsync(new { status = "ok" }),
 });
 
-app.MapPost("/orders", async (OrderRequest request, OrdersContext db) =>
+app.MapPost("/orders", async (OrderRequest request, OrdersContext db, InventoryService.InventoryServiceClient inventoryClient) =>
 {
     var (sku, quantity) = request;
     var id = Guid.NewGuid().ToString();
