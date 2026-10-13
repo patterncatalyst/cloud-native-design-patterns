@@ -10,8 +10,8 @@ spring:
 server:
   port: 8080
 
-inventory:
-  addr: ${INVENTORY_ADDR:inventory:50051}
+# Spring gRPC client channel (plaintext inside the compose network).
+spring.grpc.client.channel.inventory.target: ${INVENTORY_ADDR:inventory:50051}
 
 logging:
   pattern:
