@@ -3624,41 +3624,38 @@ p. 209
 
 ## [237] APPENDIX M · TIMEOUTS · Timeouts + deadlines in C++ (sldId 492)
 
-[chip] c++ · gRPC
+[chip] c++ · Drogon
 
 ```c++
-// ... #include <chrono>; using namespace std::chrono;
-constexpr auto MIN_BUDGET = 50ms;
-Task<json> charge(const Order& order, milliseconds remaining) {
-  if (remaining <= MIN_BUDGET)                // too little to finish
-    throw DeadlineExceeded{"no budget left"};
-  grpc::ClientContext ctx;
-  ctx.set_deadline(system_clock::now() + remaining);
-  ChargeReply reply;
-  auto status = payment_stub_->Charge(&ctx, order_to_proto(order), &reply);
-  if (status.error_code() == grpc::DEADLINE_EXCEEDED)
-    throw HttpException{504, "downstream timed out"};
-  co_return to_json(reply);
+// examples/26-failure-modes/cpp/edge-service/src/main.cpp (condensed excerpts)
+// Drogon's async HttpClient: the coroutine suspends while it waits; the timeout is per call.
+Task<Reply> get_backend(double timeout_s, std::string deadline_ms = {}) {
+    auto client = HttpClient::newHttpClient(g_backend);
+    auto req = HttpRequest::newHttpRequest();
+    req->setPath("/process");
+    if (!deadline_ms.empty()) req->addHeader("X-Deadline-Ms", deadline_ms);  // the budget
+    try {
+        auto resp = co_await client->sendRequestCoro(req, timeout_s);
+        Reply reply;
+        reply.status = static_cast<int>(resp->getStatusCode());
+        if (auto json = resp->getJsonObject()) reply.body = *json;
+        co_return reply;
+    } catch (const HttpException&) {
+        co_return Reply{};   // status 0: timed out or unreachable
+    }
 }
-// -------- REST (cpp-httplib): propagate via header ------------
-Task<json> charge_rest(const Order& order, milliseconds remaining) {
-  if (remaining <= MIN_BUDGET) throw DeadlineExceeded{};
-  httplib::Client cli{"http://payment.svc:8080"};
-  cli.set_connection_timeout(500ms);
-  cli.set_read_timeout(remaining);             // bounded
-  httplib::Headers hdrs{ {"X-Deadline-Ms",
-                              std::to_string(remaining.count())} };
-  auto r = cli.Post("/charge", hdrs, order.to_json().dump(), "application/json");
-  if (!r || r->status == 504) throw HttpException{504};
-  co_return json::parse(r->body);
-}
+
+// /with-timeout:  co_await get_backend(2.0)
+// /with-deadline: int remaining = budget_ms - 50;   // edge overhead
+//                 if (remaining < 50) -> "insufficient budget at edge"
+//                 co_await get_backend(remaining / 1000.0, std::to_string(remaining))
 ```
 
 gRPC propagates deadlines natively; for REST set the header. Always check remaining budget before starting a hop.
 
 p. 210
 
-> Two variants. gRPC's ClientContext::set_deadline propagates the wall-clock deadline through HTTP/2 headers — every hop knows the budget without explicit code. For cpp-httplib (REST) you set both connection and read timeouts, and propagate the budget via an X-Deadline-Ms header the downstream reads. The MIN_BUDGET check (refuse to start with too little time left) is the discipline that stops cascading timeouts: if the call would just time out anyway, fail immediately instead of starting doomed work.
+> Two layers, from examples/26. Drogon's HttpClient takes a timeout on every request, and sendRequestCoro suspends the coroutine handler while it waits, so a slow backend never holds an event-loop thread. A timeout or a refused connection arrives as HttpException and is reported as no answer. The deadline endpoint passes the remaining budget both as the request timeout and in the X-Deadline-Ms header, so the backend can refuse work it cannot finish.
 
 ## [238] APPENDIX M · RETRY · Retry with exponential backoff + jitter (sldId 493)
 
@@ -3673,37 +3670,32 @@ p. 211
 [chip] c++
 
 ```c++
-// Retry with exponential backoff + jitter — for idempotent calls only.
-#include <random>
-#include <thread>
-template <typename F>
-auto retry_with_backoff(F&& fn, int max_attempts = 3) {
-  thread_local std::mt19937 rng{std::random_device{}()};
-  std::uniform_real_distribution<double> jitter{0.0, 100.0};
-  std::chrono::milliseconds wait{100};            // initial
-  for (int attempt = 1; attempt <= max_attempts; ++attempt) {
-    try {
-      return fn();
-    } catch (const TransportError& e) {
-      if (attempt == max_attempts) throw;        // no budget
-      auto sleep_ms = wait + std::chrono::milliseconds{(int)jitter(rng)};
-      std::this_thread::sleep_for(sleep_ms);     // backoff
-      wait = std::min(wait * 2, 2000ms);          // exponential, cap
+// examples/26-failure-modes/cpp/edge-service/src/main.cpp (condensed excerpt)
+// 3 attempts, waits from 100 ms doubling to 2 s with up to 50% jitter; a 5xx or no answer
+// is retried. sleepCoro suspends the handler, so the thread serves other requests meanwhile.
+app().registerHandler("/with-retry", [](HttpRequestPtr) -> Task<HttpResponsePtr> {
+    thread_local std::mt19937 rng{std::random_device{}()};
+    auto wait = 0.1;
+    Reply reply;
+    int attempt = 1;
+    for (;; ++attempt) {
+        reply = co_await get_backend(2.0);
+        if ((reply.status != 0 && reply.status < 500) || attempt == 3) break;
+        co_await sleepCoro(trantor::EventLoop::getEventLoopOfCurrentThread(),
+                           wait + std::uniform_real_distribution<>(0.0, wait * 0.5)(rng));
+        wait = std::min(wait * 2, 2.0);
     }
-  }
-  std::unreachable();
-}
-// Usage: GETs are idempotent → safe to retry
-auto quote = retry_with_backoff([&]{ return http_.get("/quote/" + symbol); });
-// Do not retry a non-idempotent POST unless it carries an idempotency key.
-// Pair with a circuit breaker so a down dependency stops retries entirely.
+    Json::Value v;
+    v["attempts"] = attempt;
+    co_return json(v);
+}, {Get});
 ```
 
-Hand-rolled retry with exponential backoff + jitter. Cap attempts; only idempotent calls; pair with a circuit breaker.
+Retry in a coroutine: exponential backoff + jitter, waits that suspend instead of block. Cap attempts; only idempotent calls; pair with a circuit breaker.
 
 p. 212
 
-> C++ retry helper. Templated to wrap any callable; uses thread-local RNG for the jitter (no global lock contention); doubles the backoff each attempt with a cap. The headline note at the bottom matters: this is for cases where the mesh can't help (client outside the cluster, special control-plane traffic). Inside an Istio mesh, the retry policy belongs in the VirtualService — uniform across the fleet, no per-service code duplication.
+> No maintained C++ resilience library is on ConanCenter, so the retry is a short loop in a Drogon coroutine handler. Three attempts at most; between them the wait starts at 100 ms, doubles up to 2 seconds and gets up to half again as jitter. The wait is co_await sleepCoro, which suspends the handler instead of blocking the event-loop thread. Retry only idempotent calls, and pair the retry with a circuit breaker.
 
 ## [240] APPENDIX M · CIRCUIT BREAKER · Circuit breaker — the state machine (sldId 495)
 
@@ -3715,40 +3707,37 @@ p. 213
 
 ## [241] APPENDIX M · CIRCUIT BREAKER · Circuit breaker + fallback (sldId 496)
 
-[chip] c++ · atomic
+[chip] c++ · mutex
 
 ```c++
-// Hand-rolled circuit breaker — atomic state machine, per-dependency.
-class CircuitBreaker {
-  // ... state_ (Closed, Open, HalfOpen), failures_, opened_at_; THRESHOLD 5, RESET_AFTER 30s
- public:
-  template <typename F, typename Fallback>
-  auto call(F&& fn, Fallback&& fb) {
-    if (state_.load() == Open) {
-      if (steady_clock::now() - opened_at_.load() < RESET_AFTER)
-        return fb();                             // fail fast
-      state_.store(HalfOpen);                    // test
+// examples/26-failure-modes/cpp/edge-service/src/main.cpp (excerpt)
+class CircuitBreaker {   // kThreshold = 5, kTrialSuccesses = 2, kResetTimeout = 10s
+public:
+    bool allow() {
+        std::lock_guard lock(mtx_);
+        if (state_ == "open" && Clock::now() - opened_at_ >= kResetTimeout) {
+            state_ = "half-open";
+            successes_ = 0;
+        }
+        return state_ != "open";
     }
-    try {
-      auto r = fn();
-      failures_.store(0); state_.store(Closed);  // recovered
-      return r;
-    } catch (...) {
-      if (++failures_ >= THRESHOLD) {
-        opened_at_.store(steady_clock::now());
-        state_.store(Open);
-      }
-      return fb();
+    // record_success(): resets the failure count; 2 successes in half-open close it
+    void record_failure() {
+        std::lock_guard lock(mtx_);
+        if (state_ == "half-open" || ++failures_ >= kThreshold) {   // or a failed trial
+            state_ = "open";
+            opened_at_ = Clock::now();
+            failures_ = 0;
+        }
     }
-  }
 };
 ```
 
-Atomic state machine; per-dependency, never one global breaker; falls back to a useful response when open.
+Mutex-guarded state machine; per-dependency, never one global breaker; falls back to a useful response when open.
 
 p. 214
 
-> Hand-rolled circuit breaker using std::atomic for lock-free state. One breaker per dependency (one for payment, one for inventory, etc.) — never a global breaker. The fallback is what makes this useful: when the breaker is open, you don't error out — you call the fallback to return a degraded but useful response (cached value, default, queue-for-later). Production note: for most C++ shops, Istio's outlierDetection is the better choice than in-process. It's uniform, mesh-level, configurable in YAML, observable through Envoy metrics.
+> The breaker from examples/26, written in the service because no maintained C++ resilience library is on ConanCenter. One mutex guards three states: five consecutive failures open it, the first call after ten seconds moves it to half-open, two successful trials close it and one failed trial opens it again. The handler asks allow() before calling the backend and records the outcome afterwards; when allow() refuses, it answers from the fallback with circuit_open.
 
 ## [242] APPENDIX M · BULKHEAD · Bulkhead — isolate so one failure can't sink the rest (sldId 497)
 

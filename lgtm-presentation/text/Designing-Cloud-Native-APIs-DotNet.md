@@ -3732,32 +3732,31 @@ p. 222
 
 ## [251] APPENDIX M · TIMEOUTS · Timeouts + deadlines (sldId 506)
 
-[chip] csharp · ASP.NET Core 10 + HttpClient
+[chip] csharp · ASP.NET Core 10 + Polly v8
 
 ```csharp
-public class PaymentService(HttpClient http)   // http.Timeout set at registration
+// examples/26-failure-modes/dotnet/EdgeService/Program.cs (condensed excerpts)
+// A Polly pipeline caps a call at 2 s; TimeoutRejectedException reports it.
+builder.Services.AddResiliencePipeline<string, HttpResponseMessage>("timeout", p => p
+    .AddTimeout(TimeSpan.FromSeconds(2)));
+try
 {
-    public async Task<Receipt> Charge(Order o, TimeSpan deadline,
-                                       CancellationToken ct)
-    {
-        if (deadline < TimeSpan.FromMilliseconds(50))
-            throw new DeadlineExceededException();      // too little budget
-        // link the caller's token with a deadline-bounded one
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(deadline);
-        var req = new HttpRequestMessage(HttpMethod.Post, "/charge")
-            { Content = JsonContent.Create(o) };
-        req.Headers.Add("X-Deadline-Ms",                 // propagate budget
-            deadline.TotalMilliseconds.ToString("0"));
-        var resp = await http.SendAsync(req, cts.Token);  // throws on timeout
-        return (await resp.Content.ReadFromJsonAsync<Receipt>(cts.Token))!;
-    }
+    var resp = await pipelines.GetPipeline<HttpResponseMessage>("timeout")
+        .ExecuteAsync(backend.ProcessAsync);
+    return Results.Json(new { status = (int)resp.StatusCode, body = await BodyAsync(resp) });
 }
+catch (TimeoutRejectedException)
+{
+    return Results.Json(new { error = "timeout", pattern = "timeout" });
+}
+// /with-deadline: the remaining budget bounds the call and travels as X-Deadline-Ms
+using var cts = new CancellationTokenSource(remaining);
+var resp = await backend.ProcessAsync(cts.Token, remaining);
 ```
 
 p. 223
 
-> The .NET idiom is CancellationToken-based. HttpClient.Timeout is set when the typed client is registered (AddHttpClient). Per-call, link the caller's CancellationToken with a deadline-bounded one via CreateLinkedTokenSource + CancelAfter — so the call is cancelled when either the caller gives up or the deadline passes. The remaining budget is propagated in a header. CancellationToken flows all the way down through SendAsync and the JSON read, so cancellation is cooperative and prompt.
+> Two layers, from examples/26. A named Polly v8 pipeline with a 2-second timeout strategy wraps the typed BackendClient call; when it fires, Polly cancels the request and throws TimeoutRejectedException, which the endpoint turns into a timeout answer. The deadline endpoint bounds its call with a CancellationTokenSource set to the caller's remaining budget and sends that number in the X-Deadline-Ms header, so the backend can refuse work it cannot finish.
 
 ## [252] APPENDIX M · RETRY · Retry with exponential backoff + jitter (sldId 507)
 
@@ -3772,30 +3771,30 @@ p. 224
 [chip] csharp · ASP.NET Core 10 + Polly v8
 
 ```csharp
-// Polly v8: exponential backoff with jitter is built in
-private static readonly ResiliencePipeline _pipeline =
-    new ResiliencePipelineBuilder()
-        .AddRetry(new RetryStrategyOptions {
-            ShouldHandle = new PredicateBuilder()
-                .Handle<HttpRequestException>(),       // transient only
-            MaxRetryAttempts = 3,                       // hard cap
-            BackoffType = DelayBackoffType.Exponential,
-            UseJitter = true,                           // de-synchronise
-            Delay = TimeSpan.FromMilliseconds(100)
-        })
-        .AddCircuitBreaker(new CircuitBreakerStrategyOptions {  // pair it
-            FailureRatio = 0.5, MinimumThroughput = 10,
-            BreakDuration = TimeSpan.FromSeconds(5)
-        })
-        .Build();
-public Task<Quote?> Quote(string symbol, CancellationToken ct) =>   // GET
-    _pipeline.ExecuteAsync(async t =>
-        await http.GetFromJsonAsync<Quote>($"/quote/{symbol}", t), ct).AsTask();
+// examples/26-failure-modes/dotnet/EdgeService/Program.cs (condensed excerpts)
+// HTTP retry options from Microsoft.Extensions.Http.Resilience: a 5xx, a timeout
+// or a connection failure is retried.
+builder.Services.AddResiliencePipeline<string, HttpResponseMessage>("retry", p => p
+    .AddRetry(new HttpRetryStrategyOptions
+    {
+        MaxRetryAttempts = 2,
+        Delay = TimeSpan.FromMilliseconds(100),
+        BackoffType = DelayBackoffType.Exponential,
+        UseJitter = true,
+        MaxDelay = TimeSpan.FromSeconds(2),
+    })
+    .AddTimeout(TimeSpan.FromSeconds(2)));      // each attempt gets 2 s
+var attempts = 0;
+var resp = await pipelines.GetPipeline<HttpResponseMessage>("retry").ExecuteAsync(ct =>
+{
+    attempts++;                                 // reported by /with-retry
+    return backend.ProcessAsync(ct);
+});
 ```
 
 p. 225
 
-> Polly v8's ResiliencePipelineBuilder composes strategies in order: the retry strategy with exponential backoff and UseJitter (built in — no manual jitter maths), handling only transient exceptions, capped at 3 attempts; then a circuit breaker wrapping it. Order matters — the breaker is added after retry so it sits outermost and short-circuits retries once tripped. Microsoft.Extensions.Http.Resilience can attach this pipeline to a named HttpClient via AddResilienceHandler. Idempotent calls only.
+> Polly v8 through Microsoft.Extensions.Http.Resilience: AddResiliencePipeline registers a named pipeline in DI, and HttpRetryStrategyOptions already knows which HTTP outcomes are transient (5xx, 408, 429, connection failures, timeouts). Two retries after the first attempt, exponential backoff from 100 ms with jitter, capped at 2 seconds; the timeout strategy inside the retry gives each attempt its own 2 seconds. The callback counts its own invocations, which is how the example reports attempts.
 
 ## [254] APPENDIX M · CIRCUIT BREAKER · Circuit breaker — the state machine (sldId 509)
 
@@ -3810,32 +3809,33 @@ p. 226
 [chip] csharp · ASP.NET Core 10 + Polly v8
 
 ```csharp
-public class PaymentService(HttpClient http, IOutbox outbox)
-{
-    private readonly ResiliencePipeline<Receipt> _pipeline =
-        new ResiliencePipelineBuilder<Receipt>()
-            .AddCircuitBreaker(new CircuitBreakerStrategyOptions<Receipt> {
-                FailureRatio = 0.5,                 // open at 50%
-                MinimumThroughput = 10,             // over a window of 10
-                BreakDuration = TimeSpan.FromSeconds(5),
-                ShouldHandle = new PredicateBuilder<Receipt>()
-                    .Handle<HttpRequestException>()
-            })
-            .AddFallback(new FallbackStrategyOptions<Receipt> {   // degrade
-                ShouldHandle = new PredicateBuilder<Receipt>()
-                    .Handle<BrokenCircuitException>(),
-                FallbackAction = args => {
-                    outbox.Enqueue(args.Context.GetOrder());
-                    return Outcome.FromResultAsValueTask(Receipt.Pending());
-                }
-            })
-            .Build();
+// examples/26-failure-modes/dotnet/EdgeService/Program.cs (condensed excerpts)
+var breakerState = new CircuitBreakerStateProvider();        // read by /breaker-state
+builder.Services.AddResiliencePipeline<string, HttpResponseMessage>("breaker", p => p
+    .AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
+    {
+        FailureRatio = 1.0,                          // 5 failed calls out of 5 open it
+        MinimumThroughput = 5,
+        SamplingDuration = TimeSpan.FromSeconds(30),
+        BreakDuration = TimeSpan.FromSeconds(10),    // then one trial call decides
+        StateProvider = breakerState,
+    })
+    .AddTimeout(TimeSpan.FromSeconds(2)));
+try {
+    var resp = await pipelines.GetPipeline<HttpResponseMessage>("breaker")
+        .ExecuteAsync(backend.ProcessAsync);
+    var code = (int)resp.StatusCode;          // a 5xx is a failure the breaker counted
+    return code >= 500
+        ? Results.Json(new { source = "fallback", reason = $"upstream_{code}" })
+        : Results.Json(new { source = "live", body = await BodyAsync(resp) });
+} catch (BrokenCircuitException) {            // open: the backend is not called
+    return Results.Json(new { source = "fallback", reason = "circuit_open" });
 }
 ```
 
 p. 227
 
-> Polly v8 composes a circuit breaker and a fallback into one typed pipeline. The breaker opens at a 50% failure ratio over a minimum throughput of 10 calls, stays open 5s, and handles HttpRequestException. The fallback strategy catches BrokenCircuitException (thrown while the breaker is open) and degrades: enqueue to the outbox, return a pending receipt. Adding fallback after the breaker means it wraps the breaker and catches its open-state exception. One pipeline per dependency.
+> Polly v8's circuit breaker with the HTTP options from Microsoft.Extensions.Http.Resilience: at least five calls in the sampling window and a failure ratio of one open it for ten seconds, and the next call after that is the trial that decides. While it is open the pipeline throws BrokenCircuitException without calling the backend, and the endpoint answers from its fallback. A CircuitBreakerStateProvider passed in the options exposes the state for the breaker-state endpoint. One pipeline per dependency.
 
 ## [256] APPENDIX M · BULKHEAD · Bulkhead — isolate so one failure can't sink the rest (sldId 511)
 

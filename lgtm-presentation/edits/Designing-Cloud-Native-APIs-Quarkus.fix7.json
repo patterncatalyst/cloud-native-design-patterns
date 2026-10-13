@@ -1,0 +1,144 @@
+{
+ "ops": [
+  {
+   "op": "set_code",
+   "sldId": 492,
+   "lines": [
+    "// examples/26-failure-modes/quarkus/edge-service (condensed excerpts)",
+    "// application.properties: every call through the REST client gives up after 2 s",
+    "//   quarkus.rest-client.backend.read-timeout=2000",
+    "",
+    "@GET",
+    "@Path(\"with-deadline\")",
+    "public Map<String, Object> withDeadline(",
+    "        @RestQuery(\"budget_ms\") @DefaultValue(\"1000\") int budgetMs) {",
+    "    int remaining = budgetMs - 50;                         // edge overhead",
+    "    if (remaining < 50) {                                  // too little to finish",
+    "        return Map.of(\"error\", \"deadline_exceeded\", \"reason\", \"insufficient budget at edge\");",
+    "    }",
+    "    // The budget is per request, so this client gets its own read timeout.",
+    "    BackendClient budgeted = QuarkusRestClientBuilder.newBuilder()",
+    "            .baseUri(URI.create(backendUrl))",
+    "            .readTimeout(remaining, TimeUnit.MILLISECONDS)",
+    "            .build(BackendClient.class);",
+    "    var response = budgeted.process(String.valueOf(remaining));   // sent as X-Deadline-Ms",
+    "    return Map.of(\"status\", response.getStatus(), \"body\", response.readEntity(Map.class));",
+    "}"
+   ],
+   "_why": "examples/26 on resilience libraries (S14): the code slide is an excerpt of the example",
+   "_src": "s14"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    492
+   ],
+   "find": "Quarkus + MicroProfile Fault Tolerance",
+   "repl": "Quarkus + REST Client",
+   "expect": 1,
+   "_why": "chip follows the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 492,
+   "paragraphs": [
+    "Two layers, from examples/26. The REST client's read timeout in application.properties bounds every call to the backend at 2 seconds. The deadline endpoint subtracts the edge's overhead from the caller's budget, refuses at once when too little remains, and otherwise builds a client whose read timeout is the remaining budget and sends that number in the X-Deadline-Ms header, so the backend can refuse work it cannot finish."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_code",
+   "sldId": 494,
+   "lines": [
+    "// examples/26-failure-modes/quarkus/edge-service: Backend.java (excerpt)",
+    "// The annotations are CDI interceptors: the resource calls through this bean.",
+    "@ApplicationScoped",
+    "public class Backend {",
+    "",
+    "    /** Retried on a 5xx or a timeout: 3 attempts, 100 ms doubling to 2 s, 50 ms jitter. */",
+    "    @Retry(maxRetries = 2, delay = 100, jitter = 50,",
+    "            retryOn = {WebApplicationException.class, ProcessingException.class})",
+    "    @ExponentialBackoff(factor = 2, maxDelay = 2000)",
+    "    public Response processWithRetry(AtomicInteger attempts) {",
+    "        attempts.incrementAndGet();          // reported by /with-retry",
+    "        return client.process();             // a 4xx or 5xx throws WebApplicationException",
+    "    }",
+    "}"
+   ],
+   "_why": "examples/26 on resilience libraries (S14): the code slide is an excerpt of the example",
+   "_src": "s14"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    494
+   ],
+   "find": "Quarkus + MicroProfile Fault Tolerance",
+   "repl": "Quarkus + SmallRye Fault Tolerance",
+   "expect": 1,
+   "_why": "chip follows the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 494,
+   "paragraphs": [
+    "SmallRye Fault Tolerance, the MicroProfile implementation in Quarkus. @Retry sets two retries after the first attempt, a 100 ms delay with up to 50 ms of jitter, and the exceptions that count; @ExponentialBackoff doubles the delay up to 2 seconds. The annotations are CDI interceptors, so they only apply when another bean calls the method, which is why the example keeps them on a Backend bean that the REST resource calls. Retry only idempotent calls, and pair the retry with a circuit breaker."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_code",
+   "sldId": 496,
+   "lines": [
+    "// examples/26-failure-modes/quarkus/edge-service: Backend.java (condensed excerpt)",
+    "/** 5 failed calls open the breaker for 10 s; 2 successful trial calls close it. */",
+    "@CircuitBreaker(requestVolumeThreshold = 5, failureRatio = 1.0,",
+    "        delay = 10, delayUnit = ChronoUnit.SECONDS, successThreshold = 2)",
+    "@CircuitBreakerName(\"backend\")              // /breaker-state reads CircuitBreakerMaintenance",
+    "@Fallback(fallbackMethod = \"fallback\")",
+    "public Map<String, Object> processWithBreaker() {",
+    "    return Map.of(\"source\", \"live\", \"body\", client.process().readEntity(Map.class),",
+    "            \"breaker\", breakerState());",
+    "}",
+    "",
+    "Map<String, Object> fallback(Throwable cause) {   // SmallRye passes the cause",
+    "    String reason = switch (cause) {",
+    "        case CircuitBreakerOpenException ignored -> \"circuit_open\";",
+    "        case WebApplicationException e -> \"upstream_\" + e.getResponse().getStatus();",
+    "        default -> \"upstream_unreachable\";",
+    "    };",
+    "    return Map.of(\"source\", \"fallback\", \"reason\", reason, \"breaker\", breakerState());",
+    "}"
+   ],
+   "_why": "examples/26 on resilience libraries (S14): the code slide is an excerpt of the example",
+   "_src": "s14"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    496
+   ],
+   "find": "Quarkus + MicroProfile Fault Tolerance",
+   "repl": "Quarkus + SmallRye Fault Tolerance",
+   "expect": 1,
+   "_why": "chip follows the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 496,
+   "paragraphs": [
+    "SmallRye Fault Tolerance's @CircuitBreaker: five calls in the rolling window, all failed, open it for ten seconds, and two successful trial calls close it again. @CircuitBreakerName gives it the name that CircuitBreakerMaintenance reads for the breaker-state endpoint. @Fallback names a method that receives the cause, so the response says why it fell back: circuit_open when the breaker refused the call, upstream_<status> or upstream_unreachable when the call failed. One breaker per dependency."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  }
+ ]
+}

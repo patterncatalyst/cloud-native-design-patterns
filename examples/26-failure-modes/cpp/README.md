@@ -3,14 +3,14 @@
 Demonstrates five resilience patterns with two services:
 
 1. **Timeout** — Edge service calls backend with 2-second timeout; slow backend (5s sleep) triggers timeout
-2. **Retry with exponential backoff** — Up to 3 attempts with exponential backoff (100ms, 200ms, 400ms) and jitter
+2. **Retry with exponential backoff** — Up to 3 attempts; the waits between them start at 100 ms and double (capped at 2 s), with jitter
 3. **Circuit breaker** — Tracks failures; opens after 5 consecutive failures; half-open after 10s timeout; requires 2 successful trials to close
 4. **Deadline propagation** — Edge propagates `X-Deadline-Ms` header to backend; backend rejects if deadline < 100ms
-5. **Bulkhead** — Limits concurrent backend calls to 5; additional requests rejected with 503
+5. **Bulkhead** — Limits concurrent backend calls to 5; additional requests rejected at once with 429
 
 ## Architecture
 
-- **Edge service** (port 8080): Drogon + libcurl for HTTP client
+- **Edge service** (port 8080): Drogon coroutine handlers and Drogon's async `HttpClient`; the breaker and the bulkhead are written in the service, since no maintained C++ resilience library is on ConanCenter
 - **Backend service** (port 8081): Drogon with controllable failure modes (healthy, slow, failing, flaky)
 
 ## Running
@@ -34,7 +34,7 @@ curl http://localhost:8080/with-timeout
 # 2. Retry — backend in failing mode
 curl -X POST http://localhost:8081/mode -d '{"mode":"failing"}'
 curl http://localhost:8080/with-retry
-# → {"error":"http_error", "attempts":3, "pattern":"retry-exhausted"}
+# → {"attempts":3, "error":"HTTP 500", "pattern":"retry-exhausted", ...}
 
 # 3. Circuit breaker — trip it with 5+ failures
 curl -X POST http://localhost:8081/mode -d '{"mode":"failing"}'

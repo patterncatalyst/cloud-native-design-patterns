@@ -8,15 +8,15 @@ import org.jboss.resteasy.reactive.RestHeader;
 
 /**
  * Typed client for the backend. Base URL and timeouts come from quarkus.rest-client.backend.*;
- * the Response return type lets the caller see 4xx/5xx bodies, which the failure patterns report.
+ * a 4xx or 5xx answer is thrown as a WebApplicationException, which the fault-tolerance guards count as a failure.
  */
 @RegisterRestClient(configKey = "backend")
-@Path("/call")
+@Path("/process")
 public interface BackendClient {
 
     @GET
-    Response call();
+    Response process();
 
     @GET
-    Response call(@RestHeader("X-Deadline-Remaining") String deadlineRemaining);
+    Response process(@RestHeader("X-Deadline-Ms") String deadlineMs);
 }

@@ -3382,28 +3382,33 @@ p. 209
 
 ## [237] APPENDIX M · TIMEOUTS · Timeouts + deadlines (sldId 492)
 
-[chip] java · Quarkus + MicroProfile Fault Tolerance
+[chip] java · Quarkus + REST Client
 
 ```java
-@ApplicationScoped
-public class PaymentService {
-    @Inject @RestClient PaymentClient client;
-    @Timeout(value = 2000)                       // MicroProfile: hard 2s ceiling
-    public Uni<Receipt> charge(Order o, long deadlineMs) {
-        long remaining = deadlineMs - elapsedMs();
-        if (remaining < 50)                       // too little budget to start
-            return Uni.createFrom().failure(new DeadlineExceeded());
-        return client.charge(o, remaining);       // propagate remaining budget
+// examples/26-failure-modes/quarkus/edge-service (condensed excerpts)
+// application.properties: every call through the REST client gives up after 2 s
+//   quarkus.rest-client.backend.read-timeout=2000
+@GET
+@Path("with-deadline")
+public Map<String, Object> withDeadline(
+        @RestQuery("budget_ms") @DefaultValue("1000") int budgetMs) {
+    int remaining = budgetMs - 50;                         // edge overhead
+    if (remaining < 50) {                                  // too little to finish
+        return Map.of("error", "deadline_exceeded", "reason", "insufficient budget at edge");
     }
+    // The budget is per request, so this client gets its own read timeout.
+    BackendClient budgeted = QuarkusRestClientBuilder.newBuilder()
+            .baseUri(URI.create(backendUrl))
+            .readTimeout(remaining, TimeUnit.MILLISECONDS)
+            .build(BackendClient.class);
+    var response = budgeted.process(String.valueOf(remaining));   // sent as X-Deadline-Ms
+    return Map.of("status", response.getStatus(), "body", response.readEntity(Map.class));
 }
-// application.properties  —  client-level timeouts (the real defence)
-//   quarkus.rest-client.payment.connect-timeout=500
-//   quarkus.rest-client.payment.read-timeout=2000
 ```
 
 p. 210
 
-> @Timeout from MicroProfile Fault Tolerance puts a hard ceiling on the method. The more important defence is the REST client's own connect/read timeouts in application.properties — without those, the @Timeout fires but a socket can still hang a thread underneath. The method also honours an inbound deadline and propagates the remaining budget to the downstream client call. Quarkus REST Client propagates OpenTelemetry context automatically; the deadline is an explicit business parameter here.
+> Two layers, from examples/26. The REST client's read timeout in application.properties bounds every call to the backend at 2 seconds. The deadline endpoint subtracts the edge's overhead from the caller's budget, refuses at once when too little remains, and otherwise builds a client whose read timeout is the remaining budget and sends that number in the X-Deadline-Ms header, so the backend can refuse work it cannot finish.
 
 ## [238] APPENDIX M · RETRY · Retry with exponential backoff + jitter (sldId 493)
 
@@ -3415,29 +3420,27 @@ p. 211
 
 ## [239] APPENDIX M · RETRY · Retry with backoff + jitter (sldId 494)
 
-[chip] java · Quarkus + MicroProfile Fault Tolerance
+[chip] java · Quarkus + SmallRye Fault Tolerance
 
 ```java
+// examples/26-failure-modes/quarkus/edge-service: Backend.java (excerpt)
+// The annotations are CDI interceptors: the resource calls through this bean.
 @ApplicationScoped
-public class QuoteService {
-    @Inject @RestClient QuoteClient client;
-    @Retry(maxRetries = 3,                       // hard cap on attempts
-           delay = 100, delayUnit = MILLIS,      // base backoff
-           jitter = 50, jitterUnit = MILLIS,     // de-synchronise clients
-           retryOn = TransientException.class)   // transient failures only
-    @CircuitBreaker(requestVolumeThreshold = 10, // always pair with a breaker
-                    failureRatio = 0.5, delay = 5000)
-    public Quote quote(String symbol) {           // idempotent GET
-        return client.getQuote(symbol);
+public class Backend {
+    /** Retried on a 5xx or a timeout: 3 attempts, 100 ms doubling to 2 s, 50 ms jitter. */
+    @Retry(maxRetries = 2, delay = 100, jitter = 50,
+            retryOn = {WebApplicationException.class, ProcessingException.class})
+    @ExponentialBackoff(factor = 2, maxDelay = 2000)
+    public Response processWithRetry(AtomicInteger attempts) {
+        attempts.incrementAndGet();          // reported by /with-retry
+        return client.process();             // a 4xx or 5xx throws WebApplicationException
     }
 }
-// Retry wraps the breaker; an open breaker fails each retry fast.
-// Exponential backoff: add @ExponentialBackoff (SmallRye extension).
 ```
 
 p. 212
 
-> MicroProfile @Retry declares max attempts, base delay, jitter, and which exceptions to retry on — the four correct properties declaratively. Stacking @CircuitBreaker on the same method is the canonical pairing: the breaker wraps the retry, so once the dependency trips the breaker, retries stop entirely. SmallRye adds @ExponentialBackoff for true exponential growth (the base @Retry is linear delay + jitter). As always: idempotent operations only.
+> SmallRye Fault Tolerance, the MicroProfile implementation in Quarkus. @Retry sets two retries after the first attempt, a 100 ms delay with up to 50 ms of jitter, and the exceptions that count; @ExponentialBackoff doubles the delay up to 2 seconds. The annotations are CDI interceptors, so they only apply when another bean calls the method, which is why the example keeps them on a Backend bean that the REST resource calls. Retry only idempotent calls, and pair the retry with a circuit breaker.
 
 ## [240] APPENDIX M · CIRCUIT BREAKER · Circuit breaker — the state machine (sldId 495)
 
@@ -3449,32 +3452,32 @@ p. 213
 
 ## [241] APPENDIX M · CIRCUIT BREAKER · Circuit breaker + fallback (sldId 496)
 
-[chip] java · Quarkus + MicroProfile Fault Tolerance
+[chip] java · Quarkus + SmallRye Fault Tolerance
 
 ```java
-@ApplicationScoped
-public class PaymentService {
-    @Inject @RestClient PaymentClient client;
-    @Inject Outbox outbox;
-    @CircuitBreaker(
-        requestVolumeThreshold = 10,   // rolling window of 10 calls
-        failureRatio = 0.5,            // open at 50% failures
-        delay = 5000,                  // stay open 5s, then half-open
-        successThreshold = 2)          // 2 trial successes → close
-    @Fallback(fallbackMethod = "queueForLater")   // degrade gracefully
-    public Receipt charge(Order o) {
-        return client.charge(o);       // while OPEN: skipped, fallback runs
-    }
-    Receipt queueForLater(Order o) {   // graceful degradation
-        outbox.enqueue(o);
-        return Receipt.pending(o.id());
-    }
+// examples/26-failure-modes/quarkus/edge-service: Backend.java (condensed excerpt)
+/** 5 failed calls open the breaker for 10 s; 2 successful trial calls close it. */
+@CircuitBreaker(requestVolumeThreshold = 5, failureRatio = 1.0,
+        delay = 10, delayUnit = ChronoUnit.SECONDS, successThreshold = 2)
+@CircuitBreakerName("backend")              // /breaker-state reads CircuitBreakerMaintenance
+@Fallback(fallbackMethod = "fallback")
+public Map<String, Object> processWithBreaker() {
+    return Map.of("source", "live", "body", client.process().readEntity(Map.class),
+            "breaker", breakerState());
+}
+Map<String, Object> fallback(Throwable cause) {   // SmallRye passes the cause
+    String reason = switch (cause) {
+        case CircuitBreakerOpenException ignored -> "circuit_open";
+        case WebApplicationException e -> "upstream_" + e.getResponse().getStatus();
+        default -> "upstream_unreachable";
+    };
+    return Map.of("source", "fallback", "reason", reason, "breaker", breakerState());
 }
 ```
 
 p. 214
 
-> MicroProfile @CircuitBreaker declares the rolling window, failure ratio to trip, the open-state delay, and how many half-open successes are needed to close. @Fallback names the method that runs when the breaker is open (or the call fails) — here it enqueues to an outbox and returns a pending receipt, turning a hard failure into graceful degradation. This is the canonical breaker+fallback pairing: the breaker decides to stop calling, the fallback decides what to return instead.
+> SmallRye Fault Tolerance's @CircuitBreaker: five calls in the rolling window, all failed, open it for ten seconds, and two successful trial calls close it again. @CircuitBreakerName gives it the name that CircuitBreakerMaintenance reads for the breaker-state endpoint. @Fallback names a method that receives the cause, so the response says why it fell back: circuit_open when the breaker refused the call, upstream_<status> or upstream_unreachable when the call failed. One breaker per dependency.
 
 ## [242] APPENDIX M · BULKHEAD · Bulkhead — isolate so one failure can't sink the rest (sldId 497)
 

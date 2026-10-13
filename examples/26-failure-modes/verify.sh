@@ -227,5 +227,28 @@ check "bulkhead state shows max concurrent 5" \
     "curl $CURL_OPTS -sf $EDGE/bulkhead-state" \
     '"max_concurrent":5'
 
+# Saturate it: 8 concurrent calls against a slow backend hold all 5 permits, so the rest are turned away at once.
+printf '  \xe2\x86\x92 sending 8 concurrent requests against a slow backend...\n'
+curl $CURL_OPTS -s -X POST -H 'Content-Type: application/json' \
+    -d '{"mode":"slow"}' "$BACKEND/mode" >/dev/null
+CODES=$(mktemp)
+for _ in $(seq 1 8); do
+    curl $CURL_OPTS -s -o /dev/null -w '%{http_code}\n' --max-time 10 "$EDGE/with-bulkhead" >>"$CODES" &
+done
+wait
+REJECTED=$(grep -c '^429$' "$CODES" || true)
+rm -f "$CODES"
+
+check "full bulkhead rejects the overflow with 429" \
+    "echo $REJECTED" \
+    '^[1-9]'
+
+curl $CURL_OPTS -s -X POST -H 'Content-Type: application/json' \
+    -d '{"mode":"healthy"}' "$BACKEND/mode" >/dev/null
+
+check "bulkhead admits requests again once the calls finish" \
+    "curl $CURL_OPTS -sf $EDGE/with-bulkhead" \
+    '"status":200'
+
 printf '\n==> Results: %d passed, %d failed\n' "$PASS" "$FAIL"
 [[ $FAIL -eq 0 ]] && printf '==> PASS\n' || { printf '==> FAIL\n'; exit 1; }
