@@ -22,7 +22,7 @@ containers, testable with `conftest`.
 |---------|-------|------|
 | Sidecar trust | middleware | 403 without `X-Forwarded-Client-Cert`; trusts sidecar headers |
 | Valet key | `/valet-key`, `/verify-valet` | HMAC-signed, time-bound, operation-scoped tokens (the Go version issues HS256 JWTs with golang-jwt v5) |
-| Per-tenant bulkhead | concurrency limiter | 5 concurrent requests per tenant; one tenant's storm can't drain another |
+| Per-tenant bulkhead | concurrency limiter | 5 concurrent requests per tenant, the sixth refused at once with 429; one tenant's storm can't drain another |
 | Policy-as-code | `policy/` | OPA Rego denies untrusted images, privileged containers, root UID |
 
 ## Architecture
