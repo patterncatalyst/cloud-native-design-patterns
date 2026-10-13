@@ -18,6 +18,9 @@ useful to you, these are the places to go deeper.
 | [*Building Event-Driven Microservices*, 2nd ed.](https://www.oreilly.com/library/view/building-event-driven-microservices/9798341622180/) | Adam Bellemare | O'Reilly | 2025 | The event backbone: event streams, schemas and event-driven services |
 | [*Cloud Native Patterns*](https://www.manning.com/books/cloud-native-patterns) | Cornelia Davis | Manning | 2019 | Change-tolerant cloud-native design |
 | [*Patterns of Distributed Systems*](https://www.informit.com/store/patterns-of-distributed-systems-9780138221980) | Unmesh Joshi | Addison-Wesley | 2023 | Replication, consensus and partitioning building blocks |
+| [*Architecture Modernization*](https://www.manning.com/books/architecture-modernization) | Nick Tune with Jean-Georges Perrin | Manning | 2024 | Aligning architecture with business strategy and team structure |
+| [*Cloud Native Anti-Patterns*](https://www.packtpub.com/en-us/product/cloud-native-anti-patterns-9781836200581) | Gerald Bachlmayr, Aiden Ziegelaar, Alan Blockley, Bojan Zivic | Packt | 2025 | Common cloud-native mistakes and how to refactor them |
+| [*Principles of Web API Design*](https://www.informit.com/store/principles-of-web-api-design-delivering-value-with-9780137355631) | James Higginbotham | Addison-Wesley | 2021 | An outcome-driven API design process |
 | [*API Design Patterns*](https://www.manning.com/books/api-design-patterns) | JJ Geewax | Manning | 2021 | Resource and operation design, versioning |
 | [*Patterns for API Design*](https://www.informit.com/store/patterns-for-api-design-simplifying-integration-with-9780137670109) | Olaf Zimmermann, Mirko Stocker, Daniel Lübke, Uwe Zdun, Cesare Pautasso | Addison-Wesley | 2022 | Message-exchange, quality and evolution patterns for APIs |
 | [*RESTful Web APIs*](https://www.oreilly.com/library/view/restful-web-apis/9781449359713/) | Leonard Richardson, Mike Amundsen, Sam Ruby | O'Reilly | 2013 | Hypermedia and REST |
