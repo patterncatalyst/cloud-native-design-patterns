@@ -1259,23 +1259,23 @@ p. 79
 
 ## [094] REFERENCES · The shoulders this stands on (sldId 349)
 
-- Cloud-Native Patterns and Architecture
 - Building Microservices, 2nd ed. — Sam Newman (O'Reilly)
 - Designing Data-Intensive Applications, 2nd ed. — Martin Kleppmann & Chris Riccomini (O'Reilly)
-- Building Event-Driven Microservices — Adam Bellemare (O'Reilly)
+- Building Event-Driven Microservices, 2nd ed. — Adam Bellemare (O'Reilly)
 - Cloud Native Patterns — Cornelia Davis (Manning)
 - Patterns of Distributed Systems — Unmesh Joshi (Addison-Wesley)
 - Architecture Modernization — Nick Tune & Jean-Georges Perrin (Manning)
-- Cloud Native Anti-Patterns — Gerald Bachlmayr
+- Cloud Native Anti-Patterns — Gerald Bachlmayr et al. (Packt)
 - Principles of Web API Design — James Higginbotham (Addison-Wesley)
 - Patterns for API Design — Olaf Zimmermann et al. (Addison-Wesley)
 - API Design Patterns — JJ Geewax (Manning)
 - Learning Domain-Driven Design — Vlad Khononov (O'Reilly)
 - Balancing Coupling in Software Design — Vlad Khononov (Addison-Wesley)
+- The full list, with publisher links: patterncatalyst.github.io/cloud-native-design-patterns/bibliography/
 
 p. 80
 
-> The reading list this talk stands on. Call out a couple of pairings: Newman's Building Microservices for the boundaries and integration story; Kleppmann's Designing Data-Intensive Applications for the data and consistency foundations behind the outbox and saga; Bellemare for the event-driven backbone; and the API-design trio (Higginbotham, Zimmermann et al., Geewax) for contract and versioning depth. The slides and these references are enough to build the system, not only to discuss it.
+> The reading list this talk stands on. Call out a couple of pairings: Newman's Building Microservices for the boundaries and integration story; Kleppmann's Designing Data-Intensive Applications for the data and consistency foundations behind the outbox and saga; Bellemare for the event-driven backbone; and the API-design trio (Higginbotham, Zimmermann et al., Geewax) for contract and versioning depth. The slides and these references are enough to build the system, not only to discuss it. The full list, with a publisher link for every title, is on the site's Bibliography page (patterncatalyst.github.io/cloud-native-design-patterns/bibliography/).
 
 ## [095] Thank you (sldId 350)
 
