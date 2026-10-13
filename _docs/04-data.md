@@ -331,5 +331,5 @@ The code is in [`examples/04-data/`](https://github.com/patterncatalyst/cloud-na
 `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: verified — [`examples/04-data/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/04-data/) passes 8/8 checks in each of the six languages on Docker Engine (2026-10-12)
+*Verification status: verified — [`examples/04-data/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/04-data/) passes 8/8 checks in each of the six languages on Docker Engine (2026-10-13)
 (transactional write of order and outbox row, Debezium outbox connector running, relay of the outbox event to the order.placed Kafka topic with its payload).*

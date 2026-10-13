@@ -331,5 +331,5 @@ A clean rollout under live load, not a green integration test, is evidence that 
 works.
 
 ---
-*Verification status: verified — [`examples/21-graceful-shutdown/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/21-graceful-shutdown/) passes 17/17 checks in each of the six languages on Docker Engine (2026-10-12)
+*Verification status: verified — [`examples/21-graceful-shutdown/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/21-graceful-shutdown/) passes 17/17 checks in each of the six languages on Docker Engine (2026-10-13)
 (one SIGTERM, readiness flip to 503, the drain log lines, exit code 0 inside the grace period, a `docker stop` timing check, restart recovery, and orders persisting across the restart. In-flight request draining is not checked by the script).*

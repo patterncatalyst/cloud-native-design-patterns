@@ -184,6 +184,26 @@ Do not use `gh cache delete --all`: it also removes the entries the current poli
     Drogon's `LOG_*`; services without Drogon use spdlog. `std::cout`/`std::cerr` only for CLI and test output.
     Adding a Conan dependency to an existing lock uses `conan lock create --lockfile=conan.lock
     --lockfile-partial`, so the other pins stay.
+- **Resilience and gRPC through libraries (S14):**
+  - Breaker, retry and bulkhead: Spring Boot uses Resilience4j (`resilience4j-spring-boot4` 2.4.0 with
+    `spring-boot-starter-aspectj`; annotations on a separate bean, limits in properties; per-tenant
+    bulkheads from the `BulkheadRegistry`); Quarkus uses SmallRye Fault Tolerance (annotations on a CDI bean;
+    per-tenant bulkheads with the programmatic `Guard`); .NET uses Polly v8 pipelines through
+    Microsoft.Extensions.Http.Resilience 10.10.0 with Polly.Extensions and Polly.RateLimiting pinned to 8.8.0
+    (the package only sets a floor), and System.Threading.RateLimiting's `PartitionedRateLimiter` for
+    per-tenant limits; Python uses tenacity (retry) and pybreaker (breaker, around awaited calls with
+    `calling()`), bulkheads on `asyncio.Semaphore`; Go keeps sony/gobreaker and cenkalti/backoff and uses
+    `golang.org/x/sync/semaphore` for bulkheads. C++ has no maintained library on ConanCenter, so its breaker
+    and bulkhead stay in the service, in Drogon coroutine handlers that never block an event-loop thread.
+  - Contract: a full bulkhead refuses at once with 429 (never queues); `/breaker-state` is `{name, state}`
+    with `closed|open|half-open`, plus whatever metrics the library exposes. Shared breaker settings:
+    5 failures open it, 10 s open, 2 trial successes close it (Polly lets one trial through).
+  - Spring gRPC 1.1.1 (managed by Boot 4.1.1): servers are `@GrpcService` beans hosted by
+    `spring-boot-starter-grpc-server` on `spring.grpc.server.port` (graceful shutdown, standard health and
+    reflection services); callers take channels from `GrpcChannelFactory`
+    (`spring.grpc.client.channel.<name>.target`). Never `ServerBuilder` or `ManagedChannelBuilder` by hand.
+    The protobuf plugin stays xolstice 0.6.1: the Boot-managed `io.github.ascopes` plugin fails under the
+    UBI image's packaged Maven. .NET callers use the gRPC client factory (`AddGrpcClient`).
 
 ## House test tools (prefer these; don't introduce alternatives)
 
