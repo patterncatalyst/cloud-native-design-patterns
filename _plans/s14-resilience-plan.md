@@ -146,7 +146,7 @@ Order inside a PR: Spring, Quarkus, .NET, Python, Go, C++, one example at a time
 | 1 | Example 26 + verify.sh + Appendix M prose + decks | 1 | done: 26 × 6 PASS (22/22 each); Appendix M tabs, READMEs, 18 deck slides |
 | 2 | Example 12 bulkhead + verify.sh + chapter 12 prose + decks | 2 | done: 12 × 6 PASS (18/18 each); chapter 12 tab, READMEs, 6 deck slides |
 | 3 | Spring gRPC (+ .NET client factory) + gRPC prose and slide fixes | 3 | done: 02, 03, 11, 18 Spring and .NET PASS; gRPC health SERVING; protobuf plugin stays xolstice (see Approach) |
-| 4 | CLAUDE.md, modernization plan, final 111 matrix, footers | 4 | pending |
+| 4 | CLAUDE.md, modernization plan, final 111 matrix, footers | 4 | done: 111/111 PASS 2026-10-13; footers re-dated, 12 now 18 checks and 26 now 22 |
 
 ## Acceptance criteria
 

@@ -443,5 +443,5 @@ the rest. Seeing one request as one waterfall is the moment observability stops
 being three disconnected tools.
 
 ---
-*Verification status: verified — [`examples/11-observability/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/11-observability/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-12)
+*Verification status: verified — [`examples/11-observability/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/11-observability/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-13)
 (trace propagation, metric export, structured log correlation, LGTM stack integration).*

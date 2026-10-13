@@ -853,5 +853,5 @@ load. A flat downstream-call line under rising pressure is the retry budget and 
 doing their job; a climbing one means a control is missing.
 
 ---
-*Verification status: verified — [`examples/18-errors/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/18-errors/) passes 13/13 checks in each of the six languages on Docker Engine (2026-10-12)
+*Verification status: verified — [`examples/18-errors/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/18-errors/) passes 13/13 checks in each of the six languages on Docker Engine (2026-10-13)
 (RFC 9457 problem details over REST for validation (422), stock conflict (409) and upstream unavailable (503), with error codes, traceId, retryable and retryAfter fields).*
