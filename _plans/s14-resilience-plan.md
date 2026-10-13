@@ -109,8 +109,8 @@ example has. Deck slides per language: bulkhead [085] (.NET [087]); Appendix M t
   a map of programmatic `TypedGuard`s with a bulkhead (the SmallRye programmatic API).
 - **.NET:** `Microsoft.Extensions.Http.Resilience` (Polly v8) on the typed `BackendClient` via
   `AddResilienceHandler` (retry, circuit breaker with `CircuitBreakerStateProvider`, timeout), bulkhead via
-  `AddConcurrencyLimiter`. 12: the ASP.NET Core rate-limiting middleware (`AddRateLimiter` with a
-  `PartitionedRateLimiter` concurrency limiter keyed by tenant, `RejectionStatusCode = 429`). Pins exact.
+  `AddConcurrencyLimiter`. 12: a `PartitionedRateLimiter` concurrency limiter keyed by tenant (System.Threading.RateLimiting), taken
+  in the endpoint, since the middleware picks its partition before the body (which carries the tenant) is read. Pins exact.
 - **Python:** tenacity for retry; pybreaker for the breaker through `calling()` (see Pins); the Appendix M Python tab moves from purgatory to
   pybreaker; bulkheads stay `asyncio.Semaphore` (standard library) but reject at once and stop reading
   `_value`. Pins exact in `pyproject.toml` + `uv.lock`.
@@ -143,7 +143,7 @@ Order inside a PR: Spring, Quarkus, .NET, Python, Go, C++, one example at a time
 |---|---|---|---|
 | 0 | Preflight: user decisions D1–D4 (done 2026-10-13); pins (done, see Pins); baseline matrix of 12, 26, 02, 03, 11, 18 on main | – | done: baseline 36/36 PASS on main 6656c0a code (2026-10-13) |
 | 1 | Example 26 + verify.sh + Appendix M prose + decks | 1 | done: 26 × 6 PASS (22/22 each); Appendix M tabs, READMEs, 18 deck slides |
-| 2 | Example 12 bulkhead + verify.sh + chapter 12 prose + decks | 2 | pending |
+| 2 | Example 12 bulkhead + verify.sh + chapter 12 prose + decks | 2 | done: 12 × 6 PASS (18/18 each); chapter 12 tab, READMEs, 6 deck slides |
 | 3 | Spring gRPC (+ .NET client factory) + gRPC prose and slide fixes | 3 | pending |
 | 4 | CLAUDE.md, modernization plan, final 111 matrix, footers | 4 | pending |
 
