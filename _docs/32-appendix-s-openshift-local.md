@@ -421,15 +421,15 @@ Each language must pass `verify.sh`, show a linked trace, and have every applica
 `restricted-v2`. Between languages only the `cndp-05` project is removed; the operator stays, so
 the second language skips the install.
 
-Recorded results, 2026-10-11:
+Recorded results, 2026-10-13:
 
 | Language | Result | Trace | SCC | Time |
 |----------|--------|-------|-----|------|
-| Spring Boot | 10 passed, 0 failed | linked | restricted-v2 | 139 s |
-| Quarkus | 10 passed, 0 failed | linked | restricted-v2 | 123 s |
-| .NET | 10 passed, 0 failed | linked | restricted-v2 | 125 s |
-| Python | 10 passed, 0 failed | linked | restricted-v2 | 121 s |
-| Go | 10 passed, 0 failed | linked | restricted-v2 | 120 s |
+| Spring Boot | 10 passed, 0 failed | linked | restricted-v2 | 169 s |
+| Quarkus | 10 passed, 0 failed | linked | restricted-v2 | 119 s |
+| .NET | 10 passed, 0 failed | linked | restricted-v2 | 121 s |
+| Python | 10 passed, 0 failed | linked | restricted-v2 | 118 s |
+| Go | 10 passed, 0 failed | linked | restricted-v2 | 115 s |
 
 Plain HTTP on the order-service Route answered `302` with a `Location` of the HTTPS URL, and
 Grafana's `/api/health` through its Route returned `"database": "ok"` with version 13.2.3.
@@ -489,4 +489,4 @@ on the recorded run; read the ReplicaSet's events if you try it.
 The manifests and scripts are in [`examples/05-event-driven/openshift/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/openshift/).
 
 ---
-*Verification status: verified — [`examples/05-event-driven/openshift/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/openshift/) passes 10/10 checks in each of the five languages on OpenShift Local 4.22.14 (crc 2.64.0, Kubernetes v1.35.6, AMQ Streams `amqstreams.v3.2.1-14`, Kafka 4.2.0, 2026-10-11), using the same `verify.sh` as compose with `RUNTIME=kubernetes` over HTTPS. Every pod ran under `restricted-v2`, Tempo held a trace with all three services for each language, and teardown left the cluster empty and stopped. The SCC rejection of a fixed root user ID was not exercised.*
+*Verification status: verified — [`examples/05-event-driven/openshift/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/openshift/) passes 10/10 checks in each of the five languages on OpenShift Local 4.22.14 (crc 2.64.0, Kubernetes v1.35.6, AMQ Streams `amqstreams.v3.2.1-14`, Kafka 4.2.0, 2026-10-13, on the code after the S13 and S14 refactors), using the same `verify.sh` as compose with `RUNTIME=kubernetes` over HTTPS. Every pod ran under `restricted-v2`, Tempo held a trace with all three services for each language, and teardown left the cluster empty and stopped. The SCC rejection of a fixed root user ID was not exercised.*

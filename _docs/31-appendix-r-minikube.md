@@ -226,12 +226,12 @@ caches warm). Time covers the image build and load, the deploy, the checks and t
 
 | Language | Result | Time |
 |----------|--------|------|
-| Spring Boot | 10 passed, 0 failed | 361 s |
-| Quarkus | 10 passed, 0 failed | 135 s |
-| .NET | 10 passed, 0 failed | 134 s |
-| Python | 10 passed, 0 failed | 116 s |
-| C++ | 10 passed, 0 failed | 103 s |
-| Go | 10 passed, 0 failed | 104 s |
+| Spring Boot | 10 passed, 0 failed | 180 s |
+| Quarkus | 10 passed, 0 failed | 146 s |
+| .NET | 10 passed, 0 failed | 141 s |
+| Python | 10 passed, 0 failed | 124 s |
+| C++ | 10 passed, 0 failed | 111 s |
+| Go | 10 passed, 0 failed | 107 s |
 
 Grafana answers on `http://127.0.0.1:30300` with anonymous access, as in compose. After each
 language's `verify.sh`, `verify-matrix.sh` asks Tempo, through the `lgtm` pod, which services it
@@ -274,4 +274,4 @@ consumer group resumes from its last committed offset.
 The manifests and scripts are in [`examples/05-event-driven/k8s/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/k8s/).
 
 ---
-*Verification status: verified — [`examples/05-event-driven/k8s/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/k8s/) passes 10/10 checks in each of the six languages on minikube v1.39.0 (Docker driver, containerd, Kubernetes v1.36.5, Strimzi 1.2.0, 2026-10-11), using the same `verify.sh` as compose with `RUNTIME=kubernetes`. The consumer scale-down and scale-up in the cross-check was run by hand and is not part of the script.*
+*Verification status: verified — [`examples/05-event-driven/k8s/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/k8s/) passes 10/10 checks in each of the six languages on minikube v1.39.0 (Docker driver, containerd, Kubernetes v1.36.5, Strimzi 1.2.0, 2026-10-13, on the code after the S13 and S14 refactors), using the same `verify.sh` as compose with `RUNTIME=kubernetes`. No pod restarted or was OOM-killed under the manifests' memory limits. The consumer scale-down and scale-up in the cross-check was run by hand and is not part of the script.*
