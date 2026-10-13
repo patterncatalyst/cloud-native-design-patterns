@@ -25,6 +25,27 @@ language; do not hand-roll what a maintained library provides.
   health service through Spring gRPC. Recommended no: compose healthchecks on gRPC-only services (needs a probe
   binary in each image; the callers' `/readyz` already gates).
 
+## Pins (Step 0, 2026-10-13)
+
+| Stack | Library | Version | Source |
+|---|---|---|---|
+| Spring Boot 4.1.1 | `io.github.resilience4j:resilience4j-spring-boot4` | 2.4.0 (built against Boot 4.0.0) | Maven Central |
+| Spring Boot 4.1.1 | `spring-boot-starter-aspectj` (the Boot 4 name of the AOP starter) | BOM 4.1.1 | Boot BOM |
+| Spring Boot 4.1.1 | `spring-boot-starter-grpc-server` / `-client` (Spring gRPC) | 1.1.1 via BOM 4.1.1 | Boot BOM |
+| Spring Boot 4.1.1 | `io.github.ascopes:protobuf-maven-plugin` | 5.1.8 via BOM 4.1.1 | Boot BOM |
+| Quarkus 3.40.1 | `quarkus-smallrye-fault-tolerance` | BOM 3.40.1 | Quarkus BOM |
+| .NET 10 | `Microsoft.Extensions.Http.Resilience` | 10.10.0 (Polly.Core 8.8.0) | NuGet |
+| .NET 10 | `Grpc.Net.ClientFactory` | 2.84.0 (matches Grpc.Net.Client) | NuGet |
+| Python 3.14 | `tenacity` | 9.2.1 | PyPI |
+| Python 3.14 | `purgatory` (asyncio circuit breaker) | 3.0.1 | PyPI |
+| Go 1.27 | `golang.org/x/sync` (semaphore) | v0.24.0 | Go proxy |
+| Go 1.27 | `github.com/sony/gobreaker/v2`, `github.com/cenkalti/backoff/v7` | v2.4.0, v7.0.1 (unchanged) | Go proxy |
+
+Rejected at Step 0: Spring Framework 7.0.9 `@ConcurrencyLimit` (documented as blocking, no reject policy, so it cannot
+give 429 at once) and `@Retryable` (no breaker); aiobreaker (no release since 2021); pybreaker (async only through
+Tornado). purgatory is asyncio-native and already in the Appendix M Python tab, but its last release is November 2024
+and the project is small: if it misbehaves on Python 3.14, wrap pybreaker's state machine by hand and record it.
+
 ## Inventory (baseline, from two read-only surveys on 6656c0a)
 
 **26-failure-modes** (edge 8080, backend 8081; endpoints `/with-timeout`, `/with-retry`, `/with-breaker`,
@@ -70,14 +91,13 @@ example has. Deck slides per language: bulkhead [085] (.NET [087]); Appendix M t
 ## Approach (per language)
 
 - **Spring Boot:** `io.github.resilience4j:resilience4j-spring-boot4` 2.4.0 (on Maven Central; Boot 4 starter) plus
-  the AOP starter it needs (Boot 4 artifact name checked at Step 0). 26: `@CircuitBreaker(name="backend", fallbackMethod=...)`,
+  `spring-boot-starter-aspectj` (the Boot 4 name of the AOP starter). 26: `@CircuitBreaker(name="backend", fallbackMethod=...)`,
   `@Retry`, `@TimeLimiter` or RestClient timeouts, `@Bulkhead(type=SEMAPHORE)`, all configured in
   `application.yaml` (COUNT_BASED window 5, `minimumNumberOfCalls` 5, `failureRateThreshold` 100,
   `waitDurationInOpenState` 10s, `permittedNumberOfCallsInHalfOpenState` 2); `/breaker-state` reads
   `CircuitBreakerRegistry`. 12: a `BulkheadRegistry` keyed by tenant (`maxWaitDuration` 0 → 429 at once). Spring
-  Framework 7's own `@Retryable` and `@ConcurrencyLimit` were considered: they have no circuit breaker, so 26 would
-  mix two mechanisms; Step 0 checks whether `@ConcurrencyLimit` can reject instead of wait before ruling it out
-  for 12.
+  Framework 7's own `@Retryable` and `@ConcurrencyLimit` were considered: they have no circuit breaker, and Step 0 found `@ConcurrencyLimit` documented as blocking only, so it cannot
+  give 429 at once in 12.
 - **Quarkus:** `quarkus-smallrye-fault-tolerance` (BOM 3.40.1). 26: `@CircuitBreaker` (requestVolumeThreshold 5,
   failureRatio 1.0, delay 10 s, successThreshold 2), `@Retry` + `@ExponentialBackoff`, `@Timeout`, `@Bulkhead`,
   `@Fallback`; state through `CircuitBreakerMaintenance`. 12: per-tenant bulkheads cannot be keyed by annotation, so
@@ -86,8 +106,7 @@ example has. Deck slides per language: bulkhead [085] (.NET [087]); Appendix M t
   `AddResilienceHandler` (retry, circuit breaker with `CircuitBreakerStateProvider`, timeout), bulkhead via
   `AddConcurrencyLimiter`. 12: the ASP.NET Core rate-limiting middleware (`AddRateLimiter` with a
   `PartitionedRateLimiter` concurrency limiter keyed by tenant, `RejectionStatusCode = 429`). Pins exact.
-- **Python:** tenacity for retry; for the breaker, purgatory (as in the prose) if it is maintained at Step 0,
-  otherwise aiobreaker; bulkheads stay `asyncio.Semaphore` (standard library) but reject at once and stop reading
+- **Python:** tenacity for retry; purgatory for the breaker (as in the prose; see Pins for the fallback); bulkheads stay `asyncio.Semaphore` (standard library) but reject at once and stop reading
   `_value`. Pins exact in `pyproject.toml` + `uv.lock`.
 - **Go:** keep gobreaker and backoff; gobreaker `MaxRequests` 2 to match the others; bulkheads via
   `golang.org/x/sync/semaphore` `TryAcquire` (12 per tenant, 26 global) returning 429; `/breaker-state` gains `name`.
@@ -116,7 +135,7 @@ Order inside a PR: Spring, Quarkus, .NET, Python, Go, C++, one example at a time
 
 | # | Step | PR | Status |
 |---|---|---|---|
-| 0 | Preflight: user decisions D1–D4 (done 2026-10-13); pins (resilience4j 2.4.0, SmallRye FT from the Quarkus BOM, Microsoft.Extensions.Http.Resilience, tenacity, purgatory/aiobreaker, x/sync); baseline matrix of 12, 26, 02, 03, 11, 18 on main | – | pending |
+| 0 | Preflight: user decisions D1–D4 (done 2026-10-13); pins (done, see Pins); baseline matrix of 12, 26, 02, 03, 11, 18 on main | – | pending |
 | 1 | Example 26 + verify.sh + Appendix M prose + decks | 1 | pending |
 | 2 | Example 12 bulkhead + verify.sh + chapter 12 prose + decks | 2 | pending |
 | 3 | Spring gRPC (+ .NET client factory) + gRPC prose and slide fixes | 3 | pending |
