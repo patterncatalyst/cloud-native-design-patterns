@@ -5,7 +5,7 @@ tier 3): "circuit breaker in 26, bulkhead in 12, Spring gRPC instead of manual N
 rewritten to teach each pattern through the library. Same rule as S13: prefer the idiomatic approach of each
 language; do not hand-roll what a maintained library provides.
 
-## Decisions for the user (defaults recommended; confirm or change before Step 1)
+## User decisions (2026-10-13: all four recommended defaults accepted; D4 without compose gRPC healthchecks)
 
 - **D1 contract changes in `verify.sh`.** Today neither 12 nor 26 tests saturation, and the languages disagree on what
   a full bulkhead does (JVM and C++ return 429, .NET, Python and Go block forever in 12; Go returns 503 in 26).
@@ -116,7 +116,7 @@ Order inside a PR: Spring, Quarkus, .NET, Python, Go, C++, one example at a time
 
 | # | Step | PR | Status |
 |---|---|---|---|
-| 0 | Preflight: user decisions D1–D4; pins (resilience4j 2.4.0, SmallRye FT from the Quarkus BOM, Microsoft.Extensions.Http.Resilience, tenacity, purgatory/aiobreaker, x/sync); baseline matrix of 12, 26, 02, 03, 11, 18 on main | – | pending |
+| 0 | Preflight: user decisions D1–D4 (done 2026-10-13); pins (resilience4j 2.4.0, SmallRye FT from the Quarkus BOM, Microsoft.Extensions.Http.Resilience, tenacity, purgatory/aiobreaker, x/sync); baseline matrix of 12, 26, 02, 03, 11, 18 on main | – | pending |
 | 1 | Example 26 + verify.sh + Appendix M prose + decks | 1 | pending |
 | 2 | Example 12 bulkhead + verify.sh + chapter 12 prose + decks | 2 | pending |
 | 3 | Spring gRPC (+ .NET client factory) + gRPC prose and slide fixes | 3 | pending |
