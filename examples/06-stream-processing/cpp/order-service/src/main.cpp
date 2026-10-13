@@ -3,6 +3,7 @@
 #include <libpq-fe.h>
 #include <atomic>
 #include <chrono>
+#include <cstdio>
 #include <thread>
 #include <csignal>
 #include <cstdlib>
@@ -131,6 +132,8 @@ bool publish_order_event(const std::string& order_json, std::function<void(const
 }
 
 int main() {
+    // docker logs reads a pipe: line-buffer stdout so LOG_* lines show up as they are written.
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
     std::signal(SIGTERM, signal_handler);
     std::signal(SIGINT, signal_handler);
 

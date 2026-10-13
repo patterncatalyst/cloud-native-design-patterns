@@ -1,9 +1,12 @@
 #include <drogon/drogon.h>
+#include <cstdio>
 #include <string>
 
 using namespace drogon;
 
 int main() {
+    // docker logs reads a pipe: line-buffer stdout so LOG_* lines show up as they are written.
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
     std::string version = std::getenv("APP_VERSION") ? std::getenv("APP_VERSION") : "v1";
 
     app().setLogLevel(trantor::Logger::kInfo);

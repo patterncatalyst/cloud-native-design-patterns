@@ -1,8 +1,8 @@
 #include <drogon/drogon.h>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <fstream>
-#include <iostream>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -48,6 +48,8 @@ static std::string load_script() {
 }
 
 int main() {
+    // docker logs reads a pipe: line-buffer stdout so LOG_* lines show up as they are written.
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
     auto rules = std::make_shared<RoutingRules>();
 
     std::shared_ptr<cndp::routing::RoutingEngine> engine;
@@ -55,7 +57,7 @@ int main() {
         // Compiles the script once at startup: a bad rules file stops the service here.
         engine = std::make_shared<cndp::routing::RoutingEngine>(load_script());
     } catch (const std::exception& e) {
-        std::cerr << "invalid rules script: " << e.what() << std::endl;
+        LOG_ERROR << "invalid rules script: " << e.what();
         return 1;
     }
 

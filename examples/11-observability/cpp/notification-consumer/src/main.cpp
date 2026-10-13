@@ -7,7 +7,6 @@
 #include <atomic>
 #include <chrono>
 #include <csignal>
-#include <iostream>
 #include <memory>
 #include <random>
 #include <string>
@@ -15,6 +14,7 @@
 
 #include <libpq-fe.h>
 #include <librdkafka/rdkafkacpp.h>
+#include <spdlog/spdlog.h>
 
 #include "telemetry.hpp"
 
@@ -71,7 +71,7 @@ int main() {
     const char* env = std::getenv("PG_CONNINFO");
     PGconn* pg = PQconnectdb(env ? env : "postgresql://appuser:apppass@postgres:5432/appdb");
     if (PQstatus(pg) != CONNECTION_OK) {
-        std::cerr << "Postgres failed: " << PQerrorMessage(pg) << std::endl;
+        spdlog::error("Postgres failed: {}", PQerrorMessage(pg));
         return 1;
     }
 
@@ -86,28 +86,28 @@ int main() {
         conf->set("group.id", "notification-group", err) != RdKafka::Conf::CONF_OK ||
         conf->set("auto.offset.reset", "earliest", err) != RdKafka::Conf::CONF_OK ||
         conf->set("enable.auto.commit", "false", err) != RdKafka::Conf::CONF_OK) {
-        std::cerr << "Kafka consumer config failed: " << err << std::endl;
+        spdlog::error("Kafka consumer config failed: {}", err);
         return 1;
     }
     std::unique_ptr<RdKafka::KafkaConsumer> consumer(RdKafka::KafkaConsumer::create(conf.get(), err));
     if (!consumer) {
-        std::cerr << "Kafka consumer init failed: " << err << std::endl;
+        spdlog::error("Kafka consumer init failed: {}", err);
         return 1;
     }
     if (auto rc = consumer->subscribe({"order.placed"}); rc != RdKafka::ERR_NO_ERROR) {
-        std::cerr << "subscribe failed: " << RdKafka::err2str(rc) << std::endl;
+        spdlog::error("subscribe failed: {}", RdKafka::err2str(rc));
         return 1;
     }
 
     auto tracer = cndp::telemetry::tracer("notification-consumer");
-    std::cerr << "notification-consumer started" << std::endl;
+    spdlog::info("notification-consumer started");
 
     while (!g_shutdown) {
         std::unique_ptr<RdKafka::Message> msg(consumer->consume(1000));
         if (msg->err() == RdKafka::ERR__TIMED_OUT || msg->err() == RdKafka::ERR__PARTITION_EOF) continue;
         if (msg->err() != RdKafka::ERR_NO_ERROR) {
             // unknown topic before the first order is created, transient broker errors, ...
-            std::cerr << "consume: " << msg->errstr() << std::endl;
+            spdlog::warn("consume: {}", msg->errstr());
             continue;
         }
 
@@ -145,15 +145,15 @@ int main() {
                 "INSERT INTO notifications (order_id, channel) VALUES ($1, 'email')",
                 1, nullptr, params, nullptr, nullptr, 0);
             if (PQresultStatus(res) == PGRES_COMMAND_OK) {
-                std::cerr << "notification sent order_id=" << order_id << std::endl;
+                spdlog::info("notification sent order_id={}", order_id);
                 done = true;
             } else {
                 const char* state = PQresultErrorField(res, PG_DIAG_SQLSTATE);
                 if (state && std::string(state) == "23505") {
-                    std::cerr << "duplicate skipped order_id=" << order_id << std::endl;
+                    spdlog::info("duplicate skipped order_id={}", order_id);
                     done = true;
                 } else {
-                    std::cerr << "insert failed, retrying: " << PQerrorMessage(pg) << std::endl;
+                    spdlog::warn("insert failed, retrying: {}", PQerrorMessage(pg));
                 }
             }
             PQclear(res);
@@ -164,12 +164,12 @@ int main() {
 
         // Commit only after the side effect.
         if (auto rc = consumer->commitSync(msg.get()); rc != RdKafka::ERR_NO_ERROR)
-            std::cerr << "commit failed: " << RdKafka::err2str(rc) << std::endl;
+            spdlog::error("commit failed: {}", RdKafka::err2str(rc));
     }
 
     consumer->close();
     PQfinish(pg);
     cndp::telemetry::shutdown();
-    std::cerr << "notification-consumer stopped" << std::endl;
+    spdlog::info("notification-consumer stopped");
     return 0;
 }

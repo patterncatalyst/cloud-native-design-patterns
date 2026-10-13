@@ -1,6 +1,7 @@
 #include <drogon/drogon.h>
 #include <libpq-fe.h>
 #include <json/json.h>
+#include <cstdio>
 #include <random>
 #include <sstream>
 #include <iomanip>
@@ -290,6 +291,8 @@ static void resumeRunningSagas() {
 }
 
 int main() {
+    // docker logs reads a pipe: line-buffer stdout so LOG_* lines show up as they are written.
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
     const char* dbUrl = std::getenv("DATABASE_URL");
     g_connStr = dbUrl ? dbUrl : "postgres://appuser:apppass@localhost:5432/appdb";
 

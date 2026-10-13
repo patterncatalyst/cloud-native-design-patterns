@@ -1,6 +1,7 @@
 #include <drogon/drogon.h>
 #include <librdkafka/rdkafkacpp.h>
 #include <libpq-fe.h>
+#include <cstdio>
 #include <random>
 #include <sstream>
 #include <iomanip>
@@ -107,6 +108,8 @@ void init_kafka() {
 }
 
 int main() {
+    // docker logs reads a pipe: line-buffer stdout so LOG_* lines show up as they are written.
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
     std::signal(SIGTERM, signal_handler);
     std::signal(SIGINT, signal_handler);
 

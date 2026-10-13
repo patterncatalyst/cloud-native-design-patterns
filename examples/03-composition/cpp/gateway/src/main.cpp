@@ -8,11 +8,11 @@
 // worker thread instead of on a Drogon event-loop thread.
 
 #include <condition_variable>
+#include <cstdio>
 #include <cstdlib>
 #include <deque>
 #include <functional>
 #include <mutex>
-#include <iostream>
 #include <memory>
 #include <set>
 #include <string>
@@ -131,6 +131,8 @@ private:
 }  // namespace
 
 int main() {
+    // docker logs reads a pipe: line-buffer stdout so LOG_* lines show up as they are written.
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
     auto channel = grpc::CreateChannel(env_or("INVENTORY_ADDR", "inventory:50051"),
                                        grpc::InsecureChannelCredentials());
     std::shared_ptr<inventory::Inventory::Stub> inventory_stub = inventory::Inventory::NewStub(channel);
@@ -144,12 +146,12 @@ int main() {
         grpc::ClientContext ctx;
         auto status = inventory_stub->GetStockBatch(&ctx, req, &reply);
         if (!status.ok()) {
-            std::cerr << "inventory GetStockBatch failed: " << status.error_message() << std::endl;
+            LOG_ERROR << "inventory GetStockBatch failed: " << status.error_message();
             return std::nullopt;
         }
         std::unordered_map<std::string, int> result;
         for (const auto& item : reply.items()) result[item.sku()] = item.available();
-        std::cerr << "DataLoader batched " << skus.size() << " skus in one gRPC call" << std::endl;
+        LOG_INFO << "DataLoader batched " << skus.size() << " skus in one gRPC call";
         return result;
     };
 
@@ -159,7 +161,7 @@ int main() {
     const auto workers = static_cast<std::size_t>(std::atoi(env_or("GATEWAY_WORKERS", "16")));
     auto pool = std::make_shared<WorkerPool>(workers > 0 ? workers : 16, 256);
 
-    std::cerr << "gateway started" << std::endl;
+    LOG_INFO << "gateway started";
 
     app().setLogLevel(trantor::Logger::kInfo);
     app().addListener("0.0.0.0", 8080);

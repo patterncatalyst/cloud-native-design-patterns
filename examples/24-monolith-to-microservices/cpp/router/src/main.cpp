@@ -1,7 +1,7 @@
 #include <drogon/drogon.h>
+#include <cstdio>
 #include <mutex>
 #include <unordered_map>
-#include <iostream>
 
 using namespace drogon;
 
@@ -47,6 +47,8 @@ static std::string resolve_upstream(const std::string& tenant) {
 }
 
 int main() {
+    // docker logs reads a pipe: line-buffer stdout so LOG_* lines show up as they are written.
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
     auto env_m = std::getenv("MONOLITH_URL");
     auto env_n = std::getenv("NEW_SERVICE_URL");
     g_service_urls["monolith"] = env_m ? env_m : "http://monolith:8080";
@@ -74,7 +76,7 @@ int main() {
                 tenant = (*body)["tenant"].asString();
             }
             std::string upstream = resolve_upstream(tenant);
-            std::cerr << "routing tenant=" << tenant << " to " << upstream << std::endl;
+            LOG_INFO << "routing tenant=" << tenant << " to " << upstream;
             forward_request(upstream, Post, "/orders", std::string(req->body()), std::move(cb));
         },
         {Post});
@@ -121,7 +123,7 @@ int main() {
                     g_default_service = (*body)["default"].asString();
                 }
             }
-            std::cerr << "rules updated" << std::endl;
+            LOG_INFO << "rules updated";
             Json::Value r;
             r["status"] = "updated";
             cb(HttpResponse::newHttpJsonResponse(r));

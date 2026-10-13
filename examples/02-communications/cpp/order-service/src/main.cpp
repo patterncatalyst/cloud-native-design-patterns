@@ -7,8 +7,8 @@
 //   cppgraphqlgen   GraphQL schema, generated resolvers (src/graphql/)
 //   rdkafka++       order.placed producer with delivery reports
 
+#include <cstdio>
 #include <cstdlib>
-#include <iostream>
 #include <memory>
 #include <random>
 #include <string>
@@ -59,12 +59,14 @@ const char* env_or(const char* name, const char* fallback) {
 }  // namespace
 
 int main() {
+    // docker logs reads a pipe: line-buffer stdout so LOG_* lines show up as they are written.
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
     std::shared_ptr<cndp::OrderRepo> repo;
     try {
         repo = std::make_shared<cndp::PgOrderRepo>(
             env_or("PG_CONNINFO", "host=postgres port=5432 dbname=appdb user=appuser password=apppass"));
     } catch (const std::exception& e) {
-        std::cerr << e.what() << std::endl;
+        LOG_ERROR << e.what();
         return 1;
     }
 
@@ -77,7 +79,7 @@ int main() {
         publisher = std::make_unique<cndp::OrderPublisher>(env_or("KAFKA_BOOTSTRAP", "kafka:9094"),
                                                            "order.placed");
     } catch (const std::exception& e) {
-        std::cerr << e.what() << std::endl;
+        LOG_ERROR << e.what();
         return 1;
     }
 
@@ -130,7 +132,7 @@ int main() {
             try {
                 repo->insert(order);
             } catch (const std::exception& e) {
-                std::cerr << "order insert failed: " << e.what() << std::endl;
+                LOG_ERROR << "order insert failed: " << e.what();
                 cb(status_only(k500InternalServerError));
                 return;
             }
@@ -139,7 +141,7 @@ int main() {
             wb["indentation"] = "";
             publisher->publish(Json::writeString(wb, to_json(order)));
 
-            std::cerr << "order created id=" << order.id << " status=" << order.status << std::endl;
+            LOG_INFO << "order created id=" << order.id << " status=" << order.status;
             auto resp = HttpResponse::newHttpJsonResponse(to_json(order));
             resp->setStatusCode(k201Created);
             cb(resp);
@@ -160,7 +162,7 @@ int main() {
             try {
                 orders = repo->list(limit, req->getParameter("after"));
             } catch (const std::exception& e) {
-                std::cerr << "order query failed: " << e.what() << std::endl;
+                LOG_ERROR << "order query failed: " << e.what();
                 cb(status_only(k500InternalServerError));
                 return;
             }

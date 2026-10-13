@@ -11,6 +11,7 @@
 #include <json/json.h>
 #include <atomic>
 #include <chrono>
+#include <cstdio>
 #include <mutex>
 #include <random>
 #include <string>
@@ -29,6 +30,8 @@ std::mt19937 gen(rd());
 std::uniform_int_distribution<> dist(0, 1);
 
 int main() {
+    // docker logs reads a pipe: line-buffer stdout so LOG_* lines show up as they are written.
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
     // Suppress upload directory warning
     app().setUploadPath("/tmp");
 

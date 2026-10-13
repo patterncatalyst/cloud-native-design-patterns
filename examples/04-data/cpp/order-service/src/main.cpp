@@ -1,5 +1,6 @@
 #include <drogon/drogon.h>
 #include <libpq-fe.h>
+#include <cstdio>
 #include <random>
 #include <iomanip>
 #include <sstream>
@@ -278,6 +279,8 @@ void signal_handler(int sig) {
 }
 
 int main() {
+    // docker logs reads a pipe: line-buffer stdout so LOG_* lines show up as they are written.
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
     // Set up custom signal handler
     app().registerBeginningAdvice([]() {
         std::signal(SIGTERM, signal_handler);

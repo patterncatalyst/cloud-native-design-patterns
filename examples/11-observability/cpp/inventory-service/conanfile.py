@@ -19,5 +19,7 @@ class Cndp11ObservabilityCppInventoryServiceConan(ConanFile):
         self.requires("grpc/1.84.0")
         self.requires("protobuf/6.33.5")
         self.requires("opentelemetry-cpp/1.26.0")
+        self.requires("spdlog/1.17.0")
         # opentelemetry-cpp pins nlohmann_json 3.11.3; take the newest release.
         self.requires("nlohmann_json/3.12.0", override=True)
+        self.requires("fmt/12.2.0", override=True)  # spdlog pins fmt 12.1.0
