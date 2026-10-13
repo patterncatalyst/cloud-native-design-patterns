@@ -1359,24 +1359,24 @@ p. 81
 
 ## [096] REFERENCES · The shoulders this stands on (sldId 351)
 
-- Cloud-Native Patterns and Architecture
 - Building Microservices, 2nd ed. — Sam Newman (O'Reilly)
 - Designing Data-Intensive Applications, 2nd ed. — Martin Kleppmann & Chris Riccomini (O'Reilly)
-- Building Event-Driven Microservices — Adam Bellemare (O'Reilly)
+- Building Event-Driven Microservices, 2nd ed. — Adam Bellemare (O'Reilly)
 - Cloud Native Patterns — Cornelia Davis (Manning)
 - Patterns of Distributed Systems — Unmesh Joshi (Addison-Wesley)
 - Architecture Modernization — Nick Tune & Jean-Georges Perrin (Manning)
-- Cloud Native Anti-Patterns — Gerald Bachlmayr
+- Cloud Native Anti-Patterns — Gerald Bachlmayr et al. (Packt)
 - Principles of Web API Design — James Higginbotham (Addison-Wesley)
 - Patterns for API Design — Olaf Zimmermann et al. (Addison-Wesley)
 - API Design Patterns — JJ Geewax (Manning)
 - Learning Domain-Driven Design — Vlad Khononov (O'Reilly)
 - Balancing Coupling in Software Design — Vlad Khononov (Addison-Wesley)
 - ASP.NET Core 10 reference (learn.microsoft.com/aspnet/core), OpenTelemetry .NET, Temporal .NET SDK (docs.temporal.io/dev-guide/dotnet), Confluent.Kafka, HotChocolate, Streamiz.Kafka.Net, EF Core and Debezium docs — for the runtime specifics
+- The full list, with publisher links: patterncatalyst.github.io/cloud-native-design-patterns/bibliography/
 
 p. 82
 
-> The reading list this talk stands on. Call out a couple of pairings: Newman's Building Microservices for the boundaries and integration story; Kleppmann's Designing Data-Intensive Applications for the data and consistency foundations behind the outbox and saga; Bellemare for the event-driven backbone; and the API-design trio (Higginbotham, Zimmermann et al., Geewax) for contract and versioning depth. The architecture books are language-agnostic — they apply whether you build on .NET, Java, Go, or anything else. The ASP.NET Core reference docs, OpenTelemetry .NET guides, Temporal .NET SDK docs and Debezium docs are the practical references for the runtime specifics shown in the code. The slides and these references are enough to build the system, not only to discuss it.
+> The reading list this talk stands on. Call out a couple of pairings: Newman's Building Microservices for the boundaries and integration story; Kleppmann's Designing Data-Intensive Applications for the data and consistency foundations behind the outbox and saga; Bellemare for the event-driven backbone; and the API-design trio (Higginbotham, Zimmermann et al., Geewax) for contract and versioning depth. The architecture books are language-agnostic — they apply whether you build on .NET, Java, Go, or anything else. The ASP.NET Core reference docs, OpenTelemetry .NET guides, Temporal .NET SDK docs and Debezium docs are the practical references for the runtime specifics shown in the code. The slides and these references are enough to build the system, not only to discuss it. The full list, with a publisher link for every title, is on the site's Bibliography page (patterncatalyst.github.io/cloud-native-design-patterns/bibliography/).
 
 ## [097] Thank you (sldId 352)
 
