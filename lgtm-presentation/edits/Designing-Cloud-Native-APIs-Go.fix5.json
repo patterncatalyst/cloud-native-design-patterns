@@ -1,0 +1,114 @@
+{
+ "ops": [
+  {
+   "op": "set_code",
+   "sldId": 492,
+   "lines": [
+    "// examples/26-failure-modes/go/edge-service/cmd/server/main.go (condensed excerpts)",
+    "// call2s is one backend call that gives up after 2 s; a 5xx comes back as a statusError.",
+    "func call2s(ctx context.Context) ([]byte, error) {",
+    "\tctx, cancel := context.WithTimeout(ctx, 2*time.Second)",
+    "\tdefer cancel()",
+    "\tcode, body, err := callBackend(ctx, nil)",
+    "\tif err != nil {",
+    "\t\treturn nil, err",
+    "\t}",
+    "\tif code >= 500 {",
+    "\t\treturn nil, statusError{code}",
+    "\t}",
+    "\treturn body, nil",
+    "}",
+    "",
+    "// /with-deadline: the remaining budget bounds the call and travels as X-Deadline-Ms.",
+    "remaining := budget - 50 // edge overhead",
+    "ctx, cancel := context.WithTimeout(r.Context(), time.Duration(remaining)*time.Millisecond)",
+    "defer cancel()",
+    "headers := map[string]string{\"X-Deadline-Ms\": strconv.Itoa(remaining)}",
+    "code, body, err := callBackend(ctx, headers)"
+   ],
+   "_why": "examples/26 on resilience libraries (S14): the code slide is an excerpt of the example",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 492,
+   "paragraphs": [
+    "Two layers, from examples/26, both on context. Every backend call runs under context.WithTimeout, so http.Client gives up after 2 seconds; the request context is the parent, so a client that disconnects also cancels the call. The deadline endpoint derives a context from the caller's remaining budget and sends the same number in the X-Deadline-Ms header, so the backend can refuse work it cannot finish."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_code",
+   "sldId": 494,
+   "lines": [
+    "// examples/26-failure-modes/go/edge-service/cmd/server/main.go (condensed excerpt)",
+    "// cenkalti/backoff v7: 100 ms doubling to 2 s, each wait randomised by up to 50%.",
+    "bo := backoff.NewExponentialBackOff()",
+    "bo.InitialInterval = 100 * time.Millisecond",
+    "bo.MaxInterval = 2 * time.Second",
+    "",
+    "var attempts int",
+    "body, err := backoff.Retry(r.Context(), func() ([]byte, error) {",
+    "\tattempts++",
+    "\treturn call2s(r.Context()) // a 5xx comes back as a statusError and is retried",
+    "}, backoff.WithBackOff(bo), backoff.WithMaxTries(3),",
+    "\tbackoff.WithMaxElapsedTime(15*time.Second))",
+    "",
+    "if err != nil {",
+    "\tif re := backoff.AsRetryError(err); re != nil {",
+    "\t\terr = re.LastErr // the failure the caller cares about, not the stop reason",
+    "\t}",
+    "}"
+   ],
+   "_why": "examples/26 on resilience libraries (S14): the code slide is an excerpt of the example",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 494,
+   "paragraphs": [
+    "cenkalti/backoff v7: backoff.Retry calls the function until it succeeds, the tries run out, the elapsed-time cap passes or the request context ends. The exponential policy starts at 100 ms, doubles up to 2 seconds and randomises each wait by up to half. When it gives up, AsRetryError exposes the last real error rather than the stop reason. Retry only idempotent calls, and pair the retry with a circuit breaker."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_code",
+   "sldId": 496,
+   "lines": [
+    "// examples/26-failure-modes/go/edge-service/cmd/server/main.go (condensed excerpts)",
+    "// sony/gobreaker v2: 5 failures in a row open it for 10 s; 2 trial successes close it.",
+    "cb = gobreaker.NewCircuitBreaker[[]byte](gobreaker.Settings{",
+    "\tName:        \"backend\",",
+    "\tMaxRequests: 2,",
+    "\tTimeout:     10 * time.Second,",
+    "\tReadyToTrip: func(counts gobreaker.Counts) bool {",
+    "\t\treturn counts.ConsecutiveFailures >= 5",
+    "\t},",
+    "})",
+    "// handleBreaker: success answers live; otherwise the fallback says why",
+    "body, err := cb.Execute(func() ([]byte, error) { return call2s(r.Context()) })",
+    "reason := \"upstream_unreachable\"",
+    "if errors.Is(err, gobreaker.ErrOpenState) || errors.Is(err, gobreaker.ErrTooManyRequests) {",
+    "\treason = \"circuit_open\" // the backend was not called",
+    "} else if se, ok := errors.AsType[statusError](err); ok {",
+    "\treason = fmt.Sprintf(\"upstream_%d\", se.code)",
+    "}",
+    "writeJSON(w, 200, map[string]any{\"source\": \"fallback\", \"reason\": reason,",
+    "\t\"breaker\": cb.State().String()})"
+   ],
+   "_why": "examples/26 on resilience libraries (S14): the code slide is an excerpt of the example",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 496,
+   "paragraphs": [
+    "sony/gobreaker v2 with generics: ReadyToTrip opens the breaker after five consecutive failures, Timeout keeps it open for ten seconds, and MaxRequests lets two trial calls through in half-open, both of which must succeed to close it. Execute returns ErrOpenState or ErrTooManyRequests without calling the backend, and the handler answers from its fallback with the reason; errors.AsType picks out the upstream status. One breaker per dependency."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  }
+ ]
+}
