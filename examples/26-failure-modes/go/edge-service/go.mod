@@ -5,4 +5,5 @@ go 1.27.2
 require (
 	github.com/cenkalti/backoff/v7 v7.0.1
 	github.com/sony/gobreaker/v2 v2.4.0
+	golang.org/x/sync v0.24.0
 )

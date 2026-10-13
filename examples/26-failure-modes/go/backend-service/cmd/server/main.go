@@ -48,15 +48,14 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]any{"mode": m, "call_count": callCount.Load()})
 	})
 
-	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /process", func(w http.ResponseWriter, r *http.Request) {
 		callCount.Add(1)
 
-		if dl := r.Header.Get("X-Deadline-Remaining"); dl != "" {
+		if dl := r.Header.Get("X-Deadline-Ms"); dl != "" {
 			ms, _ := strconv.Atoi(dl)
 			if ms > 0 && ms < 100 {
 				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(422)
-				json.NewEncoder(w).Encode(map[string]any{"error": "deadline_too_small", "remaining_ms": ms})
+				json.NewEncoder(w).Encode(map[string]any{"status": "rejected", "reason": "deadline_too_small", "remaining_ms": ms})
 				return
 			}
 		}
