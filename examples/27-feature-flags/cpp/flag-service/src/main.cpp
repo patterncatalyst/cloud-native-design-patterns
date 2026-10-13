@@ -6,6 +6,7 @@
 #include <google/protobuf/struct.pb.h>
 #include "schema.pb.h"
 #include <chrono>
+#include <cstdio>
 #include <memory>
 #include <string>
 
@@ -65,6 +66,8 @@ private:
 };
 
 int main() {
+    // docker logs reads a pipe: line-buffer stdout so LOG_* lines show up as they are written.
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
     std::string flagdHost = std::getenv("FLAGD_HOST") ? std::getenv("FLAGD_HOST") : "flagd";
     int flagdPort = std::getenv("FLAGD_PORT") ? std::stoi(std::getenv("FLAGD_PORT")) : 8013;
 

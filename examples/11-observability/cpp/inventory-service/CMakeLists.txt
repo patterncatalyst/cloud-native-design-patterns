@@ -17,6 +17,7 @@ set(CMAKE_CXX_LINK_EXECUTABLE
 find_package(gRPC CONFIG REQUIRED)
 find_package(protobuf CONFIG REQUIRED)
 find_package(opentelemetry-cpp CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
 find_package(Threads REQUIRED)
 
 set(PROTO_FILE ${CMAKE_CURRENT_SOURCE_DIR}/proto/inventory.proto)
@@ -41,4 +42,4 @@ add_executable(inventory-service
     ${PROTO_OUT}/inventory.grpc.pb.cc)
 target_include_directories(inventory-service PRIVATE ${PROTO_OUT} src)
 target_link_libraries(inventory-service PRIVATE
-    gRPC::grpc++ protobuf::protobuf opentelemetry-cpp::opentelemetry-cpp Threads::Threads)
+    gRPC::grpc++ protobuf::protobuf opentelemetry-cpp::opentelemetry-cpp spdlog::spdlog Threads::Threads)

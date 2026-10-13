@@ -1,0 +1,112 @@
+{
+ "ops": [
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    467
+   ],
+   "expect": 1,
+   "find": "ASP.NET Core 10 + IHttpClientFactory + IDistributedCache + StackExchange.Redis + Confluent.Kafka + FusionCache",
+   "repl": "ASP.NET Core 10 + typed HttpClients (IHttpClientFactory) + StackExchange.Redis + Confluent.Kafka",
+   "_why": "examples/24 dotnet references only Confluent.Kafka and StackExchange.Redis; no FusionCache or IDistributedCache",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    479
+   ],
+   "expect": 1,
+   "find": "Code uses IDistributedCache (Microsoft.Extensions.Caching.StackExchangeRedis) for the standard patterns, IConnectionMultiplexer (StackExchange.Redis) for advanced operations, and FusionCache for the read-through / declarative pattern.",
+   "repl": "Code uses IDistributedCache (Microsoft.Extensions.Caching.StackExchangeRedis) for the standard patterns, IConnectionMultiplexer (StackExchange.Redis) for advanced operations, and HybridCache (Microsoft.Extensions.Caching.Hybrid) for the read-through pattern.",
+   "_why": "examples/25 reads through HybridCache.GetOrCreateAsync; FusionCache stays only where it adds what HybridCache lacks",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    487
+   ],
+   "expect": 1,
+   "find": "Pair with cache-aside or FusionCache.GetOrSetAsync on the read side.",
+   "repl": "Pair with cache-aside or HybridCache.GetOrCreateAsync on the read side.",
+   "_why": "examples/25 reads through HybridCache.GetOrCreateAsync; FusionCache stays only where it adds what HybridCache lacks",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    493
+   ],
+   "expect": 1,
+   "find": "or FusionCache (built-in stampede protection)",
+   "repl": "or HybridCache (collapses concurrent misses per Pod)",
+   "_why": "examples/25 reads through HybridCache.GetOrCreateAsync; FusionCache stays only where it adds what HybridCache lacks",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    493
+   ],
+   "expect": 1,
+   "find": "FusionCache solves this out of the box, otherwise use DistributedLock.NET.",
+   "repl": "HybridCache collapses concurrent misses within each Pod out of the box; across Pods, use DistributedLock.NET.",
+   "_why": "examples/25 reads through HybridCache.GetOrCreateAsync; FusionCache stays only where it adds what HybridCache lacks",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    494
+   ],
+   "expect": 1,
+   "find": "Read-through (FusionCache.GetOrSetAsync) — use when the read path is repetitive and you want declarative caching with built-in stampede protection. Like HybridCache (.NET 9), but with fail-safe and stampede protection built in.",
+   "repl": "Read-through (HybridCache.GetOrCreateAsync) — use when the read path is repetitive and you want declarative caching with built-in stampede protection. FusionCache adds fail-safe stale fallback and eager refresh.",
+   "_why": "examples/25 reads through HybridCache.GetOrCreateAsync; FusionCache stays only where it adds what HybridCache lacks; HybridCache does have stampede protection",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    494
+   ],
+   "expect": 1,
+   "find": "Write-through (FusionCache.SetAsync or IDistributedCache.SetStringAsync)",
+   "repl": "Write-through (HybridCache.SetAsync or IDistributedCache.SetStringAsync)",
+   "_why": "examples/25 reads through HybridCache.GetOrCreateAsync; FusionCache stays only where it adds what HybridCache lacks",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    494
+   ],
+   "expect": 1,
+   "find": "Most production ASP.NET Core systems use FusionCache for 95% of cases (it gets you read-through + stampede protection + eager-refresh in one library), with IDistributedCache directly where you need full control.",
+   "repl": "HybridCache is the in-box default for read-through with stampede protection; FusionCache adds fail-safe, eager refresh and a backplane; use IDistributedCache directly where you need full control.",
+   "_why": "examples/25 reads through HybridCache.GetOrCreateAsync; FusionCache stays only where it adds what HybridCache lacks; the 95% figure had no source",
+   "_src": "s13"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    494
+   ],
+   "expect": 1,
+   "find": "Decision rules to leave audience with. FusionCache + IDistributedCache is the default modern stack: read-through with stampede protection via GetOrSetAsync, write-through via SetAsync, eager-refresh built in. Drop to IDistributedCache directly when you want full control. Write-around for telemetry. Write-back is the niche extreme-throughput pattern. The bold final line is the take-home: don't pick one pattern as 'the' cache strategy. FusionCache for 95% of cases is the modern default; everything else is a specialization.",
+   "repl": "Decision rules. HybridCache over the Redis IDistributedCache is the in-box stack: read-through with stampede protection via GetOrCreateAsync, write-through via SetAsync. FusionCache is the alternative when you need fail-safe stale fallback, eager refresh or a backplane for multi-Pod L1 invalidation. Drop to IDistributedCache directly when you want full control. Write-around for telemetry. Write-back is the niche extreme-throughput pattern. The bold final line is the take-home: don't pick one pattern as 'the' cache strategy; choose per read path.",
+   "_why": "examples/25 reads through HybridCache.GetOrCreateAsync; FusionCache stays only where it adds what HybridCache lacks",
+   "_src": "s13"
+  }
+ ]
+}

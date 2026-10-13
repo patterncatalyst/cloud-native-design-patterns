@@ -97,10 +97,10 @@ compatibility). Python: uv 0.13.0, `astral-sh/setup-uv` v10.3.0; package version
 | 3 | Quarkus batch (about 26 projects) + site tabs + `Quarkus.fix5.json` | 2 | done; matrix 2026-10-12: 23/23 PASS (Quarkus plus 24 in all languages) after three fixes (JSONB format mapper, 19 422 status, `-parameters`) |
 | 4 | Spring batch (about 26) + site tabs + `Spring.fix6.json` | 3 | done; matrix 2026-10-12: 18/18 Spring Boot PASS |
 | 5 | .NET batch (about 28) + site tabs + `DotNet.fix6.json` | 4 | done; matrix 2026-10-12: 19/19 .NET PASS |
-| 6 | Go (`any`) and C++ (spdlog) + any deck/site follow-ups | 5 | pending |
-| 7 | Final full matrix (111 targets, one at a time), footers with verified counts | 5 | pending |
-| 8 | CLAUDE.md locked stacks (ORMs, health, shutdown, uv, schema ownership), modernization plan | 5 | pending |
-| 9 | Opus validation per PR (re-scan, checklist sample, `db/init` unchanged, three CI checks green) | each | pending |
+| 6 | Go (`any`) and C++ (spdlog) + any deck/site follow-ups | 5 | done: Go `any` in 27; C++ Drogon services on `LOG_*` with stdout line-buffered, gRPC inventories and consumers on spdlog 1.17.0 (locks extended with `--lockfile-partial`); `DotNet.fix7.json` (HybridCache, not FusionCache, as the read-through default) |
+| 7 | Final full matrix (111 targets, one at a time), footers with verified counts | 5 | done: 111/111 PASS 2026-10-12; 20 footers re-dated, counts unchanged |
+| 8 | CLAUDE.md locked stacks (ORMs, health, shutdown, uv, schema ownership), modernization plan | 5 | done |
+| 9 | Opus validation per PR (re-scan, checklist sample, `db/init` unchanged, three CI checks green) | each | done: criteria 2-5 by grep, `db/init` unchanged since the plan commit, three checks green on PRs 73-76 |
 
 Order inside a batch: 01, 21, 04, 05, 17, 19, 25, then the health-only examples. Run `scripts/verify-matrix.sh NN-x/<lang>`
 after each example (Docker runs strictly one at a time). Decks follow the S12 method (edit files applied once,
@@ -136,3 +136,9 @@ asserts; Spring lifecycle phase versus `WebServerGracefulShutdownLifecycle`; Hib
 and Kafka payload drift (DTOs only, compare with kcat); idempotent consumers under JPA/EF rollback; Hibernate/EF memory
 and start time against compose `--wait` and the 05 k8s limits; deck `expect` counts (measure on committed decks);
 Python lock drift (diff `uv export` against the old pins); long matrix runs.
+
+## Not re-run
+
+Example 05 on minikube (Appendix R) and OpenShift Local (Appendix S) was not repeated after S13 (D7). Its
+Quarkus, Spring Boot and .NET services changed (ORMs, health endpoints), so those two footers describe the
+pre-S13 code; the deploy scripts accept the new `"UP"` health bodies.

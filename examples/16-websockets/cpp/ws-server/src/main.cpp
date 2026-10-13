@@ -1,13 +1,13 @@
 #include <drogon/drogon.h>
 #include <drogon/WebSocketController.h>
 #include <sw/redis++/redis++.h>
+#include <cstdio>
 #include <mutex>
 #include <unordered_map>
 #include <deque>
 #include <thread>
 #include <atomic>
 #include <csignal>
-#include <iostream>
 
 using namespace drogon;
 
@@ -97,7 +97,7 @@ static void redis_subscriber_loop() {
             }
         }
     } catch (const std::exception& e) {
-        std::cerr << "Redis subscriber error: " << e.what() << std::endl;
+        LOG_ERROR << "Redis subscriber error: " << e.what();
     }
 }
 
@@ -135,7 +135,7 @@ public:
             g_clients[client_id] = {conn, 0, {}};
         }
 
-        std::cerr << "client connected id=" << client_id << " pod=" << g_pod_name << std::endl;
+        LOG_INFO << "client connected id=" << client_id << " pod=" << g_pod_name;
     }
 
     void handleConnectionClosed(const WebSocketConnectionPtr& conn) override {
@@ -144,7 +144,7 @@ public:
 
         std::lock_guard<std::mutex> lock(g_clients_mu);
         g_clients.erase(*ctx);
-        std::cerr << "client disconnected id=" << *ctx << " pod=" << g_pod_name << std::endl;
+        LOG_INFO << "client disconnected id=" << *ctx << " pod=" << g_pod_name;
     }
 
     WS_PATH_LIST_BEGIN
@@ -153,6 +153,8 @@ public:
 };
 
 int main() {
+    // docker logs reads a pipe: line-buffer stdout so LOG_* lines show up as they are written.
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
     std::signal(SIGTERM, signal_handler);
     std::signal(SIGINT, signal_handler);
 
@@ -234,7 +236,7 @@ int main() {
             try {
                 g_redis->publish("ws:broadcast", pub_msg);
             } catch (const std::exception& e) {
-                std::cerr << "Redis publish error: " << e.what() << std::endl;
+                LOG_ERROR << "Redis publish error: " << e.what();
             }
 
             if (!target.empty()) {
@@ -250,7 +252,7 @@ int main() {
         },
         {Post});
 
-    std::cerr << "ws-server started pod=" << g_pod_name << std::endl;
+    LOG_INFO << "ws-server started pod=" << g_pod_name;
     app().run();
 
     g_shutdown = true;

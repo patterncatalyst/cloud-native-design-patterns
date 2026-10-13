@@ -163,6 +163,27 @@ Do not use `gh cache delete --all`: it also removes the entries the current poli
   images `ubi9/dotnet-100:9.8-1791421718` and `ubi9/dotnet-100-aspnet:9.8-1791363520`, held on
   ubi9 because Red Hat publishes no ubi10 .NET image; every NuGet package pinned exactly); Python (FastAPI, **aiokafka**, **faust-streaming** for
   stateful processing, grpcio).
+- **Idiomatic framework features (S13; do not hand-roll what the framework provides):**
+  - Schema: `db/init` owns every schema. Hibernate runs `validate`; EF Core has no migrations and no
+    `EnsureCreated`. HTTP responses are DTOs, never serialized entities.
+  - Quarkus: Hibernate ORM with Panache (JSONB via `@JdbcTypeCode(SqlTypes.JSON)` plus
+    `quarkus.hibernate-orm.mapping.format.global=ignore`); SmallRye Health on `/healthz` and `/readyz`;
+    `quarkus.shutdown.delay` for draining; REST Client, never `java.net.http`; `@RestPath`/`@RestQuery`/`@RestHeader`
+    with `<parameters>true</parameters>` in the compiler plugin (a REST client is not registered without it);
+    `@ServerExceptionMapper`.
+  - Spring Boot: Spring Data JPA (`open-in-view=false`); Actuator health groups on `/healthz` and `/readyz`;
+    `server.shutdown=graceful` plus a `SmartLifecycle` drain bean; `ProblemDetail`; Spring Kafka JSON serdes;
+    `RestClient`; Spring Cache for read-through only.
+  - .NET: EF Core `DbContext`; `AddHealthChecks` + `MapHealthChecks`; `IHostedLifecycleService` for draining;
+    `BackgroundService` for consumers and workers; IConfiguration/Options; typed `AddHttpClient`;
+    `AddProblemDetails`; `ILogger`; HybridCache for read-through only.
+  - Python: uv with `pyproject.toml` and a committed `uv.lock`; pydantic-settings for configuration.
+  - Caching (25): the framework cache serves read-through only; the other strategies keep explicit Redis
+    clients so they can report `"source"` and survive a Redis outage.
+  - Go: `any`, not `interface{}` (generated `*.pb.go` files excepted). C++ logging: Drogon services use
+    Drogon's `LOG_*`; services without Drogon use spdlog. `std::cout`/`std::cerr` only for CLI and test output.
+    Adding a Conan dependency to an existing lock uses `conan lock create --lockfile=conan.lock
+    --lockfile-partial`, so the other pins stay.
 
 ## House test tools (prefer these; don't introduce alternatives)
 

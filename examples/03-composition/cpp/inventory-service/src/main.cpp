@@ -1,7 +1,8 @@
+#include <fmt/ranges.h>
 #include <grpcpp/grpcpp.h>
+#include <spdlog/spdlog.h>
 #include "inventory.grpc.pb.h"
 #include <unordered_map>
-#include <iostream>
 #include <atomic>
 
 static std::unordered_map<std::string, int> g_stock = {
@@ -21,9 +22,7 @@ class InventoryServiceImpl final : public inventory::Inventory::Service {
         int available = (it != g_stock.end()) ? it->second : 0;
         reply->set_sku(req->sku());
         reply->set_available(available);
-        std::cerr << "GetStock sku=" << req->sku()
-                  << " available=" << available
-                  << " (call #" << count << ")" << std::endl;
+        spdlog::info("GetStock sku={} available={} (call #{})", req->sku(), available, count);
         return grpc::Status::OK;
     }
 
@@ -37,12 +36,7 @@ class InventoryServiceImpl final : public inventory::Inventory::Service {
             auto it = g_stock.find(sku);
             item->set_available((it != g_stock.end()) ? it->second : 0);
         }
-        std::cerr << "GetStockBatch skus=[";
-        for (int i = 0; i < req->skus_size(); i++) {
-            if (i > 0) std::cerr << ", ";
-            std::cerr << req->skus(i);
-        }
-        std::cerr << "] (call #" << count << ")" << std::endl;
+        spdlog::info("GetStockBatch skus=[{}] (call #{})", fmt::join(req->skus(), ", "), count);
         return grpc::Status::OK;
     }
 };
@@ -54,7 +48,7 @@ int main() {
     builder.AddListeningPort(addr, grpc::InsecureServerCredentials());
     builder.RegisterService(&service);
     auto server = builder.BuildAndStart();
-    std::cerr << "inventory gRPC server listening on " << addr << std::endl;
+    spdlog::info("inventory gRPC server listening on {}", addr);
     server->Wait();
     return 0;
 }

@@ -328,5 +328,5 @@ inverses over only the completed steps, plus a clean resume, shows the saga
 works.
 
 ---
-*Verification status: verified — [`examples/17-sagas/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/17-sagas/) passes 11/11 checks in each of the six languages on Docker Engine (2026-10-10)
+*Verification status: verified — [`examples/17-sagas/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/17-sagas/) passes 11/11 checks in each of the six languages on Docker Engine (2026-10-12)
 (orchestrated saga happy path, compensation in reverse order on failure, skipped compensation for steps that never completed, resume of a RUNNING saga after an orchestrator restart).*

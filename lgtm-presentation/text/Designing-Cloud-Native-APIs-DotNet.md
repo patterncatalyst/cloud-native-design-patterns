@@ -3162,7 +3162,7 @@ K
 
 Patterns that survive the migration with the system still running.
 
-> Appendix K covers the migration patterns. The thesis: you don't decompose a monolith by stopping it and rewriting; you decompose it incrementally, one bounded asset at a time, with the system serving users the whole way through. We'll walk through the monolith as the starting point, modular monoliths as a frequently-correct destination, the strangler-fig family for progressive extraction, content-based routing for fine-grained cutover, and the decorating collaborator for wrapping legacy code you can't touch. Code in this appendix uses ASP.NET Core 10 + IHttpClientFactory + IDistributedCache + StackExchange.Redis + Confluent.Kafka + FusionCache, but the patterns are language-neutral.
+> Appendix K covers the migration patterns. The thesis: you don't decompose a monolith by stopping it and rewriting; you decompose it incrementally, one bounded asset at a time, with the system serving users the whole way through. We'll walk through the monolith as the starting point, modular monoliths as a frequently-correct destination, the strangler-fig family for progressive extraction, content-based routing for fine-grained cutover, and the decorating collaborator for wrapping legacy code you can't touch. Code in this appendix uses ASP.NET Core 10 + typed HttpClients (IHttpClientFactory) + StackExchange.Redis + Confluent.Kafka, but the patterns are language-neutral.
 
 ## [213] APPENDIX K · MONOLITH · A monolith is a unit of deployment (sldId 468)
 
@@ -3331,7 +3331,7 @@ L
 
 Six patterns for keeping a cache useful and your data correct.
 
-> Appendix L is the caching reference. Five reasons to cache and six patterns to do it well. The patterns differ in who reads/writes the cache, when, and who owns the consistency story. We use Redis as the canonical cache because it's the default open-source choice on Kubernetes — same patterns apply to in-memory caches or any KV store. Code uses IDistributedCache (Microsoft.Extensions.Caching.StackExchangeRedis) for the standard patterns, IConnectionMultiplexer (StackExchange.Redis) for advanced operations, and FusionCache for the read-through / declarative pattern.
+> Appendix L is the caching reference. Five reasons to cache and six patterns to do it well. The patterns differ in who reads/writes the cache, when, and who owns the consistency story. We use Redis as the canonical cache because it's the default open-source choice on Kubernetes — same patterns apply to in-memory caches or any KV store. Code uses IDistributedCache (Microsoft.Extensions.Caching.StackExchangeRedis) for the standard patterns, IConnectionMultiplexer (StackExchange.Redis) for advanced operations, and HybridCache (Microsoft.Extensions.Caching.Hybrid) for the read-through pattern.
 
 ## [225] APPENDIX L · WHY CACHE · Five things a cache earns you (sldId 480)
 
@@ -3473,7 +3473,7 @@ Writes go to the DB only. The next read populates the cache lazily. Good for wri
 
 p. 205
 
-> When data is written far more often than it's read (audit logs, event records, telemetry), caching every write is wasteful: most cached entries expire before being read again. Write-around solves this: write the DB, leave the cache alone. The next reader pays the cache-miss cost and populates the cache. Pros: no cache pollution by write-only data. Cons: the first read after every write is slow (cache miss); reads of recently-written data are slower than under cache-aside. Pair with cache-aside or FusionCache.GetOrSetAsync on the read side. Common use: any 'append-only' or 'mostly-written' workload — audit entries, IoT telemetry.
+> When data is written far more often than it's read (audit logs, event records, telemetry), caching every write is wasteful: most cached entries expire before being read again. Write-around solves this: write the DB, leave the cache alone. The next reader pays the cache-miss cost and populates the cache. Pros: no cache pollution by write-only data. Cons: the first read after every write is slow (cache miss); reads of recently-written data are slower than under cache-aside. Pair with cache-aside or HybridCache.GetOrCreateAsync on the read side. Common use: any 'append-only' or 'mostly-written' workload — audit entries, IoT telemetry.
 
 ## [233] APPENDIX L · WRITE-AROUND · Write-around in ASP.NET Core (sldId 488)
 
@@ -3608,27 +3608,27 @@ p. 210
 - Don't cache by default. Caching adds a consistency story, an invalidation story, and a failure-mode story. If reads are already fast, just don't add a cache — the cheapest cache is no cache.
 - Don't cache rarely-read data. Caching write-once-read-never data thrashes your cache and gains nothing. Profile read patterns first — OpenTelemetry's cache metrics give you hit/miss ratios per cache.
 - Don't cache without a TTL. Unbounded caches grow until they evict at random, which gives you the worst type of failure: unpredictable. Always set explicit AbsoluteExpirationRelativeToNow or maxmemory-policy on Redis (allkeys-lru typical).
-- Avoid cache stampedes (thundering herd): when a hot key expires and many concurrent ASP.NET Core Pods all miss at once, they all hit the DB. Mitigate with DistributedLock.NET per-key locks, or FusionCache (built-in stampede protection), or refresh-ahead, or jittered TTLs.
+- Avoid cache stampedes (thundering herd): when a hot key expires and many concurrent ASP.NET Core Pods all miss at once, they all hit the DB. Mitigate with DistributedLock.NET per-key locks, or HybridCache (collapses concurrent misses per Pod), or refresh-ahead, or jittered TTLs.
 - Watch for cache aside + write-around without invalidation — the write goes to the DB, but a stale cached value can persist for the full TTL. Always RemoveAsync on writes, or use a short TTL.
 - Treat the cache as a performance optimisation, never as the source of truth. A Redis outage must mean slower reads, not data loss — always have an EF Core fallback path. Test this by stopping Redis in staging.
 
 p. 211
 
-> Six things that go wrong with caching. The first point is the most important: caching is a complexity tax, only worth paying when reads hurt. The second is the profile-first rule. The third is operational. The fourth is the cache stampede problem — FusionCache solves this out of the box, otherwise use DistributedLock.NET. The fifth is the most common stale-data bug. The bold final line is the architecturally important one: the cache is never the source of truth. If Redis dies, you must serve slower reads, not return errors. Test this by killing Redis in staging.
+> Six things that go wrong with caching. The first point is the most important: caching is a complexity tax, only worth paying when reads hurt. The second is the profile-first rule. The third is operational. The fourth is the cache stampede problem — HybridCache collapses concurrent misses within each Pod out of the box; across Pods, use DistributedLock.NET. The fifth is the most common stale-data bug. The bold final line is the architecturally important one: the cache is never the source of truth. If Redis dies, you must serve slower reads, not return errors. Test this by killing Redis in staging.
 
 ## [239] APPENDIX L · DECISIONS · Choosing the right caching pattern (sldId 494)
 
 - Cache-aside — the default. Use when you want explicit control and reads dominate writes.
-- Read-through (FusionCache.GetOrSetAsync) — use when the read path is repetitive and you want declarative caching with built-in stampede protection. Like HybridCache (.NET 9), but with fail-safe and stampede protection built in.
-- Write-through (FusionCache.SetAsync or IDistributedCache.SetStringAsync) — use when zero stale-read risk after a write matters more than write latency.
+- Read-through (HybridCache.GetOrCreateAsync) — use when the read path is repetitive and you want declarative caching with built-in stampede protection. FusionCache adds fail-safe stale fallback and eager refresh.
+- Write-through (HybridCache.SetAsync or IDistributedCache.SetStringAsync) — use when zero stale-read risk after a write matters more than write latency.
 - Write-around — use when writes far outnumber re-reads. Avoids cache pollution by write-once data.
 - Write-back (BackgroundService + dirty-set) — use only when extreme write throughput is the constraint and eventual durability is acceptable.
 - Refresh-ahead (FusionCache eager-refresh, or BackgroundService) — use when a small set of hot keys serves most traffic and miss latency is unacceptable.
-- Most production ASP.NET Core systems use FusionCache for 95% of cases (it gets you read-through + stampede protection + eager-refresh in one library), with IDistributedCache directly where you need full control. Mix patterns; don't pick one as the rule.
+- HybridCache is the in-box default for read-through with stampede protection; FusionCache adds fail-safe, eager refresh and a backplane; use IDistributedCache directly where you need full control. Mix patterns; don't pick one as the rule.
 
 p. 212
 
-> Decision rules to leave audience with. FusionCache + IDistributedCache is the default modern stack: read-through with stampede protection via GetOrSetAsync, write-through via SetAsync, eager-refresh built in. Drop to IDistributedCache directly when you want full control. Write-around for telemetry. Write-back is the niche extreme-throughput pattern. The bold final line is the take-home: don't pick one pattern as 'the' cache strategy. FusionCache for 95% of cases is the modern default; everything else is a specialization.
+> Decision rules. HybridCache over the Redis IDistributedCache is the in-box stack: read-through with stampede protection via GetOrCreateAsync, write-through via SetAsync. FusionCache is the alternative when you need fail-safe stale fallback, eager refresh or a backplane for multi-Pod L1 invalidation. Drop to IDistributedCache directly when you want full control. Write-around for telemetry. Write-back is the niche extreme-throughput pattern. The bold final line is the take-home: don't pick one pattern as 'the' cache strategy; choose per read path.
 
 ## [240] Appendix M · Failure modes (sldId 495)
 

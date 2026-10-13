@@ -15,6 +15,7 @@ set(CMAKE_CXX_LINK_EXECUTABLE
 
 find_package(gRPC CONFIG REQUIRED)
 find_package(protobuf CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
 find_package(Threads REQUIRED)
 
 set(PROTO_SRC "${CMAKE_SOURCE_DIR}/../proto/inventory.proto")
@@ -42,4 +43,5 @@ target_include_directories(inventory-service PRIVATE ${PROTO_OUT})
 target_link_libraries(inventory-service PRIVATE
     gRPC::grpc++
     protobuf::protobuf
+    spdlog::spdlog
     Threads::Threads)

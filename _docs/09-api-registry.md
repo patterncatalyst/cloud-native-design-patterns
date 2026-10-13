@@ -340,5 +340,5 @@ breaking change failing the build and the additive change passing it is the enti
 point of the registry.
 
 ---
-*Verification status: verified — [`examples/09-api-registry/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/09-api-registry/) passes 8/8 checks on Docker Engine (2026-10-10)
+*Verification status: verified — [`examples/09-api-registry/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/09-api-registry/) passes 8/8 checks on Docker Engine (2026-10-12)
 (schema registration, BACKWARD compatibility rule, rejection of a breaking change with 400, acceptance of an additive change, versioned retrieval).*

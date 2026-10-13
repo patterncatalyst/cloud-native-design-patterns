@@ -70,7 +70,7 @@ func evalCtx(r *http.Request) openfeature.EvaluationContext {
 	if user == "" {
 		user = "anonymous"
 	}
-	attrs := map[string]interface{}{}
+	attrs := map[string]any{}
 	if plan := r.Header.Get("X-Plan"); plan != "" {
 		attrs["plan"] = plan
 	}

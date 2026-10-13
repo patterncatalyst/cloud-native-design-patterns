@@ -17,9 +17,10 @@ set(CMAKE_CXX_LINK_EXECUTABLE
 find_package(RdKafka CONFIG REQUIRED)
 find_package(PostgreSQL REQUIRED)
 find_package(opentelemetry-cpp CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
 find_package(Threads REQUIRED)
 
 add_executable(notification-consumer src/main.cpp)
 target_include_directories(notification-consumer PRIVATE src)
 target_link_libraries(notification-consumer PRIVATE
-    RdKafka::rdkafka++ PostgreSQL::PostgreSQL opentelemetry-cpp::opentelemetry-cpp Threads::Threads)
+    RdKafka::rdkafka++ PostgreSQL::PostgreSQL opentelemetry-cpp::opentelemetry-cpp spdlog::spdlog Threads::Threads)
