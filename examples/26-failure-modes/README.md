@@ -20,9 +20,9 @@ credentials, and the container naming convention.
 |---------|----------|-----------|
 | Timeout | `GET /with-timeout` | 2s client timeout; slow downstream fails fast |
 | Retry + backoff | `GET /with-retry` | 3 attempts, exponential backoff with jitter |
-| Circuit breaker | `GET /with-breaker` | Trips open after 5 failures, returns fallback, recovers via half-open |
+| Circuit breaker | `GET /with-breaker` | Opens after 5 failures, returns a fallback, closes after 2 successful trial calls |
 | Deadline propagation | `GET /with-deadline?budget_ms=N` | Edge subtracts overhead, backend rejects if too little remains |
-| Bulkhead | `GET /with-bulkhead` | Semaphore limits to 5 concurrent backend calls |
+| Bulkhead | `GET /with-bulkhead` | At most 5 concurrent backend calls; the overflow is refused at once with 429 |
 | No timeout (anti-pattern) | `GET /no-timeout` | Shows what goes wrong without a timeout |
 
 ## Architecture

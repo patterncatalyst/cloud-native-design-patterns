@@ -3576,31 +3576,33 @@ p. 213
 
 ## [241] APPENDIX M · TIMEOUTS · Timeouts + deadlines (sldId 496)
 
-[chip] java · Spring Boot 4 + Resilience4j
+[chip] java · Spring Boot 4 + RestClient
 
 ```java
-@Service
-public class PaymentService {
-    private final RestClient client;            // built with timeouts (below)
-    @TimeLimiter(name = "payment")              // Resilience4j: caps total time
-    public CompletableFuture<Receipt> charge(Order o, long deadlineMs) {
-        long remaining = deadlineMs - elapsedMs();
-        if (remaining < 50)
-            return CompletableFuture.failedFuture(new DeadlineExceeded());
-        return CompletableFuture.supplyAsync(() ->
-            client.post().uri("/charge")
-                .header("X-Deadline-Ms", Long.toString(remaining))  // propagate
-                .body(o).retrieve().body(Receipt.class));
-    }
+// examples/26-failure-modes/spring-boot/edge-service (condensed excerpts)
+// BackendClient: every call through the shared RestClient gives up after 2 s
+var factory = new SimpleClientHttpRequestFactory();
+factory.setConnectTimeout(Duration.ofSeconds(2));
+factory.setReadTimeout(Duration.ofSeconds(2));
+this.rest = builder.baseUrl(backendUrl).requestFactory(factory).build();
+// EdgeController /with-deadline: pass on what is left of the caller's budget
+int remaining = budgetMs - 50;                   // edge overhead
+if (remaining < 50) {                            // too little to finish: fail now
+    result.put("reason", "insufficient budget at edge");
+    return result;
 }
-// RestClient factory: ClientHttpRequestFactorySettings
-//   .withConnectTimeout(500ms).withReadTimeout(2s)
-// application.yml: resilience4j.timelimiter.instances.payment.timeout-duration: 2s
+var budgeted = new SimpleClientHttpRequestFactory();
+budgeted.setReadTimeout(Duration.ofMillis(remaining));
+var response = RestClient.builder().requestFactory(budgeted).build().get()
+        .uri(backendUrl + "/process")
+        .header("X-Deadline-Ms", String.valueOf(remaining))   // propagate
+        .retrieve()
+        .toEntity(Map.class);
 ```
 
 p. 214
 
-> Two layers: Resilience4j @TimeLimiter caps the total wall-clock time of the async call, and the RestClient's own connect/read timeouts (set on its ClientHttpRequestFactorySettings) bound the underlying socket. Both matter: the TimeLimiter governs the logical operation, the factory timeouts govern the transport. The handler honours an inbound deadline and propagates the remaining budget in a header for the next hop to respect.
+> Two layers, from examples/26. The shared RestClient's request factory sets a 2-second connect and read timeout, so no call through it can hang. The deadline endpoint subtracts the edge's own overhead from the caller's budget, refuses at once when too little is left, and otherwise calls the backend with a client bounded by the remaining budget and the same number in the X-Deadline-Ms header, so the backend can refuse work it cannot finish.
 
 ## [242] APPENDIX M · RETRY · Retry with exponential backoff + jitter (sldId 497)
 
@@ -3615,28 +3617,29 @@ p. 215
 [chip] java · Spring Boot 4 + Resilience4j
 
 ```java
-@Service
-public class QuoteService {
-    private final QuoteClient client;
-    @Retry(name = "quote")                  // config in application.yml
-    @CircuitBreaker(name = "quote")         // always pair retry with a breaker
-    public Quote quote(String symbol) {     // idempotent GET only
-        return client.getQuote(symbol);
-    }
+// examples/26-failure-modes/spring-boot/edge-service (condensed excerpts)
+// BackendClient: the annotation needs a Spring proxy, so it sits on this bean
+@Retry(name = "backend")
+public ResponseEntity<Map> processWithRetry(AtomicInteger attempts) {
+    attempts.incrementAndGet();                  // reported by /with-retry
+    return process();
 }
-// application.yml
-//   resilience4j.retry.instances.quote:
-//     max-attempts: 3
-//     wait-duration: 100ms
-//     enable-exponential-backoff: true
-//     exponential-backoff-multiplier: 2
-//     enable-randomized-wait: true          # jitter — do not omit
-//     retry-exceptions: [java.io.IOException]   # transient only
+// application.properties: the policy lives in configuration
+// resilience4j.retry.instances.backend.max-attempts=3
+// resilience4j.retry.instances.backend.wait-duration=100ms
+// resilience4j.retry.instances.backend.enable-exponential-backoff=true
+// resilience4j.retry.instances.backend.exponential-backoff-multiplier=2
+// resilience4j.retry.instances.backend.exponential-max-wait-duration=2s
+// resilience4j.retry.instances.backend.enable-randomized-wait=true
+// resilience4j.retry.instances.backend.randomized-wait-factor=0.5
+// resilience4j.retry.instances.backend.retry-exceptions=\
+//   org.springframework.web.client.HttpServerErrorException,\
+//   org.springframework.web.client.ResourceAccessException
 ```
 
 p. 216
 
-> Resilience4j separates the annotations (on the method) from the tuning (in application.yml). The yml encodes exponential backoff, the multiplier, randomized wait (jitter — the comment stresses not omitting it), the attempt cap, and the exception allow-list so only transient failures are retried. @CircuitBreaker on the same method gives the canonical retry+breaker pairing. Resilience4j evaluates the breaker outermost, so a tripped breaker short-circuits the retries.
+> Resilience4j keeps the annotation on the method and the policy in application.properties: three attempts, waits starting at 100 ms and doubling up to 2 s, each randomised by up to half for jitter, and only a 5xx or an I/O failure is retried. The method counts its own invocations, which is how the example reports the number of attempts. Retry only idempotent calls, and pair the retry with a circuit breaker so a dependency that is clearly down stops receiving retries.
 
 ## [244] APPENDIX M · CIRCUIT BREAKER · Circuit breaker — the state machine (sldId 499)
 
@@ -3651,30 +3654,31 @@ p. 217
 [chip] java · Spring Boot 4 + Resilience4j
 
 ```java
-@Service
-public class PaymentService {
-    private final PaymentClient client;
-    private final Outbox outbox;
-    @CircuitBreaker(name = "payment", fallbackMethod = "queueForLater")
-    public Receipt charge(Order o) {
-        return client.charge(o);       // while OPEN: skipped, fallback runs
-    }
-    Receipt queueForLater(Order o, Throwable t) {   // graceful degradation
-        outbox.enqueue(o);
-        return Receipt.pending(o.id());
-    }
+// examples/26-failure-modes/spring-boot/edge-service (condensed excerpts)
+@CircuitBreaker(name = "backend", fallbackMethod = "fallback")
+public Map<String, Object> processWithBreaker() {
+    return Map.of("source", "live", "body", process().getBody(),
+            "breaker", breakerState());
 }
-// application.yml
-//   resilience4j.circuitbreaker.instances.payment:
-//     sliding-window-size: 10
-//     failure-rate-threshold: 50          # open at 50%
-//     wait-duration-in-open-state: 5s
-//     permitted-number-of-calls-in-half-open-state: 2
+private Map<String, Object> fallback(Throwable cause) {   // open breaker or failed call
+    String reason = switch (cause) {
+        case CallNotPermittedException ignored -> "circuit_open";
+        case HttpServerErrorException e -> "upstream_" + e.getStatusCode().value();
+        default -> "upstream_unreachable";
+    };
+    return Map.of("source", "fallback", "reason", reason, "breaker", breakerState());
+}
+// application.properties: 5 of 5 calls failed -> open for 10 s, then 2 trial calls
+// resilience4j.circuitbreaker.instances.backend.sliding-window-type=COUNT_BASED
+// resilience4j.circuitbreaker.instances.backend.sliding-window-size=5
+// resilience4j.circuitbreaker.instances.backend.failure-rate-threshold=100
+// resilience4j.circuitbreaker.instances.backend.wait-duration-in-open-state=10s
+// ...permitted-number-of-calls-in-half-open-state=2
 ```
 
 p. 218
 
-> Resilience4j @CircuitBreaker with a fallbackMethod (note the extra Throwable parameter on the fallback signature). Tuning lives in application.yml: sliding window size, failure-rate threshold to open, how long to stay open, and half-open trial count. The fallback enqueues to an outbox and returns pending — graceful degradation. Per-dependency instance ('payment'); define separate instances for separate dependencies, never share one.
+> Resilience4j's @CircuitBreaker with a fallback method that receives the cause, so the response says why it fell back: circuit_open when the breaker refused the call without touching the backend, upstream_<status> or upstream_unreachable when the call itself failed. The breaker counts the last five calls; five failures out of five open it for ten seconds, after which two trial calls decide whether it closes. Use one named instance per dependency and never share a breaker between dependencies.
 
 ## [246] APPENDIX M · BULKHEAD · Bulkhead — isolate so one failure can't sink the rest (sldId 501)
 

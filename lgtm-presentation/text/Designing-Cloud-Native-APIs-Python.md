@@ -3322,27 +3322,31 @@ p. 209
 [chip] python · httpx + asyncio
 
 ```python
-import httpx, asyncio, time
-# Every client has an explicit timeout  —  the httpx default is None (infinite)
-client = httpx.AsyncClient(timeout=httpx.Timeout(2.0, connect=0.5))
-async def charge(order: dict, deadline_ms: int) -> dict:
-    remaining = deadline_ms - elapsed_ms()        # budget left for this hop
-    if remaining <= 50:                            # too little to finish
-        raise DeadlineExceeded("no budget left")  # fail fast, don't start
-    try:
-        r = await asyncio.wait_for(
-            client.post("/charge", json=order,
-                        headers={"X-Deadline-Ms": str(remaining)}),  # propagate
-            timeout=remaining / 1000)
-        r.raise_for_status()
-        return r.json()
-    except (asyncio.TimeoutError, httpx.TimeoutException):
-        raise HTTPException(504, "downstream timed out")
+# examples/26-failure-modes/python/edge-service/main.py (condensed excerpts)
+# One client for the process; every call gives up after 2 s (0.5 s to connect).
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with httpx.AsyncClient(
+        base_url=settings.backend_url, timeout=httpx.Timeout(2.0, connect=0.5)
+    ) as client:
+        app.state.client = client
+        yield
+@app.get("/with-deadline")
+async def with_deadline(budget_ms: int = Query(default=1000)):
+    remaining = budget_ms - 50  # edge overhead
+    if remaining < 50:
+        return {"error": "deadline_exceeded", "reason": "insufficient budget at edge"}
+    r = await client().get(
+        "/process",
+        headers={"X-Deadline-Ms": str(remaining)},             # propagate the budget
+        timeout=httpx.Timeout(remaining / 1000.0, connect=0.5),
+    )
+    return {"status": r.status_code, "body": r.json()}
 ```
 
 p. 210
 
-> Two things: the client is constructed with an explicit timeout (httpx defaults to no timeout, which is a classic foot-gun), and the handler honours an inbound deadline, refusing to start work it cannot finish and propagating the remaining budget downstream in a header. asyncio.wait_for is the belt-and-braces total-time bound. gRPC propagates deadlines through the deadline parameter without extra code; for HTTP you carry it in a header convention like X-Deadline-Ms and honour it at each hop.
+> Two layers, from examples/26. httpx has no default timeout, so the one AsyncClient the service opens in its lifespan sets 2 seconds for every call and half a second to connect. The deadline endpoint subtracts the edge's overhead from the caller's budget, refuses at once when too little remains, and otherwise overrides the timeout for this one call with the remaining budget and sends the same number in the X-Deadline-Ms header, so the backend can refuse work it cannot finish.
 
 ## [238] APPENDIX M · RETRY · Retry with exponential backoff + jitter (sldId 493)
 
@@ -3357,25 +3361,30 @@ p. 211
 [chip] python · tenacity
 
 ```python
-from tenacity import (retry, stop_after_attempt, wait_exponential_jitter,
-                       retry_if_exception_type, before_sleep_log)
-# Retry only idempotent calls. Exponential backoff + jitter. Cap attempts.
-@retry(
-    retry=retry_if_exception_type(httpx.TransportError),   # transient only
-    wait=wait_exponential_jitter(initial=0.1, max=2.0),    # backoff + jitter
-    stop=stop_after_attempt(3),                             # hard cap
-    reraise=True)
-async def get_quote(symbol: str) -> dict:
-    r = await client.get(f"/quote/{symbol}")      # GET is idempotent — safe
-    r.raise_for_status()
-    return r.json()
-# Do not decorate a non-idempotent POST unless it carries an idempotency key.
-# Pair with a circuit breaker so a down dependency stops retries entirely.
+# examples/26-failure-modes/python/edge-service/main.py (condensed excerpt)
+# tenacity: 3 attempts, 100 ms doubling to 2 s with jitter; a 5xx or transport error retries.
+@app.get("/with-retry")
+async def with_retry():
+    attempts = 0
+    try:
+        async for attempt in AsyncRetrying(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential_jitter(initial=0.1, max=2.0, jitter=0.05),
+            retry=retry_if_exception_type((httpx.HTTPStatusError, httpx.TransportError)),
+            reraise=True,
+        ):
+            with attempt:
+                attempts = attempt.retry_state.attempt_number
+                r = await client().get("/process")
+                r.raise_for_status()
+        return {"status": r.status_code, "attempts": attempts, "body": r.json()}
+    except (httpx.HTTPStatusError, httpx.TransportError):
+        return {"attempts": attempts, "pattern": "retry-exhausted"}
 ```
 
 p. 212
 
-> tenacity is the idiomatic Python retry library. The decorator encodes all four correct properties: retry only on transient transport errors (not on 4xx, not on business errors), exponential backoff with jitter, a hard cap on attempts, and reraise so the final failure surfaces. The two comments carry the discipline: only idempotent operations (a GET, or a POST with an idempotency key), and always pair with a circuit breaker so you stop retrying a dependency that is clearly down rather than hammering it.
+> tenacity's AsyncRetrying works as an async for loop around the call, so the attempt number is available inside it. raise_for_status turns a 5xx into HTTPStatusError, which is retried along with transport errors; three attempts in all, with exponentially growing waits from 100 ms to 2 seconds plus jitter, and reraise hands the last real error back once the attempts run out. Retry only idempotent calls, and pair the retry with a circuit breaker.
 
 ## [240] APPENDIX M · CIRCUIT BREAKER · Circuit breaker — the state machine (sldId 495)
 
@@ -3387,29 +3396,34 @@ p. 213
 
 ## [241] APPENDIX M · CIRCUIT BREAKER · Circuit breaker + fallback (sldId 496)
 
-[chip] python · purgatory
+[chip] python · pybreaker
 
 ```python
-from purgatory import AsyncCircuitBreakerFactory
-from purgatory.domain.model import OpenedState     # raised while the breaker is open
-# Open after 5 failures; stay open 30s; then half-open to test recovery
-breakers = AsyncCircuitBreakerFactory(default_threshold=5, default_ttl=30)
-async def charge(order: dict) -> dict:
+# examples/26-failure-modes/python/edge-service/main.py (condensed excerpts)
+# pybreaker: 5 failed calls open it, it stays open 10 s, 2 successful trials close it.
+breaker = pybreaker.CircuitBreaker(
+    fail_max=5, reset_timeout=10, success_threshold=2,
+    throw_new_error_on_trip=False, name="backend",
+)
+@app.get("/with-breaker")
+async def with_breaker():
     try:
-        async with await breakers.get_breaker("payment"):
-            # While OPEN this raises immediately — no doomed downstream call
-            r = await client.post("/charge", json=order, timeout=2.0)
-            r.raise_for_status()
-            return r.json()
-    except OpenedState:                       # breaker is open → degrade
-        await outbox.enqueue(order)           # graceful fallback
-        return {"status": "pending", "id": order["id"]}
-# One breaker per dependency ("payment"), never one global breaker.
+        with breaker.calling():                 # wraps an awaited call
+            r = await client().get("/process")
+            r.raise_for_status()                # a 5xx counts as a failure
+        return {"source": "live", "body": r.json(), "breaker": breaker.current_state}
+    except pybreaker.CircuitBreakerError:
+        reason = "circuit_open"
+    except httpx.HTTPStatusError as e:
+        reason = f"upstream_{e.response.status_code}"
+    except httpx.TransportError:
+        reason = "upstream_unreachable"
+    return {"source": "fallback", "reason": reason, "breaker": breaker.current_state}
 ```
 
 p. 214
 
-> purgatory is a small async circuit-breaker library. The breaker is keyed per dependency ('payment') — the comment stresses one-per-dependency, never global. While the breaker is OPEN, entering the context raises OpenedState immediately without attempting the call, which is the fail-fast behaviour that stops cascading. The except branch is the fallback: instead of erroring, we enqueue the order to an outbox and return a pending status — graceful degradation. aiobreaker and a hand-rolled breaker are alternatives; the shape is the same.
+> pybreaker counts consecutive failures: five open the breaker for ten seconds, and two successful trial calls in half-open close it. Its calling() context manager checks the state on entry and records the outcome on exit, so it works around an awaited httpx call; an open breaker raises CircuitBreakerError before the backend is touched. throw_new_error_on_trip=False keeps the real cause on the call that trips it, so the fallback reason stays accurate. One breaker per dependency.
 
 ## [242] APPENDIX M · BULKHEAD · Bulkhead — isolate so one failure can't sink the rest (sldId 497)
 

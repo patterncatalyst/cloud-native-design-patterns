@@ -3347,24 +3347,31 @@ p. 209
 [chip] go · net/http + context
 
 ```go
-// every client has an explicit timeout; context carries the end-to-end deadline
-var client = &http.Client{Timeout: 2 * time.Second}
-func charge(ctx context.Context, order Order) (Receipt, error) {
-   if d, ok := ctx.Deadline(); ok && time.Until(d) < 50*time.Millisecond {
-      return Receipt{}, ErrDeadline             // too little budget — fail fast
-   }
-   req, _ := http.NewRequestWithContext(ctx, "POST", "/charge", body(order))
-   req.Header.Set("X-Deadline-Ms", msLeft(ctx))  // propagate the budget downstream
-   resp, err := client.Do(req)
-   if err != nil { return Receipt{}, status504("downstream timed out") }
-   defer resp.Body.Close()
-   return decodeReceipt(resp)
+// examples/26-failure-modes/go/edge-service/cmd/server/main.go (condensed excerpts)
+// call2s is one backend call that gives up after 2 s; a 5xx comes back as a statusError.
+func call2s(ctx context.Context) ([]byte, error) {
+    ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+    defer cancel()
+    code, body, err := callBackend(ctx, nil)
+    if err != nil {
+        return nil, err
+    }
+    if code >= 500 {
+        return nil, statusError{code}
+    }
+    return body, nil
 }
+// /with-deadline: the remaining budget bounds the call and travels as X-Deadline-Ms.
+remaining := budget - 50 // edge overhead
+ctx, cancel := context.WithTimeout(r.Context(), time.Duration(remaining)*time.Millisecond)
+defer cancel()
+headers := map[string]string{"X-Deadline-Ms": strconv.Itoa(remaining)}
+code, body, err := callBackend(ctx, headers)
 ```
 
 p. 210
 
-> Two things: the client is constructed with an explicit timeout (net/http defaults to no timeout, which is a classic foot-gun), and the handler honours an inbound deadline, refusing to start work it cannot finish and propagating the remaining budget downstream in a header. A context.WithTimeout on the handler is the total-time bound. gRPC propagates the deadline by default as the call deadline; for HTTP you carry it in a header convention like X-Deadline-Ms and honour it at each hop.
+> Two layers, from examples/26, both on context. Every backend call runs under context.WithTimeout, so http.Client gives up after 2 seconds; the request context is the parent, so a client that disconnects also cancels the call. The deadline endpoint derives a context from the caller's remaining budget and sends the same number in the X-Deadline-Ms header, so the backend can refuse work it cannot finish.
 
 ## [238] APPENDIX M · RETRY · Retry with exponential backoff + jitter (sldId 493)
 
@@ -3379,25 +3386,27 @@ p. 211
 [chip] go · cenkalti/backoff v7
 
 ```go
-// retry with exponential backoff + jitter, idempotent calls only (cenkalti/backoff v7)
-func getQuote(ctx context.Context, symbol string) (Quote, error) {
-   bo := backoff.NewExponentialBackOff()       // backoff + jitter built in
-   bo.InitialInterval = 100 * time.Millisecond
-   bo.MaxInterval = 2 * time.Second            // capped
-   // Retry stops on success, a backoff.Permanent error, a cancelled ctx or the try cap
-   return backoff.Retry(ctx, func() (Quote, error) {
-      return client.Get(ctx, "/quote/"+symbol) // GET is idempotent: safe to retry
-   }, backoff.WithBackOff(bo), backoff.WithMaxTries(4))
+// examples/26-failure-modes/go/edge-service/cmd/server/main.go (condensed excerpt)
+// cenkalti/backoff v7: 100 ms doubling to 2 s, each wait randomised by up to 50%.
+bo := backoff.NewExponentialBackOff()
+bo.InitialInterval = 100 * time.Millisecond
+bo.MaxInterval = 2 * time.Second
+var attempts int
+body, err := backoff.Retry(r.Context(), func() ([]byte, error) {
+    attempts++
+    return call2s(r.Context()) // a 5xx comes back as a statusError and is retried
+}, backoff.WithBackOff(bo), backoff.WithMaxTries(3),
+    backoff.WithMaxElapsedTime(15*time.Second))
+if err != nil {
+    if re := backoff.AsRetryError(err); re != nil {
+        err = re.LastErr // the failure the caller cares about, not the stop reason
+    }
 }
-// don't retry a non-idempotent POST unless it carries an idempotency key;
-// pair with a circuit breaker so a down dependency stops retries entirely.
 ```
 
 p. 212
 
-> cenkalti/backoff v7 is the Go retry library. The policy encodes the four properties that matter: retry only transient failures (return backoff.Permanent for a 4xx or a business error), exponential backoff with jitter, a hard cap on attempts (WithMaxTries), and the final error returned to the caller. Retry also stops when the context is cancelled.
->
-> The two comments carry the discipline: retry only idempotent operations, a GET or a POST with an idempotency key, and pair the retry with a circuit breaker so a dependency that is clearly down stops being hammered.
+> cenkalti/backoff v7: backoff.Retry calls the function until it succeeds, the tries run out, the elapsed-time cap passes or the request context ends. The exponential policy starts at 100 ms, doubles up to 2 seconds and randomises each wait by up to half. When it gives up, AsRetryError exposes the last real error rather than the stop reason. Retry only idempotent calls, and pair the retry with a circuit breaker.
 
 ## [240] APPENDIX M · CIRCUIT BREAKER · Circuit breaker — the state machine (sldId 495)
 
@@ -3412,29 +3421,31 @@ p. 213
 [chip] go · sony/gobreaker v2
 
 ```go
-// one breaker per dependency, never one global breaker (sony/gobreaker v2, generic)
-var paymentCB = gobreaker.NewCircuitBreaker[Receipt](gobreaker.Settings{
-   Name:    "payment",
-   Timeout: 30 * time.Second, // stay open 30 s, then half-open to test recovery
-   ReadyToTrip: func(c gobreaker.Counts) bool { return c.ConsecutiveFailures >= 5 },
+// examples/26-failure-modes/go/edge-service/cmd/server/main.go (condensed excerpts)
+// sony/gobreaker v2: 5 failures in a row open it for 10 s; 2 trial successes close it.
+cb = gobreaker.NewCircuitBreaker[[]byte](gobreaker.Settings{
+    Name:        "backend",
+    MaxRequests: 2,
+    Timeout:     10 * time.Second,
+    ReadyToTrip: func(counts gobreaker.Counts) bool {
+        return counts.ConsecutiveFailures >= 5
+    },
 })
-func charge(ctx context.Context, order Order) (Receipt, error) {
-   r, err := paymentCB.Execute(func() (Receipt, error) {
-      return client.Post(ctx, "/charge", order) // skipped while the breaker is open
-   })
-   if errors.Is(err, gobreaker.ErrOpenState) || errors.Is(err, gobreaker.ErrTooManyRequests) {
-      _ = outbox.Enqueue(ctx, order) // graceful fallback
-      return Receipt{Status: "pending", ID: order.ID}, nil
-   }
-   return r, err
+// handleBreaker: success answers live; otherwise the fallback says why
+body, err := cb.Execute(func() ([]byte, error) { return call2s(r.Context()) })
+reason := "upstream_unreachable"
+if errors.Is(err, gobreaker.ErrOpenState) || errors.Is(err, gobreaker.ErrTooManyRequests) {
+    reason = "circuit_open" // the backend was not called
+} else if se, ok := errors.AsType[statusError](err); ok {
+    reason = fmt.Sprintf("upstream_%d", se.code)
 }
+writeJSON(w, 200, map[string]any{"source": "fallback", "reason": reason,
+    "breaker": cb.State().String()})
 ```
 
 p. 214
 
-> sony/gobreaker v2 is a small, generic circuit-breaker library: NewCircuitBreaker[Receipt] makes Execute return a typed Receipt. The breaker is keyed per dependency, payment here, never one global breaker. It opens after five consecutive failures and stays open for 30 seconds before letting a trial request through.
->
-> While it is open, Execute returns ErrOpenState at once without making the call, which is the fail-fast behaviour that stops a cascade; in the half-open state, extra calls get ErrTooManyRequests. Those two errors take the fallback: enqueue the order in the outbox and return a pending status instead of an error, which is graceful degradation.
+> sony/gobreaker v2 with generics: ReadyToTrip opens the breaker after five consecutive failures, Timeout keeps it open for ten seconds, and MaxRequests lets two trial calls through in half-open, both of which must succeed to close it. Execute returns ErrOpenState or ErrTooManyRequests without calling the backend, and the handler answers from its fallback with the reason; errors.AsType picks out the upstream status. One breaker per dependency.
 
 ## [242] APPENDIX M · BULKHEAD · Bulkhead — isolate so one failure can't sink the rest (sldId 497)
 

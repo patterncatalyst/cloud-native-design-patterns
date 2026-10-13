@@ -15,7 +15,6 @@
 #include <mutex>
 #include <random>
 #include <string>
-#include <thread>
 
 using namespace drogon;
 
@@ -149,14 +148,14 @@ int main() {
                 callback(http_resp);
             }
             else if (current_mode == "slow") {
-                std::this_thread::sleep_for(std::chrono::seconds(5));
-
                 Json::Value resp;
                 resp["status"] = "ok";
                 resp["mode"] = "slow";
 
+                // Answer in 5 s from a timer, so the event-loop thread keeps serving other requests meanwhile.
                 auto http_resp = HttpResponse::newHttpJsonResponse(resp);
-                callback(http_resp);
+                trantor::EventLoop::getEventLoopOfCurrentThread()->runAfter(
+                    5.0, [callback = std::move(callback), http_resp] { callback(http_resp); });
             }
             else if (current_mode == "failing") {
                 Json::Value resp;

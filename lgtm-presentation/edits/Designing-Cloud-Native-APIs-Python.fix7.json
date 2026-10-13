@@ -1,0 +1,130 @@
+{
+ "ops": [
+  {
+   "op": "set_code",
+   "sldId": 492,
+   "lines": [
+    "# examples/26-failure-modes/python/edge-service/main.py (condensed excerpts)",
+    "# One client for the process; every call gives up after 2 s (0.5 s to connect).",
+    "@asynccontextmanager",
+    "async def lifespan(app: FastAPI):",
+    "    async with httpx.AsyncClient(",
+    "        base_url=settings.backend_url, timeout=httpx.Timeout(2.0, connect=0.5)",
+    "    ) as client:",
+    "        app.state.client = client",
+    "        yield",
+    "",
+    "",
+    "@app.get(\"/with-deadline\")",
+    "async def with_deadline(budget_ms: int = Query(default=1000)):",
+    "    remaining = budget_ms - 50  # edge overhead",
+    "    if remaining < 50:",
+    "        return {\"error\": \"deadline_exceeded\", \"reason\": \"insufficient budget at edge\"}",
+    "    r = await client().get(",
+    "        \"/process\",",
+    "        headers={\"X-Deadline-Ms\": str(remaining)},             # propagate the budget",
+    "        timeout=httpx.Timeout(remaining / 1000.0, connect=0.5),",
+    "    )",
+    "    return {\"status\": r.status_code, \"body\": r.json()}"
+   ],
+   "_why": "examples/26 on resilience libraries (S14): the code slide is an excerpt of the example",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 492,
+   "paragraphs": [
+    "Two layers, from examples/26. httpx has no default timeout, so the one AsyncClient the service opens in its lifespan sets 2 seconds for every call and half a second to connect. The deadline endpoint subtracts the edge's overhead from the caller's budget, refuses at once when too little remains, and otherwise overrides the timeout for this one call with the remaining budget and sends the same number in the X-Deadline-Ms header, so the backend can refuse work it cannot finish."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_code",
+   "sldId": 494,
+   "lines": [
+    "# examples/26-failure-modes/python/edge-service/main.py (condensed excerpt)",
+    "# tenacity: 3 attempts, 100 ms doubling to 2 s with jitter; a 5xx or transport error retries.",
+    "@app.get(\"/with-retry\")",
+    "async def with_retry():",
+    "    attempts = 0",
+    "    try:",
+    "        async for attempt in AsyncRetrying(",
+    "            stop=stop_after_attempt(3),",
+    "            wait=wait_exponential_jitter(initial=0.1, max=2.0, jitter=0.05),",
+    "            retry=retry_if_exception_type((httpx.HTTPStatusError, httpx.TransportError)),",
+    "            reraise=True,",
+    "        ):",
+    "            with attempt:",
+    "                attempts = attempt.retry_state.attempt_number",
+    "                r = await client().get(\"/process\")",
+    "                r.raise_for_status()",
+    "        return {\"status\": r.status_code, \"attempts\": attempts, \"body\": r.json()}",
+    "    except (httpx.HTTPStatusError, httpx.TransportError):",
+    "        return {\"attempts\": attempts, \"pattern\": \"retry-exhausted\"}"
+   ],
+   "_why": "examples/26 on resilience libraries (S14): the code slide is an excerpt of the example",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 494,
+   "paragraphs": [
+    "tenacity's AsyncRetrying works as an async for loop around the call, so the attempt number is available inside it. raise_for_status turns a 5xx into HTTPStatusError, which is retried along with transport errors; three attempts in all, with exponentially growing waits from 100 ms to 2 seconds plus jitter, and reraise hands the last real error back once the attempts run out. Retry only idempotent calls, and pair the retry with a circuit breaker."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_code",
+   "sldId": 496,
+   "lines": [
+    "# examples/26-failure-modes/python/edge-service/main.py (condensed excerpts)",
+    "# pybreaker: 5 failed calls open it, it stays open 10 s, 2 successful trials close it.",
+    "breaker = pybreaker.CircuitBreaker(",
+    "    fail_max=5, reset_timeout=10, success_threshold=2,",
+    "    throw_new_error_on_trip=False, name=\"backend\",",
+    ")",
+    "",
+    "",
+    "@app.get(\"/with-breaker\")",
+    "async def with_breaker():",
+    "    try:",
+    "        with breaker.calling():                 # wraps an awaited call",
+    "            r = await client().get(\"/process\")",
+    "            r.raise_for_status()                # a 5xx counts as a failure",
+    "        return {\"source\": \"live\", \"body\": r.json(), \"breaker\": breaker.current_state}",
+    "    except pybreaker.CircuitBreakerError:",
+    "        reason = \"circuit_open\"",
+    "    except httpx.HTTPStatusError as e:",
+    "        reason = f\"upstream_{e.response.status_code}\"",
+    "    except httpx.TransportError:",
+    "        reason = \"upstream_unreachable\"",
+    "    return {\"source\": \"fallback\", \"reason\": reason, \"breaker\": breaker.current_state}"
+   ],
+   "_why": "examples/26 on resilience libraries (S14): the code slide is an excerpt of the example",
+   "_src": "s14"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    496
+   ],
+   "find": "purgatory",
+   "repl": "pybreaker",
+   "expect": 1,
+   "_why": "chip follows the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 496,
+   "paragraphs": [
+    "pybreaker counts consecutive failures: five open the breaker for ten seconds, and two successful trial calls in half-open close it. Its calling() context manager checks the state on entry and records the outcome on exit, so it works around an awaited httpx call; an open breaker raises CircuitBreakerError before the backend is touched. throw_new_error_on_trip=False keeps the real cause on the call that trips it, so the fallback reason stays accurate. One breaker per dependency."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  }
+ ]
+}

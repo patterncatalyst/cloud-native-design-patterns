@@ -5,7 +5,7 @@ Circuit breaker, retry with backoff, timeout, and fallback — edge-service call
 ## Framework & libraries
 
 - **Framework**: Spring Boot 4.1.1, Java 25 (Web)
-- **Libraries**: spring-boot-starter-webmvc
+- **Libraries**: spring-boot-starter-webmvc, spring-boot-starter-restclient, resilience4j-spring-boot4 2.4.0, spring-boot-starter-aspectj
 - **Container base**: `ubi10/openjdk-25-runtime:1.24-15` (UID 185)
 
 ## Run
@@ -29,7 +29,7 @@ cd .. && bash verify.sh
 
 ## Implementation notes
 
-Resilience patterns hand-rolled (no Resilience4j) to show the mechanics explicitly. Circuit breaker uses `AtomicReference<State>`.
+The breaker, retry and bulkhead are Resilience4j annotations (`@CircuitBreaker` with a fallback method, `@Retry`, `@Bulkhead`) on the `BackendClient` bean, so the calls go through a Spring proxy; their limits live in `application.properties` under `resilience4j.*`. A full bulkhead throws `BulkheadFullException`, which the controller answers with 429. `/breaker-state` reads the `CircuitBreakerRegistry`.
 
 ## Environment variables
 

@@ -182,126 +182,145 @@ convention like `X-Deadline-Ms` and honour it at each hop.
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-@Service
-public class PaymentService {
-    private final RestClient client;            // built with timeouts (below)
+// examples/26-failure-modes/spring-boot/edge-service: BackendClient.java and EdgeController.java (condensed excerpts)
+// Every call through the shared RestClient gives up after 2 s.
+var factory = new SimpleClientHttpRequestFactory();
+factory.setConnectTimeout(Duration.ofSeconds(2));
+factory.setReadTimeout(Duration.ofSeconds(2));
+this.rest = builder.baseUrl(backendUrl).requestFactory(factory).build();
 
-    @TimeLimiter(name = "payment")              // Resilience4j: caps total time
-    public CompletableFuture<Receipt> charge(Order o, long deadlineMs) {
-        long remaining = deadlineMs - elapsedMs();
-        if (remaining < 50)                                       // too little budget
-            return CompletableFuture.failedFuture(new DeadlineExceeded());
-        return CompletableFuture.supplyAsync(() ->
-            client.post().uri("/charge")
-                .header("X-Deadline-Ms", Long.toString(remaining))  // propagate
-                .body(o).retrieve().body(Receipt.class));
-    }
+// /with-deadline: the backend gets what is left of the caller's budget.
+int remaining = budgetMs - 50;   // edge overhead
+if (remaining < 50) {
+    result.put("error", "deadline_exceeded");
+    result.put("reason", "insufficient budget at edge");
+    return result;
 }
-// RestClient factory: ClientHttpRequestFactorySettings
-//   .withConnectTimeout(500ms).withReadTimeout(2s)
-// application.yml: resilience4j.timelimiter.instances.payment.timeout-duration: 2s
+var budgeted = new SimpleClientHttpRequestFactory();
+budgeted.setReadTimeout(Duration.ofMillis(remaining));
+var response = RestClient.builder().requestFactory(budgeted).build().get()
+        .uri(backendUrl + "/process")
+        .header("X-Deadline-Ms", String.valueOf(remaining))
+        .retrieve()
+        .toEntity(Map.class);
 ```
 
 ```java
-@ApplicationScoped
-public class PaymentService {
-    @Inject @RestClient PaymentClient client;
+// examples/26-failure-modes/quarkus/edge-service: application.properties and EdgeResource.java (condensed excerpts)
+// quarkus.rest-client.backend.url=${BACKEND_URL:http://backend:8081}
+// quarkus.rest-client.backend.read-timeout=2000        <- every call gives up after 2 s
 
-    @Timeout(2000)                               // MicroProfile: hard 2s ceiling
-    @Blocking
-    public Receipt charge(Order o, long deadlineMs) {
-        long remaining = deadlineMs - elapsedMs();
-        if (remaining < 50)                       // too little budget to start
-            throw new DeadlineExceeded();
-        return client.charge(o, remaining);       // propagate remaining budget
+@GET
+@Path("with-deadline")
+public Map<String, Object> withDeadline(@RestQuery("budget_ms") @DefaultValue("1000") int budgetMs) {
+    int remaining = budgetMs - 50;   // edge overhead
+    if (remaining < 50) {
+        return Map.of("error", "deadline_exceeded", "reason", "insufficient budget at edge");
     }
+    // The budget is per request, so this client gets its own read timeout.
+    BackendClient budgeted = QuarkusRestClientBuilder.newBuilder()
+            .baseUri(URI.create(backendUrl))
+            .readTimeout(remaining, TimeUnit.MILLISECONDS)
+            .build(BackendClient.class);
+    var response = budgeted.process(String.valueOf(remaining));   // @RestHeader("X-Deadline-Ms")
+    return Map.of("status", response.getStatus(), "body", response.readEntity(Map.class));
 }
-// application.properties — client-level timeouts (the real defence)
-//   quarkus.rest-client.payment.connect-timeout=500
-//   quarkus.rest-client.payment.read-timeout=2000
 ```
 
 ```csharp
-public class PaymentService(HttpClient http)   // http.Timeout set at registration
+// examples/26-failure-modes/dotnet/EdgeService/Program.cs (condensed excerpts)
+// A Polly pipeline caps a call at 2 s; TimeoutRejectedException reports it.
+builder.Services.AddResiliencePipeline<string, HttpResponseMessage>("timeout", p => p
+    .AddTimeout(TimeSpan.FromSeconds(2)));
+
+app.MapGet("/with-timeout", async (BackendClient backend, ResiliencePipelineProvider<string> pipelines) =>
 {
-    public async Task<Receipt> Charge(Order o, TimeSpan deadline,
-                                      CancellationToken ct)
+    try
     {
-        if (deadline < TimeSpan.FromMilliseconds(50))
-            throw new DeadlineExceededException();      // too little budget
-        // link the caller's token with a deadline-bounded one
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(deadline);
-        var req = new HttpRequestMessage(HttpMethod.Post, "/charge")
-            { Content = JsonContent.Create(o) };
-        req.Headers.Add("X-Deadline-Ms",                 // propagate budget
-            deadline.TotalMilliseconds.ToString("0"));
-        var resp = await http.SendAsync(req, cts.Token); // throws on timeout
-        return (await resp.Content.ReadFromJsonAsync<Receipt>(cts.Token))!;
+        var resp = await pipelines.GetPipeline<HttpResponseMessage>("timeout").ExecuteAsync(backend.ProcessAsync);
+        return Results.Json(new { status = (int)resp.StatusCode, body = await BodyAsync(resp) });
     }
-}
+    catch (TimeoutRejectedException)
+    {
+        return Results.Json(new { error = "timeout", pattern = "timeout" });
+    }
+});
+
+// /with-deadline: the remaining budget bounds the call and travels as X-Deadline-Ms.
+using var cts = new CancellationTokenSource(remaining);
+var resp = await backend.ProcessAsync(cts.Token, remaining);
 ```
 
 ```python
-import httpx, asyncio
+# examples/26-failure-modes/python/edge-service/main.py (condensed excerpts)
+# One client for the process; every call gives up after 2 s (0.5 s to connect).
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with httpx.AsyncClient(base_url=settings.backend_url, timeout=httpx.Timeout(2.0, connect=0.5)) as client:
+        app.state.client = client
+        yield
 
-# Every client has an EXPLICIT timeout — the httpx default is None (infinite)
-client = httpx.AsyncClient(timeout=httpx.Timeout(2.0, connect=0.5))
 
-async def charge(order: dict, deadline_ms: int) -> dict:
-    remaining = deadline_ms - elapsed_ms()        # budget left for this hop
-    if remaining <= 50:                            # too little to finish
-        raise DeadlineExceeded("no budget left")  # fail fast, don't start
+@app.get("/with-deadline")
+async def with_deadline(budget_ms: int = Query(default=1000)):
+    remaining = budget_ms - 50  # edge overhead
+    if remaining < 50:
+        return {"error": "deadline_exceeded", "reason": "insufficient budget at edge"}
     try:
-        r = await asyncio.wait_for(
-            client.post("/charge", json=order,
-                        headers={"X-Deadline-Ms": str(remaining)}),  # propagate
-            timeout=remaining / 1000)
-        r.raise_for_status()
-        return r.json()
-    except (asyncio.TimeoutError, httpx.TimeoutException):
-        raise HTTPException(504, "downstream timed out")
+        r = await client().get(
+            "/process",
+            headers={"X-Deadline-Ms": str(remaining)},             # propagate the budget
+            timeout=httpx.Timeout(remaining / 1000.0, connect=0.5),
+        )
+        return {"status": r.status_code, "body": r.json()}
+    except httpx.TimeoutException:
+        return {"error": "deadline_exceeded", "reason": "timed out waiting for backend"}
 ```
 
 ```cpp
-// Every C++ client has an EXPLICIT timeout; deadlines propagate downstream.
-#include <chrono>
-using namespace std::chrono;
-constexpr auto MIN_BUDGET = 50ms;
-
-Task<json> charge(const Order& order, milliseconds remaining) {
-  if (remaining <= MIN_BUDGET)                // too little to finish
-    throw DeadlineExceeded{"no budget left"};
-  // -------- gRPC: deadline propagation is built-in --------
-  grpc::ClientContext ctx;
-  ctx.set_deadline(system_clock::now() + remaining);
-  ChargeReply reply;
-  auto status = payment_stub_->Charge(&ctx, order_to_proto(order), &reply);
-  if (status.error_code() == grpc::DEADLINE_EXCEEDED)
-    throw HttpException{504, "downstream timed out"};
-  co_return to_json(reply);
+// examples/26-failure-modes/cpp/edge-service/src/main.cpp (condensed excerpts)
+// Drogon's async HttpClient: the coroutine suspends while it waits, and the timeout is per call.
+Task<Reply> get_backend(double timeout_s, std::string deadline_ms = {}) {
+    auto client = HttpClient::newHttpClient(g_backend);
+    auto req = HttpRequest::newHttpRequest();
+    req->setPath("/process");
+    if (!deadline_ms.empty()) req->addHeader("X-Deadline-Ms", deadline_ms);   // propagate the budget
+    try {
+        auto resp = co_await client->sendRequestCoro(req, timeout_s);
+        Reply reply;
+        reply.status = static_cast<int>(resp->getStatusCode());
+        if (auto json = resp->getJsonObject()) reply.body = *json;
+        co_return reply;
+    } catch (const HttpException&) {
+        co_return Reply{};   // status 0: timed out or unreachable
+    }
 }
+
+// /with-timeout: co_await get_backend(2.0)
+// /with-deadline: int remaining = budget_ms - 50; ... co_await get_backend(remaining / 1000.0, std::to_string(remaining))
 ```
 
 ```go
-// every client has an EXPLICIT timeout; deadlines propagate downstream on ctx
-const minBudget = 50 * time.Millisecond
-
-func charge(ctx context.Context, order Order) (Reply, error) {
-	remaining := time.Until(deadlineOf(ctx)) // budget left for this hop
-	if remaining <= minBudget {              // too little to finish
-		return Reply{}, fmt.Errorf("no budget left: %w", context.DeadlineExceeded)
-	}
-	// the deadline rides on ctx; gRPC propagates it as the call deadline
-	ctx, cancel := context.WithTimeout(ctx, remaining)
+// examples/26-failure-modes/go/edge-service/cmd/server/main.go (condensed excerpts)
+// call2s is one backend call that gives up after 2 s; a 5xx comes back as a statusError.
+func call2s(ctx context.Context) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-
-	reply, err := paymentClient.Charge(ctx, toProto(order))
-	if status.Code(err) == codes.DeadlineExceeded {
-		return Reply{}, &HTTPError{Status: 504, Msg: "downstream timed out"}
+	code, body, err := callBackend(ctx, nil)
+	if err != nil {
+		return nil, err
 	}
-	return toReply(reply), err
+	if code >= 500 {
+		return nil, statusError{code}
+	}
+	return body, nil
 }
+
+// /with-deadline: the remaining budget bounds the call and travels as X-Deadline-Ms.
+remaining := budget - 50 // edge overhead
+ctx, cancel := context.WithTimeout(r.Context(), time.Duration(remaining)*time.Millisecond)
+defer cancel()
+code, body, err := callBackend(ctx, map[string]string{"X-Deadline-Ms": strconv.Itoa(remaining)})
 ```
 
 ## Retry with exponential backoff and jitter
@@ -324,123 +343,123 @@ breaker**, so once a dependency is clearly down you stop retrying entirely.
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-@Service
-public class QuoteService {
-    private final QuoteClient client;
-
-    @Retry(name = "quote")                  // config in application.yml
-    @CircuitBreaker(name = "quote")         // always pair retry with a breaker
-    public Quote quote(String symbol) {     // idempotent GET only
-        return client.getQuote(symbol);
-    }
+// examples/26-failure-modes/spring-boot/edge-service: BackendClient.java and application.properties (condensed excerpts)
+/** Retried on a 5xx or a timeout with exponential backoff and jitter; counts every attempt. */
+@Retry(name = "backend")
+public ResponseEntity<Map> processWithRetry(AtomicInteger attempts) {
+    attempts.incrementAndGet();
+    return process();
 }
-// application.yml
-//   resilience4j.retry.instances.quote:
-//     max-attempts: 3
-//     wait-duration: 100ms
-//     enable-exponential-backoff: true
-//     exponential-backoff-multiplier: 2
-//     enable-randomized-wait: true          # jitter — do not omit
-//     retry-exceptions: [java.io.IOException]   # transient only
+
+// Resilience4j reads the policy from configuration, not from the code:
+// resilience4j.retry.instances.backend.max-attempts=3
+// resilience4j.retry.instances.backend.wait-duration=100ms
+// resilience4j.retry.instances.backend.enable-exponential-backoff=true
+// resilience4j.retry.instances.backend.exponential-backoff-multiplier=2
+// resilience4j.retry.instances.backend.exponential-max-wait-duration=2s
+// resilience4j.retry.instances.backend.enable-randomized-wait=true
+// resilience4j.retry.instances.backend.randomized-wait-factor=0.5
+// resilience4j.retry.instances.backend.retry-exceptions=\
+//     org.springframework.web.client.HttpServerErrorException,org.springframework.web.client.ResourceAccessException
 ```
 
 ```java
-@ApplicationScoped
-public class QuoteService {
-    @Inject @RestClient QuoteClient client;
-
-    @Retry(maxRetries = 3,                       // hard cap on attempts
-           delay = 100, delayUnit = MILLIS,      // base backoff
-           jitter = 50, jitterUnit = MILLIS,     // de-synchronise clients
-           retryOn = TransientException.class)   // transient failures only
-    @CircuitBreaker(requestVolumeThreshold = 10, // always pair with a breaker
-                    failureRatio = 0.5, delay = 5000)
-    public Quote quote(String symbol) {           // idempotent GET
-        return client.getQuote(symbol);
-    }
+// examples/26-failure-modes/quarkus/edge-service/src/main/java/com/cndp/edge/Backend.java (condensed excerpt)
+// SmallRye Fault Tolerance: the annotations are CDI interceptors, so the resource calls through this bean.
+/** Retried on a 5xx or a timeout: 3 attempts, 100 ms doubling to 2 s, with up to 50 ms of jitter. */
+@Retry(maxRetries = 2, delay = 100, jitter = 50,
+        retryOn = {WebApplicationException.class, ProcessingException.class})
+@ExponentialBackoff(factor = 2, maxDelay = 2000)
+public Response processWithRetry(AtomicInteger attempts) {
+    attempts.incrementAndGet();
+    return client.process();   // the REST client throws WebApplicationException on a 4xx or 5xx
 }
-// Retry wraps the breaker; an open breaker fails each retry fast.
 ```
 
 ```csharp
-// Polly v8: exponential backoff with jitter is built in
-private static readonly ResiliencePipeline _pipeline =
-    new ResiliencePipelineBuilder()
-        .AddRetry(new RetryStrategyOptions {
-            ShouldHandle = new PredicateBuilder()
-                .Handle<HttpRequestException>(),       // transient only
-            MaxRetryAttempts = 3,                       // hard cap
-            BackoffType = DelayBackoffType.Exponential,
-            UseJitter = true,                           // de-synchronise
-            Delay = TimeSpan.FromMilliseconds(100)
-        })
-        .AddCircuitBreaker(new CircuitBreakerStrategyOptions {  // pair it
-            FailureRatio = 0.5, MinimumThroughput = 10,
-            BreakDuration = TimeSpan.FromSeconds(5)
-        })
-        .Build();
+// examples/26-failure-modes/dotnet/EdgeService/Program.cs (condensed excerpts)
+// Polly v8 with the HTTP retry options from Microsoft.Extensions.Http.Resilience:
+// a 5xx, a timeout or a connection failure is retried.
+builder.Services.AddResiliencePipeline<string, HttpResponseMessage>("retry", p => p
+    .AddRetry(new HttpRetryStrategyOptions
+    {
+        MaxRetryAttempts = 2,
+        Delay = TimeSpan.FromMilliseconds(100),
+        BackoffType = DelayBackoffType.Exponential,
+        UseJitter = true,
+        MaxDelay = TimeSpan.FromSeconds(2),
+    })
+    .AddTimeout(TimeSpan.FromSeconds(2)));   // each attempt gets 2 s
 
-public Task<Quote?> Quote(string symbol, CancellationToken ct) =>   // GET
-    _pipeline.ExecuteAsync(async t =>
-        await http.GetFromJsonAsync<Quote>($"/quote/{symbol}", t), ct).AsTask();
+var attempts = 0;
+var resp = await pipelines.GetPipeline<HttpResponseMessage>("retry").ExecuteAsync(ct =>
+{
+    attempts++;
+    return backend.ProcessAsync(ct);
+});
 ```
 
 ```python
-from tenacity import (retry, stop_after_attempt, wait_exponential_jitter,
-                      retry_if_exception_type)
-
-# Retry ONLY idempotent calls. Exponential backoff + jitter. Cap attempts.
-@retry(
-    retry=retry_if_exception_type(httpx.TransportError),   # transient only
-    wait=wait_exponential_jitter(initial=0.1, max=2.0),    # backoff + jitter
-    stop=stop_after_attempt(3),                            # hard cap
-    reraise=True)
-async def get_quote(symbol: str) -> dict:
-    r = await client.get(f"/quote/{symbol}")      # GET is idempotent — safe
-    r.raise_for_status()
-    return r.json()
-# Do NOT decorate a non-idempotent POST unless it carries an idempotency key.
-# Pair with a circuit breaker so a down dep stops retries entirely.
+# examples/26-failure-modes/python/edge-service/main.py (condensed excerpt)
+# tenacity: 3 attempts, 100 ms doubling to 2 s with jitter; a 5xx or a transport error is retried.
+@app.get("/with-retry")
+async def with_retry():
+    attempts = 0
+    try:
+        async for attempt in AsyncRetrying(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential_jitter(initial=0.1, max=2.0, jitter=0.05),
+            retry=retry_if_exception_type((httpx.HTTPStatusError, httpx.TransportError)),
+            reraise=True,
+        ):
+            with attempt:
+                attempts = attempt.retry_state.attempt_number
+                r = await client().get("/process")
+                r.raise_for_status()
+        return {"status": r.status_code, "attempts": attempts, "body": r.json()}
+    except (httpx.HTTPStatusError, httpx.TransportError):
+        return {"attempts": attempts, "pattern": "retry-exhausted"}
 ```
 
 ```cpp
-// Retry with exponential backoff + jitter — for idempotent calls only.
-// Prefer the Istio retry policy when possible; in-process retry is the fallback.
-#include <random>
-#include <thread>
-
-template <typename F>
-auto retry_with_backoff(F&& fn, int max_attempts = 3) {
-  thread_local std::mt19937 rng{std::random_device{}()};
-  std::uniform_real_distribution<double> jitter{0.0, 100.0};
-  std::chrono::milliseconds wait{100};            // initial
-  for (int attempt = 1; attempt <= max_attempts; ++attempt) {
-    try {
-      return fn();
-    } catch (const TransportError& e) {
-      if (attempt == max_attempts) throw;        // out of budget
-      auto sleep_ms = wait + std::chrono::milliseconds{(int)jitter(rng)};
-      std::this_thread::sleep_for(sleep_ms);     // backoff
-      wait = std::min(wait * 2, 2000ms);          // exponential, capped
+// examples/26-failure-modes/cpp/edge-service/src/main.cpp (condensed excerpt)
+// 3 attempts, waits from 100 ms doubling to 2 s with up to 50% jitter; a 5xx or no answer is retried.
+// sleepCoro suspends the handler, so the event-loop thread serves other requests during the wait.
+app().registerHandler("/with-retry", [](HttpRequestPtr) -> Task<HttpResponsePtr> {
+    thread_local std::mt19937 rng{std::random_device{}()};
+    auto wait = 0.1;
+    Reply reply;
+    int attempt = 1;
+    for (;; ++attempt) {
+        reply = co_await get_backend(2.0);
+        if ((reply.status != 0 && reply.status < 500) || attempt == 3) break;
+        co_await sleepCoro(trantor::EventLoop::getEventLoopOfCurrentThread(),
+                           wait + std::uniform_real_distribution<>(0.0, wait * 0.5)(rng));
+        wait = std::min(wait * 2, 2.0);
     }
-  }
-  std::unreachable();
-}
-// Usage: GETs are idempotent → safe to retry. Pair with a circuit breaker.
+    Json::Value v;
+    v["attempts"] = attempt;
+    co_return json(v);
+}, {Get});
 ```
 
 ```go
-// retry with exponential backoff + jitter, idempotent calls only (cenkalti/backoff v7).
-// Prefer the Istio retry policy when possible; in-process retry is the fallback.
-func getQuote(ctx context.Context, symbol string) (Quote, error) {
-	bo := backoff.NewExponentialBackOff()       // backoff + jitter built in
-	bo.InitialInterval = 100 * time.Millisecond //
-	bo.MaxInterval = 2 * time.Second            // capped
-	// Retry stops on success, a backoff.Permanent error, a cancelled ctx or the try cap
-	return backoff.Retry(ctx, func() (Quote, error) {
-		return client.Get(ctx, "/quote/"+symbol) // GET is idempotent — safe; errors get retried
-	}, backoff.WithBackOff(bo), backoff.WithMaxTries(4))
-	// Do NOT retry a non-idempotent POST unless it carries an idempotency key.
+// examples/26-failure-modes/go/edge-service/cmd/server/main.go (condensed excerpt)
+// cenkalti/backoff v7: 100 ms doubling to 2 s, each wait randomised by up to 50%, at most 3 tries.
+bo := backoff.NewExponentialBackOff()
+bo.InitialInterval = 100 * time.Millisecond
+bo.MaxInterval = 2 * time.Second
+
+var attempts int
+body, err := backoff.Retry(r.Context(), func() ([]byte, error) {
+	attempts++
+	return call2s(r.Context()) // a 5xx comes back as a statusError and is retried
+}, backoff.WithBackOff(bo), backoff.WithMaxTries(3), backoff.WithMaxElapsedTime(15*time.Second))
+
+if err != nil {
+	if re := backoff.AsRetryError(err); re != nil {
+		err = re.LastErr // the failure the caller cares about, not the stop reason
+	}
 }
 ```
 
@@ -465,151 +484,154 @@ faster.
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
 ```java
-@Service
-public class PaymentService {
-    private final PaymentClient client;
-    private final Outbox outbox;
-
-    @CircuitBreaker(name = "payment", fallbackMethod = "queueForLater")
-    public Receipt charge(Order o) {
-        return client.charge(o);       // while OPEN: skipped, fallback runs
-    }
-
-    Receipt queueForLater(Order o, Throwable t) {   // graceful degradation
-        outbox.enqueue(o);
-        return Receipt.pending(o.id());
-    }
+// examples/26-failure-modes/spring-boot/edge-service: BackendClient.java and application.properties (condensed excerpts)
+@CircuitBreaker(name = "backend", fallbackMethod = "fallback")
+public Map<String, Object> processWithBreaker() {
+    return Map.of("source", "live", "body", process().getBody(), "breaker", breakerState());
 }
-// application.yml
-//   resilience4j.circuitbreaker.instances.payment:
-//     sliding-window-size: 10
-//     failure-rate-threshold: 50          # open at 50%
-//     wait-duration-in-open-state: 5s
-//     permitted-number-of-calls-in-half-open-state: 2
+
+private Map<String, Object> fallback(Throwable cause) {   // an open breaker or a failed call lands here
+    String reason = switch (cause) {
+        case CallNotPermittedException ignored -> "circuit_open";
+        case HttpServerErrorException e -> "upstream_" + e.getStatusCode().value();
+        default -> "upstream_unreachable";
+    };
+    return Map.of("source", "fallback", "reason", reason, "breaker", breakerState());
+}
+
+// 5 failed calls out of 5 open it for 10 s; 2 trial calls in half-open decide:
+// resilience4j.circuitbreaker.instances.backend.sliding-window-type=COUNT_BASED
+// resilience4j.circuitbreaker.instances.backend.sliding-window-size=5
+// resilience4j.circuitbreaker.instances.backend.failure-rate-threshold=100
+// resilience4j.circuitbreaker.instances.backend.wait-duration-in-open-state=10s
+// resilience4j.circuitbreaker.instances.backend.permitted-number-of-calls-in-half-open-state=2
 ```
 
 ```java
-@ApplicationScoped
-public class PaymentService {
-    @Inject @RestClient PaymentClient client;
-    @Inject Outbox outbox;
+// examples/26-failure-modes/quarkus/edge-service/src/main/java/com/cndp/edge/Backend.java (condensed excerpt)
+/** 5 failed calls open the breaker for 10 s; 2 successful trial calls close it. */
+@CircuitBreaker(requestVolumeThreshold = 5, failureRatio = 1.0, delay = 10, delayUnit = ChronoUnit.SECONDS,
+        successThreshold = 2)
+@CircuitBreakerName("backend")                 // read by CircuitBreakerMaintenance for /breaker-state
+@Fallback(fallbackMethod = "fallback")
+public Map<String, Object> processWithBreaker() {
+    return Map.of("source", "live", "body", client.process().readEntity(Map.class), "breaker", breakerState());
+}
 
-    @CircuitBreaker(
-        requestVolumeThreshold = 10,   // rolling window of 10 calls
-        failureRatio = 0.5,            // open at 50% failures
-        delay = 5000,                  // stay open 5s, then half-open
-        successThreshold = 2)          // 2 trial successes → close
-    @Fallback(fallbackMethod = "queueForLater")   // degrade gracefully
-    public Receipt charge(Order o) {
-        return client.charge(o);       // while OPEN: skipped, fallback runs
-    }
-
-    Receipt queueForLater(Order o) {   // graceful degradation
-        outbox.enqueue(o);
-        return Receipt.pending(o.id());
-    }
+Map<String, Object> fallback(Throwable cause) {
+    String reason = switch (cause) {
+        case CircuitBreakerOpenException ignored -> "circuit_open";
+        case WebApplicationException e -> "upstream_" + e.getResponse().getStatus();
+        default -> "upstream_unreachable";
+    };
+    return Map.of("source", "fallback", "reason", reason, "breaker", breakerState());
 }
 ```
 
 ```csharp
-public class PaymentService(HttpClient http, IOutbox outbox)
+// examples/26-failure-modes/dotnet/EdgeService/Program.cs (condensed excerpts)
+var breakerState = new CircuitBreakerStateProvider();   // read by /breaker-state
+builder.Services.AddResiliencePipeline<string, HttpResponseMessage>("breaker", p => p
+    .AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
+    {
+        FailureRatio = 1.0,                         // 5 failed calls out of 5 open it
+        MinimumThroughput = 5,
+        SamplingDuration = TimeSpan.FromSeconds(30),
+        BreakDuration = TimeSpan.FromSeconds(10),   // then one trial call decides
+        StateProvider = breakerState,
+    })
+    .AddTimeout(TimeSpan.FromSeconds(2)));
+
+try
 {
-    private readonly ResiliencePipeline<Receipt> _pipeline =
-        new ResiliencePipelineBuilder<Receipt>()
-            .AddCircuitBreaker(new CircuitBreakerStrategyOptions<Receipt> {
-                FailureRatio = 0.5,                 // open at 50%
-                MinimumThroughput = 10,             // over a window of 10
-                BreakDuration = TimeSpan.FromSeconds(5),
-                ShouldHandle = new PredicateBuilder<Receipt>()
-                    .Handle<HttpRequestException>()
-            })
-            .AddFallback(new FallbackStrategyOptions<Receipt> {   // degrade
-                ShouldHandle = new PredicateBuilder<Receipt>()
-                    .Handle<BrokenCircuitException>(),
-                FallbackAction = args => {
-                    outbox.Enqueue(args.Context.GetOrder());
-                    return Outcome.FromResultAsValueTask(Receipt.Pending());
-                }
-            })
-            .Build();
+    var resp = await pipelines.GetPipeline<HttpResponseMessage>("breaker").ExecuteAsync(backend.ProcessAsync);
+    if ((int)resp.StatusCode >= 500)
+        return Results.Json(new { source = "fallback", reason = $"upstream_{(int)resp.StatusCode}" });
+    return Results.Json(new { source = "live", body = await BodyAsync(resp) });
+}
+catch (BrokenCircuitException)
+{
+    return Results.Json(new { source = "fallback", reason = "circuit_open" });
 }
 ```
 
 ```python
-from purgatory import AsyncCircuitBreakerFactory
-from purgatory.domain.model import OpenedState   # raised while the breaker is open
+# examples/26-failure-modes/python/edge-service/main.py (condensed excerpts)
+# pybreaker: 5 failed calls open it, it stays open 10 s, then 2 successful trial calls close it.
+breaker = pybreaker.CircuitBreaker(
+    fail_max=5, reset_timeout=10, success_threshold=2, throw_new_error_on_trip=False, name="backend"
+)
 
-# Open after 5 failures; stay open 30s; then half-open to test recovery
-breakers = AsyncCircuitBreakerFactory(default_threshold=5, default_ttl=30)
 
-async def charge(order: dict) -> dict:
+@app.get("/with-breaker")
+async def with_breaker():
     try:
-        async with await breakers.get_breaker("payment"):
-            # While OPEN this raises immediately — no doomed downstream call
-            r = await client.post("/charge", json=order, timeout=2.0)
-            r.raise_for_status()
-            return r.json()
-    except OpenedState:                       # breaker is open → degrade
-        await outbox.enqueue(order)           # graceful fallback
-        return {"status": "pending", "id": order["id"]}
-# One breaker per dependency ("payment"), never one global breaker.
+        with breaker.calling():                 # works around an awaited call
+            r = await client().get("/process")
+            r.raise_for_status()                # a 5xx counts as a failure
+        return {"source": "live", "body": r.json(), "breaker": breaker.current_state}
+    except pybreaker.CircuitBreakerError:
+        reason = "circuit_open"
+    except httpx.HTTPStatusError as e:
+        reason = f"upstream_{e.response.status_code}"
+    except httpx.TransportError:
+        reason = "upstream_unreachable"
+    return {"source": "fallback", "reason": reason, "breaker": breaker.current_state}
 ```
 
 ```cpp
-// Hand-rolled circuit breaker — atomic state machine, per-dependency.
-// Production C++ shops typically let Istio do this; shown for reference.
+// examples/26-failure-modes/cpp/edge-service/src/main.cpp (condensed excerpt)
+// No maintained C++ resilience library is on ConanCenter, so the breaker is written here.
 class CircuitBreaker {
-  enum State { Closed, Open, HalfOpen };
-  std::atomic<State> state_{Closed};
-  std::atomic<int>   failures_{0};
-  std::atomic<steady_clock::time_point> opened_at_;
-  static constexpr int     THRESHOLD = 5;
-  static constexpr seconds RESET_AFTER = 30s;
- public:
-  template <typename F, typename Fallback>
-  auto call(F&& fn, Fallback&& fb) {
-    if (state_.load() == Open) {
-      if (steady_clock::now() - opened_at_.load() < RESET_AFTER)
-        return fb();                             // fail fast
-      state_.store(HalfOpen);                    // test
+public:
+    bool allow() {
+        std::lock_guard lock(mtx_);
+        if (state_ == "open" && Clock::now() - opened_at_ >= kResetTimeout) {
+            state_ = "half-open";
+            successes_ = 0;
+        }
+        return state_ != "open";
     }
-    try {
-      auto r = fn();
-      failures_.store(0); state_.store(Closed);  // recovered
-      return r;
-    } catch (...) {
-      if (++failures_ >= THRESHOLD) {
-        opened_at_.store(steady_clock::now());
-        state_.store(Open);
-      }
-      return fb();                               // fallback
+    void record_success() {
+        std::lock_guard lock(mtx_);
+        failures_ = 0;
+        if (state_ == "half-open" && ++successes_ >= kTrialSuccesses) state_ = "closed";
     }
-  }
+    void record_failure() {
+        std::lock_guard lock(mtx_);
+        if (state_ == "half-open" || ++failures_ >= kThreshold) {   // 5 in a row, or a failed trial
+            state_ = "open";
+            opened_at_ = Clock::now();
+            failures_ = 0;
+        }
+    }
+    // kThreshold = 5, kTrialSuccesses = 2, kResetTimeout = 10s
 };
 ```
 
 ```go
-// circuit breaker, one per dependency — sony/gobreaker v2.
-// Production shops often let Istio do this; shown for reference.
-import "github.com/sony/gobreaker/v2"
-
-var paymentBreaker = gobreaker.NewCircuitBreaker[Result](gobreaker.Settings{
-	Name:    "payment",
-	Timeout: 30 * time.Second, // stay open 30s, then half-open to test recovery
-	ReadyToTrip: func(c gobreaker.Counts) bool {
-		return c.ConsecutiveFailures >= 5 // open after 5 failures
-	},
+// examples/26-failure-modes/go/edge-service/cmd/server/main.go (condensed excerpts)
+// sony/gobreaker v2: 5 failures in a row open it, it stays open 10 s, then 2 successful trial calls close it.
+cb = gobreaker.NewCircuitBreaker[[]byte](gobreaker.Settings{
+	Name:        "backend",
+	MaxRequests: 2,
+	Timeout:     10 * time.Second,
+	ReadyToTrip: func(counts gobreaker.Counts) bool { return counts.ConsecutiveFailures >= 5 },
 })
 
-func charge(ctx context.Context, order Order) (Result, error) {
-	res, err := paymentBreaker.Execute(func() (Result, error) {
-		return client.Post(ctx, "/charge", order) // skipped while open — no doomed call
-	})
-	if errors.Is(err, gobreaker.ErrOpenState) || errors.Is(err, gobreaker.ErrTooManyRequests) {
-		_ = outbox.Enqueue(ctx, order) // breaker open → graceful fallback
-		return Result{Status: "pending", ID: order.ID}, nil
+func handleBreaker(w http.ResponseWriter, r *http.Request) {
+	body, err := cb.Execute(func() ([]byte, error) { return call2s(r.Context()) })
+	if err == nil {
+		writeJSON(w, 200, map[string]any{"source": "live", "body": parse(body), "breaker": cb.State().String()})
+		return
 	}
-	return res, err
+	reason := "upstream_unreachable"
+	if errors.Is(err, gobreaker.ErrOpenState) || errors.Is(err, gobreaker.ErrTooManyRequests) {
+		reason = "circuit_open"
+	} else if se, ok := errors.AsType[statusError](err); ok {
+		reason = fmt.Sprintf("upstream_%d", se.code)
+	}
+	writeJSON(w, 200, map[string]any{"source": "fallback", "reason": reason, "breaker": cb.State().String()})
 }
 ```
 

@@ -1,0 +1,165 @@
+{
+ "ops": [
+  {
+   "op": "set_code",
+   "sldId": 492,
+   "lines": [
+    "// examples/26-failure-modes/cpp/edge-service/src/main.cpp (condensed excerpts)",
+    "// Drogon's async HttpClient: the coroutine suspends while it waits; the timeout is per call.",
+    "Task<Reply> get_backend(double timeout_s, std::string deadline_ms = {}) {",
+    "    auto client = HttpClient::newHttpClient(g_backend);",
+    "    auto req = HttpRequest::newHttpRequest();",
+    "    req->setPath(\"/process\");",
+    "    if (!deadline_ms.empty()) req->addHeader(\"X-Deadline-Ms\", deadline_ms);  // the budget",
+    "    try {",
+    "        auto resp = co_await client->sendRequestCoro(req, timeout_s);",
+    "        Reply reply;",
+    "        reply.status = static_cast<int>(resp->getStatusCode());",
+    "        if (auto json = resp->getJsonObject()) reply.body = *json;",
+    "        co_return reply;",
+    "    } catch (const HttpException&) {",
+    "        co_return Reply{};   // status 0: timed out or unreachable",
+    "    }",
+    "}",
+    "",
+    "// /with-timeout:  co_await get_backend(2.0)",
+    "// /with-deadline: int remaining = budget_ms - 50;   // edge overhead",
+    "//                 if (remaining < 50) -> \"insufficient budget at edge\"",
+    "//                 co_await get_backend(remaining / 1000.0, std::to_string(remaining))"
+   ],
+   "_why": "examples/26 on resilience libraries (S14): the code slide is an excerpt of the example",
+   "_src": "s14"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    492
+   ],
+   "find": "c++ · gRPC",
+   "repl": "c++ · Drogon",
+   "expect": 1,
+   "_why": "chip follows the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 492,
+   "paragraphs": [
+    "Two layers, from examples/26. Drogon's HttpClient takes a timeout on every request, and sendRequestCoro suspends the coroutine handler while it waits, so a slow backend never holds an event-loop thread. A timeout or a refused connection arrives as HttpException and is reported as no answer. The deadline endpoint passes the remaining budget both as the request timeout and in the X-Deadline-Ms header, so the backend can refuse work it cannot finish."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_code",
+   "sldId": 494,
+   "lines": [
+    "// examples/26-failure-modes/cpp/edge-service/src/main.cpp (condensed excerpt)",
+    "// 3 attempts, waits from 100 ms doubling to 2 s with up to 50% jitter; a 5xx or no answer",
+    "// is retried. sleepCoro suspends the handler, so the thread serves other requests meanwhile.",
+    "app().registerHandler(\"/with-retry\", [](HttpRequestPtr) -> Task<HttpResponsePtr> {",
+    "    thread_local std::mt19937 rng{std::random_device{}()};",
+    "    auto wait = 0.1;",
+    "    Reply reply;",
+    "    int attempt = 1;",
+    "    for (;; ++attempt) {",
+    "        reply = co_await get_backend(2.0);",
+    "        if ((reply.status != 0 && reply.status < 500) || attempt == 3) break;",
+    "        co_await sleepCoro(trantor::EventLoop::getEventLoopOfCurrentThread(),",
+    "                           wait + std::uniform_real_distribution<>(0.0, wait * 0.5)(rng));",
+    "        wait = std::min(wait * 2, 2.0);",
+    "    }",
+    "    Json::Value v;",
+    "    v[\"attempts\"] = attempt;",
+    "    co_return json(v);",
+    "}, {Get});"
+   ],
+   "_why": "examples/26 on resilience libraries (S14): the code slide is an excerpt of the example",
+   "_src": "s14"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    494
+   ],
+   "find": "Hand-rolled retry with exponential backoff + jitter.",
+   "repl": "Retry in a coroutine: exponential backoff + jitter, waits that suspend instead of block.",
+   "expect": 1,
+   "_why": "caption follows the coroutine excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 494,
+   "paragraphs": [
+    "No maintained C++ resilience library is on ConanCenter, so the retry is a short loop in a Drogon coroutine handler. Three attempts at most; between them the wait starts at 100 ms, doubles up to 2 seconds and gets up to half again as jitter. The wait is co_await sleepCoro, which suspends the handler instead of blocking the event-loop thread. Retry only idempotent calls, and pair the retry with a circuit breaker."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_code",
+   "sldId": 496,
+   "lines": [
+    "// examples/26-failure-modes/cpp/edge-service/src/main.cpp (excerpt)",
+    "class CircuitBreaker {   // kThreshold = 5, kTrialSuccesses = 2, kResetTimeout = 10s",
+    "public:",
+    "    bool allow() {",
+    "        std::lock_guard lock(mtx_);",
+    "        if (state_ == \"open\" && Clock::now() - opened_at_ >= kResetTimeout) {",
+    "            state_ = \"half-open\";",
+    "            successes_ = 0;",
+    "        }",
+    "        return state_ != \"open\";",
+    "    }",
+    "    // record_success(): resets the failure count; 2 successes in half-open close it",
+    "    void record_failure() {",
+    "        std::lock_guard lock(mtx_);",
+    "        if (state_ == \"half-open\" || ++failures_ >= kThreshold) {   // or a failed trial",
+    "            state_ = \"open\";",
+    "            opened_at_ = Clock::now();",
+    "            failures_ = 0;",
+    "        }",
+    "    }",
+    "};"
+   ],
+   "_why": "examples/26 on resilience libraries (S14): the code slide is an excerpt of the example",
+   "_src": "s14"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    496
+   ],
+   "find": "Atomic state machine;",
+   "repl": "Mutex-guarded state machine;",
+   "expect": 1,
+   "_why": "caption follows the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    496
+   ],
+   "find": "atomic",
+   "repl": "mutex",
+   "expect": 1,
+   "_why": "chip follows the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 496,
+   "paragraphs": [
+    "The breaker from examples/26, written in the service because no maintained C++ resilience library is on ConanCenter. One mutex guards three states: five consecutive failures open it, the first call after ten seconds moves it to half-open, two successful trials close it and one failed trial opens it again. The handler asks allow() before calling the backend and records the outcome afterwards; when allow() refuses, it answers from the fallback with circuit_open."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  }
+ ]
+}

@@ -1,0 +1,126 @@
+{
+ "ops": [
+  {
+   "op": "set_code",
+   "sldId": 496,
+   "lines": [
+    "// examples/26-failure-modes/spring-boot/edge-service (condensed excerpts)",
+    "// BackendClient: every call through the shared RestClient gives up after 2 s",
+    "var factory = new SimpleClientHttpRequestFactory();",
+    "factory.setConnectTimeout(Duration.ofSeconds(2));",
+    "factory.setReadTimeout(Duration.ofSeconds(2));",
+    "this.rest = builder.baseUrl(backendUrl).requestFactory(factory).build();",
+    "",
+    "// EdgeController /with-deadline: pass on what is left of the caller's budget",
+    "int remaining = budgetMs - 50;                   // edge overhead",
+    "if (remaining < 50) {                            // too little to finish: fail now",
+    "    result.put(\"reason\", \"insufficient budget at edge\");",
+    "    return result;",
+    "}",
+    "var budgeted = new SimpleClientHttpRequestFactory();",
+    "budgeted.setReadTimeout(Duration.ofMillis(remaining));",
+    "var response = RestClient.builder().requestFactory(budgeted).build().get()",
+    "        .uri(backendUrl + \"/process\")",
+    "        .header(\"X-Deadline-Ms\", String.valueOf(remaining))   // propagate",
+    "        .retrieve()",
+    "        .toEntity(Map.class);"
+   ],
+   "_why": "examples/26 on resilience libraries (S14): the code slide is an excerpt of the example",
+   "_src": "s14"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    496
+   ],
+   "find": "Spring Boot 4 + Resilience4j",
+   "repl": "Spring Boot 4 + RestClient",
+   "expect": 1,
+   "_why": "chip follows the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 496,
+   "paragraphs": [
+    "Two layers, from examples/26. The shared RestClient's request factory sets a 2-second connect and read timeout, so no call through it can hang. The deadline endpoint subtracts the edge's own overhead from the caller's budget, refuses at once when too little is left, and otherwise calls the backend with a client bounded by the remaining budget and the same number in the X-Deadline-Ms header, so the backend can refuse work it cannot finish."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_code",
+   "sldId": 498,
+   "lines": [
+    "// examples/26-failure-modes/spring-boot/edge-service (condensed excerpts)",
+    "// BackendClient: the annotation needs a Spring proxy, so it sits on this bean",
+    "@Retry(name = \"backend\")",
+    "public ResponseEntity<Map> processWithRetry(AtomicInteger attempts) {",
+    "    attempts.incrementAndGet();                  // reported by /with-retry",
+    "    return process();",
+    "}",
+    "",
+    "// application.properties: the policy lives in configuration",
+    "// resilience4j.retry.instances.backend.max-attempts=3",
+    "// resilience4j.retry.instances.backend.wait-duration=100ms",
+    "// resilience4j.retry.instances.backend.enable-exponential-backoff=true",
+    "// resilience4j.retry.instances.backend.exponential-backoff-multiplier=2",
+    "// resilience4j.retry.instances.backend.exponential-max-wait-duration=2s",
+    "// resilience4j.retry.instances.backend.enable-randomized-wait=true",
+    "// resilience4j.retry.instances.backend.randomized-wait-factor=0.5",
+    "// resilience4j.retry.instances.backend.retry-exceptions=\\",
+    "//   org.springframework.web.client.HttpServerErrorException,\\",
+    "//   org.springframework.web.client.ResourceAccessException"
+   ],
+   "_why": "examples/26 on resilience libraries (S14): the code slide is an excerpt of the example",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 498,
+   "paragraphs": [
+    "Resilience4j keeps the annotation on the method and the policy in application.properties: three attempts, waits starting at 100 ms and doubling up to 2 s, each randomised by up to half for jitter, and only a 5xx or an I/O failure is retried. The method counts its own invocations, which is how the example reports the number of attempts. Retry only idempotent calls, and pair the retry with a circuit breaker so a dependency that is clearly down stops receiving retries."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_code",
+   "sldId": 500,
+   "lines": [
+    "// examples/26-failure-modes/spring-boot/edge-service (condensed excerpts)",
+    "@CircuitBreaker(name = \"backend\", fallbackMethod = \"fallback\")",
+    "public Map<String, Object> processWithBreaker() {",
+    "    return Map.of(\"source\", \"live\", \"body\", process().getBody(),",
+    "            \"breaker\", breakerState());",
+    "}",
+    "private Map<String, Object> fallback(Throwable cause) {   // open breaker or failed call",
+    "    String reason = switch (cause) {",
+    "        case CallNotPermittedException ignored -> \"circuit_open\";",
+    "        case HttpServerErrorException e -> \"upstream_\" + e.getStatusCode().value();",
+    "        default -> \"upstream_unreachable\";",
+    "    };",
+    "    return Map.of(\"source\", \"fallback\", \"reason\", reason, \"breaker\", breakerState());",
+    "}",
+    "// application.properties: 5 of 5 calls failed -> open for 10 s, then 2 trial calls",
+    "// resilience4j.circuitbreaker.instances.backend.sliding-window-type=COUNT_BASED",
+    "// resilience4j.circuitbreaker.instances.backend.sliding-window-size=5",
+    "// resilience4j.circuitbreaker.instances.backend.failure-rate-threshold=100",
+    "// resilience4j.circuitbreaker.instances.backend.wait-duration-in-open-state=10s",
+    "// ...permitted-number-of-calls-in-half-open-state=2"
+   ],
+   "_why": "examples/26 on resilience libraries (S14): the code slide is an excerpt of the example",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 500,
+   "paragraphs": [
+    "Resilience4j's @CircuitBreaker with a fallback method that receives the cause, so the response says why it fell back: circuit_open when the breaker refused the call without touching the backend, upstream_<status> or upstream_unreachable when the call itself failed. The breaker counts the last five calls; five failures out of five open it for ten seconds, after which two trial calls decide whether it closes. Use one named instance per dependency and never share a breaker between dependencies."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  }
+ ]
+}

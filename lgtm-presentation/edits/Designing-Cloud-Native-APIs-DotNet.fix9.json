@@ -1,0 +1,128 @@
+{
+ "ops": [
+  {
+   "op": "set_code",
+   "sldId": 506,
+   "lines": [
+    "// examples/26-failure-modes/dotnet/EdgeService/Program.cs (condensed excerpts)",
+    "// A Polly pipeline caps a call at 2 s; TimeoutRejectedException reports it.",
+    "builder.Services.AddResiliencePipeline<string, HttpResponseMessage>(\"timeout\", p => p",
+    "    .AddTimeout(TimeSpan.FromSeconds(2)));",
+    "",
+    "try",
+    "{",
+    "    var resp = await pipelines.GetPipeline<HttpResponseMessage>(\"timeout\")",
+    "        .ExecuteAsync(backend.ProcessAsync);",
+    "    return Results.Json(new { status = (int)resp.StatusCode, body = await BodyAsync(resp) });",
+    "}",
+    "catch (TimeoutRejectedException)",
+    "{",
+    "    return Results.Json(new { error = \"timeout\", pattern = \"timeout\" });",
+    "}",
+    "",
+    "// /with-deadline: the remaining budget bounds the call and travels as X-Deadline-Ms",
+    "using var cts = new CancellationTokenSource(remaining);",
+    "var resp = await backend.ProcessAsync(cts.Token, remaining);"
+   ],
+   "_why": "examples/26 on resilience libraries (S14): the code slide is an excerpt of the example",
+   "_src": "s14"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    506
+   ],
+   "find": "ASP.NET Core 10 + HttpClient",
+   "repl": "ASP.NET Core 10 + Polly v8",
+   "expect": 1,
+   "_why": "chip follows the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 506,
+   "paragraphs": [
+    "Two layers, from examples/26. A named Polly v8 pipeline with a 2-second timeout strategy wraps the typed BackendClient call; when it fires, Polly cancels the request and throws TimeoutRejectedException, which the endpoint turns into a timeout answer. The deadline endpoint bounds its call with a CancellationTokenSource set to the caller's remaining budget and sends that number in the X-Deadline-Ms header, so the backend can refuse work it cannot finish."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_code",
+   "sldId": 508,
+   "lines": [
+    "// examples/26-failure-modes/dotnet/EdgeService/Program.cs (condensed excerpts)",
+    "// HTTP retry options from Microsoft.Extensions.Http.Resilience: a 5xx, a timeout",
+    "// or a connection failure is retried.",
+    "builder.Services.AddResiliencePipeline<string, HttpResponseMessage>(\"retry\", p => p",
+    "    .AddRetry(new HttpRetryStrategyOptions",
+    "    {",
+    "        MaxRetryAttempts = 2,",
+    "        Delay = TimeSpan.FromMilliseconds(100),",
+    "        BackoffType = DelayBackoffType.Exponential,",
+    "        UseJitter = true,",
+    "        MaxDelay = TimeSpan.FromSeconds(2),",
+    "    })",
+    "    .AddTimeout(TimeSpan.FromSeconds(2)));      // each attempt gets 2 s",
+    "",
+    "var attempts = 0;",
+    "var resp = await pipelines.GetPipeline<HttpResponseMessage>(\"retry\").ExecuteAsync(ct =>",
+    "{",
+    "    attempts++;                                 // reported by /with-retry",
+    "    return backend.ProcessAsync(ct);",
+    "});"
+   ],
+   "_why": "examples/26 on resilience libraries (S14): the code slide is an excerpt of the example",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 508,
+   "paragraphs": [
+    "Polly v8 through Microsoft.Extensions.Http.Resilience: AddResiliencePipeline registers a named pipeline in DI, and HttpRetryStrategyOptions already knows which HTTP outcomes are transient (5xx, 408, 429, connection failures, timeouts). Two retries after the first attempt, exponential backoff from 100 ms with jitter, capped at 2 seconds; the timeout strategy inside the retry gives each attempt its own 2 seconds. The callback counts its own invocations, which is how the example reports attempts."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  },
+  {
+   "op": "set_code",
+   "sldId": 510,
+   "lines": [
+    "// examples/26-failure-modes/dotnet/EdgeService/Program.cs (condensed excerpts)",
+    "var breakerState = new CircuitBreakerStateProvider();        // read by /breaker-state",
+    "builder.Services.AddResiliencePipeline<string, HttpResponseMessage>(\"breaker\", p => p",
+    "    .AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions",
+    "    {",
+    "        FailureRatio = 1.0,                          // 5 failed calls out of 5 open it",
+    "        MinimumThroughput = 5,",
+    "        SamplingDuration = TimeSpan.FromSeconds(30),",
+    "        BreakDuration = TimeSpan.FromSeconds(10),    // then one trial call decides",
+    "        StateProvider = breakerState,",
+    "    })",
+    "    .AddTimeout(TimeSpan.FromSeconds(2)));",
+    "try {",
+    "    var resp = await pipelines.GetPipeline<HttpResponseMessage>(\"breaker\")",
+    "        .ExecuteAsync(backend.ProcessAsync);",
+    "    var code = (int)resp.StatusCode;          // a 5xx is a failure the breaker counted",
+    "    return code >= 500",
+    "        ? Results.Json(new { source = \"fallback\", reason = $\"upstream_{code}\" })",
+    "        : Results.Json(new { source = \"live\", body = await BodyAsync(resp) });",
+    "} catch (BrokenCircuitException) {            // open: the backend is not called",
+    "    return Results.Json(new { source = \"fallback\", reason = \"circuit_open\" });",
+    "}"
+   ],
+   "_why": "examples/26 on resilience libraries (S14): the code slide is an excerpt of the example",
+   "_src": "s14"
+  },
+  {
+   "op": "set_notes",
+   "sldId": 510,
+   "paragraphs": [
+    "Polly v8's circuit breaker with the HTTP options from Microsoft.Extensions.Http.Resilience: at least five calls in the sampling window and a failure ratio of one open it for ten seconds, and the next call after that is the trial that decides. While it is open the pipeline throws BrokenCircuitException without calling the backend, and the endpoint answers from its fallback. A CircuitBreakerStateProvider passed in the options exposes the state for the breaker-state endpoint. One pipeline per dependency."
+   ],
+   "_why": "notes describe the excerpt",
+   "_src": "s14"
+  }
+ ]
+}

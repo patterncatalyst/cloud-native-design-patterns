@@ -16,9 +16,8 @@ set(CMAKE_CXX_LINK_EXECUTABLE
      <OBJECTS> -o <TARGET> -Wl,--start-group <LINK_LIBRARIES> -Wl,--end-group")
 
 find_package(Drogon CONFIG REQUIRED)
-find_package(CURL REQUIRED)
 find_package(Threads REQUIRED)
 
 add_executable(edge-service src/main.cpp)
 target_link_libraries(edge-service PRIVATE
-    Drogon::Drogon CURL::libcurl Threads::Threads)
+    Drogon::Drogon Threads::Threads)

@@ -49,20 +49,20 @@ public class BackendResource {
     }
 
     @GET
-    @Path("call")
-    public Response call(@RestHeader("X-Deadline-Remaining") String deadlineRemaining) {
+    @Path("process")
+    public Response process(@RestHeader("X-Deadline-Ms") String deadlineMs) {
         callCount.incrementAndGet();
         String currentMode = mode.get();
 
-        if (deadlineRemaining != null) {
-            int remaining = Integer.parseInt(deadlineRemaining);
+        if (deadlineMs != null) {
+            int remaining = Integer.parseInt(deadlineMs);
             if (remaining < 100) {
                 Log.infof("Deadline too small (%dms), refusing", remaining);
                 Map<String, Object> rejection = new LinkedHashMap<>();
                 rejection.put("status", "rejected");
                 rejection.put("reason", "deadline_too_small");
                 rejection.put("remaining_ms", remaining);
-                return Response.status(408).entity(rejection).build();
+                return Response.ok(rejection).build();
             }
         }
 

@@ -6,4 +6,12 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- Polly v8 pipelines: retry, circuit breaker, timeout, concurrency limiter. Polly is pinned directly because
+         the resilience package only sets a floor (>= 8.4.2) and NuGet would resolve that lowest version. -->
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.10.0" />
+    <PackageReference Include="Polly.Extensions" Version="8.8.0" />
+    <PackageReference Include="Polly.RateLimiting" Version="8.8.0" />
+  </ItemGroup>
+
 </Project>
