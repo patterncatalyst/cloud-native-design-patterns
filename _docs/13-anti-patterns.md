@@ -73,21 +73,12 @@ If you remember nothing else:
 5. Watch for **coupling sneaking back in** — every anti-pattern in this chapter is a face of
    that one failure.
 
-## The shoulders this stands on
+## Further reading
 
-The slides and these references are enough to build the system, not just
-talk about it:
-
-- Sam Newman, *Building Microservices* (2nd ed.) — service boundaries and
-  integration.
-- Martin Kleppmann & Chris Riccomini, *Designing Data-Intensive Applications* (2nd
-  ed.) — the data and consistency foundations behind the outbox and saga.
-- Adam Bellemare, *Building Event-Driven Microservices* — the event backbone.
-- Cornelia Davis, *Cloud Native Patterns*; Unmesh Joshi, *Patterns of Distributed
-  Systems*.
-- The API-design trio for contracts and versioning depth: JJ Geewax, *API Design
-  Patterns*; Olaf Zimmermann et al., *Patterns for API Design*; Mike Amundsen,
-  *RESTful Web APIs* — plus the relevant IETF RFCs and drafts.
+The books behind these sections, from service boundaries and distributed data to API design,
+coupling and stability patterns, are collected in the
+[Bibliography]({{ '/bibliography/' | relative_url }}) with links to each publisher, alongside the
+relevant IETF RFCs and drafts.
 
 That closes the thirteen core sections. The appendices that follow go deeper on the
 questions that always come up — protocols, versioning, WebSockets, sagas, errors,
