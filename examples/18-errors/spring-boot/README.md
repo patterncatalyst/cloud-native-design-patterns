@@ -5,7 +5,7 @@ RFC 9457 Problem Details for REST errors, gRPC status codes with rich error deta
 ## Framework & libraries
 
 - **Framework**: Spring Boot 4.1.1, Java 25 (Web, gRPC)
-- **Libraries**: spring-boot-starter-webmvc, grpc-netty-shaded, grpc-protobuf, OpenTelemetry Java agent 2.32.0
+- **Libraries**: spring-boot-starter-webmvc, spring-boot-starter-grpc-server (inventory) and spring-boot-starter-grpc-client (callers), Spring gRPC 1.1.1, OpenTelemetry Java agent 2.32.0
 - **Container base**: `ubi10/openjdk-25-runtime:1.24-15` (UID 185)
 
 ## Run
@@ -24,8 +24,8 @@ cd .. && bash verify.sh
 
 | Path | Description |
 |------|-------------|
-| `order-service/` | OrderController.java — @ExceptionHandler returning ProblemDetail; GrpcErrorMapper — status code mapping |
-| `inventory-service/` | InventoryGrpcService.java — gRPC server with StatusRuntimeException + Metadata |
+| `order-service/` | OrderController.java and ApiErrors.java — `@ExceptionHandler` returning `ProblemDetail`, gRPC status codes mapped to 409/503; InventoryClient.java — Spring gRPC stub with a per-call deadline |
+| `inventory-service/` | InventoryServiceImpl.java — `@GrpcService` bean returning gRPC status codes |
 
 ## Implementation notes
 
@@ -37,7 +37,7 @@ The gRPC contract lives in `proto/` next to the services. The poms set the proto
 
 Key variables (set by compose.yaml, override for local dev):
 
-`inventory.grpc.host`
+`spring.grpc.client.channel.inventory.target` (from `INVENTORY_ADDR`), `inventory.deadline-ms` (from `GRPC_DEADLINE_MS`)
 
 ## Local development (without containers)
 

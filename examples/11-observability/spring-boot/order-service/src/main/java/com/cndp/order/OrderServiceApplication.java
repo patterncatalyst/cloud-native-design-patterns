@@ -1,25 +1,17 @@
 package com.cndp.order;
 
 import com.cndp.proto.InventoryServiceGrpc;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
-import jakarta.annotation.PreDestroy;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.grpc.client.GrpcChannelFactory;
 
 @SpringBootApplication
 public class OrderServiceApplication {
-
-    @Value("${inventory.addr}")
-    private String inventoryAddr;
-
-    private ManagedChannel channel;
 
     public static void main(String[] args) {
         SpringApplication.run(OrderServiceApplication.class, args);
@@ -31,13 +23,10 @@ public class OrderServiceApplication {
         return GlobalOpenTelemetry.get();
     }
 
+    /** The "inventory" channel comes from spring.grpc.client.channel.inventory.target; Spring gRPC owns its lifecycle. */
     @Bean
-    public InventoryServiceGrpc.InventoryServiceBlockingStub inventoryStub() {
-        String[] parts = inventoryAddr.split(":");
-        channel = ManagedChannelBuilder.forAddress(parts[0], Integer.parseInt(parts[1]))
-                .usePlaintext()
-                .build();
-        return InventoryServiceGrpc.newBlockingStub(channel);
+    InventoryServiceGrpc.InventoryServiceBlockingStub inventoryStub(GrpcChannelFactory channels) {
+        return InventoryServiceGrpc.newBlockingStub(channels.createChannel("inventory"));
     }
 
     @Bean
@@ -46,10 +35,5 @@ public class OrderServiceApplication {
         return meter.counterBuilder("orders.placed")
                 .setDescription("Number of orders placed")
                 .build();
-    }
-
-    @PreDestroy
-    public void shutdownChannel() {
-        if (channel != null) channel.shutdown();
     }
 }

@@ -64,8 +64,8 @@ the gateway is only the composition layer.
 @Controller                                   // spring-boot-starter-graphql
 public class OrderGraphQLController {
     private final OrderClient orderClient;
-    private final InventoryGrpcClient inventory;
-    public OrderGraphQLController(OrderClient o, InventoryGrpcClient i) {
+    private final InventoryGrpc.InventoryBlockingStub inventory;   // Spring gRPC channel bean
+    public OrderGraphQLController(OrderClient o, InventoryGrpc.InventoryBlockingStub i) {
         this.orderClient = o; this.inventory = i;
     }
 
@@ -76,7 +76,8 @@ public class OrderGraphQLController {
 
     @SchemaMapping(typeName = "Order", field = "stock")   // resolved on demand
     public Integer stock(Order order) {                   // via gRPC
-        return inventory.remaining(order.sku());
+        return inventory.getStock(GetStockRequest.newBuilder().setSku(order.sku()).build())
+                .getAvailable();
     }
 }
 ```

@@ -7,9 +7,12 @@ import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.grpc.server.service.GrpcService;
 
 import java.util.concurrent.ConcurrentHashMap;
 
+/** Registered with the gRPC server by Spring gRPC (spring.grpc.server.port). */
+@GrpcService
 public class InventoryServiceImpl extends InventoryGrpc.InventoryImplBase {
 
     private static final Logger log = LoggerFactory.getLogger(InventoryServiceImpl.class);
@@ -18,9 +21,9 @@ public class InventoryServiceImpl extends InventoryGrpc.InventoryImplBase {
     private final String failMode;
     private final ConcurrentHashMap<String, Integer> stock = new ConcurrentHashMap<>();
 
-    public InventoryServiceImpl(int initialStock, String failMode) {
-        this.initialStock = initialStock;
-        this.failMode = failMode;
+    public InventoryServiceImpl(InventoryProperties properties) {
+        this.initialStock = properties.initialStock();
+        this.failMode = properties.failMode();
     }
 
     @Override

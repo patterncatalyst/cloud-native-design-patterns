@@ -5,7 +5,7 @@ Four communication styles — REST, gRPC, async events (Kafka), and GraphQL — 
 ## Framework & libraries
 
 - **Framework**: ASP.NET Core (.NET 10.0.12) minimal API
-- **Libraries**: HotChocolate.AspNetCore (GraphQL), Confluent.Kafka 2.16.0, Grpc.Net.Client, Google.Protobuf
+- **Libraries**: HotChocolate.AspNetCore (GraphQL), Confluent.Kafka 2.16.0, Grpc.Net.ClientFactory (`AddGrpcClient`), Google.Protobuf
 - **Container base**: registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.8-1791363520 (runtime), built with ubi9/dotnet-100:9.8-1791421718; runs as UID 1001
 
 ## Run
@@ -35,7 +35,7 @@ GraphQL via HotChocolate (code-first). gRPC stubs generated via Grpc.Tools at bu
 
 Key variables (set by compose.yaml, override for local dev):
 
-`DATABASE_URL, KAFKA_BOOTSTRAP, INVENTORY_GRPC_HOST`
+`DATABASE_URL, KAFKA_BOOTSTRAP, INVENTORY_ADDR`
 
 ## Local development (without containers)
 

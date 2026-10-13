@@ -1,0 +1,110 @@
+{
+ "ops": [
+  {
+   "op": "set_code",
+   "sldId": 273,
+   "lines": [
+    "// inventory.proto — the contract, registered in Apicurio",
+    "syntax = \"proto3\";",
+    "service Inventory { rpc ReserveStock (ReserveRequest) returns (ReserveReply); }",
+    "message ReserveRequest { string sku = 1; int32 quantity = 2; }",
+    "message ReserveReply   { bool reserved = 1; int32 remaining = 2; }",
+    "// inventory-service (excerpt): Spring gRPC serves this bean on spring.grpc.server.port",
+    "@GrpcService",
+    "public class InventoryService extends InventoryGrpc.InventoryImplBase {",
+    "    @Override public void reserveStock(ReserveRequest req, StreamObserver<ReserveReply> obs) {",
+    "        stock.putIfAbsent(req.getSku(), initialStock);",
+    "        int remaining = stock.get(req.getSku()) - req.getQuantity();",
+    "        if (remaining >= 0) stock.put(req.getSku(), remaining);      // reserve",
+    "        obs.onNext(ReserveReply.newBuilder().setReserved(remaining >= 0)",
+    "            .setRemaining(stock.get(req.getSku())).build());",
+    "        obs.onCompleted();",
+    "    }",
+    "}",
+    "// order-service: the channel comes from spring.grpc.client.channel.inventory.target",
+    "@Bean InventoryGrpc.InventoryBlockingStub inventoryStub(GrpcChannelFactory channels) {",
+    "    return InventoryGrpc.newBlockingStub(channels.createChannel(\"inventory\"));",
+    "}"
+   ],
+   "_why": "examples/02 on Spring gRPC (S14)",
+   "_src": "s14"
+  },
+  {
+   "op": "replace",
+   "scope": "slide",
+   "sldIds": [
+    273
+   ],
+   "find": "Spring Boot 4 + grpc-java",
+   "repl": "Spring gRPC",
+   "expect": 1,
+   "_why": "chip",
+   "_src": "s14"
+  },
+  {
+   "op": "replace",
+   "scope": "notes",
+   "sldIds": [
+    273
+   ],
+   "find": "The example starts a plain grpc-java server from a CommandLineRunner inside the Spring Boot application, so no gRPC starter sits between the code and the library.",
+   "repl": "The inventory service is a @GrpcService bean: spring-boot-starter-grpc-server starts the server on spring.grpc.server.port, drains it on shutdown and adds the standard gRPC health service, and the order service gets its channel from GrpcChannelFactory.",
+   "expect": 1,
+   "_why": "notes follow the example",
+   "_src": "s14"
+  },
+  {
+   "op": "set_code",
+   "sldId": 279,
+   "lines": [
+    "@Controller                                   // spring-boot-starter-graphql",
+    "public class OrderGraphQLController {",
+    "    private final OrderClient orderClient;",
+    "    private final InventoryGrpc.InventoryBlockingStub inventory;   // Spring gRPC channel bean",
+    "    public OrderGraphQLController(OrderClient o, InventoryGrpc.InventoryBlockingStub i) {",
+    "        this.orderClient = o; this.inventory = i;",
+    "    }",
+    "    @QueryMapping                              // REST call to order-service",
+    "    public Order order(@Argument String id) {",
+    "        return orderClient.get(id);",
+    "    }",
+    "    @SchemaMapping(typeName = \"Order\", field = \"stock\")   // resolved on demand",
+    "    public Integer stock(Order order) {                   // via gRPC",
+    "        return inventory.getStock(GetStockRequest.newBuilder().setSku(order.sku()).build())",
+    "                .getAvailable();",
+    "    }",
+    "    // @BatchMapping(\"stock\") batches N orders into one gRPC call: no N+1",
+    "}"
+   ],
+   "_why": "no InventoryGrpcClient type exists; the example injects the generated stub",
+   "_src": "s14"
+  },
+  {
+   "op": "set_code",
+   "sldId": 319,
+   "lines": [
+    "# Containerfile — attach the OpenTelemetry Java agent (Spring Boot 4 needs no starter)",
+    "ENV JAVA_TOOL_OPTIONS=\"-javaagent:/deployments/opentelemetry-javaagent.jar\"",
+    "# environment: OTEL_SERVICE_NAME=order-service",
+    "#              OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318",
+    "#              OTEL_TRACES_SAMPLER=parentbased_traceidratio, OTEL_TRACES_SAMPLER_ARG=1.0",
+    "// The agent instruments Spring MVC, RestClient, gRPC, JDBC and the Kafka clients,",
+    "// and puts trace_id/span_id in the logback MDC. Custom business spans use the",
+    "// OpenTelemetry API annotation (io.opentelemetry.instrumentation.annotations):",
+    "@Service",
+    "public class OrderService {",
+    "    private final InventoryServiceGrpc.InventoryServiceBlockingStub inventory;   // Spring gRPC",
+    "    public OrderService(InventoryServiceGrpc.InventoryServiceBlockingStub i) { inventory = i; }",
+    "    @WithSpan(\"reserve_stock\")                 // custom span",
+    "    public ReserveReply reserve(String sku, int qty) {",
+    "        return inventory.reserveStock(",
+    "            ReserveRequest.newBuilder().setSku(sku).setQuantity(qty).build());",
+    "    }",
+    "    // trace_id flows: REST -> gRPC -> Kafka -> consumer",
+    "}"
+   ],
+   "_why": "no InventoryGrpcClient type exists; the example injects the generated stub",
+   "_src": "s14"
+  }
+ ]
+}
