@@ -116,7 +116,8 @@ Task<Reply> get_backend(double timeout_s, std::string deadline_ms = {}) {
     if (!deadline_ms.empty()) req->addHeader("X-Deadline-Ms", deadline_ms);
     try {
         auto resp = co_await client->sendRequestCoro(req, timeout_s);
-        Reply reply{static_cast<int>(resp->getStatusCode())};
+        Reply reply;
+        reply.status = static_cast<int>(resp->getStatusCode());
         if (auto json = resp->getJsonObject()) reply.body = *json;
         co_return reply;
     } catch (const HttpException&) {
