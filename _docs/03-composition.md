@@ -273,5 +273,5 @@ The code is in [`examples/03-composition/`](https://github.com/patterncatalyst/c
 its `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: verified — [`examples/03-composition/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/03-composition/) passes 8/8 checks in each of the six languages on Docker Engine (2026-10-10)
+*Verification status: verified — [`examples/03-composition/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/03-composition/) passes 8/8 checks in each of the six languages on Docker Engine (2026-10-12)
 (GraphQL gateway fan-out to the REST order API and the gRPC stock service, selective stock-field resolution, DataLoader batching of stock lookups into one gRPC call, single-order lookup).*

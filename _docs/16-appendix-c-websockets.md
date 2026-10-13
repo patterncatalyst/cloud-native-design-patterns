@@ -555,5 +555,5 @@ Deployment down by one and confirm the dropped clients reconnect with backoff an
 resume from their last sequence rather than losing the stream.
 
 ---
-*Verification status: verified — [`examples/16-websockets/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/16-websockets/) passes 6/6 checks in each of the six languages on Docker Engine (2026-10-10)
+*Verification status: verified — [`examples/16-websockets/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/16-websockets/) passes 6/6 checks in each of the six languages on Docker Engine (2026-10-12)
 (WebSocket connect, cross-pod delivery and broadcast over the Redis pub/sub backplane, monotonic sequence numbers).*

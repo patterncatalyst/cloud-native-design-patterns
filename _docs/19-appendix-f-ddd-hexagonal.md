@@ -354,5 +354,5 @@ new adapter file appears. A clean domain import list plus a no-domain-change dif
 you bolt on a protocol is hexagonal architecture holding.
 
 ---
-*Verification status: verified — [`examples/19-ddd-hexagonal/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/19-ddd-hexagonal/) passes 17/17 checks in each of the six languages on Docker Engine (2026-10-10)
+*Verification status: verified — [`examples/19-ddd-hexagonal/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/19-ddd-hexagonal/) passes 17/17 checks in each of the six languages on Docker Engine (2026-10-12)
 (source scans proving the domain layer imports no framework or persistence types, REST and CLI adapters driving the same use case, input validation, OrderPlaced event emission).*
