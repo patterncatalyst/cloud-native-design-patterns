@@ -37,14 +37,19 @@ language; do not hand-roll what a maintained library provides.
 | .NET 10 | `Microsoft.Extensions.Http.Resilience` | 10.10.0 (Polly.Core 8.8.0) | NuGet |
 | .NET 10 | `Grpc.Net.ClientFactory` | 2.84.0 (matches Grpc.Net.Client) | NuGet |
 | Python 3.14 | `tenacity` | 9.2.1 | PyPI |
-| Python 3.14 | `purgatory` (asyncio circuit breaker) | 3.0.1 | PyPI |
+| Python 3.14 | `pybreaker` (circuit breaker) | 1.4.1 | PyPI |
 | Go 1.27 | `golang.org/x/sync` (semaphore) | v0.24.0 | Go proxy |
 | Go 1.27 | `github.com/sony/gobreaker/v2`, `github.com/cenkalti/backoff/v7` | v2.4.0, v7.0.1 (unchanged) | Go proxy |
 
 Rejected at Step 0: Spring Framework 7.0.9 `@ConcurrencyLimit` (documented as blocking, no reject policy, so it cannot
-give 429 at once) and `@Retryable` (no breaker); aiobreaker (no release since 2021); pybreaker (async only through
-Tornado). purgatory is asyncio-native and already in the Appendix M Python tab, but its last release is November 2024
-and the project is small: if it misbehaves on Python 3.14, wrap pybreaker's state machine by hand and record it.
+give 429 at once) and `@Retryable` (no breaker); aiobreaker (no release since 2021); purgatory (asyncio-native and in
+today's Appendix M Python tab, but no release since November 2024 and a very small project). pybreaker is maintained
+(commits in September 2026) and works in asyncio through its `calling()` context manager: `with breaker.calling():
+resp = await client.get(...); resp.raise_for_status()`. `call()` returns a generator, so the breaker's lock is
+released before the block runs and is not held across the `await`; the generator records success or failure when the
+block exits, and an open breaker raises `CircuitBreakerError` on entry. Its `fail_max`, `reset_timeout` and
+`success_threshold` match the shared settings (5, 10 s, 2), and its state names are already `closed`, `open`,
+`half-open` (D2). Its `call_async` needs Tornado and is not used.
 
 ## Inventory (baseline, from two read-only surveys on 6656c0a)
 
@@ -80,7 +85,7 @@ in Spring comes from the OTel Java agent (03, 11); 11's check that the inventory
 must keep passing.
 
 **Prose and decks.** Appendix M's codetabs already show the libraries for Spring (Resilience4j), Quarkus (MP Fault
-Tolerance), .NET (Polly v8), Python (tenacity, purgatory) and Go; only C++ is hand-written. So for 26 the examples
+Tolerance), .NET (Polly v8), Python (tenacity, purgatory; S14 moves it to pybreaker) and Go; only C++ is hand-written. So for 26 the examples
 move to what the chapter teaches, and the excerpts then become literal. Chapter 12's bulkhead codetab is hand-written
 in all six languages and gets rewritten. Site defects found on the way: the Spring tab in `_docs/05-event-driven.md`
 (about L577) uses a net.devh `@GrpcClient("sidecar")` that no example backs; the Spring tab in
@@ -106,7 +111,8 @@ example has. Deck slides per language: bulkhead [085] (.NET [087]); Appendix M t
   `AddResilienceHandler` (retry, circuit breaker with `CircuitBreakerStateProvider`, timeout), bulkhead via
   `AddConcurrencyLimiter`. 12: the ASP.NET Core rate-limiting middleware (`AddRateLimiter` with a
   `PartitionedRateLimiter` concurrency limiter keyed by tenant, `RejectionStatusCode = 429`). Pins exact.
-- **Python:** tenacity for retry; purgatory for the breaker (as in the prose; see Pins for the fallback); bulkheads stay `asyncio.Semaphore` (standard library) but reject at once and stop reading
+- **Python:** tenacity for retry; pybreaker for the breaker through `calling()` (see Pins); the Appendix M Python tab moves from purgatory to
+  pybreaker; bulkheads stay `asyncio.Semaphore` (standard library) but reject at once and stop reading
   `_value`. Pins exact in `pyproject.toml` + `uv.lock`.
 - **Go:** keep gobreaker and backoff; gobreaker `MaxRequests` 2 to match the others; bulkheads via
   `golang.org/x/sync/semaphore` `TryAcquire` (12 per tenant, 26 global) returning 429; `/breaker-state` gains `name`.
