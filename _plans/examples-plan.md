@@ -191,7 +191,7 @@ Build 20 runnable examples referenced by the tutorial site, each demonstrating p
   - Debezium (example 04)
   - flagd (example 27)
 
-### Minikube Stack (optional, added later in the modernization plan)
+### Minikube Stack (optional; S9 ran Example 05 on minikube, Appendix R, and S10 on OpenShift Local, Appendix S)
 - **Base**: Istio + KEDA + Strimzi + CloudNativePG + LGTM (covered by `lgtm-minikube-stack`)
 - **Opt-ins**:
   - Apicurio (example 09)
