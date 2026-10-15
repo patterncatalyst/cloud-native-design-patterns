@@ -150,8 +150,9 @@ Do not use `gh cache delete --all`: it also removes the entries the current poli
     the newest ConanCenter version; stale transitive pins are lifted with `override=True` in the
     conanfile (fmt, lz4, util-linux-libuuid, jsoncpp). Held back: abseil 20260107.1 (protobuf 6.33.5),
     protobuf 6.33.5 (grpc is below 7), opentelemetry-proto 1.7.0 (opentelemetry-cpp), taocpp-pegtl 3.2.8
-    (cppgraphqlgen needs 3.x), lua 5.4.8 (sol2), librdkafka 2.14.2 and opentelemetry-cpp 1.26.0 (ConanCenter
-    behind upstream). flex and bison get `MAKEINFO=true` through a scoped Conan conf, not a fake binary.
+    (cppgraphqlgen needs 3.x), lua 5.4.8 (sol2), openssl 3.6.x (drogon needs <4), and, with ConanCenter behind
+    upstream, librdkafka 2.14.2 (2.16.0), opentelemetry-cpp 1.26.0 (1.29.0), drogon 1.9.13 (1.9.14) and trantor
+    1.5.28 (1.5.29). Last checked 2026-10-15: libcurl moved to 8.23.0; nothing else in range changed. flex and bison get `MAKEINFO=true` through a scoped Conan conf, not a fake binary.
     The Conan cache mount id is `cndp-conan2`; CI persists it with buildkit-cache-dance.
   - ⚠️ Reconcile: the r76 outbox codetab in `_docs/05-event-driven.md` used `pqxx` for
     brevity; it now shows libpq, as the example does.
