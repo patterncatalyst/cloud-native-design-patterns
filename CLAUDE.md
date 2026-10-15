@@ -202,6 +202,8 @@ Do not use `gh cache delete --all`: it also removes the entries the current poli
     (`spring.grpc.client.channel.<name>.target`). Never `ServerBuilder` or `ManagedChannelBuilder` by hand.
     The protobuf plugin stays xolstice 0.6.1: the Boot-managed `io.github.ascopes` plugin fails under the
     UBI image's packaged Maven. .NET callers use the gRPC client factory (`AddGrpcClient`).
+    Traces come from the OTel Java agent alone: do not add a Micrometer tracing bridge, or Spring gRPC's
+    observation interceptor adds a second span per call.
 
 ## House test tools (prefer these; don't introduce alternatives)
 
