@@ -137,8 +137,8 @@ and Kafka payload drift (DTOs only, compare with kcat); idempotent consumers und
 and start time against compose `--wait` and the 05 k8s limits; deck `expect` counts (measure on committed decks);
 Python lock drift (diff `uv export` against the old pins); long matrix runs.
 
-## Not re-run
+## Re-run after S14
 
-Example 05 on minikube (Appendix R) and OpenShift Local (Appendix S) was not repeated after S13 (D7). Its
-Quarkus, Spring Boot and .NET services changed (ORMs, health endpoints), so those two footers describe the
-pre-S13 code; the deploy scripts accept the new `"UP"` health bodies.
+Example 05 on minikube (Appendix R) and OpenShift Local (Appendix S) was not repeated during S13 (D7). It was
+re-run on the S13/S14 code on 2026-10-13 (PR #84): minikube 6/6 and OpenShift Local 5/5 languages, 10/10 checks
+each, and both footers now describe the current code.
