@@ -104,11 +104,11 @@ The repo gets 10 GB of Actions cache. Policy in `examples.yml`: every run restor
 `warm-go` jobs, which resolve every project and delete the superseded entry. Conan is one entry per
 distinct `conan.lock` (22), pruned of sources, build trees and downloads before it is saved; on a main miss the
 builder stage is forced to run so the cache mount is never empty. BuildKit layers are `type=gha,mode=min`.
-Steady state on main: typical about 3.7 GB (22 x 82 MB Conan + Maven 1.0 + Go 0.6 + layers 0.25 + Pages 0.05),
-bound 4.9 GB, peak about 8 GB when a Conan key bump or bulk lock change leaves superseded per-lock entries and
-layer blobs age out after 7 days unused. Measured: unpruned Conan entries, BuildKit layers (27 blobs = 200 MB).
-Partly measured: prune ratio (one project). Estimated: Maven <=1.0 GB, Go <=0.6 GB, Pages. After the first merge,
-check the real saved Maven and Go entry sizes and correct the numbers (arithmetic in the `examples.yml` comment).
+Steady state on main, measured 2026-10-15: Conan 27 entries = 2.16 GB (avg 80 MB; 5 superseded entries
+from the S14 lock changes age out after 7 days unused), Maven 446 MB, Go 216 MB, 3.46 GB in all. Typical about
+2.7 GB (22 x 80 MB Conan + Maven 0.45 + Go 0.22 + layers 0.25 + Pages 0.05), bound 3.9 GB (22 x 135 MB Conan),
+peak about 7 GB when a Conan key bump or bulk lock change leaves superseded per-lock entries and layer blobs
+age out after 7 days unused. Arithmetic in the `examples.yml` comment.
 `cache-cleanup.yml` drops a PR ref's caches when the PR closes (same-repo PRs only).
 
 Check usage with `gh api repos/patterncatalyst/cloud-native-design-patterns/actions/cache/usage`. Drop one PR's
@@ -153,8 +153,6 @@ Do not use `gh cache delete --all`: it also removes the entries the current poli
     (cppgraphqlgen needs 3.x), lua 5.4.8 (sol2), librdkafka 2.14.2 and opentelemetry-cpp 1.26.0 (ConanCenter
     behind upstream). flex and bison get `MAKEINFO=true` through a scoped Conan conf, not a fake binary.
     The Conan cache mount id is `cndp-conan2`; CI persists it with buildkit-cache-dance.
-  - ⚠️ Reconcile: the r76 outbox codetab in `_docs/05-event-driven.md` used `pqxx` for
-    brevity; it now shows libpq, as the example does.
 - **JVM / .NET / Python** (as used in the site codetabs): Spring Boot (Spring Kafka,
   `spring-boot-starter-websocket`, Kafka Streams); Quarkus (`websockets-next`, SmallRye
   Reactive Messaging, Kafka Streams); .NET 10.0.12 (**Confluent.Kafka** 2.16.0 for Kafka —

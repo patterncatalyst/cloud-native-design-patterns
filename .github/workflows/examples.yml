@@ -185,18 +185,18 @@ jobs:
   #     1.6 GB -> 163 MB), budgeted here at 20% = 135 MB for the largest. Per-pom Maven entries
   #     were 56-350 MB and per-go.sum Go entries 22-248 MB (avg 111 MB), so those two are
   #     what outgrew the quota, not Conan. Steady state on main:
-  #       Conan   22 x <=135 MB (typical 82)     <= 3.0 GB
-  #       Maven   1 shared union                 <= 1.0 GB   (estimate)
-  #       Go      1 shared module cache          <= 0.6 GB   (estimate)
+  #       Conan   22 x <=135 MB (typical 80)     <= 3.0 GB
+  #       Maven   1 shared union                 0.45 GB  (measured: 446 MB)
+  #       Go      1 shared module cache          0.22 GB  (measured: 216 MB)
   #       layers  27 blobs = 200 MB measured     0.25 GB
   #       Pages   bundler cache                  <= 0.05 GB  (estimate)
-  #       typical 22 x 82 MB + 1.0 + 0.6 + 0.25 + 0.05 = ~3.7 GB; bound ~4.9 GB.
-  #       Peak ~8 GB: a Conan key bump or bulk lock change leaves the superseded per-lock
+  #       typical 22 x 80 MB + 0.45 + 0.22 + 0.25 + 0.05 = ~2.7 GB; bound ~3.9 GB.
+  #       Peak ~7 GB: a Conan key bump or bulk lock change leaves the superseded per-lock
   #       entries in place until they age out, and layer blobs stay 7 days unused.
-  #     Measured: unpruned Conan entries (API), BuildKit layers. Partly measured: the prune
-  #     ratio (one project, 25-caching/cpp). Estimated: Maven and Go unions, Pages. After the
-  #     first merge, check the real saved Maven and Go entry sizes (`gh cache list --key`)
-  #     and correct these numbers. PR refs hold nothing.
+  #     Measured on main 2026-10-15 (`gh cache list --key`): Conan 27 entries = 2.16 GB
+  #     (5 superseded after the S14 lock changes), Maven 446 MB, Go 216 MB; 3.46 GB in all.
+  #     Partly measured: the prune ratio (one project, 25-caching/cpp). Estimated: Pages.
+  #     PR refs hold nothing.
   #   - Hygiene: .github/workflows/cache-cleanup.yml deletes the caches of a PR ref when the
   #     PR closes; CLAUDE.md ("CI cache budget") has the commands for inspecting and clearing.
   #
