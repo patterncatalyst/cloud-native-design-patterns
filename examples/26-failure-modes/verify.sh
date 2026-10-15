@@ -9,12 +9,11 @@ BACKEND="${BACKEND:-http://localhost:8081}"
 CURL_OPTS="${CURL_OPTS:-}"
 
 # Container operations go through these helpers so the checks do not hard-code
-# an engine. RUNTIME=openshift is added later: a ctr_target function will map
-# a container name (cndp-kafka, cndp-postgres, ...) to its pod and each helper
-# will call `oc exec` / `oc logs` instead.
+# an engine. This example runs on Docker Compose only (RUNTIME=docker); Example 05's
+# verify.sh shows the RUNTIME=kubernetes variant used on minikube and OpenShift Local.
 case "$RUNTIME" in
     docker) ;;
-    *) echo "RUNTIME=$RUNTIME not supported yet" >&2; exit 1 ;;
+    *) echo "RUNTIME=$RUNTIME not supported (docker)" >&2; exit 1 ;;
 esac
 ctr_exec()    { docker exec "$@"; }
 ctr_logs()    { docker logs "$@"; }
@@ -177,15 +176,19 @@ else
 fi
 
 # --- Breaker recovery ---
-printf '  \xe2\x86\x92 restoring backend and waiting for breaker reset (11s)...\n'
+printf '  \xe2\x86\x92 restoring backend; the breaker stays open 10s, then trial calls close it...\n'
 curl $CURL_OPTS -s -X POST -H 'Content-Type: application/json' \
     -d '{"mode":"healthy"}' "$BACKEND/mode" >/dev/null
-sleep 11
+sleep 10
 
-# First call after reset should trigger half-open → trial
-curl $CURL_OPTS -sf "$EDGE/with-breaker" >/dev/null 2>&1
-curl $CURL_OPTS -sf "$EDGE/with-breaker" >/dev/null 2>&1
-curl $CURL_OPTS -sf "$EDGE/with-breaker" >/dev/null 2>&1
+# Poll rather than wait a fixed time: the libraries end the open period at slightly different moments, and the
+# first call after it is the half-open trial (Polly closes after one success, the others after two). A call made
+# while the breaker is still open only gets the fallback, so polling is harmless. Give up after 20 s.
+for _ in $(seq 1 20); do
+    curl $CURL_OPTS -sf "$EDGE/with-breaker" >/dev/null 2>&1
+    curl $CURL_OPTS -sf "$EDGE/breaker-state" 2>/dev/null | grep -q '"state":"closed"' && break
+    sleep 1
+done
 
 check "breaker recovered to closed after successful trials" \
     "curl $CURL_OPTS -sf $EDGE/breaker-state" \

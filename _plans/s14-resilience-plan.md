@@ -170,3 +170,14 @@ slack; Polly's breaker state lives per typed client, so `/breaker-state` must re
 SmallRye FT annotations need CDI-intercepted calls (not `this.` calls); Spring gRPC's port and health defaults
 versus the compose wiring; the OTel agent and Spring gRPC's own observation both instrumenting gRPC (double spans);
 Conan cache churn if C++ dependencies change (they should not).
+
+Outcome (2026-10-15): the breaker windows, half-open rules, Polly's per-client state, CDI interception and the Spring
+gRPC defaults were all settled by the 111/111 matrix. The two left open are closed:
+
+- Reset wait: `verify.sh` no longer sleeps a fixed 11 s. It waits the 10 s open period, then calls `/with-breaker`
+  once a second until `/breaker-state` reports closed (at most 20 s), so the slack no longer depends on one
+  library's timing. Verified on all six languages.
+- Double spans: none. In Example 11 (Spring Boot) a `POST /orders` trace holds one gRPC CLIENT span in
+  order-service and one SERVER span in inventory-service, both from the OTel agent (`io.opentelemetry.grpc-1.6`),
+  the server span parented on the client span. Spring gRPC's observation interceptor creates no spans because
+  Micrometer Tracing is not on the classpath; adding a Micrometer tracing bridge would bring the duplicates back.

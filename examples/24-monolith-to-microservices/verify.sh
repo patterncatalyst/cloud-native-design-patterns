@@ -9,12 +9,11 @@ DECORATOR="${DECORATOR:-http://localhost:8091}"
 CURL_OPTS="${CURL_OPTS:-}"
 
 # Container operations go through these helpers so the checks do not hard-code
-# an engine. RUNTIME=openshift is added later: a ctr_target function will map
-# a container name (cndp-kafka, cndp-postgres, ...) to its pod and each helper
-# will call `oc exec` / `oc logs` instead.
+# an engine. This example runs on Docker Compose only (RUNTIME=docker); Example 05's
+# verify.sh shows the RUNTIME=kubernetes variant used on minikube and OpenShift Local.
 case "$RUNTIME" in
     docker) ;;
-    *) echo "RUNTIME=$RUNTIME not supported yet" >&2; exit 1 ;;
+    *) echo "RUNTIME=$RUNTIME not supported (docker)" >&2; exit 1 ;;
 esac
 ctr_exec()    { docker exec "$@"; }
 ctr_logs()    { docker logs "$@"; }
