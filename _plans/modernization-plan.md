@@ -40,6 +40,18 @@ Each step gets its own branch, a PR, green CI and a squash-merge before the next
 
 
 - S13 (user, 2026-10-12): examples use each framework's idiomatic persistence: Hibernate ORM with Panache in every Quarkus example that touches a database (01, 04, 25 and any others), Spring Data JPA in the Spring Boot examples, EF Core in the .NET examples. Python (asyncpg), Go (pgx) and C++ (libpq) keep their drivers. Every changed example re-runs `verify.sh` green on Docker Engine; slides (via deck edit files) and site codetabs follow the examples, including the caching, outbox, health and write-back slides; CLAUDE.md's locked stacks name the ORMs.
+## Open follow-ups (status 2026-10-15; work paused here)
+
+S0 to S14 are done and main is green (f20e612). Nothing is required; these are the items left, none started.
+
+| Item | Kind | What to do | Trigger |
+|---|---|---|---|
+| F1 | wait | Superseded Conan cache entries (11 of 33 after S14 and the libcurl bump; usage 4.3 GB) age out after 7 days unused; expect about 3.5 GB. Check with `gh api .../actions/cache/usage`. | after 2026-10-22 |
+| F2 | wait | ConanCenter lags upstream: librdkafka 2.16.0, opentelemetry-cpp 1.29.0, drogon 1.9.14, trantor 1.5.29. Re-run every lock with `conan lock create . --lockfile="" --update` (the empty `--lockfile` matters) and verify the changed C++ projects. | when the recipes land |
+| F3 | wait | Dependency-capped C++ holds: protobuf 7 (grpc needs <7), abseil 20260526.0 (protobuf 6.33.5 caps it), opentelemetry-proto 1.9.0 (opentelemetry-cpp tool-requires 1.7.0), lua 5.5 (sol2), openssl 4 (drogon), taocpp-pegtl 4 (cppgraphqlgen). | newer grpc / opentelemetry-cpp / sol2 / drogon recipes |
+| F4 | option | Pin refresh (candidate S15): the target pins were verified 2026-10-09. Re-check Quarkus, Spring Boot, .NET, the OTel Java agent, Python and Go modules, and the infra images for patch releases; update on a branch. | user decision |
+| F5 | option | Full 111-target matrix re-run. The last full run was 2026-10-13 (S14); later changes were verified only on the targets they touched (#86: 01, 05, 11 C++; #87: 26 x6, 12 Python). Pair it with F4. | with F4 |
+
 ## Target pins (verified 2026-10-09; re-check at the start of each branch)
 
 | Component | Version or image |
