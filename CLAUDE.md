@@ -15,10 +15,11 @@ diagrams, and a companion **eight-deck PPTX set** in `lgtm-presentation/` (six l
 
 ## Current focus — modernization
 
-The 20 runnable examples exist in all six languages. The work now is the staged
-modernization (runtime, versions, tests, CI) tracked step by step in
-`_plans/modernization-plan.md`. Read it before starting a step, and update its status
-table when a step lands. Examples are flipped to **verified** (footer in the chapter) only
+The 20 runnable examples exist in all six languages. The staged modernization (runtime,
+versions, tests, CI) is tracked step by step in `_plans/modernization-plan.md`. S0 to S14 are
+done (2026-10-15) and work is paused; the plan's "Open follow-ups" table lists what is left
+(F1-F5: cache ageing, ConanCenter catch-up, a candidate S15 pin refresh and full matrix
+re-run). Read the plan before starting a step, and update its status table when a step lands. Examples are flipped to **verified** (footer in the chapter) only
 after their `verify.sh` runs green.
 
 ## CI and branch protection
@@ -152,7 +153,8 @@ Do not use `gh cache delete --all`: it also removes the entries the current poli
     protobuf 6.33.5 (grpc is below 7), opentelemetry-proto 1.7.0 (opentelemetry-cpp), taocpp-pegtl 3.2.8
     (cppgraphqlgen needs 3.x), lua 5.4.8 (sol2), openssl 3.6.x (drogon needs <4), and, with ConanCenter behind
     upstream, librdkafka 2.14.2 (2.16.0), opentelemetry-cpp 1.26.0 (1.29.0), drogon 1.9.13 (1.9.14) and trantor
-    1.5.28 (1.5.29). Last checked 2026-10-15: libcurl moved to 8.23.0; nothing else in range changed. flex and bison get `MAKEINFO=true` through a scoped Conan conf, not a fake binary.
+    1.5.28 (1.5.29). Last checked 2026-10-15: libcurl moved to 8.23.0; nothing else in range changed.
+    flex and bison get `MAKEINFO=true` through a scoped Conan conf, not a fake binary.
     The Conan cache mount id is `cndp-conan2`; CI persists it with buildkit-cache-dance.
 - **JVM / .NET / Python** (as used in the site codetabs): Spring Boot (Spring Kafka,
   `spring-boot-starter-websocket`, Kafka Streams); Quarkus (`websockets-next`, SmallRye
