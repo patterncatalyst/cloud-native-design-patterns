@@ -760,13 +760,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "write latency = cache latency; a background flusher drains to the DB \u2014 a crash before flush loses unpersisted writes",
+   "text": "write latency = cache latency; a background flusher drains to the DB: a crash before flush loses unpersisted writes",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "write latency = cache latency; a background flusher drains to the DB \u2014 a crash before flush loses unpersisted writes",
+   "originalText": "write latency = cache latency; a background flusher drains to the DB: a crash before flush loses unpersisted writes",
    "lineHeight": 1.25,
    "baseline": 11
   }

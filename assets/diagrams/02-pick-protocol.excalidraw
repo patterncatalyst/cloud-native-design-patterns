@@ -1092,13 +1092,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "pick the protocol for the interaction, not the org chart \u2014 most systems use all four; the skill is matching each call to the right style",
+   "text": "pick the protocol for the interaction, not the org chart: most systems use all four; the skill is matching each call to the right style",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "pick the protocol for the interaction, not the org chart \u2014 most systems use all four; the skill is matching each call to the right style",
+   "originalText": "pick the protocol for the interaction, not the org chart: most systems use all four; the skill is matching each call to the right style",
    "lineHeight": 1.25,
    "baseline": 12
   }

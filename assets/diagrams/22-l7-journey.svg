@@ -19,5 +19,5 @@
 <path d="M460,106 L480,106" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M690,106 L710,106" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M920,106 L940,106" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
-<text x="590" y="205" font-size="12" fill="#2f6db5" text-anchor="middle">each box can refuse, transform, or branch the request — what looks like one HTTP request is a chain of L7 decisions by independent components</text>
+<text x="590" y="205" font-size="12" fill="#2f6db5" text-anchor="middle">each box can refuse, transform, or branch the request: what looks like one HTTP request is a chain of L7 decisions by independent components</text>
 </svg>

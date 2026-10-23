@@ -31,5 +31,5 @@
 <text x="445" y="80" font-size="12" fill="#9b1c1c" text-anchor="middle" font-weight="700">Old model (perimeter trust)</text>
 <text x="445" y="190" font-size="11" fill="#9b1c1c" text-anchor="middle">in once → trusted forever → lateral movement is trivial</text>
 <text x="500" y="300" font-size="12" fill="#006e6e" text-anchor="middle" font-weight="700">Zero-trust model</text>
-<text x="600" y="440" font-size="12" fill="#2f6db5" text-anchor="middle">mTLS + SPIFFE identity inside the cluster · IAP at the edge · AuthorizationPolicy per workload — a breach in one service buys nothing</text>
+<text x="600" y="440" font-size="12" fill="#2f6db5" text-anchor="middle">mTLS + SPIFFE identity inside the cluster · IAP at the edge · AuthorizationPolicy per workload: a breach in one service buys nothing</text>
 </svg>

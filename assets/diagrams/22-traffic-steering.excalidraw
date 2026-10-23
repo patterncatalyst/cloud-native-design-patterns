@@ -826,13 +826,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "each pattern is a header/weight rule away \u2014 the value is in the deploy and rollback discipline around them",
+   "text": "each pattern is a header/weight rule away: the value is in the deploy and rollback discipline around them",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "each pattern is a header/weight rule away \u2014 the value is in the deploy and rollback discipline around them",
+   "originalText": "each pattern is a header/weight rule away: the value is in the deploy and rollback discipline around them",
    "lineHeight": 1.25,
    "baseline": 12
   }

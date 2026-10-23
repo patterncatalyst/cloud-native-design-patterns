@@ -14,7 +14,7 @@
 <text x="465.0" y="80.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">blazor-pod-3</text>
 <text x="465.0" y="97.5" font-size="11.5" fill="#555555" text-anchor="middle">0 circuits (new)</text>
 <rect x="30" y="140" width="510" height="40" rx="9" fill="#f4f4f4" stroke="#888888" stroke-width="1.5"/>
-<text x="285.0" y="165.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Kubernetes Service / load balancer — sticky per circuit</text>
+<text x="285.0" y="165.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Kubernetes Service / load balancer: sticky per circuit</text>
 <rect x="620" y="55" width="220" height="55" rx="9" fill="#111111" stroke="#111111" stroke-width="2"/>
 <text x="730.0" y="80.5" font-size="13.5" font-weight="700" fill="#ffffff" text-anchor="middle">Redis</text>
 <text x="730.0" y="97.5" font-size="11.5" fill="#dddddd" text-anchor="middle">SignalR backplane</text>

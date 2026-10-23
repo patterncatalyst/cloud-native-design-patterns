@@ -2,11 +2,11 @@
 <defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
 <rect x="150" y="70" width="310" height="110" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
 <text x="305.0" y="115.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Cohesive module</text>
-<text x="305.0" y="132.5" font-size="11.5" fill="#555555" text-anchor="middle">strong + close — healthy</text>
+<text x="305.0" y="132.5" font-size="11.5" fill="#555555" text-anchor="middle">strong + close: healthy</text>
 <text x="305.0" y="147.5" font-size="11.5" fill="#555555" text-anchor="middle">keep it local</text>
 <rect x="480" y="70" width="310" height="110" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
 <text x="635.0" y="115.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Distributed monolith</text>
-<text x="635.0" y="132.5" font-size="11.5" fill="#555555" text-anchor="middle">strong + distant — the trap</text>
+<text x="635.0" y="132.5" font-size="11.5" fill="#555555" text-anchor="middle">strong + distant: the trap</text>
 <text x="635.0" y="147.5" font-size="11.5" fill="#555555" text-anchor="middle">one change ripples across services</text>
 <rect x="150" y="196" width="310" height="110" rx="9" fill="#ffffff" stroke="#999999" stroke-width="1.5"/>
 <text x="305.0" y="241.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">Needless indirection</text>
@@ -22,5 +22,5 @@
 <text x="305" y="330" font-size="11" fill="#555555" text-anchor="middle">close</text>
 <text x="635" y="330" font-size="11" fill="#555555" text-anchor="middle">distant</text>
 <text x="470" y="350" font-size="10" fill="#888888" text-anchor="middle">← integration strength (vertical)   ·   distance (horizontal) →</text>
-<text x="470" y="378" font-size="11" fill="#8a4b06" text-anchor="middle">Volatility is the trigger — even the trap quadrant is harmless on code that never changes.</text>
+<text x="470" y="378" font-size="11" fill="#8a4b06" text-anchor="middle">Volatility is the trigger: even the trap quadrant is harmless on code that never changes.</text>
 </svg>

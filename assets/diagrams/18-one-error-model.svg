@@ -27,5 +27,5 @@
 <path d="M540,220 L435,300" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
 <path d="M640,220 L715,300" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
 <path d="M730,220 L995,300" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
-<text x="590" y="438" font-size="12" fill="#2f6db5" text-anchor="middle">agree the error contract once, then map it onto each protocol — and never leak stack traces or internal types</text>
+<text x="590" y="438" font-size="12" fill="#2f6db5" text-anchor="middle">agree the error contract once, then map it onto each protocol, and never leak stack traces or internal types</text>
 </svg>

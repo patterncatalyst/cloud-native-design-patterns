@@ -1146,13 +1146,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "when 'route by header' isn't enough \u2014 when the decision is a business rule \u2014 push it into a rule engine inside the service",
+   "text": "when 'route by header' isn't enough. When the decision is a business rule, push it into a rule engine inside the service",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "when 'route by header' isn't enough \u2014 when the decision is a business rule \u2014 push it into a rule engine inside the service",
+   "originalText": "when 'route by header' isn't enough. When the decision is a business rule, push it into a rule engine inside the service",
    "lineHeight": 1.25,
    "baseline": 12
   }

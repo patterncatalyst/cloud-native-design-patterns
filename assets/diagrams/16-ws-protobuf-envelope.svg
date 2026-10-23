@@ -22,5 +22,5 @@
 <text x="695.0" y="175.0" font-size="11.5" fill="#555555" text-anchor="middle">decode → dispatch</text>
 <path d="M130,160 L150,160" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M620,160 L640,160" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
-<text x="380" y="228" font-size="11" fill="#777" text-anchor="middle">versioned by field number (like gRPC) — add fields, never renumber</text>
+<text x="380" y="228" font-size="11" fill="#777" text-anchor="middle">versioned by field number (like gRPC): add fields, never renumber</text>
 </svg>

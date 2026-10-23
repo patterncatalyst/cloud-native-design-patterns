@@ -936,13 +936,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "a streaming app is a topology of sources, processors, and sinks \u2014 stateful operators consume topics, keep local state, and emit derived streams",
+   "text": "a streaming app is a topology of sources, processors, and sinks: stateful operators consume topics, keep local state, and emit derived streams",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "a streaming app is a topology of sources, processors, and sinks \u2014 stateful operators consume topics, keep local state, and emit derived streams",
+   "originalText": "a streaming app is a topology of sources, processors, and sinks: stateful operators consume topics, keep local state, and emit derived streams",
    "lineHeight": 1.25,
    "baseline": 12
   }

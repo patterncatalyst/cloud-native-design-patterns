@@ -3,7 +3,7 @@
 import generate_diagram as g
 g.OUT = "../assets/diagrams"
 
-# ── Figure P.1 — C# → CIL → Native compilation pipeline ──────────────
+# ── Figure P.1: C# → CIL → Native compilation pipeline ──────────────
 g.emit("29-dotnet-compilation", 880, 340,
     bands=[
         {"x": 10, "y": 10, "w": 860, "h": 320, "fill": "#fafafa",
@@ -47,12 +47,12 @@ g.emit("29-dotnet-compilation", 880, 340,
     notes=[
         {"x": 30, "y": 290, "text": "C# is one of several .NET languages (F#, VB.NET).",
          "size": 11, "color": "#888888"},
-        {"x": 30, "y": 310, "text": "CIL = Common Intermediate Language — the CPU-agnostic bytecode all .NET languages compile to.",
+        {"x": 30, "y": 310, "text": "CIL = Common Intermediate Language: the CPU-agnostic bytecode all .NET languages compile to.",
          "size": 11, "color": "#888888"},
     ],
 )
 
-# ── Figure P.2 — Kestrel request processing pipeline ─────────────────
+# ── Figure P.2: Kestrel request processing pipeline ─────────────────
 g.emit("29-kestrel-pipeline", 880, 380,
     bands=[
         {"x": 10, "y": 10, "w": 860, "h": 140, "fill": "#eef4fb",
@@ -119,12 +119,12 @@ g.emit("29-kestrel-pipeline", 880, 380,
         {"x1": 730, "y1": 208, "x2": 750, "y2": 208},
     ],
     notes=[
-        {"x": 30, "y": 370, "text": "Kestrel is the built-in cross-platform web server — no IIS, no Apache, no nginx required.",
+        {"x": 30, "y": 370, "text": "Kestrel is the built-in cross-platform web server: no IIS, no Apache, no nginx required.",
          "size": 11, "color": "#888888"},
     ],
 )
 
-# ── Figure P.3 — Multi-stage container build ─────────────────────────
+# ── Figure P.3: Multi-stage container build ─────────────────────────
 g.emit("29-container-layers", 880, 460,
     bands=[
         {"x": 10, "y": 10, "w": 400, "h": 440, "fill": "#fff8ef",
@@ -187,9 +187,9 @@ g.emit("29-container-layers", 880, 460,
          "size": 11, "color": "#888888"},
         {"x": 30, "y": 395, "text": "and supported for production use.",
          "size": 11, "color": "#888888"},
-        {"x": 30, "y": 425, "text": "The SDK never ships — only the runtime and your app DLLs.",
+        {"x": 30, "y": 425, "text": "The SDK never ships: only the runtime and your app DLLs.",
          "size": 11, "color": "#888888"},
     ],
 )
 
-print("Done — generated 3 diagrams for Appendix P")
+print("Done: generated 3 diagrams for Appendix P")

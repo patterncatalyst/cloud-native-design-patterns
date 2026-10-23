@@ -621,13 +621,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "every contract moves through one managed lifecycle \u2014 each arrow is an owned transition, not an accident",
+   "text": "every contract moves through one managed lifecycle: each arrow is an owned transition, not an accident",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "every contract moves through one managed lifecycle \u2014 each arrow is an owned transition, not an accident",
+   "originalText": "every contract moves through one managed lifecycle: each arrow is an owned transition, not an accident",
    "lineHeight": 1.25,
    "baseline": 12
   }

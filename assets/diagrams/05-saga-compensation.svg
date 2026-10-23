@@ -23,5 +23,5 @@
 <path d="M300,202 L192,202" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
 <text x="252.0" y="195.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">then refund</text>
 <text x="252.0" y="195.0" font-size="11" fill="#b8650a" text-anchor="middle">then refund</text>
-<text x="380" y="262" font-size="10" fill="#777" text-anchor="middle">each step is a local transaction; on a failure, run compensating actions in reverse — atomicity without a distributed lock (full treatment in Appendix D)</text>
+<text x="380" y="262" font-size="10" fill="#777" text-anchor="middle">each step is a local transaction; on a failure, run compensating actions in reverse: atomicity without a distributed lock (full treatment in Appendix D)</text>
 </svg>

@@ -619,13 +619,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "zero behaviour change for clients on day one \u2014 but the lever to route traffic to extracted services is now in place; the proxy is also where TLS, auth, rate-limiting and observability consolidate",
+   "text": "zero behaviour change for clients on day one, but the lever to route traffic to extracted services is now in place; the proxy is also where TLS, auth, rate-limiting and observability consolidate",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "zero behaviour change for clients on day one \u2014 but the lever to route traffic to extracted services is now in place; the proxy is also where TLS, auth, rate-limiting and observability consolidate",
+   "originalText": "zero behaviour change for clients on day one, but the lever to route traffic to extracted services is now in place; the proxy is also where TLS, auth, rate-limiting and observability consolidate",
    "lineHeight": 1.25,
    "baseline": 12
   }

@@ -690,13 +690,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "the services run on Docker Engine in CI as they do locally \u2014 no managed cloud \u2014 and a failed assertion fails the build",
+   "text": "the services run on Docker Engine in CI as they do locally: no managed cloud, and a failed assertion fails the build",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "the services run on Docker Engine in CI as they do locally \u2014 no managed cloud \u2014 and a failed assertion fails the build",
+   "originalText": "the services run on Docker Engine in CI as they do locally: no managed cloud, and a failed assertion fails the build",
    "lineHeight": 1.25,
    "baseline": 11
   }

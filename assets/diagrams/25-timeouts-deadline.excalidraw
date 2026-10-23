@@ -689,13 +689,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "when too little budget remains to plausibly finish, fail immediately \u2014 don't start work the user already abandoned",
+   "text": "when too little budget remains to plausibly finish, fail immediately: don't start work the user already abandoned",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "when too little budget remains to plausibly finish, fail immediately \u2014 don't start work the user already abandoned",
+   "originalText": "when too little budget remains to plausibly finish, fail immediately: don't start work the user already abandoned",
    "lineHeight": 1.25,
    "baseline": 11
   }

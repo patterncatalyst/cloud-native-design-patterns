@@ -358,13 +358,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "trace_id = 4af9c\u2026 shared by every span, metric exemplar, and log line \u2014 context propagation turns five services' logs into one readable story",
+   "text": "trace_id = 4af9c\u2026 shared by every span, metric exemplar, and log line: context propagation turns five services' logs into one readable story",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "trace_id = 4af9c\u2026 shared by every span, metric exemplar, and log line \u2014 context propagation turns five services' logs into one readable story",
+   "originalText": "trace_id = 4af9c\u2026 shared by every span, metric exemplar, and log line: context propagation turns five services' logs into one readable story",
    "lineHeight": 1.25,
    "baseline": 12
   }

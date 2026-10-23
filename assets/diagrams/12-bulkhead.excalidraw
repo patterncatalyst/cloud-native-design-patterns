@@ -973,13 +973,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "watertight compartments from naval architecture \u2014 per-tenant connection pools, per-call thread groups, semaphore-bounded operations (Resilience4j, Polly, Istio per-destination pools)",
+   "text": "watertight compartments from naval architecture: per-tenant connection pools, per-call thread groups, semaphore-bounded operations (Resilience4j, Polly, Istio per-destination pools)",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "watertight compartments from naval architecture \u2014 per-tenant connection pools, per-call thread groups, semaphore-bounded operations (Resilience4j, Polly, Istio per-destination pools)",
+   "originalText": "watertight compartments from naval architecture: per-tenant connection pools, per-call thread groups, semaphore-bounded operations (Resilience4j, Polly, Istio per-destination pools)",
    "lineHeight": 1.25,
    "baseline": 12
   }

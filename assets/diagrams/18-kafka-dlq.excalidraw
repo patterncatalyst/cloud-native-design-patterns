@@ -1147,13 +1147,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "commit the offset, route the failed record to delayed-retry topics, then to a DLQ after N attempts \u2014 the main stream never stalls",
+   "text": "commit the offset, route the failed record to delayed-retry topics, then to a DLQ after N attempts: the main stream never stalls",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "commit the offset, route the failed record to delayed-retry topics, then to a DLQ after N attempts \u2014 the main stream never stalls",
+   "originalText": "commit the offset, route the failed record to delayed-retry topics, then to a DLQ after N attempts: the main stream never stalls",
    "lineHeight": 1.25,
    "baseline": 12
   }

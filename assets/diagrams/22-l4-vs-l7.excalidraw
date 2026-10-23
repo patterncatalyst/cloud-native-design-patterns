@@ -854,13 +854,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "L7 routers can act on anything in the HTTP/gRPC envelope \u2014 paths, headers, methods, even gRPC service.method",
+   "text": "L7 routers can act on anything in the HTTP/gRPC envelope: paths, headers, methods, even gRPC service.method",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "L7 routers can act on anything in the HTTP/gRPC envelope \u2014 paths, headers, methods, even gRPC service.method",
+   "originalText": "L7 routers can act on anything in the HTTP/gRPC envelope: paths, headers, methods, even gRPC service.method",
    "lineHeight": 1.25,
    "baseline": 12
   }

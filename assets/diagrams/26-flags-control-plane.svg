@@ -19,5 +19,5 @@
 <path d="M550,160 L630,92" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
 <path d="M350,182 L270,248" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
 <path d="M550,182 L630,248" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
-<text x="450" y="312" font-size="11" fill="#2f6db5" text-anchor="middle">a flag is a runtime control surface — the same decoupling that powers canaries, cutovers, kill-switches, and experiments</text>
+<text x="450" y="312" font-size="11" fill="#2f6db5" text-anchor="middle">a flag is a runtime control surface: the same decoupling that powers canaries, cutovers, kill-switches, and experiments</text>
 </svg>

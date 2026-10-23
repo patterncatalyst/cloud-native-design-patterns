@@ -1106,13 +1106,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "OpenTelemetry is one vendor-neutral SDK for all five \u2014 the trace_id lets you pivot: metric spike \u2192 exemplar trace \u2192 its logs \u2192 its CPU profile",
+   "text": "OpenTelemetry is one vendor-neutral SDK for all five. The trace_id lets you pivot: metric spike \u2192 exemplar trace \u2192 its logs \u2192 its CPU profile",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "OpenTelemetry is one vendor-neutral SDK for all five \u2014 the trace_id lets you pivot: metric spike \u2192 exemplar trace \u2192 its logs \u2192 its CPU profile",
+   "originalText": "OpenTelemetry is one vendor-neutral SDK for all five. The trace_id lets you pivot: metric spike \u2192 exemplar trace \u2192 its logs \u2192 its CPU profile",
    "lineHeight": 1.25,
    "baseline": 12
   }

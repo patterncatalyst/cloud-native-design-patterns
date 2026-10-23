@@ -36,5 +36,5 @@
 <rect x="620" y="384" width="280" height="92" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
 <text x="760.0" y="428.0" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">12  Admin processes</text>
 <text x="760.0" y="445.0" font-size="11.5" fill="#555555" text-anchor="middle">run as one-off tasks</text>
-<text x="460" y="516" font-size="12" fill="#8a4b06" text-anchor="middle">don&#x27;t memorise the list — recognise that most are now platform concerns, and only a few are yours to write</text>
+<text x="460" y="516" font-size="12" fill="#8a4b06" text-anchor="middle">don&#x27;t memorise the list: recognise that most are now platform concerns, and only a few are yours to write</text>
 </svg>

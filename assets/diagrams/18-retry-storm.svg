@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 392" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
 <defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
 <rect x="20" y="40" width="860" height="168" rx="12" fill="#fffaf3" stroke="#ddd"/>
-<text x="32" y="60" font-size="12" font-weight="700" fill="#1d1d1d">The storm — a positive feedback loop</text>
+<text x="32" y="60" font-size="12" font-weight="700" fill="#1d1d1d">The storm: a positive feedback loop</text>
 <rect x="20" y="236" width="860" height="132" rx="12" fill="#f5f8fc" stroke="#ddd"/>
 <text x="32" y="256" font-size="12" font-weight="700" fill="#1d1d1d">The controls that break the loop</text>
 <rect x="70" y="104" width="168" height="70" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
@@ -35,5 +35,5 @@
 <text x="456.0" y="174.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">more timeouts</text>
 <text x="456.0" y="174.0" font-size="11" fill="#b8650a" text-anchor="middle">more timeouts</text>
 <text x="450" y="196" font-size="11" fill="#8a4b06" text-anchor="middle">each loop adds load to a service that is already failing</text>
-<text x="450" y="360" font-size="11" fill="#2f6db5" text-anchor="middle">each control removes one multiplier from the loop — together they turn a blip back into a non-event</text>
+<text x="450" y="360" font-size="11" fill="#2f6db5" text-anchor="middle">each control removes one multiplier from the loop: together they turn a blip back into a non-event</text>
 </svg>

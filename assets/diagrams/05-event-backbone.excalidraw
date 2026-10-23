@@ -726,13 +726,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "the producer names none of them \u2014 add a consumer without redeploying it",
+   "text": "the producer names none of them: add a consumer without redeploying it",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "the producer names none of them \u2014 add a consumer without redeploying it",
+   "originalText": "the producer names none of them: add a consumer without redeploying it",
    "lineHeight": 1.25,
    "baseline": 11
   }

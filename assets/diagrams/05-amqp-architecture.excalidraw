@@ -1182,13 +1182,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "routing lives in the exchange; an acked message is removed (no replay) \u2014 excels at work distribution, RPC, and rich routing",
+   "text": "routing lives in the exchange; an acked message is removed (no replay): excels at work distribution, RPC, and rich routing",
    "fontSize": 10.5,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "routing lives in the exchange; an acked message is removed (no replay) \u2014 excels at work distribution, RPC, and rich routing",
+   "originalText": "routing lives in the exchange; an acked message is removed (no replay): excels at work distribution, RPC, and rich routing",
    "lineHeight": 1.25,
    "baseline": 10.5
   }

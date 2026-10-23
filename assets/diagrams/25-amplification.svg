@@ -22,6 +22,6 @@
 <path d="M610,143 L670,143" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
 <text x="646.0" y="135.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">9 → 27</text>
 <text x="646.0" y="135.0" font-size="11" fill="#b8650a" text-anchor="middle">9 → 27</text>
-<text x="450" y="212" font-size="11" fill="#a11" text-anchor="middle" font-weight="700">retries multiply across layers (3×3×3) and synchronise into a thundering herd — the system&#x27;s own defence becomes the attack</text>
+<text x="450" y="212" font-size="11" fill="#a11" text-anchor="middle" font-weight="700">retries multiply across layers (3×3×3) and synchronise into a thundering herd: the system&#x27;s own defence becomes the attack</text>
 <text x="450" y="236" font-size="11" fill="#2f6db5" text-anchor="middle">break it: backoff + jitter, a retry budget (cap % of live traffic), retry at one layer only, and a circuit breaker</text>
 </svg>

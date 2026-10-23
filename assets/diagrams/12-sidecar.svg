@@ -27,5 +27,5 @@
 <text x="581.0" y="212.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">localhost</text>
 <text x="581.0" y="212.0" font-size="11" fill="#555" text-anchor="middle">localhost</text>
 <path d="M890,218 L1010,218" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
-<text x="575" y="392" font-size="12" fill="#2f6db5" text-anchor="middle">same security policy across every workload, in any language — the app trusts the sidecar&#x27;s headers (X-Forwarded-Client-Cert, JWT claims); teams write business code, not crypto</text>
+<text x="575" y="392" font-size="12" fill="#2f6db5" text-anchor="middle">same security policy across every workload, in any language: the app trusts the sidecar&#x27;s headers (X-Forwarded-Client-Cert, JWT claims); teams write business code, not crypto</text>
 </svg>

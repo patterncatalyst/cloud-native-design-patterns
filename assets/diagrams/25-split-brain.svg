@@ -14,5 +14,5 @@
 <text x="456.0" y="134.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">✕ partition</text>
 <text x="456.0" y="134.0" font-size="11" fill="#b8650a" text-anchor="middle">✕ partition</text>
 <text x="450" y="236" font-size="11" fill="#a11" text-anchor="middle" font-weight="700">both sides promote themselves → two primaries, conflicting writes, divergent state on heal</text>
-<text x="450" y="260" font-size="11" fill="#2f6db5" text-anchor="middle">cure: quorum — an action needs N/2+1 nodes, so a minority mathematically cannot act (cluster sizes are odd)</text>
+<text x="450" y="260" font-size="11" fill="#2f6db5" text-anchor="middle">cure is a quorum: an action needs N/2+1 nodes, so a minority mathematically cannot act (cluster sizes are odd)</text>
 </svg>

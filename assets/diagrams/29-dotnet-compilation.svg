@@ -53,5 +53,5 @@
 <text x="686.0" y="159.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">uses</text>
 <text x="686.0" y="159.0" font-size="11" fill="#555" text-anchor="middle">uses</text>
 <text x="30" y="290" font-size="11" fill="#888888" text-anchor="start">C# is one of several .NET languages (F#, VB.NET).</text>
-<text x="30" y="310" font-size="11" fill="#888888" text-anchor="start">CIL = Common Intermediate Language — the CPU-agnostic bytecode all .NET languages compile to.</text>
+<text x="30" y="310" font-size="11" fill="#888888" text-anchor="start">CIL = Common Intermediate Language: the CPU-agnostic bytecode all .NET languages compile to.</text>
 </svg>
