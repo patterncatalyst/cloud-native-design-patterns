@@ -837,7 +837,7 @@ maximum, backoff plus jitter, circuit breaker, retry budget) while keeping every
 handler idempotent. Get those right and the failure paths become as boring as the
 happy ones.
 
-### Cross-check it yourself
+## Build, run, observe
 
 Prove the contract holds on the wire, in two protocols. For REST, trigger the stock
 conflict and inspect the response with curl: `curl -i` should show `HTTP/1.1 409`, a
@@ -852,6 +852,16 @@ breaker trip: total downstream calls should *plateau* rather than climb with off
 load. A flat downstream-call line under rising pressure is the retry budget and breaker
 doing their job; a climbing one means a control is missing.
 
----
-*Verification status: verified. [`examples/18-errors/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/18-errors/) passes 13/13 checks in each of the six languages on Docker Engine (2026-10-13)
-(RFC 9457 problem details over REST for validation (422), stock conflict (409) and upstream unavailable (503), with error codes, traceId, retryable and retryAfter fields).*
+```bash
+cd examples/18-errors/python     # or any of the six language stacks
+docker compose up -d --build --wait
+cd ..
+./verify.sh
+```
+
+`verify.sh` runs the language-agnostic end-to-end checks against the running stack
+(13/13 in each of the six languages), asserting a happy-path order returns `201`, an
+invalid order returns `422` with `code: VALIDATION_ERROR` and a `traceId`, exhausting
+stock returns `409` with `code: STOCK_UNAVAILABLE` and `retryable: false`, and
+stopping the inventory container turns the next order into a `503` with
+`retryable: true`, a `retryAfter` field, and a `Retry-After` HTTP header.

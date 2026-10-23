@@ -262,7 +262,20 @@ distance), and it couples only to their contracts (low strength). A call chain
 violates it: services that are far apart couple at the functional level, which is
 exactly why it becomes a distributed monolith.
 
-### Cross-check it yourself
+## Build, run, observe
+
+```bash
+cd examples/03-composition/python     # or any of the six language stacks
+docker compose up -d --build --wait
+cd ..
+./verify.sh
+```
+
+`verify.sh` runs the language-agnostic end-to-end checks against the running stack (8/8 in
+each of the six languages), asserting the gateway's health endpoint and the backing order
+API respond, a GraphQL query without the `stock` field omits it (no inventory call), a
+query with `stock` resolves it from the gRPC inventory service, the gateway logs a single
+batched DataLoader call across the backend skus, and a single-order lookup by id resolves.
 
 The gateway is just HTTP. Send the same query with `curl` or Postman and request
 `stock` in one call, then omit it in another. Confirm the gateway only calls
@@ -272,7 +285,3 @@ list size; with a DataLoader it stays flat. That flat line is the N+1 fix workin
 
 The code is in [`examples/03-composition/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/03-composition/). The run script there builds and runs it;
 its `README.md` covers what it does and how to drive it.
-
----
-*Verification status: verified; [`examples/03-composition/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/03-composition/) passes 8/8 checks in each of the six languages on Docker Engine (2026-10-13)
-(GraphQL gateway fan-out to the REST order API and the gRPC stock service, selective stock-field resolution, DataLoader batching of stock lookups into one gRPC call, single-order lookup).*

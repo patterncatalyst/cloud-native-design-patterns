@@ -432,7 +432,23 @@ The shape (keep errors, keep slow, sample the rest) is the one most teams want:
 you never drop the traces you'd investigate, and you pay full storage only
 for the boring majority you sample down.
 
-### Cross-check it yourself
+## Build, run, observe
+
+```bash
+cd examples/11-observability/python     # or any of the six language stacks
+docker compose up -d --build --wait
+cd ..
+./verify.sh
+```
+
+`verify.sh` runs the language-agnostic end-to-end checks against the running
+stack (10/10 in each of the six languages), asserting: the order-service health
+check; an order placed over REST returns `201` and reaches `confirmed` status
+(stock reserved via gRPC); the `trace_id` logged by order-service is correlated
+with the request; that trace is found in Tempo with order-service spans; the
+inventory-service span (propagated over gRPC) is part of that same trace, not a
+different one; and the `orders.placed` and `stock.reservations` counters show up
+in Prometheus.
 
 Prove the correlation with the house tools; no heavy framework needed. Drive a
 request through `order-service` with `curl`, grab the `trace_id`, and find that
@@ -441,7 +457,3 @@ five services. Then push load with `hey` (HTTP) and `ghz` (gRPC) and watch the
 metrics move and the tail sampler keep the slow and errored traces while dropping
 the rest. Seeing one request as one waterfall is the moment observability stops
 being three disconnected tools.
-
----
-*Verification status: verified: [`examples/11-observability/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/11-observability/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-13)
-(trace propagation, metric export, structured log correlation, LGTM stack integration).*

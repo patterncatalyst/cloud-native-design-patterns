@@ -167,7 +167,19 @@ over the wire format. **SignalR** when the server is .NET and you want connectio
 management handled for you. **Blazor Server** when you also want the UI rendered
 server-side, avoiding a separate frontend framework entirely.
 
-### Cross-check it yourself
+## Build, run, observe
+
+```bash
+cd examples/30-blazor-signalr/dotnet
+docker compose up -d --build --wait
+cd ..
+./verify.sh
+```
+
+`verify.sh` checks health, order placement and listing, the dashboard page, and the SignalR
+negotiate endpoint, then drives a minimal Python SignalR client to confirm Redis backplane
+delivery in both directions between the two dashboard instances (8080 and 8081) and again
+after restarting one instance. It is .NET only, not six languages.
 
 Run the Blazor Server example, open the dashboard in two browser tabs, and place an
 order via `curl`. Both tabs should update simultaneously, confirming the SignalR hub
@@ -177,6 +189,3 @@ state.
 
 The code is in [`examples/30-blazor-signalr/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/30-blazor-signalr/). The run script there builds and
 runs it; its `README.md` covers what it does and how to drive it.
-
----
-*Verification status: verified: [`examples/30-blazor-signalr/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/30-blazor-signalr/) passes 10/10 checks on Docker Engine (2026-10-13): health, order placement and listing, the dashboard page, the SignalR negotiate endpoint, a second dashboard instance, Redis backplane delivery in both directions between the two instances (a SignalR client on one receives an order posted to the other), orders listed across instances, and backplane delivery to a restarted instance (the script asserts the container's start time changed and it returned healthy). Blazor circuit reconnection is the framework default and is not covered by the script.*

@@ -475,7 +475,24 @@ and exits 0.
 | Kafka never becomes Ready | The operator is not running, or the Kafka version is not in the bundle | `oc --context crc-admin -n cndp-amq-streams get pods`; `oc --context crc-admin -n cndp-05 describe kafka cndp` |
 | Namespace stuck terminating | A KafkaTopic finalizer outlived the operator | `teardown.sh` deletes the topics while the operator runs; do not remove the operator first |
 
-### Cross-check it yourself
+## Build, run, observe
+
+```bash
+cd examples/05-event-driven
+openshift/setup-crc.sh                  # crc start, ingress CA, registry route
+openshift/build-push-images.sh go       # docker build, skopeo copy
+openshift/deploy.sh go                  # operator, infrastructure, the overlay
+RUNTIME=kubernetes KUBECTL=oc KUBE_CONTEXT=crc-admin KUBE_NAMESPACE=cndp-05 \
+  BASE=https://order-service-cndp-05.apps-crc.testing \
+  CURL_OPTS="--cacert $HOME/.local/state/cndp-05-crc/ingress-ca.crt" ./verify.sh
+openshift/teardown.sh                   # remove everything, then crc stop
+```
+
+The same `verify.sh` as compose and minikube, with `KUBECTL=oc` and the CA-verified Route
+URL: it confirms the order-service health endpoint, an order visible in `GET /orders`, the
+`order.placed` topic and both consumer groups in Kafka, the shipment and notification side
+effects, and that redelivering the same event stays idempotent, this time over HTTPS through
+`oc exec` against the AMQ Streams and sclorg Postgres pods.
 
 Place an order through the Route, then run
 `oc --context crc-admin -n cndp-05 exec pod/cndp-postgres-0 -- psql -U appuser -d appdb -c "SELECT * FROM shipments"`
@@ -487,6 +504,3 @@ assigned range (the `openshift.io/sa.scc.uid-range` annotation on the namespace)
 on the recorded run; read the ReplicaSet's events if you try it.
 
 The manifests and scripts are in [`examples/05-event-driven/openshift/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/openshift/).
-
----
-*Verification status: verified: [`examples/05-event-driven/openshift/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/openshift/) passes 10/10 checks in each of the five languages on OpenShift Local 4.22.14 (crc 2.64.0, Kubernetes v1.35.6, AMQ Streams `amqstreams.v3.2.1-14`, Kafka 4.2.0, 2026-10-13, on the code after the S13 and S14 refactors), using the same `verify.sh` as compose with `RUNTIME=kubernetes` over HTTPS. Every pod ran under `restricted-v2`, Tempo held a trace with all three services for each language, and teardown left the cluster empty and stopped. The SCC rejection of a fixed root user ID was not exercised.*

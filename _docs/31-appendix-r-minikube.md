@@ -262,7 +262,22 @@ minikube profile: the scripts refuse to start while anything else is running.
 | `kubectl` talks to the wrong cluster | Commands without `--context` | Pass `--context cndp-k8s`; the scripts do |
 | order-service restarts during startup | The startup probe window is shorter than the JVM start on a loaded host | Raise `failureThreshold` on the startup probe in `base/` |
 
-### Cross-check it yourself
+## Build, run, observe
+
+```bash
+cd examples/05-event-driven
+k8s/setup-profile.sh                 # create the profile cndp-k8s
+k8s/build-images.sh go               # build and load a language's images
+k8s/deploy.sh go                     # Strimzi, infrastructure, the overlay
+RUNTIME=kubernetes BASE=http://127.0.0.1:30080 ./verify.sh
+k8s/teardown.sh                      # remove the cndp-05 namespace
+```
+
+With `RUNTIME=kubernetes`, `verify.sh` maps the container names it uses on compose to
+`kubectl exec` against the Kafka and Postgres pods, and confirms the order-service health
+endpoint, an order visible in `GET /orders`, the `order.placed` topic and both consumer
+groups in Kafka, the shipment and notification side effects, and that redelivering the same
+event stays idempotent.
 
 Place an order through `127.0.0.1:30080`, then run
 `kubectl --context cndp-k8s -n cndp-05 exec pod/cndp-postgres-0 -- psql -U appuser -d appdb -c "SELECT * FROM shipments"`
@@ -272,6 +287,3 @@ and query again: the count is 0. Scale it back to one replica and the count beco
 consumer group resumes from its last committed offset.
 
 The manifests and scripts are in [`examples/05-event-driven/k8s/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/k8s/).
-
----
-*Verification status: verified: [`examples/05-event-driven/k8s/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/k8s/) passes 10/10 checks in each of the six languages on minikube v1.39.0 (Docker driver, containerd, Kubernetes v1.36.5, Strimzi 1.2.0, 2026-10-13, on the code after the S13 and S14 refactors), using the same `verify.sh` as compose with `RUNTIME=kubernetes`. No pod restarted or was OOM-killed under the manifests' memory limits. The consumer scale-down and scale-up in the cross-check was run by hand and is not part of the script.*

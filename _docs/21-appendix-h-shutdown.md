@@ -316,7 +316,20 @@ Read it as an ordered runbook:
 References: the Quarkus lifecycle guide and Markus Eisele's "Quarkus Graceful Shutdown"
 (2026); uvicorn's `--timeout-graceful-shutdown`.
 
-### Cross-check it yourself
+## Build, run, observe
+
+```bash
+cd examples/21-graceful-shutdown/python     # or any of the six language stacks
+docker compose up -d --build --wait
+cd ..
+./verify.sh
+```
+
+`verify.sh` runs the language-agnostic end-to-end checks against the running stack (17/17 in
+each of the six languages), asserting one SIGTERM produces the readiness flip to 503, the drain
+log lines, and an exit code of 0 inside the grace period, that a `docker stop` times out cleanly
+rather than falling back to `SIGKILL`, and that orders placed before a restart are still present
+after it.
 
 The one test teams skip is the only one that proves the recipe: a real `SIGTERM` mid-request
 during a rollout. Put steady traffic on the service with `hey` (a modest concurrency for a
@@ -329,7 +342,3 @@ For the Kafka path, restart a consumer pod mid-stream and confirm from the broke
 group rebalanced quickly and offsets advanced: no long stall, no large redelivery spike.
 A clean rollout under live load, not a green integration test, is evidence that graceful shutdown
 works.
-
----
-*Verification status: verified: [`examples/21-graceful-shutdown/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/21-graceful-shutdown/) passes 17/17 checks in each of the six languages on Docker Engine (2026-10-13)
-(one SIGTERM, readiness flip to 503, the drain log lines, exit code 0 inside the grace period, a `docker stop` timing check, restart recovery, and orders persisting across the restart. In-flight request draining is not checked by the script).*

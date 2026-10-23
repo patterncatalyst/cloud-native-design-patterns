@@ -1284,7 +1284,22 @@ The throughline of the whole chapter: an event-driven system trades immediate co
 and a single in-the-moment truth for decoupling, autonomy, scale, and a complete, replayable
 history. Spend that trade where it pays, and avoid it in the few places it doesn't.
 
-### Cross-check it yourself
+## Build, run, observe
+
+```bash
+cd examples/05-event-driven/python     # or any of the six language stacks
+docker compose up -d --build --wait
+cd ..
+./verify.sh
+```
+
+`verify.sh` runs the language-agnostic end-to-end checks against the running stack (10/10 in
+each of the six languages), asserting a placed order publishes to `order.placed`, both the
+`shipping-group` and `notification-group` consumer groups exist and each independently
+writes its own row for the order (fan-out, not round-robin), and replaying the same event
+through the topic does not create a second shipment or notification row (idempotent
+consumers under a redelivered duplicate). The same script also drives the Kubernetes
+variant: Appendix R runs it on minikube and Appendix S on OpenShift Local.
 
 Produce one `order.placed` and watch two independent consumer groups receive it:
 the fan-out is real, not round-robin. Then stop a consumer mid-handler (before it
@@ -1295,7 +1310,3 @@ redelivery is the at-least-once guarantee, and the reason your handler dedupes.
 The code is in [`examples/05-event-driven/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/). The run script there builds and runs
 it; its `README.md` covers what it does and how to drive it. The same example, with Kafka managed by
 the Strimzi operator, also runs on a Kubernetes cluster; Appendix R covers that deployment on minikube and Appendix S covers OpenShift Local.
-
----
-*Verification status: verified; [`examples/05-event-driven/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-13) and on minikube (2026-10-11, Appendix R), and 10/10 in five languages on OpenShift Local 4.22.14 (2026-10-11, Appendix S)
-(event publication to order.placed, fan-out to two independent consumer groups (shipping and notification), and idempotent consumers under a redelivered duplicate event).*

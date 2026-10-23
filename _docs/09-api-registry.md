@@ -330,7 +330,21 @@ func isCompatible(group, artifactID string, schema []byte) (bool, error) {
 }
 ```
 
-### Cross-check it yourself
+## Build, run, observe
+
+```bash
+cd examples/09-api-registry
+docker compose up -d --build --wait
+./verify.sh
+```
+
+This example is language-agnostic: Apicurio Registry is the only service under
+test, so there is one stack, not six. `verify.sh` runs the end-to-end checks
+against the running registry (8/8), asserting schema registration, the
+`BACKWARD` compatibility rule, rejection of a breaking change (renamed field)
+with `400` and a `RuleViolationException`, acceptance of an additive change
+(new optional field) with `200`, and versioned retrieval of the latest schema
+content.
 
 Prove the gate bites. Register `order-placed.avsc`, then make a breaking
 change (rename a required field) and `curl` the new version: you should get a
@@ -338,7 +352,3 @@ change (rename a required field) and `curl` the new version: you should get a
 *optional* field) and confirm it returns `200` and publishes a new version. The
 breaking change failing the build and the additive change passing it is the entire
 point of the registry.
-
----
-*Verification status: verified; [`examples/09-api-registry/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/09-api-registry/) passes 8/8 checks on Docker Engine (2026-10-13)
-(schema registration, BACKWARD compatibility rule, rejection of a breaking change with 400, acceptance of an additive change, versioned retrieval).*

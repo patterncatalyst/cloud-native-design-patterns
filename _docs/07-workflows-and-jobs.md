@@ -247,8 +247,3 @@ the pod enter `Completed`, not `Running`. Separately, push a heavy task through 
 HTTP handler and watch the client time out. Then move the same task behind a queue
 worker and watch the request return immediately while the work drains in the
 background. That contrast is the whole rule.
-
----
-*Verification status: conceptual chapter with an illustrative Kubernetes manifest;
-no per-language runnable example. The coordination patterns it names are made
-concrete in the saga appendix.*

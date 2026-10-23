@@ -756,7 +756,20 @@ and bulkhead were named for software), the gRPC retry design, gRFC A6 (retry pol
 throttling), the Istio traffic-management docs, and the metastable-failures research (Bronson et al.,
 2021).
 
-### Cross-check it yourself
+## Build, run, observe
+
+```bash
+cd examples/26-failure-modes/python     # or any of the six language stacks
+docker compose up -d --build --wait
+cd ..
+./verify.sh
+```
+
+`verify.sh` runs the language-agnostic end-to-end checks against the running stack (22/22 in
+each of the six languages), asserting timeout behaviour, retry exhaustion, the circuit breaker
+moving closed to open to recovered with a fallback, deadline-budget propagation across a
+two-hop chain, the bulkhead's concurrency limit, and a full bulkhead refusing overflow with 429
+and admitting again once calls finish.
 
 Reproduce the two dynamics that this appendix turns on. **Cascading and the breaker:** put steady
 load on a service with `hey` (or `ghz` for gRPC) while you force its downstream dependency to be
@@ -770,7 +783,3 @@ deadline that stops doomed work early, are the two behaviours everything here de
 
 This appendix touches difficult operational territory; if you are diagnosing a live incident, the
 Google SRE cascading-failures chapter is the fastest way to a shared vocabulary with your team.
-
----
-*Verification status: verified; [`examples/26-failure-modes/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/26-failure-modes/) passes 22/22 checks in each of the six languages on Docker Engine (2026-10-13)
-(timeout, retry exhaustion, circuit breaker closed, open and recovered with fallback, deadline-budget propagation, bulkhead limit, a full bulkhead refusing the overflow with 429 and admitting again).*

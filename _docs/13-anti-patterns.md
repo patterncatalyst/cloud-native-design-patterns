@@ -84,7 +84,3 @@ That closes the thirteen core sections. The appendices that follow go deeper on 
 questions that always come up (protocols, versioning, WebSockets, sagas, errors,
 DDD, coupling, shutdown, routing, decomposition, caching, and failure modes) and
 can be read on demand.
-
----
-*Verification status: conceptual chapter; no runnable code. Its heuristics are the
-review-time application of the patterns proven in the earlier chapters.*

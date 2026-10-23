@@ -234,10 +234,3 @@ cheapest to pull: usually drive strength down to a contract, since distance and
 volatility are often fixed by the org chart and the domain. If your worst-scoring
 integration is already contract-coupled and sits on stable code, the model says to leave
 it alone, which is the appendix's real lesson: looser is not automatically better.
-
----
-*Verification status: unverified. This is a conceptual appendix with no runnable
-example; its claims are model-level (Khononov's *Balancing Coupling*) rather than code
-that executes. There is no `examples/` runner for it; verification here means a design
-review confirms the three-dimension scoring matches how changes propagate in a
-real system.*

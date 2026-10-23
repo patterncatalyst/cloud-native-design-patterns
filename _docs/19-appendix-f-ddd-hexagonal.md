@@ -340,7 +340,7 @@ DDD is not a separate methodology bolted onto the architecture; it is the naming
 the reasoning behind the boundaries the whole system already relies on. The full
 treatment is Vlad Khononov's *Learning Domain-Driven Design* (O'Reilly, 2021).
 
-### Cross-check it yourself
+## Build, run, observe
 
 Test the isolation claim directly, because it is the one that pays the rent. In the
 domain package (`domain/` in Python or C++, the application service and its port
@@ -353,6 +353,17 @@ a second driving adapter (a gRPC endpoint, or a Kafka consumer) that calls the *
 new adapter file appears. A clean domain import list plus a no-domain-change diff when
 you bolt on a protocol is hexagonal architecture holding.
 
----
-*Verification status: verified: [`examples/19-ddd-hexagonal/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/19-ddd-hexagonal/) passes 17/17 checks in each of the six languages on Docker Engine (2026-10-13)
-(source scans proving the domain layer imports no framework or persistence types, REST and CLI adapters driving the same use case, input validation, OrderPlaced event emission).*
+```bash
+cd examples/19-ddd-hexagonal/python     # or any of the six language stacks
+docker compose up -d --build --wait
+cd ..
+./verify.sh
+```
+
+`verify.sh` runs the language-agnostic end-to-end checks against the running stack
+(17/17 in each of the six languages), asserting the domain directory imports no web
+framework, no JPA/Hibernate, no database driver, and no CDI/DI annotations; that the
+REST driving adapter can place and read back an order and rejects invalid input with
+`422`; that the CLI driving adapter (`cli-place-order`) creates an order through the
+same `PlaceOrder` use case and that order is then visible through the REST adapter;
+and that an `OrderPlaced` domain event is logged for the REST-created order.

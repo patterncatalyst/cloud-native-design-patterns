@@ -141,8 +141,3 @@ limit with `hey` and confirm the gateway returns `429` with a `Retry-After` rath
 than letting the load through: that response is the runtime plane doing its job as
 configuration. The contract-plane enforcement is demonstrated in the registry
 chapter, where a breaking change is rejected at publish time.
-
----
-*Verification status: conceptual chapter: no per-language runnable code. The
-runtime-plane and contract-plane behaviours it describes are exercised in the
-security, registry, and Appendix B chapters.*

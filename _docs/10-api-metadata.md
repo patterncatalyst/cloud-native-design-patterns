@@ -228,8 +228,3 @@ follow its lineage downstream: confirm you can see, without asking anyone, which
 tables and APIs consume it and which team owns each. Then check that an asset
 carries its owner and PII tags. Getting that impact list from the catalog rather
 than from a post-incident retro is the whole point.
-
----
-*Verification status: conceptual chapter: no per-language runnable code. The
-discovery, lineage, and trust capabilities it describes are exercised against a
-running OpenMetadata catalog in the example stack.*
