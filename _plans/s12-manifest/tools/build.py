@@ -27,7 +27,7 @@ import json
 import sys
 from pathlib import Path
 
-REPO = Path("/home/rsedor/Dev/cloud-native-design-patterns")
+REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "scripts"))
 import deck_edit as de  # noqa: E402
 from pptx import Presentation  # noqa: E402

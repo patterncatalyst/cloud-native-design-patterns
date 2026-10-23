@@ -37,7 +37,7 @@ saga-orchestrator (Quarkus)
 ## Running it
 
 ```bash
-cd /home/rsedor/Dev/cloud-native-design-patterns/examples/17-sagas/quarkus
+cd <repo>/examples/17-sagas/quarkus
 docker compose up --build
 ```
 
@@ -251,7 +251,7 @@ Benefits:
 Run the automated test suite:
 
 ```bash
-cd /home/rsedor/Dev/cloud-native-design-patterns/examples/17-sagas
+cd <repo>/examples/17-sagas
 ./verify.sh quarkus
 ```
 

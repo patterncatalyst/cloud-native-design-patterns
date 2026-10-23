@@ -106,7 +106,7 @@ notes or picture changed in the final validation (slide numbers of the current d
 
 ## Tooling
 
-Scratchpad venv (`/tmp/claude-1000/-home-rsedor-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s12/venv`, Python 3.14.7, never global), newest stable on PyPI 2026-10-12, pinned exactly:
+Scratchpad venv (`/tmp/claude-1000/-home-user-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s12/venv`, Python 3.14.7, never global), newest stable on PyPI 2026-10-12, pinned exactly:
 
 | Package | Version |
 |---|---|

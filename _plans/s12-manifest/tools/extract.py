@@ -1,11 +1,11 @@
 """Extract every text segment (paragraph split at a:br) of each deck, with sldId, kind, shape, code flag."""
 import json, sys
 from pathlib import Path
-sys.path.insert(0, "/home/rsedor/Dev/cloud-native-design-patterns/scripts")
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
 import deck_edit as de
 from pptx import Presentation
 A=de.A; P=de.P; q=de.q
-ROOT=Path("/home/rsedor/Dev/cloud-native-design-patterns/lgtm-presentation")
+ROOT=Path(__file__).resolve().parents[3] / "lgtm-presentation"
 out={}
 for deck in sorted(ROOT.glob("*.pptx")):
     prs=Presentation(str(deck))

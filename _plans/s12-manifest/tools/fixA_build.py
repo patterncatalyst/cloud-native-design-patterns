@@ -36,7 +36,7 @@ import colour_audit  # noqa: E402
 import fixA_rules as R  # noqa: E402
 from pptx import Presentation  # noqa: E402
 
-FIXA = Path(os.environ.get("FIXA", "/tmp/claude-1000/-home-rsedor-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s12/fixA"))
+FIXA = Path(os.environ.get("FIXA", "/tmp/claude-1000/-home-user-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s12/fixA"))
 EDITS = REPO / "lgtm-presentation" / "edits"
 COMMITTED = {"Python": "d51c29f", "Quarkus": "40db0f0", "Spring": "94b7ec5", "DotNet": "99c5bf5"}
 OUTFILE = {"Python": "fix1", "Quarkus": "fix1", "Spring": "fix2", "DotNet": "fix2"}

@@ -100,7 +100,7 @@ S0 to S14 are done and main is green (f20e612). Nothing is required; these are t
 - S8: 0 :latest, -latest or kafka-ui; full matrix green.
 - S9: minikube appendix with evidence; profile stopped.
 - S10: Appendix S with evidence for 5 languages; scrub clean; CRC stopped and clean.
-  - Executed 2026-10-11 (awaiting validation). Evidence: `/tmp/claude-1000/-home-rsedor-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s10/live/`. crc 2.64.0, OpenShift 4.22.14, Kubernetes v1.35.6, AMQ Streams `amqstreams.v3.2.1-14` (channel `amq-streams-3.2.x`, default `stable`), Kafka 4.2.0.
+  - Executed 2026-10-11 (awaiting validation). Evidence: `/tmp/claude-1000/-home-user-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s10/live/`. crc 2.64.0, OpenShift 4.22.14, Kubernetes v1.35.6, AMQ Streams `amqstreams.v3.2.1-14` (channel `amq-streams-3.2.x`, default `stable`), Kafka 4.2.0.
   - verify.sh 10 passed, 0 failed in spring-boot, quarkus, dotnet, python and go (139, 123, 125, 121, 120 s); every pod on `restricted-v2` (no anyuid needed); linked traces with all three services per language; Route HTTP 302 to https; Grafana 13.2.3 health ok.
   - Three script fixes from the live run: inventory under `pipefail` on a clean cluster, waiting for cluster operators after the registry route change, ignoring OLM-copied CSVs (`-l '!olm.copiedFrom'`).
   - Teardown removed the operator, 10 CRDs, namespaces and the registry route change; `crc stop` (not deleted); second teardown exit 0; current-context unset and `~/.kube/config` sha256 unchanged.
@@ -193,7 +193,7 @@ Defects the baseline found and fixed in S1:
 
 ### S9 minikube (2026-10-11)
 
-Fedora 44, Docker Engine 29.8.2, minikube v1.39.0, kubectl v1.36.5 (kustomize v5.8.1), **Helm v4.3.0**, profile `cndp-k8s` (docker driver, containerd 2.3.4, Kubernetes v1.36.5, 8 GB, 4 CPUs, 40 GB), NodePorts 30080 and 30300 published on 127.0.0.1 only (`docker port cndp-k8s`). Evidence: `/tmp/claude-1000/-home-rsedor-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s9/` (`00-prechecks.txt`, `01-setup-profile.log`, `matrix/` with `results.tsv`, per-language logs and evidence, `docker-path/`, `10-static-checks.txt`, `11-final-state.txt`).
+Fedora 44, Docker Engine 29.8.2, minikube v1.39.0, kubectl v1.36.5 (kustomize v5.8.1), **Helm v4.3.0**, profile `cndp-k8s` (docker driver, containerd 2.3.4, Kubernetes v1.36.5, 8 GB, 4 CPUs, 40 GB), NodePorts 30080 and 30300 published on 127.0.0.1 only (`docker port cndp-k8s`). Evidence: `/tmp/claude-1000/-home-user-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s9/` (`00-prechecks.txt`, `01-setup-profile.log`, `matrix/` with `results.tsv`, per-language logs and evidence, `docker-path/`, `10-static-checks.txt`, `11-final-state.txt`).
 
 Pins re-verified at the start: Strimzi chart and operator 1.2.0 (Kafka image `quay.io/strimzi/kafka:1.2.0-kafka-4.3.1`, Kafka 4.3.1, Kafka CR `kafka.strimzi.io/v1`), postgres 18.6-alpine, otel-lgtm 0.36.0, kubeconform v0.8.0, actionlint 1.7.12, shellcheck 0.11.0, CRDs-catalog commit 63669a5. Kubernetes 1.37.1 exists upstream and minikube v1.39.0 lists 1.37.0 as its newest; v1.36.5 stays because the host kubectl and the other profiles are 1.36.5 and the plan was approved with it.
 

@@ -10,7 +10,7 @@ from pathlib import Path
 
 import cairosvg
 
-REPO = Path("/home/rsedor/Dev/cloud-native-design-patterns")
+REPO = Path(__file__).resolve().parents[3]
 DIAG = REPO / "assets" / "diagrams"
 OUT = REPO / "lgtm-presentation" / "edits" / "png"
 SRC = OUT / "src"

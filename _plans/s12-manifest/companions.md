@@ -95,7 +95,7 @@ The full list (old block index, style, new text) is
 `_plans/s12-manifest/companions/network-policy-process-advisory.docx-ops.json`. Apply with the S12 venv python:
 
 ```bash
-V=/tmp/claude-1000/-home-rsedor-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s12/venv/bin/python
+V=/tmp/claude-1000/-home-user-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s12/venv/bin/python
 P=lgtm-presentation/edits/png
 $V _plans/s12-manifest/tools/companion_docx.py \
    lgtm-presentation/network-policy-process-advisory.md \

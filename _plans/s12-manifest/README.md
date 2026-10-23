@@ -26,8 +26,8 @@ Run from the repository root (the `png` paths in the edit files are relative to 
 venv python:
 
 ```bash
-V=/tmp/claude-1000/-home-rsedor-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s12/venv/bin/python
-export DECK_BACKUP_DIR=/tmp/claude-1000/-home-rsedor-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s12/backup
+V=/tmp/claude-1000/-home-user-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s12/venv/bin/python
+export DECK_BACKUP_DIR=/tmp/claude-1000/-home-user-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s12/backup
 D=lgtm-presentation/Designing-Cloud-Native-APIs-Python.pptx
 $V scripts/deck_edit.py "$D" lgtm-presentation/edits/_shared.json \
    lgtm-presentation/edits/Designing-Cloud-Native-APIs-Python.json --dry-run   # review the diff
@@ -428,8 +428,8 @@ Every batch, after applying its edit files and before committing, renders its de
 layout check; the batch does not commit until it reports 0 flags:
 
 ```bash
-V=/tmp/claude-1000/-home-rsedor-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s12/venv/bin/python
-LO_PROFILE=/tmp/claude-1000/-home-rsedor-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s12/lo-profile \
+V=/tmp/claude-1000/-home-user-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s12/venv/bin/python
+LO_PROFILE=/tmp/claude-1000/-home-user-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s12/lo-profile \
   $V scripts/deck_fit.py lgtm-presentation/<deck>.pptx --keep-pdf <scratch dir>
 # "deck_fit: <deck>.pptx: 0 flag(s) on 0 slide(s)", exit 0
 ```

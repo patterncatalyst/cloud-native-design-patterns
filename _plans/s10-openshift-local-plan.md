@@ -110,7 +110,7 @@ packagemanifest `amq-streams` channels/currentCSV; CSV `STRIMZI_KAFKA_IMAGES`; `
 
 ## Live results (step 10, 2026-10-11)
 
-Evidence (outside the repo): `/tmp/claude-1000/-home-rsedor-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s10/live/` (`matrix/results.tsv`, `matrix/logs/`, `matrix/evidence/<lang>/`, `setup3.log`, `teardown.log`).
+Evidence (outside the repo): `/tmp/claude-1000/-home-user-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s10/live/` (`matrix/results.tsv`, `matrix/logs/`, `matrix/evidence/<lang>/`, `setup3.log`, `teardown.log`).
 
 - crc 2.64.0, OpenShift 4.22.14, Kubernetes v1.35.6.
 - AMQ Streams packagemanifest: default channel `stable`; `amq-streams-3.2.x` currentCSV `amqstreams.v3.2.1-14` (newest); CSV Succeeded; Kafka 4.2.0.
