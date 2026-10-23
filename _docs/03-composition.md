@@ -2,12 +2,12 @@
 title: "Composition"
 order: 3
 part: "Foundations & the system"
-description: "Composing many back-ends behind one schema without coupling them — a GraphQL gateway that fans out to REST and gRPC, the resolver that makes it concrete, and the three places aggregation belongs."
+description: "Composing many back-ends behind one schema without coupling them: a GraphQL gateway that fans out to REST and gRPC, the resolver that makes it concrete, and the three places aggregation belongs."
 duration: 18 minutes
 ---
 
 A client rarely wants what a single service holds. It wants an order *and* its
-live stock *and* its shipment status — data spread across services. The wrong fix
+live stock *and* its shipment status: data spread across services. The wrong fix
 is to have `order-service` call `inventory` call `pricing` in a chain. The right
 fix is to push the aggregation **outward, to the edge**, and keep the services
 unaware of each other.
@@ -16,7 +16,7 @@ unaware of each other.
 
 A GraphQL gateway presents **one schema** to clients and fans out to REST and gRPC
 back-ends, then joins and shapes the result. The client makes a single round trip
-and asks for exactly the fields it needs — no more, no less.
+and asks for exactly the fields it needs.
 
 ```graphql
 # the gateway's schema — one contract for every client
@@ -49,13 +49,13 @@ the composition.
 {% include excalidraw.html
    file="03-composition"
    alt="A client sends one GraphQL query to the graphql-gateway; the gateway calls order-service over REST for the order fields and inventory over gRPC for the stock field, then joins and returns one result"
-   caption="Figure 3.1 — One query in; the gateway fans out to REST and gRPC and joins" %}
+   caption="Figure 3.1: One query in; the gateway fans out to REST and gRPC and joins" %}
 
 ## The resolver makes it concrete
 
 Federation stops being abstract at the resolver. The top-level `order` query
 calls `order-service` over REST; the `Order.stock` field resolves *on demand* by
-calling `inventory` over gRPC. **Each field resolves against its owning service** —
+calling `inventory` over gRPC. **Each field resolves against its owning service**:
 the gateway is only the composition layer.
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
@@ -194,31 +194,31 @@ func (r *Resolver) attachStock(ctx context.Context, orders []*model.Order) {
 
 The top-level `order` resolver does a REST call; the `stock` field resolver does a
 gRPC call, and only runs *when the client asks for `stock`*. That on-demand
-property is the point of GraphQL — unrequested fields cost nothing.
+property is the point of GraphQL: unrequested fields cost nothing.
 
 The trap to know is **N+1**: resolve `stock` naively for a list of 100 orders and
-you fire 100 gRPC calls. Production gateways batch with a **DataLoader** — collect
+you fire 100 gRPC calls. Production gateways batch with a **DataLoader**: collect
 the keys requested in one tick, make one batched back-end call. HotChocolate ships
 one; Strawberry, the JVM servers, and the others have equivalents. When you write
 a per-field resolver that calls another service, assume you will need batching.
 
-## Three ways to compose — and where each belongs
+## Three ways to compose, and where each belongs
 
 The resolver is one shape of a more general idea. There are three, and all
-three push aggregation outward — toward the client as coupling needs loosen.
+three push aggregation outward, toward the client as coupling needs loosen.
 
 {% include excalidraw.html
    file="03-three-ways"
    alt="Three columns with tags: API Gateway (routing, auth, rate-limit; no business logic; Istio ingress) tagged thin edge; Backend-for-Frontend (one BFF per client type; client-specific shaping; owns aggregation) tagged client-shaped; and GraphQL federation (schema stitched across domains that own subgraphs; gateway plans query) tagged read-optimised. Aggregation moves toward the client as coupling needs loosen."
-   caption="Figure 3.2 — Three places to compose: a thin API gateway, a client-shaped BFF, or a read-optimised GraphQL federation" %}
+   caption="Figure 3.2: Three places to compose: a thin API gateway, a client-shaped BFF, or a read-optimised GraphQL federation" %}
 
-- **API gateway** — one composed schema for everyone. Simple, central, one contract;
+- **API gateway**: one composed schema for everyone. Simple, central, one contract;
   it routes, authenticates, and rate-limits at the edge (our Istio ingress) but holds
   no business logic.
-- **Backend-for-frontend (BFF)** — a tailored aggregate per client type, so the
+- **Backend-for-frontend (BFF)**: a tailored aggregate per client type, so the
   web and mobile apps each get a surface shaped for them rather than a
   lowest-common-denominator one. The BFF owns the aggregation for its client.
-- **GraphQL federation** — a distributed graph, where each service owns its slice
+- **GraphQL federation**: a distributed graph, where each service owns its slice
   of one logical schema and a gateway plans and stitches the query across subgraphs.
 
 Pick by how much each client's needs diverge: a gateway when one shape serves everyone,
@@ -226,46 +226,46 @@ a BFF when clients differ enough to deserve their own surface, and federation wh
 domains must present as one graph and reads dominate.
 
 The anti-pattern to name explicitly is the opposite of all three:
-**service-to-service call chains**, where `order` calls `inventory` calls
-`pricing` calls… — synchronous, deeply coupled, and impossible to reason about. It
+**service-to-service call chains**, where `order` calls `inventory`, which calls
+`pricing`, in a synchronous, deeply coupled chain that's impossible to reason about. It
 rebuilds a distributed monolith. Composition belongs at the edge, not
 buried in a chain of internal calls.
 
 ## Composition through the coupling lens
 
-**Appendix G** lays out Khononov's three coupling dimensions — **strength**,
-**distance**, and **volatility** — and a four-rung strength ladder: intrusive,
+**Appendix G** lays out Khononov's three coupling dimensions (**strength**,
+**distance**, and **volatility**) and a four-rung strength ladder: intrusive,
 functional, model, contract. Every composition choice in this chapter maps directly onto this
 model.
 
 The gateway keeps inter-service coupling at the **contract rung**: services expose
 schemas (OpenAPI, proto, GraphQL SDL), and the gateway composes *contracts*, never
-internals. No service knows another service's database or in-memory model — exactly
+internals. No service knows another service's database or in-memory model: exactly
 what "contract strength" means. By contrast, the call-chain anti-pattern drifts toward
 **functional coupling**: service A doesn't just consume a contract from service B, it
-depends on B's *behavior* — its timing, its side effects, its availability — because
+depends on B's *behavior* (its timing, its side effects, its availability) because
 every hop in the chain is a synchronous call whose failure propagates upward.
 
 **Distance** matters too. A gateway adds one hop between the client and the
-back-end — a small increase in distance — but that hop *lowers strength*, because
+back-end (a small increase in distance), but that hop *lowers strength*, because
 the services behind it don't know each other. A BFF increases distance further
 (client → BFF → services) but buys **client-specific shaping**, which means the
 coupling between the client and the back-end is shaped exactly to what that client
 needs, nothing more. Federation distributes the composition across subgraphs, each
-owning its slice — the gateway plans the query, and each subgraph exposes only
+owning its slice: the gateway plans the query, and each subgraph exposes only
 its contract.
 
 The general rule from the appendix applies: **the greater the distance between
 components, the further down the strength ladder the coupling must be.** Composition
-at the edge naturally satisfies this — the gateway is far from the services (high
+at the edge naturally satisfies this: the gateway is far from the services (high
 distance), and it couples only to their contracts (low strength). A call chain
-violates it — services that are far apart couple at the functional level, which is
+violates it: services that are far apart couple at the functional level, which is
 exactly why it becomes a distributed monolith.
 
 ### Cross-check it yourself
 
 The gateway is just HTTP. Send the same query with `curl` or Postman and request
-`stock` in one call, then omit it in another — confirm the gateway only calls
+`stock` in one call, then omit it in another. Confirm the gateway only calls
 `inventory` when `stock` is selected. Then request a *list* of orders with
 `stock` and watch the back-end call count: without batching it climbs with the
 list size; with a DataLoader it stays flat. That flat line is the N+1 fix working.
@@ -274,5 +274,5 @@ The code is in [`examples/03-composition/`](https://github.com/patterncatalyst/c
 its `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: verified — [`examples/03-composition/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/03-composition/) passes 8/8 checks in each of the six languages on Docker Engine (2026-10-13)
+*Verification status: verified; [`examples/03-composition/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/03-composition/) passes 8/8 checks in each of the six languages on Docker Engine (2026-10-13)
 (GraphQL gateway fan-out to the REST order API and the gRPC stock service, selective stock-field resolution, DataLoader batching of stock lookups into one gRPC call, single-order lookup).*

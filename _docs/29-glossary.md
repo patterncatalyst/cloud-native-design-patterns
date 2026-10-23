@@ -4,12 +4,12 @@ marker: "★"
 label: "Glossary"
 order: 99
 part: "Deep-dive appendices"
-description: "Every acronym used across the book, expanded and placed in context — grouped by where it shows up: the wire, the data layer, events, the platform, security, observability, and the domain."
+description: "Every acronym used across the book, expanded and placed in context, grouped by where it shows up: the wire, the data layer, events, the platform, security, observability, and the domain."
 ---
 
 Every acronym the book leans on, expanded and put in context. They are grouped by the
-layer they belong to — the wire, the data store, messaging, the platform, security,
-observability, and the domain — so a term is easy to find by the part of the system it
+layer they belong to (the wire, the data store, messaging, the platform, security,
+observability, and the domain), so a term is easy to find by the part of the system it
 describes. Where an acronym means something specific *in this book*, the third column says
 what, because a few of them (`ACL` among them) carry a different meaning here than the one you
 might expect.
@@ -18,17 +18,17 @@ might expect.
 
 | Acronym | Expands to | In this book |
 |---|---|---|
-| API | Application Programming Interface | The contract a service exposes — the whole subject of the book |
+| API | Application Programming Interface | The contract a service exposes: the whole subject of the book |
 | REST | Representational State Transfer | Resource-oriented HTTP; the public, cacheable, browser-native default |
 | gRPC | gRPC Remote Procedure Call | Procedure-oriented, HTTP/2, protobuf binary; the internal-call default |
 | RPC | Remote Procedure Call | Calling a typed method on another process as if it were local |
 | HTTP, HTTP/1.1, HTTP/2 | HyperText Transfer Protocol | The /1.1 and /2 suffixes are protocol versions; gRPC requires /2 |
 | TLS | Transport Layer Security | Encryption on the wire; an L7 router usually terminates it |
-| mTLS | mutual TLS | Both sides present certificates — workload-to-workload identity in the mesh |
+| mTLS | mutual TLS | Both sides present certificates: workload-to-workload identity in the mesh |
 | SNI | Server Name Indication | The hostname an L4 balancer can route on without terminating TLS |
 | TCP | Transmission Control Protocol | The L4 connection an L7 router rides on top of |
 | JSON | JavaScript Object Notation | Text encoding for REST and GraphQL payloads |
-| SDL | Schema Definition Language | GraphQL's typed schema — its published contract |
+| SDL | Schema Definition Language | GraphQL's typed schema: its published contract |
 | URL / URI | Uniform Resource Locator / Identifier | The address of a resource; a URI identifies, a URL also locates |
 | DTO | Data Transfer Object | A shape passed across a boundary; sharing one is *model coupling* |
 | BFF | Backend for Frontend | An API tailored to one client, often a GraphQL gateway |
@@ -52,7 +52,7 @@ might expect.
 | PII | Personally Identifiable Information | Data that defines a privacy and encryption boundary |
 | TTL | Time To Live | How long a cached entry or record stays valid before expiry |
 | MSDTC | Microsoft Distributed Transaction Coordinator | The two-phase-commit coordinator that sagas replace across services |
-| N+1 | the N+1 query problem | One query per row instead of one batched query — fixed with batching |
+| N+1 | the N+1 query problem | One query per row instead of one batched query, fixed with batching |
 
 ## Events, messaging, and streaming
 
@@ -72,7 +72,7 @@ might expect.
 | KEDA | Kubernetes Event-Driven Autoscaling | Scales on queue depth and other event sources, including to zero |
 | CRD | Custom Resource Definition | How an operator (or Istio) extends the Kubernetes API |
 | CNCF | Cloud Native Computing Foundation | Home of Kubernetes, OpenTelemetry, OpenFeature, and the rest of the stack |
-| OSS | Open-Source Software | The whole platform is OSS — no managed-cloud lock-in |
+| OSS | Open-Source Software | The whole platform is OSS: no managed-cloud lock-in |
 | YAML | YAML Ain't Markup Language | The configuration format for Kubernetes and Istio objects |
 | LB | Load Balancer | An L4 or L7 component spreading traffic across pods |
 | L4 / L7 | Layer 4 / Layer 7 (OSI) | Transport-level versus application-level routing |
@@ -117,7 +117,7 @@ might expect.
 | RED | Rate, Errors, Duration | The request-centric monitoring method |
 | USE | Utilization, Saturation, Errors | The resource-centric monitoring method |
 | RTT | Round-Trip Time | Network latency; what locality-aware routing minimises |
-| p50 / p99 | 50th / 99th percentile | Latency percentiles — p99 is where L7 hop overhead shows up |
+| p50 / p99 | 50th / 99th percentile | Latency percentiles: p99 is where L7 hop overhead shows up |
 | MDC | Mapped Diagnostic Context | Per-request fields attached to every log line, e.g. the trace id |
 | SRE | Site Reliability Engineering | The discipline behind SLOs, error budgets, and these methods |
 | ETW | Event Tracing for Windows | The legacy telemetry source replaced by OpenTelemetry |
@@ -127,8 +127,8 @@ might expect.
 | Acronym | Expands to | In this book |
 |---|---|---|
 | DDD | Domain-Driven Design | Bounded contexts and ubiquitous language drive where API boundaries go |
-| ACL | Anticorruption Layer | **In DDD**, a translation layer keeping a foreign model out of yours — *not* an access-control list |
-| XOR | exclusive OR | The coupling rule "modularity = strength XOR distance" — have one, not both |
+| ACL | Anticorruption Layer | **In DDD**, a translation layer keeping a foreign model out of yours, *not* an access-control list |
+| XOR | exclusive OR | The coupling rule "modularity = strength XOR distance": have one, not both |
 | MVC | Model-View-Controller | The legacy web UI pattern migrated from |
 | UI | User Interface | The client surface, e.g. Blazor in the .NET stack |
 | AI | Artificial Intelligence | The agent context the opening chapter frames the book around |
@@ -144,6 +144,6 @@ might expect.
 | MIT, BSD, Apache 2.0, AGPL | open-source software licenses | The licenses on the pinned toolkit and platform components |
 
 ---
-*Verification status: compiled from the book's own usage — every entry appears in the
+*Verification status: compiled from the book's own usage: every entry appears in the
 chapters or appendices. Expansions follow each technology's canonical naming; where a term
 is overloaded (`ACL`), the meaning used in this book is called out explicitly.*

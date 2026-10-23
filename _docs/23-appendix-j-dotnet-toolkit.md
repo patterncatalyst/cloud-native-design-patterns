@@ -10,7 +10,7 @@ duration: 18 minutes
 
 > **This appendix is .NET-specific.** It exists only in the .NET edition of the source
 > material; the Spring Boot, Quarkus, Python, and C++ editions skip it. Every other
-> chapter in this book is multi-language — this one is the reference a team moving from
+> chapter in this book is multi-language: this one is the reference a team moving from
 > Windows and .NET Framework keeps open in another window while they build.
 
 This is the reference appendix: a consolidated bill of materials for the application
@@ -18,12 +18,12 @@ side, the same for the platform side, an expanded migration table with a one-lin
 rationale per row, a look at what .NET lacks, and a short recipe to
 start a new service. It is built for the .NET-developers-moving-from-Windows audience,
 and its through-line is that the library choices and the platform choices are entirely
-separable — the cluster does not know or care that the Pods happen to run .NET.
+separable: the cluster does not know or care that the Pods happen to run .NET.
 
 ## The pinned .NET 10 toolkit
 
 Every library that appears anywhere in the .NET edition, grouped by concern. The license
-column is the one to read closely: every entry is MIT, Apache 2.0, BSD or (for Redis) the AGPLv3 option — no
+column is the one to read closely: every entry is MIT, Apache 2.0, BSD or (for Redis) the AGPLv3 option, no
 commercial-only dependencies, and nothing that requires a specific cloud.
 
 | Concern | Library | Purpose | License | NuGet |
@@ -41,7 +41,7 @@ commercial-only dependencies, and nothing that requires a specific cloud.
 | Event store | Marten | Document + event sourcing on Postgres | MIT | Marten |
 | Messaging | Confluent.Kafka 2.16.0 | Kafka client: producers, consumer groups, explicit offset commits | Apache 2.0 | Confluent.Kafka |
 | Streaming | Streamiz.Kafka.Net 1.8.2 | .NET port of Kafka Streams | MIT | Streamiz.Kafka.Net |
-| Workflow | Temporalio | Temporal .NET SDK — durable execution | MIT | Temporalio |
+| Workflow | Temporalio | Temporal .NET SDK: durable execution | MIT | Temporalio |
 | Workflow | Stateless | In-process state machine library | Apache 2.0 | Stateless |
 | Rules | NRules | Rete-algorithm rules engine | MIT | NRules.Fluent |
 | Rules · DSL | NRules.Language | External DSL for non-developer rule editing | MIT | NRules.Language |
@@ -58,18 +58,18 @@ commercial-only dependencies, and nothing that requires a specific cloud.
 | Scheduling | DistributedLock | Distributed mutex over Postgres / Redis / SQL Server | MIT | DistributedLock.* |
 
 `Microsoft.AspNetCore.OpenApi` and SignalR are built
-into ASP.NET Core 10 — no extra package. **Confluent.Kafka** is the Kafka client the examples use directly: a bus abstraction such as MassTransit would hide the consumer-group, offset-commit, and partition semantics the chapters teach, and MassTransit v9 moved to a commercial license.
+into ASP.NET Core 10, no extra package. **Confluent.Kafka** is the Kafka client the examples use directly: a bus abstraction such as MassTransit would hide the consumer-group, offset-commit, and partition semantics the chapters teach, and MassTransit v9 moved to a commercial license.
 **Streamiz.Kafka.Net** is a .NET port of Kafka Streams, which means windowed aggregations
 without standing up a Flink cluster. **Temporalio** (the Temporal .NET SDK) pairs with the Temporal Server
 in the platform stack for durable workflows; **Stateless** fills the lightweight in-process
-state-machine slot; **NRules** is the Rete rules engine (a .NET-only library — it has no JVM
+state-machine slot; **NRules** is the Rete rules engine (a .NET-only library with no JVM
 or C++ equivalent). And **Wolverine** is the modern OSS mediator to reach for now that
 MediatR has moved to a commercial license.
 
 ## The pinned cloud-native platform stack
 
 The other half of the bill of materials: the cluster-side components the Pods talk *to*.
-None of them know the workload is .NET — the same stack serves Spring Boot, Quarkus, or
+None of them know the workload is .NET: the same stack serves Spring Boot, Quarkus, or
 Python identically, which is the entire point. If you already run this platform under a
 Java or Python application, .NET services drop in alongside without changing anything under
 the application layer.
@@ -103,18 +103,18 @@ stack on which .NET 10 is one workload type.
 
 ## From Windows / .NET 4.x to Kubernetes / .NET 10
 
-This is the expanded version of the bridge from the Cloud-Native Principles chapter —
+This is the expanded version of the bridge from the Cloud-Native Principles chapter:
 twenty-two rows, four columns. Read the rightmost column, "what changes most," because that
 is where the architectural shift lives. Almost every row preserves the *shape* of
 the pattern: you still have request handlers, background workers, scheduled jobs,
 distributed locks, health checks, configuration sources, and telemetry. What changes is who
-owns the substrate — IIS owned the host, Kubernetes does now; the substrate becomes
+owns the substrate: IIS owned the host, Kubernetes does now; the substrate becomes
 open-source and cluster-native.
 
 {% include excalidraw.html
    file="23-strangler-fig"
-   alt="The strangler-fig migration approach. Clients hit one URL through a proxy routing layer — step zero is adding the proxy first. The proxy sends a widening 1% to 100% slice of traffic to a new service (the extracted slice) while everything else defaults to the shrinking monolith. Identify, move, redirect one bounded asset at a time, with the system live throughout; redirect is a proxy config change, not a client release, so every step is reversible."
-   caption="Figure J.1 — Migrate incrementally with a strangler-fig proxy: redirect a widening slice to the new service while the monolith shrinks, system live throughout" %}
+   alt="The strangler-fig migration approach. Clients hit one URL through a proxy routing layer: step zero is adding the proxy first. The proxy sends a widening 1% to 100% slice of traffic to a new service (the extracted slice) while everything else defaults to the shrinking monolith. Identify, move, redirect one bounded asset at a time, with the system live throughout; redirect is a proxy config change, not a client release, so every step is reversible."
+   caption="Figure J.1: Migrate incrementally with a strangler-fig proxy: redirect a widening slice to the new service while the monolith shrinks, system live throughout" %}
 
 | Concern | Coming from (Windows / .NET 4.x) | Going to (.NET 10 / Kubernetes) | What changes most |
 |---|---|---|---|
@@ -142,9 +142,9 @@ open-source and cluster-native.
 | Health probes | ASP.NET app warmup, monitoring agents | M.E.Diagnostics.HealthChecks → /healthz/live + ready | Kubernetes is the monitoring agent |
 
 Only two rows are conceptual rewrites rather than substrate swaps. **COM+ / MSDTC
-distributed transactions become sagas** — you write compensations explicitly because there
+distributed transactions become sagas**: you write compensations explicitly because there
 is no two-phase commit across services. And **BizTalk orchestration becomes a Temporal
-workflow or an NRules routing pipeline** — orchestration is now C# code in your
+workflow or an NRules routing pipeline**: orchestration is now C# code in your
 repository, not a separately-authored artifact in a separate runtime. Everything else is the
 platform owning more and your code owning less.
 
@@ -159,7 +159,7 @@ in each case there is a workable .NET path or an open-source polyglot path.
   from the enrichment step. NRules covers the rule-*engine* slot but not the DMN authoring experience.
 - **No Apache Camel-scale connector ecosystem.** Nothing in .NET matches Camel's 300-plus
   component connectors. Routing code over plain Kafka producers covers the EIP patterns well, but for
-  long-tail integration — HL7 over MLLP, AS2, EDI, mainframe gateways — you may still run a
+  long-tail integration (HL7 over MLLP, AS2, EDI, mainframe gateways), you may still run a
   Camel sidecar in a JVM Pod (Apache Camel, Apache 2.0) next to the .NET services.
 - **Thinner stream processing.** Streamiz.Kafka.Net is excellent but is a smaller project
   than Kafka Streams. If stream processing is central, Flink remains the heavyweight option,
@@ -174,8 +174,8 @@ in each case there is a workable .NET path or an open-source polyglot path.
   the modern MIT-licensed equivalent, and a better design, for new projects.
 
 The .NET cloud-native story is solid for well over 95% of line-of-business
-and SaaS workloads. The remaining few percent — integration platforms with heavy mainframe,
-EDI, or HL7 needs, or central heavy stream processing — is where you mix runtimes or accept a
+and SaaS workloads. The remaining few percent (integration platforms with heavy mainframe,
+EDI, or HL7 needs, or central heavy stream processing) is where you mix runtimes or accept a
 different trade-off.
 
 ## The five-line recipe for a new service
@@ -202,7 +202,7 @@ settle data ownership, then pick a workflow tier, then let the cluster do the he
 
 Six libraries get you most of the way: **ASP.NET Core, EF Core, Confluent.Kafka,
 Temporalio, OpenTelemetry, and Polly.** Add NRules, Streamiz, HotChocolate, or
-SignalR per workload — only when the use case earns it.
+SignalR per workload, only when the use case earns it.
 
 ### Cross-check it yourself
 
@@ -210,7 +210,7 @@ This appendix is reference material, so the check is that the recipe stands up.
 Scaffold the six-library service and confirm the day-one wiring end to end: `dotnet new web`,
 add the six packages, map `/healthz/live` and `/healthz/ready`, and start it. Hit both health
 endpoints with curl and confirm `200`s with the expected probe payloads. Then issue one real
-request and confirm a trace appears in Tempo — paste the trace id from the response (or the
+request and confirm a trace appears in Tempo: paste the trace id from the response (or the
 log line) into Grafana and verify the span carries the service name and the
 `ActivitySource`-based attributes. A new service that answers both probes and emits a
 correlated trace on its first request has the spine of every pattern in this book working

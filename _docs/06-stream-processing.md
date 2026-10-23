@@ -2,7 +2,7 @@
 title: "Stream Processing"
 order: 6
 part: "Foundations & the system"
-description: "Deriving new streams from streams — stateful, changelog-backed windowed aggregation, and KEDA scaling workers on consumer lag rather than CPU, down to zero when the topic is quiet."
+description: "Deriving new streams from streams: stateful, changelog-backed windowed aggregation, and KEDA scaling workers on consumer lag rather than CPU, down to zero when the topic is quiet."
 duration: 18 minutes
 ---
 
@@ -20,17 +20,17 @@ The output of one topology is just another stream that other services consume.
 {% include excalidraw.html
    file="06-derive-streams"
    alt="A streaming topology: the orders and payments topics feed a join-and-window operator (keyed by orderId, 5-minute tumbling, with a local state store); its output feeds an aggregate operator (count, sum, rate per merchant); that emits a derived revenue topic, which a Grafana dashboard reads."
-   caption="Figure 6.1 — A streaming app is a topology of sources, processors, and sinks; each output is just another stream" %}
+   caption="Figure 6.1: A streaming app is a topology of sources, processors, and sinks; each output is just another stream" %}
 
 Reading the topology left to right makes the pattern concrete: two input topics
 (`orders` and `payments`) are joined and bucketed into five-minute tumbling windows
 keyed by order id; the windowed result is aggregated into per-merchant counts, sums,
 and rates; and that aggregate is published as a brand-new `revenue` topic that a
-dashboard — or any other service — can consume. Nothing here calls another service
+dashboard, or any other service, can consume. Nothing here calls another service
 synchronously; each stage only reads a stream and writes a stream.
 
 The word that matters is **stateful**. Unlike a simple consumer, these processors
-keep local state — running totals, window buffers — and that state must survive
+keep local state (running totals, window buffers), and that state must survive
 restarts. The fault-tolerance trick is a **changelog**: the local state store is
 backed by a compacted Kafka topic, so if the pod dies, the state rebuilds by
 replaying the changelog. That is fault-tolerant local state with no external
@@ -38,8 +38,8 @@ database in the hot path.
 
 ## A windowed aggregation
 
-Here is the canonical example — revenue per merchant, in tumbling five-minute
-windows — in each ecosystem. The JVM stacks use Kafka Streams; .NET uses Streamiz
+Here is the canonical example, revenue per merchant in tumbling five-minute
+windows, in each ecosystem. The JVM stacks use Kafka Streams; .NET uses Streamiz
 (a native Kafka Streams port); Python uses faust-streaming; C++ keeps bounded state
 in-process and reaches for Flink only when the state outgrows a single worker.
 
@@ -198,7 +198,7 @@ func aggregate(ctx goka.Context, msg any) {
 Every tab is the same topology: read `order.placed`, group by merchant, bucket into
 five-minute windows, fold each window into a running total, and write the result to
 a derived `revenue.by-merchant` stream. The JVM, .NET, Python and Go versions (Kafka Streams, Streamiz, faust-streaming, goka) get a
-changelog-backed store built in — kill the pod and the window state rebuilds by
+changelog-backed store built in: kill the pod and the window state rebuilds by
 replaying the changelog topic. The C++ version keeps the window map in process,
 which is fine while the state is bounded; once you need joins or state larger than a
 worker, that is the signal to move to a dedicated engine like Flink rather than
@@ -210,18 +210,18 @@ The windowed aggregation has a silent assumption: what happens when the worker
 crashes mid-window, or when a message is delivered twice? Stream processing has three
 delivery guarantee levels, and picking the right one is a design decision:
 
-**At-most-once** — process each message zero or one times. Commit the offset *before*
+**At-most-once**: process each message zero or one times. Commit the offset *before*
 processing. If the worker crashes after committing but before processing, the message
 is lost. Fast but lossy; acceptable for metrics that tolerate sampling.
 
-**At-least-once** — process each message one or more times. Commit the offset *after*
+**At-least-once**: process each message one or more times. Commit the offset *after*
 processing. If the worker crashes after processing but before committing, the message
 is redelivered and processed again. This is the default in most Kafka consumers and
-the approach this book prefers — paired with **idempotent handlers** (the same
+the approach this book prefers; paired with **idempotent handlers** (the same
 discipline from the event-driven and workflows chapters), reprocessing is a no-op
 and the combination is effectively once.
 
-**Exactly-once** — process each message exactly once, even across crashes. Kafka's
+**Exactly-once**: process each message exactly once, even across crashes. Kafka's
 `processing.guarantee=exactly_once_v2` wraps the consume-transform-produce cycle in
 a transaction: the offset commit and the output record are written atomically, so a
 crash either rolls back both or commits both. The cost is higher latency (transaction
@@ -243,40 +243,40 @@ where double-counting would be incorrect rather than merely redundant.
 
 ## Beyond tumbling windows
 
-The revenue example uses a tumbling window — fixed-size, non-overlapping buckets.
+The revenue example uses a tumbling window: fixed-size, non-overlapping buckets.
 Kafka Streams, faust-streaming, and Streamiz support three other window types, each suited to
 a different access pattern:
 
 {% include excalidraw.html
    file="06-window-types"
    alt="Three rows of window types. Tumbling: fixed 5-minute buckets with no overlap, so an event lands in exactly one window. Hopping (sliding): 5-minute windows that advance every 1 minute, overlapping, so an event lands in multiple windows, giving a smoothed view. Session: variable-length windows defined by an inactivity gap; no events for 10 minutes closes the window, suited to user-activity sessions."
-   caption="Figure 6.3 — Three window types: tumbling (fixed, no overlap), hopping (fixed, overlapping), and session (variable, gap-based)" %}
+   caption="Figure 6.3: Three window types: tumbling (fixed, no overlap), hopping (fixed, overlapping), and session (variable, gap-based)" %}
 
-**Tumbling windows** — fixed-size, non-overlapping. Every event lands in exactly one
+**Tumbling windows**: fixed-size, non-overlapping. Every event lands in exactly one
 window. The revenue-per-merchant aggregation uses this: a clean five-minute bucket,
 no overlap.
 
-**Hopping (sliding) windows** — fixed-size, but the window advances by a smaller
+**Hopping (sliding) windows**: fixed-size, but the window advances by a smaller
 interval. A five-minute window that advances every one minute produces overlapping
 windows, giving a **smoothed** view: each output reflects the last five minutes of
 data, updated every minute. Good for dashboards where a hard bucket boundary would
 cause a visible cliff.
 
-**Session windows** — variable-length, defined by an **inactivity gap**. No events
+**Session windows**: variable-length, defined by an **inactivity gap**. No events
 for the gap duration (say, 10 minutes) closes the window. This fits user-activity
 patterns: a user's browsing session is a cluster of events with quiet gaps between
 them, and the session window captures that shape without you picking an arbitrary
 bucket size.
 
-**Late-arriving data** — an event whose timestamp falls inside an already-closed
+**Late-arriving data**: an event whose timestamp falls inside an already-closed
 window. Kafka Streams handles this with a **grace period**: windows stay open for
 an additional duration after their nominal close, accepting late events. Events
 that arrive after the grace period are dropped (or routed to a dead-letter topic).
-Flink extends this with **watermarks** — a system-wide notion of "how far behind
-event-time we expect to be" — which is essential for multi-source joins where
+Flink extends this with **watermarks**, a system-wide notion of "how far behind
+event-time we expect to be", which is essential for multi-source joins where
 sources have different latencies.
 
-**When to reach for Flink** — in-process stream processing (Kafka Streams, faust-streaming,
+**When to reach for Flink**: in-process stream processing (Kafka Streams, faust-streaming,
 Streamiz, goka, the C++ loop in this chapter's example) works well for single-topic,
 bounded-state computations. Once you need **stream-to-stream joins** (correlate
 orders with payments by key and time), **state larger than a single worker's
@@ -287,7 +287,7 @@ and watermarks at a scale that in-process libraries don't attempt.
 ## Scale on the signal that matters
 
 A stream processor's load is *backlog*, not CPU. The right scaling signal is
-**consumer lag** — how far behind the log the workers are. KEDA reads that lag and
+**consumer lag**: how far behind the log the workers are. KEDA reads that lag and
 scales workers up, and **down to zero** when there is no lag. For
 synchronous HTTP services the same KEDA closes the loop on request rate instead.
 One mechanism, two signals.
@@ -295,7 +295,7 @@ One mechanism, two signals.
 {% include excalidraw.html
    file="06-scale-on-lag"
    alt="KEDA reads the consumer lag on the order.placed topic and scales the payment-consumer pods up when lag grows and down to zero when the topic is idle"
-   caption="Figure 6.2 — Scale on lag, not CPU — and to zero when the topic is quiet" %}
+   caption="Figure 6.2: Scale on lag, not CPU, and to zero when the topic is quiet" %}
 
 ```yaml
 # event-driven: scale consumers on Kafka lag
@@ -321,10 +321,10 @@ spec:
   replicas: { min: 0, max: 30 }
 ```
 
-The `lagThreshold: "100"` is the tuning knob — how many messages of backlog a
+The `lagThreshold: "100"` is the tuning knob: how many messages of backlog a
 single worker is allowed before KEDA adds another. `minReplicaCount: 0` is the cost
 lever: true scale-to-zero when the topic is quiet, springing back the moment lag
-builds. Picking the signal — lag for events, request rate for HTTP — is the whole
+builds. Picking the signal (lag for events, request rate for HTTP) is the whole
 point; scaling a backlog-bound consumer on CPU would miss the load entirely.
 
 ### Cross-check it yourself
@@ -332,12 +332,12 @@ point; scaling a backlog-bound consumer on CPU would miss the load entirely.
 Make lag visible, then make it move. Pause the `payment-consumer`, publish a burst
 of `order.placed` with `hey` driving `order-service`, and watch the consumer-group
 lag climb. Resume it and watch KEDA add replicas until the lag drains, then settle
-back toward zero. The replica count tracking the lag curve — not CPU — is the
+back toward zero. The replica count tracking the lag curve, not CPU, is the
 behaviour to confirm.
 
 The code is in [`examples/06-stream-processing/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/06-stream-processing/). The run script there builds and
 runs it; its `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: verified — [`examples/06-stream-processing/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/06-stream-processing/) passes 11/11 checks in each of the six languages on Docker Engine (2026-10-13)
+*Verification status: verified: [`examples/06-stream-processing/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/06-stream-processing/) passes 11/11 checks in each of the six languages on Docker Engine (2026-10-13)
 (per-merchant revenue aggregation onto a derived Kafka topic, the stream-processor consumer group, consumer lag that builds while the processor is paused and drains on resume, and the burst appearing in the revenue stream).*

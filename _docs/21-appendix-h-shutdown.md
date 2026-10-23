@@ -4,14 +4,14 @@ marker: "H"
 label: "Appendix H"
 order: 21
 part: "Deep-dive appendices"
-description: "Shutting a pod down without dropping work — a short protocol between the app and Kubernetes: fail readiness first, cover the deregistration race, drain HTTP and consumers inside the grace budget, and stay idempotent for the inevitable hard kill."
+description: "Shutting a pod down without dropping work, a short protocol between the app and Kubernetes: fail readiness first, cover the deregistration race, drain HTTP and consumers inside the grace budget, and stay idempotent for the inevitable hard kill."
 duration: 21 minutes
 ---
 
 This appendix is the operational flip side of factor IX, disposability, from the
 Cloud-Native Principles chapter. Pods are cattle: every deploy, scale-down, autoscale
 event, or reschedule kills and replaces them, often many times a day. An ungraceful
-exit drops in-flight requests, abandons unacked messages, and leaves work half-done —
+exit drops in-flight requests, abandons unacked messages, and leaves work half-done:
 the scatter of `5xx` blips users notice during an otherwise-healthy rolling
 deploy. Graceful shutdown is not a single setting; it is a short protocol the app and
 the platform perform together, on a clock: stop taking new work, finish what you
@@ -20,8 +20,8 @@ accepted, drain consumers and sockets, then exit before the grace period runs ou
 ## Disposability is a promise you have to keep
 
 The promise is the second half of factor IX: a process should start fast *and* shut
-down cleanly on demand. Cleanly means a definite sequence — stop accepting new work,
-finish what you already accepted, release resources, then exit — and the platform hands
+down cleanly on demand. Cleanly means a definite sequence: stop accepting new work,
+finish what you already accepted, release resources, then exit, and the platform hands
 you a fixed budget to do it in. Everything in this appendix is that sequence, on both sides of the
 app/Kubernetes boundary.
 
@@ -30,33 +30,33 @@ app/Kubernetes boundary.
 When Kubernetes terminates a pod it sends `SIGTERM` to PID 1, starts the
 `terminationGracePeriodSeconds` clock, and will `SIGKILL` the process if it overruns.
 The subtlety that catches teams out is that removing the pod from the Service endpoints
-is **asynchronous** — kube-proxy, the kubelet, and the mesh all have to catch up — so
+is **asynchronous**: kube-proxy, the kubelet, and the mesh all have to catch up, so
 for a moment *after* `SIGTERM`, traffic can still arrive at a pod that is already
 shutting down.
 
 {% include excalidraw.html
    file="21-shutdown-sequence"
    alt="Two lanes on a left-to-right timeline. Kubernetes: SIGTERM to PID 1, grace clock starts (default 30s), endpoint removal is asynchronous, SIGKILL if you overrun. Your pod, triggered by SIGTERM: flip readiness DOWN, preStop sleep about 5 seconds, drain HTTP plus Kafka and sockets and pools, then exit cleanly before the grace period ends. A note says readiness DOWN plus preStop keep new traffic off the dying pod during the async-removal race, and liveness must stay UP throughout."
-   caption="Figure H.1 — Shutdown is a timed two-lane protocol; readiness and preStop cover the deregistration race" %}
+   caption="Figure H.1: Shutdown is a timed two-lane protocol; readiness and preStop cover the deregistration race" %}
 
 The pod's side of the contract is five rules:
 
-- `SIGTERM` is the signal — Kubernetes sends it to PID 1, then waits
+- `SIGTERM` is the signal: Kubernetes sends it to PID 1, then waits
   `terminationGracePeriodSeconds` (default 30s) before `SIGKILL`.
 - **Readiness DOWN** is how you stop *new* traffic: the pod leaves the Service endpoints
   but keeps running to finish in-flight work. Do this first.
-- There is a **race** — endpoint removal is asynchronous — so a short `preStop` sleep
+- There is a **race**: endpoint removal is asynchronous, so a short `preStop` sleep
   covers the lag while the rest of the cluster stops routing to you.
 - **Liveness must stay UP** during the drain, or the kubelet restarts a pod that is
   winding down. This is the distinction people get backwards: you *want*
   readiness to fail, but you must *not* let liveness fail.
-- Size the grace period **larger than your longest acceptable in-flight operation** —
+- Size the grace period **larger than your longest acceptable in-flight operation**:
   too short cuts work off mid-flight, too long stalls every deploy.
 
 ## Graceful means something different per workload
 
 The trap is assuming "graceful shutdown" is one thing. In practice only HTTP request
-draining tends to be automatic — the server stops accepting and finishes what is in
+draining tends to be automatic: the server stops accepting and finishes what is in
 flight. Everything else you wire up yourself in the shutdown hook. **Kafka consumers**
 stop polling, finish the records already in hand, commit offsets, and leave the group so
 the rebalance is clean. **WebSockets** (from the WebSockets appendix) cannot be
@@ -68,8 +68,8 @@ Underneath all of it is the safety net: because a hard `SIGKILL` is always possi
 
 {% include excalidraw.html
    file="21-per-workload"
-   alt="Graceful shutdown means something different per workload, in four columns. HTTP REST/gRPC: stop accepting new, finish in-flight requests bounded by a timeout — the one that's automatic. Kafka consumer: stop polling, finish current records, commit offsets, leave the group. WebSocket: send a close or go-away, clients reconnect elsewhere, lean on the per-connection sequence and backplane. Jobs and scheduler: don't start new work, let running jobs finish or checkpoint progress, resume after restart. Underneath: make every handler idempotent, because a hard SIGKILL is always possible."
-   caption="Figure H.2 — Only HTTP drains automatically; consumers, sockets, and jobs each need their own shutdown logic, all backed by idempotency" %}
+   alt="Graceful shutdown means something different per workload, in four columns. HTTP REST/gRPC: stop accepting new, finish in-flight requests bounded by a timeout: the one that's automatic. Kafka consumer: stop polling, finish current records, commit offsets, leave the group. WebSocket: send a close or go-away, clients reconnect elsewhere, lean on the per-connection sequence and backplane. Jobs and scheduler: don't start new work, let running jobs finish or checkpoint progress, resume after restart. Underneath: make every handler idempotent, because a hard SIGKILL is always possible."
+   caption="Figure H.2: Only HTTP drains automatically; consumers, sockets, and jobs each need their own shutdown logic, all backed by idempotency" %}
 
 ## The application side
 
@@ -257,7 +257,7 @@ HTTP, then drain everything else.
 ## The Kubernetes side
 
 The platform half of the contract is the same whatever language the service is written
-in — three knobs that have to agree with the application's timing.
+in: three knobs that have to agree with the application's timing.
 
 ```yaml
 # deployment.yaml — give the pod time to deregister and drain
@@ -279,8 +279,8 @@ spec:
 
 `terminationGracePeriodSeconds` is the total budget, and it must exceed `preStop` plus
 your worst-case drain plus a buffer. The readiness probe's `periodSeconds × failureThreshold`
-sets how fast Kubernetes stops routing after you report `DOWN` — roughly ten
-seconds here — which your `preStop` sleep should cover. Liveness points at a *separate*
+sets how fast Kubernetes stops routing after you report `DOWN` (roughly ten
+seconds here), which your `preStop` sleep should cover. Liveness points at a *separate*
 `/healthz` that stays up throughout the drain, so the kubelet does not restart a pod that is
 cleanly winding down. The `preStop` sleep looks crude, but it is the pragmatic fix for the
 asynchronous-deregistration race; align its duration with the probe timing rather than
@@ -288,15 +288,15 @@ picking an arbitrary number.
 
 ## Beyond HTTP: messages, sockets, jobs
 
-The shutdown hook is where the non-HTTP drains live, and the Kafka one is worth doing
-carefully because it connects to at-least-once delivery from the Event-Driven chapter:
-stop polling, finish the records in hand, **commit offsets** on the way out to minimise
-redelivery, and **leave the group** so the rebalance is fast. WebSockets cannot be
-finished, so graceful there means handing the client off — send a close/go-away and let
+The shutdown hook is where the non-HTTP drains live. The Kafka drain connects to
+at-least-once delivery from the Event-Driven chapter: stop polling, finish the records
+in hand, **commit offsets** on the way out to minimise redelivery, and **leave the
+group** so the rebalance is fast. WebSockets cannot be finished, so graceful there
+means handing the client off: send a close/go-away and let
 it reconnect to another pod, exactly what the WebSockets appendix's reconnection design
 enables. Jobs and schedulers stop starting new work and checkpoint so they resume after
 restart. And the philosophical anchor of the whole appendix: you *cannot* guarantee a
-graceful exit, because the kubelet will sometimes `SIGKILL` you — so idempotency is what
+graceful exit, because the kubelet will sometimes `SIGKILL` you, so idempotency is what
 makes the system safe, and graceful shutdown just makes the unsafe window rare.
 
 ## Graceful shutdown checklist
@@ -307,10 +307,10 @@ Read it as an ordered runbook:
   stop accepting.
 - Add a short `preStop` sleep to cover asynchronous endpoint removal; keep **liveness UP**
   throughout the drain.
-- Drain in-flight HTTP, commit consumer offsets, close sockets and pools — all bounded by
+- Drain in-flight HTTP, commit consumer offsets, close sockets and pools, all bounded by
   `terminationGracePeriodSeconds`.
 - Make the work **idempotent** so the inevitable occasional `SIGKILL` is survivable.
-- **Test it under a real `SIGTERM` during a rolling deploy** — not just a happy-path
+- **Test it under a real `SIGTERM` during a rolling deploy**, not just a happy-path
   integration test.
 
 References: the Quarkus lifecycle guide and Markus Eisele's "Quarkus Graceful Shutdown"
@@ -320,16 +320,16 @@ References: the Quarkus lifecycle guide and Markus Eisele's "Quarkus Graceful Sh
 
 The one test teams skip is the only one that proves the recipe: a real `SIGTERM` mid-request
 during a rollout. Put steady traffic on the service with `hey` (a modest concurrency for a
-minute or two), and while it runs, trigger a rolling restart — `kubectl rollout restart
+minute or two), and while it runs, trigger a rolling restart: `kubectl rollout restart
 deployment/order-service`. The pass condition is simple and binary: `hey`'s summary shows
 **zero non-2xx responses** across the restart. If you see a cluster of `5xx` or connection
-resets timed to the restart, walk the protocol backwards — the usual culprit is readiness
+resets timed to the restart, walk the protocol backwards: the usual culprit is readiness
 not flipping early enough, or a `preStop`/grace-period that is shorter than the real drain.
 For the Kafka path, restart a consumer pod mid-stream and confirm from the broker that the
-group rebalanced quickly and offsets advanced — no long stall, no large redelivery spike.
+group rebalanced quickly and offsets advanced: no long stall, no large redelivery spike.
 A clean rollout under live load, not a green integration test, is evidence that graceful shutdown
 works.
 
 ---
-*Verification status: verified — [`examples/21-graceful-shutdown/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/21-graceful-shutdown/) passes 17/17 checks in each of the six languages on Docker Engine (2026-10-13)
+*Verification status: verified: [`examples/21-graceful-shutdown/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/21-graceful-shutdown/) passes 17/17 checks in each of the six languages on Docker Engine (2026-10-13)
 (one SIGTERM, readiness flip to 503, the drain log lines, exit code 0 inside the grace period, a `docker stop` timing check, restart recovery, and orders persisting across the restart. In-flight request draining is not checked by the script).*

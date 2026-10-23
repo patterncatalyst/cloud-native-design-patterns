@@ -2,7 +2,7 @@
 title: "Communications"
 order: 2
 part: "Foundations & the system"
-description: "Four interaction styles and four defaults — REST at the edge, gRPC for internal calls, GraphQL for composed reads, async events for facts — and pushing resilience onto the mesh instead of into your code."
+description: "Four interaction styles and four defaults (REST at the edge, gRPC for internal calls, GraphQL for composed reads, async events for facts) and pushing resilience onto the mesh instead of into your code."
 duration: 20 minutes
 ---
 
@@ -11,28 +11,28 @@ for everything. There are four interaction styles, and each has a default that
 fits it. Real systems use all four; the skill is matching each call to the right
 one.
 
-- **REST** for the public, edge surface — reach and caching matter most.
-- **gRPC** for internal service-to-service calls — latency and streaming matter.
+- **REST** for the public, edge surface: reach and caching matter most.
+- **gRPC** for internal service-to-service calls: latency and streaming matter.
 - **GraphQL** for client-driven reads that compose many sources in one round trip.
 - **Async events** for decoupled facts that fan out to whoever cares.
 
 {% include excalidraw.html
    file="02-pick-protocol"
    alt="Four columns of interaction styles, each tagged sync or async: REST/HTTP (public and edge surface, wide reach, cacheable, resource-shaped, OpenAPI-described), sync; gRPC (internal service-to-service, low latency, streaming, schema-first proto, grpc + protobuf), sync; GraphQL (client-driven reads, compose many sources, one round-trip, schema (SDL) + resolvers), sync; and Async/events (fire-and-forget facts, decoupled in time, fan-out to many, Kafka/Pulsar), async."
-   caption="Figure 2.1 — Four interaction styles, four defaults — three synchronous, one asynchronous" %}
+   caption="Figure 2.1: Four interaction styles, four defaults: three synchronous, one asynchronous" %}
 
 Read it by the sync/async tags along the bottom: REST, gRPC, and GraphQL are all
-request/response — the caller waits — while events are fire-and-forget. Three of the
+request/response (the caller waits) while events are fire-and-forget. Three of the
 four couple the caller to the callee's availability for the duration of the call; only
 the fourth breaks that coupling. Choosing a style is therefore choosing how much
-availability you are willing to inherit — the thread that runs through this chapter.
+availability you are willing to inherit: the thread that runs through this chapter.
 REST wins where reach and caching matter; gRPC where an internal hop must be fast and
 strongly typed; GraphQL where one client read would otherwise be a handful of round
 trips; and events wherever immediacy is not strictly required.
 
 Two interaction styles are deferred from this chapter. **GraphQL** gets
 its own treatment in **03 · Composition**, because GraphQL is fundamentally a
-composition pattern — a gateway that fans out to REST and gRPC back-ends — and that
+composition pattern: a gateway that fans out to REST and gRPC back-ends, and that
 context matters more than the wire format. **WebSockets** are covered in
 **Appendix C · WebSockets at Scale**, because long-lived, stateful sockets behave so
 differently on Kubernetes (pinned to a pod, fighting the HPA, needing a backplane) that
@@ -40,7 +40,7 @@ mixing them into this chapter would bury the scaling concerns that define them.
 
 ## REST at the edge
 
-This is the public surface — in our system, `order-service`. Four things teams
+This is the public surface: in our system, `order-service`. Four things teams
 routinely get wrong, and the code gets right: resource-shaped URLs (nouns, not
 verbs), request and response contracts validated before bad input reaches your
 logic, correct status codes (**201** on create, not 200), and **cursor**
@@ -221,7 +221,7 @@ automatically, which becomes the registered contract.
 
 ## gRPC for internal calls
 
-Between internal services — `order-service` calling `inventory` — reach for gRPC:
+Between internal services (`order-service` calling `inventory`), reach for gRPC:
 binary, multiplexed over HTTP/2, fast, and streaming-capable. The crucial point is
 that the **`.proto` is the contract**, and it lives in the registry exactly like
 OpenAPI. It is the same file for every language; each side generates typed stubs
@@ -237,7 +237,7 @@ message ReserveRequest { string sku = 1; int32 quantity = 2; }
 message ReserveReply   { bool reserved = 1; int32 remaining = 2; }
 ```
 
-The field numbers (`= 1`, `= 2`) are the wire contract, not cosmetic — **Appendix B**
+The field numbers (`= 1`, `= 2`) are the wire contract, not cosmetic: **Appendix B**
 explains exactly why they can never be reused. Generate stubs with `protoc` or `buf`,
 and both sides share types.
 
@@ -339,7 +339,7 @@ func (s *inventoryServer) ReserveStock(
 }
 ```
 
-There is no socket code, no serialisation, no HTTP/2 framing — the generated base class
+There is no socket code, no serialisation, no HTTP/2 framing: the generated base class
 handles all of it. Your method receives a typed `ReserveRequest` and returns a typed
 `ReserveReply`, and every language fills in the same one `ReserveStock` contract.
 
@@ -354,7 +354,7 @@ that were down catch up from the log later.
 {% include excalidraw.html
    file="02-sync-vs-async"
    alt="Top row: order makes a synchronous call to payment and blocks on it, so if payment is down the order fails. Bottom row: order emits an order.placed fact to Kafka, and consumers catch up from the log independently"
-   caption="Figure 2.2 — A blocking call couples availability; a published fact decouples it" %}
+   caption="Figure 2.2: A blocking call couples availability; a published fact decouples it" %}
 
 The rule: reach for async wherever immediacy isn't strictly required. A call you
 *must* wait for is a call whose availability you have inherited.
@@ -362,7 +362,7 @@ The rule: reach for async wherever immediacy isn't strictly required. A call you
 ## Resilience as configuration, not per-call code
 
 Your app speaks plain HTTP or gRPC to localhost; the Istio sidecar (Envoy)
-intercepts and adds mTLS, retries, timeouts, and telemetry **on the wire** —
+intercepts and adds mTLS, retries, timeouts, and telemetry **on the wire**,
 uniformly, for every service, with zero application code. This ties straight back
 to the principles chapter: resilience and security become platform defaults, not
 per-service reimplementations.
@@ -370,7 +370,7 @@ per-service reimplementations.
 {% include excalidraw.html
    file="02-mesh-handles-wire"
    alt="Two pods, each containing an app (a REST or gRPC server speaking plain localhost) beside an istio-proxy Envoy sidecar that handles mTLS, retries, timeouts, and traces. The two sidecars communicate over mutual TLS, encrypted and authenticated. The istiod control plane distributes policy, SPIFFE identity, and telemetry config to both pods."
-   caption="Figure 2.3 — The mesh moves cross-cutting concerns off your code: sidecars handle mTLS, retries, timeouts, and telemetry, configured by istiod" %}
+   caption="Figure 2.3: The mesh moves cross-cutting concerns off your code: sidecars handle mTLS, retries, timeouts, and telemetry, configured by istiod" %}
 
 Each pod runs your service next to an Envoy sidecar. Your code talks plain HTTP or gRPC
 to localhost; the sidecar intercepts every call, adds mutual TLS so traffic between pods
@@ -397,14 +397,14 @@ spec:
 ```
 
 The critical word is **bounded**: `attempts: 2`, not infinite. Unbounded
-client-side retries are how a brief blip becomes a full outage — every caller
+client-side retries are how a brief blip becomes a full outage: every caller
 piles onto the struggling service in a retry storm. Putting the policy in the mesh
 means one bounded, observable rule for every caller, instead of each team
 re-inventing (and mis-tuning) retries in code.
 
 ### Cross-check it yourself
 
-Use plain tools. `curl` and Postman exercise the REST contract — confirm a create
+Use plain tools. `curl` and Postman exercise the REST contract: confirm a create
 returns **201** and that a bad body returns **400** before your logic runs.
 `ghz` throws gRPC load at `inventory` so you can watch the Istio timeout and
 bounded retries behave under pressure rather than trusting they do.
@@ -413,5 +413,5 @@ The code is in [`examples/02-communications/`](https://github.com/patterncatalys
 it; its `README.md` covers what it does and how to drive it.
 
 ---
-*Verification status: verified — [`examples/02-communications/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/02-communications/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-13)
+*Verification status: verified: [`examples/02-communications/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/02-communications/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-13)
 (REST create and validation (201, 422), cursor pagination, order confirmation and rejection driven by the gRPC stock reservation, a GraphQL orders query, and the order.placed Kafka topic).*

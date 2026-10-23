@@ -2,12 +2,12 @@
 title: "Observability"
 order: 11
 part: "The operational platform"
-description: "Traces, metrics, and logs from OpenTelemetry, correlated by one trace id across the LGTM stack — auto-instrumentation, W3C context propagation, and head- vs. tail-based sampling."
+description: "Traces, metrics, and logs from OpenTelemetry, correlated by one trace id across the LGTM stack: auto-instrumentation, W3C context propagation, and head- vs. tail-based sampling."
 duration: 28 minutes
 ---
 
 The signal plane. Once you have services, events, and a platform, the question is
-what is happening in production — and the answer is three signals,
+what is happening in production, and the answer is three signals,
 emitted by **OpenTelemetry** (vendor-neutral) and stored in an LGTM-style stack
 (Loki, Grafana, Tempo, Mimir).
 
@@ -15,10 +15,10 @@ emitted by **OpenTelemetry** (vendor-neutral) and stored in an LGTM-style stack
 
 Each signal answers a different question:
 
-- **Traces** — where did the time go, and which service failed, in *this one*
+- **Traces**: where did the time go, and which service failed, in *this one*
   request?
-- **Metrics** — what are the aggregate rates, errors, and latencies over time?
-- **Logs** — what exactly happened inside this component?
+- **Metrics**: what are the aggregate rates, errors, and latencies over time?
+- **Logs**: what exactly happened inside this component?
 
 The power isn't any one signal; it's that they share a **trace id**, so you can
 pivot from a latency spike on a metric, to the slow trace behind it, to the logs of
@@ -28,33 +28,33 @@ tools.
 {% include excalidraw.html
    file="11-three-signals"
    alt="One OpenTelemetry SDK and Collector instrumentation layer fans out to three stores: Traces (request across services, Tempo, viewed in Grafana), Metrics (RED/USE histograms, Prometheus to Mimir, alerts and SLOs), and Logs (structured, trace-linked, Loki, filtered by trace_id). A band notes Grafana as the single pane and Kiali as the service-mesh topology view."
-   caption="Figure 11.1 — Instrument once with OpenTelemetry; three signals land in the LGTM stack, correlated by trace_id" %}
+   caption="Figure 11.1: Instrument once with OpenTelemetry; three signals land in the LGTM stack, correlated by trace_id" %}
 
 It is worth widening the lens slightly: the classic three signals now travel with two
-more that matter increasingly — **baggage**, the key-value context propagated along
+more that matter increasingly: **baggage**, the key-value context propagated along
 the whole trace, and **profiles**, continuous CPU and memory sampling per service.
 OpenTelemetry is the one vendor-neutral SDK and wire format for all of them.
 
 {% include excalidraw.html
    file="11-signals-in-depth"
    alt="Five signal columns. Traces: request flow across services, latency per span, where did time go, Tempo/Jaeger. Metrics: aggregate rates, errors, latencies (RED/USE), what's the trend, Prometheus/Mimir. Logs: discrete timestamped events, what exactly happened, Loki/ELK. Baggage: key-value context carried along the trace, tenant_id downstream, W3C Baggage. Profiles: continuous CPU/memory sampling, which function burns CPU, Pyroscope/Parca. All correlated by trace_id, span_id, and resource attributes."
-   caption="Figure 11.2 — The signals in depth: each answers a different question, all correlated by trace_id" %}
+   caption="Figure 11.2: The signals in depth: each answers a different question, all correlated by trace_id" %}
 
-What each answers differs — traces locate *where*, metrics show the *trend*, logs say
+What each answers differs: traces locate *where*, metrics show the *trend*, logs say
 *what exactly*, baggage carries *who or which* downstream, profiles reveal *which
-function* — but the power is the `trace_id` that lets you pivot from one to the next.
+function*. But the power is the `trace_id` that lets you pivot from one to the next.
 
 ## Three kinds of instrumentation
 
 Keep three things distinct, because people conflate them:
 
-- **Manual instrumentation** — you write the spans (`start_span`,
+- **Manual instrumentation**: you write the spans (`start_span`,
   `set_attribute`). Needed for *business* operations the libraries can't know
-  about — `reserve_stock`, `score_fraud`. Most signal per line, most effort.
-- **Auto-instrumentation** — a library or agent wraps known frameworks (HTTP, gRPC,
+  about, such as `reserve_stock`, `score_fraud`. Most signal per line, most effort.
+- **Auto-instrumentation**: a library or agent wraps known frameworks (HTTP, gRPC,
   database drivers, Kafka) into spans with zero code change. Covers the plumbing,
   misses your domain.
-- **Auto-injection** — the platform (the OpenTelemetry Operator) injects the
+- **Auto-injection**: the platform (the OpenTelemetry Operator) injects the
   auto-instrumentation agent into the pod at admission, so you don't even add the
   dependency.
 
@@ -196,10 +196,10 @@ func placeOrder(w http.ResponseWriter, r *http.Request) {
 
 Every tab does two things: turn on auto-instrumentation for the frameworks (one
 line of config, or a builder chain in .NET), and add **one** manual span around the
-business operation — `reserve_stock`. The plumbing spans (HTTP in, gRPC out, Kafka
+business operation: `reserve_stock`. The plumbing spans (HTTP in, gRPC out, Kafka
 publish) need no code; the domain span is the bit only you can write. The one
 exception is C++: there is no auto-instrumentation for Drogon or
-`librdkafka`, so you add a request-scoped middleware span by hand — the
+`librdkafka`, so you add a request-scoped middleware span by hand. The
 chapter says so rather than pretending the agent exists.
 
 ## The other two signals, in code
@@ -207,7 +207,7 @@ chapter says so rather than pretending the agent exists.
 Auto-instrumentation creates the trace spans, but the **metric** and the
 **trace-correlated log** are a line you write at the business moment. Emit a counter
 (or histogram) for the operation, and log through the OTel-aware logger so the active
-`trace_id` is stamped onto the line — that stamp is what lets you jump from a log
+`trace_id` is stamped onto the line; that stamp is what lets you jump from a log
 straight to its trace:
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
@@ -306,7 +306,7 @@ three correlated signals from one place in the code.
 ## How correlation works
 
 "Correlation" sounds like backend magic; it isn't. The trace context travels
-**with the request, in band, at every hop** — the W3C `traceparent` header,
+**with the request, in band, at every hop**: the W3C `traceparent` header,
 formatted `version-traceid-parentspanid-flags`. The `trace_id` (16 bytes) is
 *constant* across every hop, and that constancy is literally what stitches the
 spans into one trace.
@@ -314,20 +314,20 @@ spans into one trace.
 {% include excalidraw.html
    file="11-trace-propagation"
    alt="One trace id propagates via the W3C traceparent header from the order-service REST span, through the inventory gRPC span, onto the published order.placed Kafka event, and into the notification consumer span"
-   caption="Figure 11.3 — One trace id, carried in band across REST, gRPC, and Kafka" %}
+   caption="Figure 11.3: One trace id, carried in band across REST, gRPC, and Kafka" %}
 
 So a single `order.placed` request becomes one readable waterfall across five
-services — edge REST, the gRPC `ReserveStock`, the published event, the consumer —
+services (edge REST, the gRPC `ReserveStock`, the published event, the consumer),
 and you can point at the time axis and see exactly which span dominated the
 latency.
 
 {% include excalidraw.html
    file="11-trace-stitch"
    alt="A trace waterfall over a time axis: a long REST POST /orders span contains a nested gRPC ReserveStock span, then a publish order.placed span, then a consume and notify span. All share one trace_id, shown as 4af9c, carried onto every span, metric exemplar, and log line."
-   caption="Figure 11.4 — One trace_id stitches REST, gRPC, the published event, and the consumer into a single waterfall" %}
+   caption="Figure 11.4: One trace_id stitches REST, gRPC, the published event, and the consumer into a single waterfall" %}
 
 Context propagation also carries application context you choose, not just the trace
-ids — that is **baggage**. Set a key once at the edge and it rides every downstream
+ids: that is **baggage**. Set a key once at the edge and it rides every downstream
 hop in the W3C `baggage` header, so a value like `tenant.id` is available to every
 service and can be attached to their spans and logs without threading it through each
 call signature:
@@ -386,29 +386,29 @@ func withTenant(ctx context.Context, tenantID string) context.Context {
 // any gRPC / Kafka call made with this ctx carries tenant.id downstream
 ```
 
-Use baggage sparingly — it is copied onto every span and every downstream request, so
+Use baggage sparingly: it is copied onto every span and every downstream request, so
 a handful of small, high-value keys (tenant, request priority) is the right dose, not
 a grab-bag.
 
-## Sampling — head vs. tail
+## Sampling: head vs. tail
 
 At scale you can't store every trace, so you sample, and the only real question is
 *when* the keep/drop decision is made.
 
 {% include excalidraw.html
    file="11-sampling"
-   alt="Two rows. Head sampling: a request enters, the SDK decides now (keep 1 in N probabilistically) before the trace completes, and the Collector forwards only sampled traces to the backend — cheap and low overhead but blind to errors and latency at decision time. Tail sampling: a request enters, the SDK sends all spans with no decision, the Collector buffers the whole trace and then keeps errors, slow, and rare-route traces, forwarding a kept subset to the backend — keeps all errors and slow traces but costs buffering and CPU."
-   caption="Figure 11.5 — Head sampling decides early in the SDK; tail sampling decides late in the Collector, after the whole trace is seen" %}
+   alt="Two rows. Head sampling: a request enters, the SDK decides now (keep 1 in N probabilistically) before the trace completes, and the Collector forwards only sampled traces to the backend: cheap and low overhead but blind to errors and latency at decision time. Tail sampling: a request enters, the SDK sends all spans with no decision, the Collector buffers the whole trace and then keeps errors, slow, and rare-route traces, forwarding a kept subset to the backend: keeps all errors and slow traces but costs buffering and CPU."
+   caption="Figure 11.5: Head sampling decides early in the SDK; tail sampling decides late in the Collector, after the whole trace is seen" %}
 
-**Head sampling** decides at the start, in the SDK, before the trace completes —
+**Head sampling** decides at the start, in the SDK, before the trace completes:
 "keep 1 in N" (probabilistic) or "keep N/second" (rate-limiting). Cheap, but
 blind: it can't keep a trace *because* it errored, since it doesn't know yet. One
-head policy is non-negotiable in a distributed system — **parent-based**: honour
+head policy is non-negotiable in a distributed system, **parent-based**: honour
 the upstream's decision carried in the `traceparent` flags, so you don't sample at
 service A and drop at B and get broken half-traces.
 
 **Tail sampling** buffers the whole trace in the Collector and decides after it
-finishes — so it can keep every error and every slow trace and sample the boring
+finishes, so it can keep every error and every slow trace and sample the boring
 rest. More memory and latency at the Collector, far better signal.
 
 ```yaml
@@ -428,13 +428,13 @@ processors:
         probabilistic: { sampling_percentage: 10 }
 ```
 
-The shape — keep errors, keep slow, sample the rest — is the one most teams want:
+The shape (keep errors, keep slow, sample the rest) is the one most teams want:
 you never drop the traces you'd investigate, and you pay full storage only
 for the boring majority you sample down.
 
 ### Cross-check it yourself
 
-Prove the correlation with the house tools — no heavy framework needed. Drive a
+Prove the correlation with the house tools; no heavy framework needed. Drive a
 request through `order-service` with `curl`, grab the `trace_id`, and find that
 same id on the gRPC span, the Kafka event, and the consumer span in Tempo: one id,
 five services. Then push load with `hey` (HTTP) and `ghz` (gRPC) and watch the
@@ -443,5 +443,5 @@ the rest. Seeing one request as one waterfall is the moment observability stops
 being three disconnected tools.
 
 ---
-*Verification status: verified — [`examples/11-observability/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/11-observability/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-13)
+*Verification status: verified: [`examples/11-observability/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/11-observability/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-13)
 (trace propagation, metric export, structured log correlation, LGTM stack integration).*
