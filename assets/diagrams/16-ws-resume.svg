@@ -22,7 +22,7 @@
 <text x="386.0" y="404.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">replay events 1043…1050 (idempotent)</text>
 <text x="386.0" y="404.0" font-size="11" fill="#b8650a" text-anchor="middle">replay events 1043…1050 (idempotent)</text>
 <path d="M150,472 L610,472" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
-<text x="386.0" y="464.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">live again — at-least-once, deduped by seq</text>
-<text x="386.0" y="464.0" font-size="11" fill="#555" text-anchor="middle">live again — at-least-once, deduped by seq</text>
+<text x="386.0" y="464.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">live again: at-least-once, deduped by seq</text>
+<text x="386.0" y="464.0" font-size="11" fill="#555" text-anchor="middle">live again: at-least-once, deduped by seq</text>
 <text x="590" y="512" font-size="12" fill="#2f6db5" text-anchor="middle">treat every connection as disposable: detect, reconnect with backoff, resume from the last acknowledged sequence</text>
 </svg>

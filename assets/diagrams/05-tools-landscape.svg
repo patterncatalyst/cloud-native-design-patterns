@@ -36,8 +36,8 @@
 <path d="M330,300 L370,250" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
 <path d="M670,170 L710,150" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
 <path d="M670,250 L710,300" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
-<text x="180" y="48" font-size="13" fill="#8a4b06" text-anchor="middle" font-weight="700">SUBSTRATE — the durable log</text>
-<text x="520" y="48" font-size="13" fill="#6a1b9a" text-anchor="middle" font-weight="700">COMPUTE — transform &amp; aggregate</text>
-<text x="860" y="48" font-size="13" fill="#006e6e" text-anchor="middle" font-weight="700">MOVEMENT — data in &amp; out</text>
+<text x="180" y="48" font-size="13" fill="#8a4b06" text-anchor="middle" font-weight="700">SUBSTRATE: the durable log</text>
+<text x="520" y="48" font-size="13" fill="#6a1b9a" text-anchor="middle" font-weight="700">COMPUTE: transform &amp; aggregate</text>
+<text x="860" y="48" font-size="13" fill="#006e6e" text-anchor="middle" font-weight="700">MOVEMENT: data in &amp; out</text>
 <text x="520" y="402" font-size="12" fill="#2f6db5" text-anchor="middle">typical pipeline: source DB → Debezium/NiFi → Kafka/Pulsar → Flink (windowed) → sink. These tools complement more than they compete (all Apache 2.0).</text>
 </svg>

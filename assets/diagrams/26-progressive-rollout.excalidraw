@@ -655,13 +655,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "widening the threshold ramps the rollout; narrowing it rolls back \u2014 instantly, without a deploy",
+   "text": "widening the threshold ramps the rollout; narrowing it rolls back: instantly, without a deploy",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "widening the threshold ramps the rollout; narrowing it rolls back \u2014 instantly, without a deploy",
+   "originalText": "widening the threshold ramps the rollout; narrowing it rolls back: instantly, without a deploy",
    "lineHeight": 1.25,
    "baseline": 11
   }

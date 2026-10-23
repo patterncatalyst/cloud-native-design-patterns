@@ -859,13 +859,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "key computation off event time, not the wall clock \u2014 replaying the log then yields the same answer",
+   "text": "key computation off event time, not the wall clock: replaying the log then yields the same answer",
    "fontSize": 10.5,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "key computation off event time, not the wall clock \u2014 replaying the log then yields the same answer",
+   "originalText": "key computation off event time, not the wall clock: replaying the log then yields the same answer",
    "lineHeight": 1.25,
    "baseline": 10.5
   }

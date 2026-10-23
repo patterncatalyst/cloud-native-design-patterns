@@ -609,13 +609,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "return the data you have, null the field that failed, and put a machine code in extensions \u2014 don't blanket-fail a whole query",
+   "text": "return the data you have, null the field that failed, and put a machine code in extensions: don't blanket-fail a whole query",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "return the data you have, null the field that failed, and put a machine code in extensions \u2014 don't blanket-fail a whole query",
+   "originalText": "return the data you have, null the field that failed, and put a machine code in extensions: don't blanket-fail a whole query",
    "lineHeight": 1.25,
    "baseline": 12
   }

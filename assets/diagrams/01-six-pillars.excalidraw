@@ -1182,13 +1182,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "cloud-native is a set of runtime properties an API must exhibit to thrive on Kubernetes \u2014 not a checklist of tools",
+   "text": "cloud-native is a set of runtime properties an API must exhibit to thrive on Kubernetes: not a checklist of tools",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "cloud-native is a set of runtime properties an API must exhibit to thrive on Kubernetes \u2014 not a checklist of tools",
+   "originalText": "cloud-native is a set of runtime properties an API must exhibit to thrive on Kubernetes: not a checklist of tools",
    "lineHeight": 1.25,
    "baseline": 12
   }

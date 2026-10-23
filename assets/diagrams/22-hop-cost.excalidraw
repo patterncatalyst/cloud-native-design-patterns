@@ -1309,13 +1309,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "the budget is finite \u2014 two layers can be cheap; four overlapping layers are where p99 latency grows",
+   "text": "the budget is finite: two layers can be cheap; four overlapping layers are where p99 latency grows",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "the budget is finite \u2014 two layers can be cheap; four overlapping layers are where p99 latency grows",
+   "originalText": "the budget is finite: two layers can be cheap; four overlapping layers are where p99 latency grows",
    "lineHeight": 1.25,
    "baseline": 12
   }

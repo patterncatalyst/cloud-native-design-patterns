@@ -865,13 +865,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "tests are JavaScript assertions that run after each response \u2014 a collection is an executable contract, not just a request log",
+   "text": "tests are JavaScript assertions that run after each response: a collection is an executable contract, not just a request log",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "tests are JavaScript assertions that run after each response \u2014 a collection is an executable contract, not just a request log",
+   "originalText": "tests are JavaScript assertions that run after each response: a collection is an executable contract, not just a request log",
    "lineHeight": 1.25,
    "baseline": 11
   }

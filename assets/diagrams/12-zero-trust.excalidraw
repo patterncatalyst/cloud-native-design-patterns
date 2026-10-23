@@ -1077,13 +1077,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "mTLS + SPIFFE identity inside the cluster \u00b7 IAP at the edge \u00b7 AuthorizationPolicy per workload \u2014 a breach in one service buys nothing",
+   "text": "mTLS + SPIFFE identity inside the cluster \u00b7 IAP at the edge \u00b7 AuthorizationPolicy per workload: a breach in one service buys nothing",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "mTLS + SPIFFE identity inside the cluster \u00b7 IAP at the edge \u00b7 AuthorizationPolicy per workload \u2014 a breach in one service buys nothing",
+   "originalText": "mTLS + SPIFFE identity inside the cluster \u00b7 IAP at the edge \u00b7 AuthorizationPolicy per workload: a breach in one service buys nothing",
    "lineHeight": 1.25,
    "baseline": 12
   }

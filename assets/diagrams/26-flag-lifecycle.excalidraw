@@ -549,13 +549,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "every release flag is born with a removal ticket \u2014 a stale flag is dead code, a hidden branch, and a live risk surface",
+   "text": "every release flag is born with a removal ticket: a stale flag is dead code, a hidden branch, and a live risk surface",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "every release flag is born with a removal ticket \u2014 a stale flag is dead code, a hidden branch, and a live risk surface",
+   "originalText": "every release flag is born with a removal ticket: a stale flag is dead code, a hidden branch, and a live risk surface",
    "lineHeight": 1.25,
    "baseline": 11
   }

@@ -24,6 +24,6 @@
 <path d="M710,152 L770,152" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <text x="746.0" y="144.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">rules</text>
 <text x="746.0" y="144.0" font-size="11" fill="#555" text-anchor="middle">rules</text>
-<text x="355" y="232" font-size="11" fill="#a11" text-anchor="middle" font-weight="700">default returned if the provider is unreachable — a flag system outage must never take the app down</text>
+<text x="355" y="232" font-size="11" fill="#a11" text-anchor="middle" font-weight="700">default returned if the provider is unreachable: a flag system outage must never take the app down</text>
 <text x="355" y="256" font-size="11" fill="#2f6db5" text-anchor="middle">the SDK is vendor-neutral (OpenFeature); swap flagd for any provider without touching app code</text>
 </svg>

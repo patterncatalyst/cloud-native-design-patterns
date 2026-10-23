@@ -970,13 +970,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "agree the error contract once, then map it onto each protocol \u2014 and never leak stack traces or internal types",
+   "text": "agree the error contract once, then map it onto each protocol, and never leak stack traces or internal types",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "agree the error contract once, then map it onto each protocol \u2014 and never leak stack traces or internal types",
+   "originalText": "agree the error contract once, then map it onto each protocol, and never leak stack traces or internal types",
    "lineHeight": 1.25,
    "baseline": 12
   }

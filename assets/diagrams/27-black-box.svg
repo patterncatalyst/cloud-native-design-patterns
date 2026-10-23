@@ -26,5 +26,5 @@
 <path d="M540,204.0 L640,230" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M540,209.0 L640,286" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M540,214.0 L640,342" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
-<text x="460" y="420" font-size="11" fill="#333" text-anchor="middle" font-weight="700">because Newman tests the API as a black box, one collection validates every implementation — the contract is the spec, not the code</text>
+<text x="460" y="420" font-size="11" fill="#333" text-anchor="middle" font-weight="700">because Newman tests the API as a black box, one collection validates every implementation: the contract is the spec, not the code</text>
 </svg>

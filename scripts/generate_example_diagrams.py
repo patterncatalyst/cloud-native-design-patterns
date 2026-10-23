@@ -485,4 +485,4 @@ if __name__ == "__main__":
     gen_06(); gen_09(); gen_11(); gen_12(); gen_16()
     gen_17(); gen_18(); gen_19(); gen_21(); gen_22()
     gen_24(); gen_25(); gen_26(); gen_27(); gen_28()
-    print("Done — 20 diagrams generated.")
+    print("Done: 20 diagrams generated.")

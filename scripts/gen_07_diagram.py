@@ -41,4 +41,4 @@ g.emit("07-queue-worker", 880, 280,
     ],
 )
 
-print("Done — generated 07-queue-worker diagram")
+print("Done: generated 07-queue-worker diagram")

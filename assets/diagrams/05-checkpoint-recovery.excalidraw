@@ -732,13 +732,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "snapshot state and input offset together; on failure restore and replay from there \u2014 and rewind to reprocess and rebuild",
+   "text": "snapshot state and input offset together; on failure restore and replay from there, and rewind to reprocess and rebuild",
    "fontSize": 10.5,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "snapshot state and input offset together; on failure restore and replay from there \u2014 and rewind to reprocess and rebuild",
+   "originalText": "snapshot state and input offset together; on failure restore and replay from there, and rewind to reprocess and rebuild",
    "lineHeight": 1.25,
    "baseline": 10.5
   }

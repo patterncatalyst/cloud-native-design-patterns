@@ -1666,13 +1666,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "CIL = Common Intermediate Language \u2014 the CPU-agnostic bytecode all .NET languages compile to.",
+   "text": "CIL = Common Intermediate Language: the CPU-agnostic bytecode all .NET languages compile to.",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "CIL = Common Intermediate Language \u2014 the CPU-agnostic bytecode all .NET languages compile to.",
+   "originalText": "CIL = Common Intermediate Language: the CPU-agnostic bytecode all .NET languages compile to.",
    "lineHeight": 1.25,
    "baseline": 11
   }

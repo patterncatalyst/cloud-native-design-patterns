@@ -927,13 +927,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "same security policy across every workload, in any language \u2014 the app trusts the sidecar's headers (X-Forwarded-Client-Cert, JWT claims); teams write business code, not crypto",
+   "text": "same security policy across every workload, in any language: the app trusts the sidecar's headers (X-Forwarded-Client-Cert, JWT claims); teams write business code, not crypto",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "same security policy across every workload, in any language \u2014 the app trusts the sidecar's headers (X-Forwarded-Client-Cert, JWT claims); teams write business code, not crypto",
+   "originalText": "same security policy across every workload, in any language: the app trusts the sidecar's headers (X-Forwarded-Client-Cert, JWT claims); teams write business code, not crypto",
    "lineHeight": 1.25,
    "baseline": 12
   }

@@ -2166,13 +2166,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "The SDK never ships \u2014 only the runtime and your app DLLs.",
+   "text": "The SDK never ships: only the runtime and your app DLLs.",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "The SDK never ships \u2014 only the runtime and your app DLLs.",
+   "originalText": "The SDK never ships: only the runtime and your app DLLs.",
    "lineHeight": 1.25,
    "baseline": 11
   }

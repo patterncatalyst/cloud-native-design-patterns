@@ -6,11 +6,11 @@ g.OUT = "../assets/diagrams"
 g.emit("06-window-types", 880, 340,
     bands=[
         {"x": 10, "y": 10,  "w": 860, "h": 100, "fill": "#eef4fb",
-         "label": "Tumbling — fixed, no overlap"},
+         "label": "Tumbling: fixed, no overlap"},
         {"x": 10, "y": 120, "w": 860, "h": 100, "fill": "#fff8ef",
-         "label": "Hopping (sliding) — fixed, overlapping"},
+         "label": "Hopping (sliding): fixed, overlapping"},
         {"x": 10, "y": 230, "w": 860, "h": 100, "fill": "#fafafa",
-         "label": "Session — variable, gap-based"},
+         "label": "Session: variable, gap-based"},
     ],
     nodes=[
         # Tumbling windows
@@ -61,4 +61,4 @@ g.emit("06-window-types", 880, 340,
     ],
 )
 
-print("Done — generated 06-window-types diagram")
+print("Done: generated 06-window-types diagram")

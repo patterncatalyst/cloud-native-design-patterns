@@ -938,13 +938,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "because Newman tests the API as a black box, one collection validates every implementation \u2014 the contract is the spec, not the code",
+   "text": "because Newman tests the API as a black box, one collection validates every implementation: the contract is the spec, not the code",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "because Newman tests the API as a black box, one collection validates every implementation \u2014 the contract is the spec, not the code",
+   "originalText": "because Newman tests the API as a black box, one collection validates every implementation: the contract is the spec, not the code",
    "lineHeight": 1.25,
    "baseline": 11
   }

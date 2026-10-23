@@ -3,7 +3,7 @@
 import generate_diagram as g
 g.OUT = "../assets/diagrams"
 
-# ── Figure Q.1 — Blazor Server circuit ──────────────────────────────────
+# ── Figure Q.1: Blazor Server circuit ──────────────────────────────────
 g.emit("30-blazor-circuit", 880, 340,
     bands=[
         {"x": 10, "y": 10, "w": 330, "h": 320, "fill": "#eef4fb",
@@ -63,7 +63,7 @@ g.emit("30-blazor-circuit", 880, 340,
     ],
 )
 
-# ── Figure Q.2 — SignalR Redis backplane ────────────────────────────────
+# ── Figure Q.2: SignalR Redis backplane ────────────────────────────────
 g.emit("30-signalr-backplane", 880, 310,
     bands=[
         {"x": 10, "y": 10, "w": 560, "h": 190, "fill": "#eef4fb",
@@ -81,7 +81,7 @@ g.emit("30-signalr-backplane", 880, 310,
          "lines": ["blazor-pod-3", "0 circuits (new)"]},
         # Load balancer
         {"x": 30, "y": 140, "w": 510, "h": 40, "style": "kernel",
-         "lines": ["Kubernetes Service / load balancer — sticky per circuit"]},
+         "lines": ["Kubernetes Service / load balancer: sticky per circuit"]},
         # Redis
         {"x": 620, "y": 55, "w": 220, "h": 55, "style": "ink",
          "lines": ["Redis", "SignalR backplane"]},
@@ -112,4 +112,4 @@ g.emit("30-signalr-backplane", 880, 310,
     ],
 )
 
-print("Done — generated 2 diagrams for Appendix Q")
+print("Done: generated 2 diagrams for Appendix Q")

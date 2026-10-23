@@ -1221,13 +1221,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "Kafka (Strimzi) and Pulsar give you a durable, replayable, partitioned log \u2014 not a queue you drain; each consumer tracks its own offset",
+   "text": "Kafka (Strimzi) and Pulsar give you a durable, replayable, partitioned log: not a queue you drain; each consumer tracks its own offset",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "Kafka (Strimzi) and Pulsar give you a durable, replayable, partitioned log \u2014 not a queue you drain; each consumer tracks its own offset",
+   "originalText": "Kafka (Strimzi) and Pulsar give you a durable, replayable, partitioned log: not a queue you drain; each consumer tracks its own offset",
    "lineHeight": 1.25,
    "baseline": 12
   }

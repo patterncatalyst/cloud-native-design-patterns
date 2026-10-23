@@ -619,13 +619,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "both stores written on the write path \u2014 never stale for the writer; the write pays both latencies",
+   "text": "both stores written on the write path: never stale for the writer; the write pays both latencies",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "both stores written on the write path \u2014 never stale for the writer; the write pays both latencies",
+   "originalText": "both stores written on the write path: never stale for the writer; the write pays both latencies",
    "lineHeight": 1.25,
    "baseline": 11
   }

@@ -2285,13 +2285,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "Kestrel is the built-in cross-platform web server \u2014 no IIS, no Apache, no nginx required.",
+   "text": "Kestrel is the built-in cross-platform web server: no IIS, no Apache, no nginx required.",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "Kestrel is the built-in cross-platform web server \u2014 no IIS, no Apache, no nginx required.",
+   "originalText": "Kestrel is the built-in cross-platform web server: no IIS, no Apache, no nginx required.",
    "lineHeight": 1.25,
    "baseline": 11
   }

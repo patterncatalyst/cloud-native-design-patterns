@@ -619,13 +619,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "services stay unaware of each other \u2014 the gateway owns composition",
+   "text": "services stay unaware of each other: the gateway owns composition",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "services stay unaware of each other \u2014 the gateway owns composition",
+   "originalText": "services stay unaware of each other: the gateway owns composition",
    "lineHeight": 1.25,
    "baseline": 11
   }

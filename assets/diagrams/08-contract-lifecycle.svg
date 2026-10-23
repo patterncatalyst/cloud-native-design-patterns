@@ -17,5 +17,5 @@
 <path d="M530,105 L560,105" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M710,105 L740,105" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
 <path d="M890,105 L920,105" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
-<text x="550" y="180" font-size="12" fill="#2f6db5" text-anchor="middle">every contract moves through one managed lifecycle — each arrow is an owned transition, not an accident</text>
+<text x="550" y="180" font-size="12" fill="#2f6db5" text-anchor="middle">every contract moves through one managed lifecycle: each arrow is an owned transition, not an accident</text>
 </svg>
