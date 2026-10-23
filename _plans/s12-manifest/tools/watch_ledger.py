@@ -7,7 +7,7 @@ import re, subprocess, sys, collections, json
 from pathlib import Path
 M = Path(__file__).resolve().parent.parent
 VER = M / "verify"
-REPO = Path("~/Dev/cloud-native-design-patterns")
+REPO = Path(__file__).resolve().parents[3]
 SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9'\"‘“(`\[])")
 decks = sys.argv[1:] or [p.stem for p in sorted(VER.glob("*.md")) if not p.name.startswith("watch")]
 ledger = collections.defaultdict(list)

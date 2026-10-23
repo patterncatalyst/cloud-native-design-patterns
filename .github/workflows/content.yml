@@ -43,12 +43,24 @@ jobs:
       - name: Voice scan totals (all tiers)
         run: bash scripts/voice-scan.sh --all-tiers-summary
 
+  # No tracked file may name the development machine or its owner (CLAUDE.md, publishing rule).
+  host-ids:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Scanner self-test
+        run: python3 scripts/host_ids.py self-test
+
+      - name: Host identifiers (paths only, values never printed)
+        run: python3 scripts/host_ids.py check
+
   # The one check branch protection requires: passes when every job above
   # succeeded or was skipped.
   content-ok:
     name: content-ok
     if: always()
-    needs: [validate]
+    needs: [validate, host-ids]
     runs-on: ubuntu-latest
     steps:
       - env:

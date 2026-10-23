@@ -1,5 +1,7 @@
 import json,collections,sys
 from pptx import Presentation
+from pathlib import Path
+REPO = Path(__file__).resolve().parents[3]
 F="/tmp/claude-1000/-home-user-Dev/0dea024d-0bf0-4ae5-bddd-7dec0cf60b22/scratchpad/s12/manifest/fork-images"
 W=F+"/../work"
 idx=json.load(open(F+"/index.json"))
@@ -49,7 +51,7 @@ for x in idx:
             break
 # captions: find the caption shape (y ~ 6.50in) on that slide
 for (deck,sid),text in CAPTIONS.items():
-    prs=Presentation(f"~/Dev/cloud-native-design-patterns/lgtm-presentation/Designing-Cloud-Native-APIs-{deck}.pptx")
+    prs=Presentation(f"{REPO}/lgtm-presentation/Designing-Cloud-Native-APIs-{deck}.pptx")
     s=[t for t in prs.slides if t.slide_id==sid][0]
     cap=[sh for sh in s.shapes if sh.has_text_frame and abs(sh.top/914400-6.50)<0.06]
     assert len(cap)==1,(deck,sid,[sh.name for sh in cap])

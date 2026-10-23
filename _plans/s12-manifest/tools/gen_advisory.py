@@ -9,7 +9,7 @@ voice and link ops are superseded: every slide's text and notes are set here).
 import json
 from pathlib import Path
 
-REPO = Path("~/Dev/cloud-native-design-patterns")
+REPO = Path(__file__).resolve().parents[3]
 OUT = REPO / "lgtm-presentation" / "edits" / "Network-Policy-Process-Advisory.json"
 P = "lgtm-presentation/edits/png/"
 

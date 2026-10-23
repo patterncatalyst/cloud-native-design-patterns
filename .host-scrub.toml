@@ -1,0 +1,6 @@
+# No identifier of the development machine belongs in this file.
+cpu_class = "Intel 8-core/16-thread laptop CPU"
+
+[allow_match]
+# The UBI OpenJDK builder image's own default account and home (public image defaults).
+home-path = ['^/home/default($|/)']

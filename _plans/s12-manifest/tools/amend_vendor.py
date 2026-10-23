@@ -20,7 +20,7 @@ import re
 import sys
 from pathlib import Path
 
-REPO = Path("~/Dev/cloud-native-design-patterns")
+REPO = Path(__file__).resolve().parents[3]
 EDITS = REPO / "lgtm-presentation" / "edits"
 M = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent
 BASE = M / "work" / "vendor-base"

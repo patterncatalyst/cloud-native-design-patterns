@@ -282,3 +282,23 @@ was expanded to a full event-driven-microservices treatment drawn from Bellemare
 - `_plans/phase3-backlog.md` — full history of the r62–r77 work and the Ch05 expansion tranches.
 - `_plans/examples-plan.md` — the runnable-examples manifest and per-example language/infra choices.
 - `_plans/modernization-plan.md` — the current modernization: section order, decisions, pins, status.
+
+## Publishing rule: nothing identifies the machine or its owner
+
+The repo is public, so no tracked file may name the development machine, its owner
+or anything that helps locate or attack it later:
+
+- No absolute home-directory path (under /home or /Users), no account name, no hostname.
+  Write `<repo>/...` or `~/...`; scripts derive the repo root from `__file__` or `git rev-parse`.
+- No laptop model (DMI `product_name` is `"redacted"`), no CPU model or model number. The
+  CPU is a class ("Intel 8-core/16-thread laptop CPU"); prose names its properties
+  (SMT, cache sizes, frequency driver), never the part.
+- No host kernel build number or build date: give `major.minor` and the preempt model.
+- No `/etc/machine-id`, DMI serial or UUID, MAC or IP address, `root=UUID=` or BOOT_IMAGE.
+- Generated output is scrubbed before it is committed: `python3 scripts/host_ids.py scrub <dir>`
+  on a results directory, `host_ids.py filter` on a captured log.
+- `host_ids.py check` runs in CI (`host-ids` job, required through `content-ok`) and fails the
+  build on a hit. A value that is public by design (a container image's default `/home/default`,
+  a package pin, a fixture of fake values) is exempted by value in `.host-scrub.toml` under
+  `[allow_match]`, with a regex that names only that public value; never allow a whole file,
+  and never write this machine's values into the config.

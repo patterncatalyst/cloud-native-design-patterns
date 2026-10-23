@@ -2,7 +2,7 @@ import json,re,sys,collections
 from pathlib import Path
 segs=json.loads((Path(__file__).resolve().parent/"segs.json").read_text())
 pats=[]
-for line in Path("~/Dev/cloud-native-design-patterns/scripts/voice/patterns.tsv").read_text().splitlines():
+for line in (Path(__file__).resolve().parents[3] / "scripts/voice/patterns.tsv").read_text().splitlines():
     if not line or line.startswith("#"): continue
     f=line.split("\t")
     if len(f)<4: continue

@@ -5,7 +5,7 @@ Run from anywhere with the S12 venv python. Writes M/verify/<deck>.{dryrun.txt,a
 """
 import json, re, shutil, subprocess, sys
 from pathlib import Path
-REPO = Path("~/Dev/cloud-native-design-patterns")
+REPO = Path(__file__).resolve().parents[3]
 M = Path(__file__).resolve().parent.parent
 V = str(M.parent / "venv" / "bin" / "python")
 sys.path.insert(0, str(REPO / "scripts"))

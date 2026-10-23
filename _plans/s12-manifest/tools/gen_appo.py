@@ -2,7 +2,7 @@
 """Appendix O: shared sentence rewrites (rewrites/10-appo.json) and per-deck code/figure ops (ops-10-appo/)."""
 import json, sys
 from pathlib import Path
-REPO = Path("~/Dev/cloud-native-design-patterns")
+REPO = Path(__file__).resolve().parents[3]
 from pptx import Presentation
 from pptx.util import Emu
 WORK = Path(__file__).resolve().parent
