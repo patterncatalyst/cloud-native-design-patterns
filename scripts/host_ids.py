@@ -162,8 +162,10 @@ def gather(repo: Path | None) -> Runtime:
     rt.cpu_class = _cpu_class()
     for f in ("product_name", "product_version", "product_family", "board_name"):
         v = _read(f"/sys/class/dmi/id/{f}")
-        if len(v) >= 4 and not re.fullmatch(
-            r"(?i)none|default string|to be filled.*|\d+", v
+        if (
+            len(v) >= 4
+            and not re.fullmatch(r"(?i)none|default string|to be filled.*|\d+", v)
+            and not GENERIC_VM_PRODUCT.search(v)
         ):
             rt.products.append(v)
     if platform.system() == "Linux":
@@ -214,6 +216,11 @@ def _preempt(version: str) -> str:
 
 
 INTEL_PART = r"i[3579]-\d{4,5}[A-Z]{0,2}"
+# DMI product strings of hypervisors and cloud VMs: generic, never identifying.
+GENERIC_VM_PRODUCT = re.compile(
+    r"(?i)virtual machine|standard pc|kvm|qemu|vmware|virtualbox|bochs|hvm domu|"
+    r"google compute engine|openstack|amazon ec2|droplet|cloud server"
+)
 KERNEL_BUILD = (
     r"(?<!kernel-)(?<![\w.-])(\d+\.\d+)\.\d+-\d+(?:\.\w+)*?\.(?:fc|el)\d+(?:_\d+)?"
     r"\.(?:x86_64|aarch64)(?!\.rpm)\b"
@@ -341,7 +348,17 @@ def runtime_rules(rt: Runtime) -> list[Rule]:
     return rules
 
 
+def on_ci_runner() -> bool:
+    """True on a hosted CI runner, whose own values say nothing about the developer's machine."""
+    return os.environ.get("CI", "").lower() == "true" or "GITHUB_ACTIONS" in os.environ
+
+
 def all_rules(rt: Runtime) -> list[Rule]:
+    """This machine's literal values, then the generic patterns. On a CI runner only the
+    generic patterns apply: the runner's hostname, DMI and kernel are a cloud VM's, and
+    matching them would flag ordinary words ("Virtual Machine") in the repo."""
+    if on_ci_runner():
+        return generic_rules(rt.cpu_class)
     return runtime_rules(rt) + generic_rules(rt.cpu_class)
 
 
@@ -732,7 +749,7 @@ def self_test() -> int:
         )
         subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
         fake.repo_path = str(repo)
-        rules = all_rules(fake)
+        rules = runtime_rules(fake) + generic_rules(fake.cpu_class)
         cfg = load_config(repo)
 
         def expect(cond: bool, what: str) -> None:
@@ -811,6 +828,21 @@ def self_test() -> int:
         == ["literal:8.4.2-200.fc98.x86_64==>8.4", "literal:`8.4.2-200.fc98==>`8.4"]
         and dropped == 1,
         f"format_rules: {lines!r} dropped={dropped}",
+    )
+    saved = {k: os.environ.get(k) for k in ("CI", "GITHUB_ACTIONS")}
+    os.environ["CI"] = "true"
+    expect(all(not r.literal for r in all_rules(fake)), "CI runner: generic rules only")
+    for k, v in saved.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
+    expect(
+        not GENERIC_VM_PRODUCT.search("Planted Laptop 9000"),
+        "laptop is not a VM product",
+    )
+    expect(
+        bool(GENERIC_VM_PRODUCT.search("Virtual Machine")), "Virtual Machine is generic"
     )
     # The tool must never carry this machine's own values, not even in a test fixture.
     own = SELF.read_text(encoding="utf-8")
