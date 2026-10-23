@@ -858,13 +858,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "every write also goes to the changelog; on failure or rebalance, replay it to rebuild the store \u2014 state is never lost",
+   "text": "every write also goes to the changelog; on failure or rebalance, replay it to rebuild the store: state is never lost",
    "fontSize": 10.5,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "every write also goes to the changelog; on failure or rebalance, replay it to rebuild the store \u2014 state is never lost",
+   "originalText": "every write also goes to the changelog; on failure or rebalance, replay it to rebuild the store: state is never lost",
    "lineHeight": 1.25,
    "baseline": 10.5
   }

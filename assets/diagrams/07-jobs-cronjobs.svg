@@ -18,5 +18,5 @@
 <text x="815.0" y="170.0" font-size="11.5" fill="#555555" text-anchor="middle">scaled by KEDA</text>
 <text x="815.0" y="185.0" font-size="11.5" fill="#555555" text-anchor="middle">image resize, email</text>
 <text x="815.0" y="200.0" font-size="11.5" fill="#555555" text-anchor="middle">off the request path</text>
-<text x="490" y="300" font-size="12" fill="#2f6db5" text-anchor="middle">not everything is a request — long, batch, or periodic work belongs in Jobs/CronJobs (or a queue worker), never blocking an API request</text>
+<text x="490" y="300" font-size="12" fill="#2f6db5" text-anchor="middle">not everything is a request: long, batch, or periodic work belongs in Jobs/CronJobs (or a queue worker), never blocking an API request</text>
 </svg>

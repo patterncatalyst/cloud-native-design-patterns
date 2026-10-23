@@ -20,5 +20,5 @@
 <path d="M450,120 L548,98" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
 <text x="505.0" y="101.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">2 SET</text>
 <text x="505.0" y="101.0" font-size="11" fill="#b8650a" text-anchor="middle">2 SET</text>
-<text x="400" y="276" font-size="11" fill="#8a4b06" text-anchor="middle">both stores written on the write path — never stale for the writer; the write pays both latencies</text>
+<text x="400" y="276" font-size="11" fill="#8a4b06" text-anchor="middle">both stores written on the write path: never stale for the writer; the write pays both latencies</text>
 </svg>

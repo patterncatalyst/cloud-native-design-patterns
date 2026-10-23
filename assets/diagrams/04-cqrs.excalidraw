@@ -1435,13 +1435,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "write side optimises for invariants; read side for query patterns \u2014 eventually consistent, a small lag between them. Use only when the shapes differ.",
+   "text": "write side optimises for invariants; read side for query patterns: eventually consistent, a small lag between them. Use only when the shapes differ.",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "write side optimises for invariants; read side for query patterns \u2014 eventually consistent, a small lag between them. Use only when the shapes differ.",
+   "originalText": "write side optimises for invariants; read side for query patterns: eventually consistent, a small lag between them. Use only when the shapes differ.",
    "lineHeight": 1.25,
    "baseline": 12
   }

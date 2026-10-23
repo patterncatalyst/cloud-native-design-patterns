@@ -795,13 +795,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "all management is risk management \u2014 you manage the distribution of failures, not their existence",
+   "text": "all management is risk management: you manage the distribution of failures, not their existence",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "all management is risk management \u2014 you manage the distribution of failures, not their existence",
+   "originalText": "all management is risk management: you manage the distribution of failures, not their existence",
    "lineHeight": 1.25,
    "baseline": 11
   }

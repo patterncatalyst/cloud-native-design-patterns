@@ -830,13 +830,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "the same Postman collection your team runs by hand becomes an automated gate \u2014 no new test framework to learn",
+   "text": "the same Postman collection your team runs by hand becomes an automated gate: no new test framework to learn",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "the same Postman collection your team runs by hand becomes an automated gate \u2014 no new test framework to learn",
+   "originalText": "the same Postman collection your team runs by hand becomes an automated gate: no new test framework to learn",
    "lineHeight": 1.25,
    "baseline": 11
   }

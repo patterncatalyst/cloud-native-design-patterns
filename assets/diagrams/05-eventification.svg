@@ -21,6 +21,6 @@
 <path d="M564,132 L604,132" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <text x="590.0" y="124.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">consume</text>
 <text x="590.0" y="124.0" font-size="11" fill="#555" text-anchor="middle">consume</text>
-<text x="380" y="210" font-size="10.5" fill="#777" text-anchor="middle">table → stream (eventify) and stream → table (materialize) are two views of the same data — the log is the bridge</text>
+<text x="380" y="210" font-size="10.5" fill="#777" text-anchor="middle">table → stream (eventify) and stream → table (materialize) are two views of the same data: the log is the bridge</text>
 <text x="380" y="232" font-size="10.5" fill="#999" text-anchor="middle">the outbox (write the event in the same transaction) is the alternative when you own the writer</text>
 </svg>

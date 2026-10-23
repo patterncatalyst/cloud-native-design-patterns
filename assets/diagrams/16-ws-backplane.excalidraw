@@ -549,13 +549,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "no pod is special \u2014 the backplane fans each message to whichever pod holds the client",
+   "text": "no pod is special: the backplane fans each message to whichever pod holds the client",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "no pod is special \u2014 the backplane fans each message to whichever pod holds the client",
+   "originalText": "no pod is special: the backplane fans each message to whichever pod holds the client",
    "lineHeight": 1.25,
    "baseline": 11
   }

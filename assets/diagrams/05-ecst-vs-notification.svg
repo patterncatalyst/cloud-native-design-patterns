@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 340" font-family="'Red Hat Text', system-ui, sans-serif" role="img">
 <defs><marker id="a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker><marker id="am" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8650a"/></marker></defs>
 <rect x="20" y="46" width="720" height="118" rx="12" fill="#fafafa" stroke="#ddd"/>
-<text x="32" y="66" font-size="12" font-weight="700" fill="#1d1d1d">Event notification — thin event, the consumer must call back</text>
+<text x="32" y="66" font-size="12" font-weight="700" fill="#1d1d1d">Event notification: thin event, the consumer must call back</text>
 <rect x="20" y="186" width="720" height="118" rx="12" fill="#fff8ef" stroke="#ddd"/>
-<text x="32" y="206" font-size="12" font-weight="700" fill="#1d1d1d">Event-carried state transfer — fat event, a local view</text>
+<text x="32" y="206" font-size="12" font-weight="700" fill="#1d1d1d">Event-carried state transfer: fat event, a local view</text>
 <rect x="44" y="90" width="120" height="52" rx="9" fill="#ffffff" stroke="#111111" stroke-width="2"/>
 <text x="104.0" y="121.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">source service</text>
 <rect x="322" y="90" width="130" height="52" rx="9" fill="#eef4fb" stroke="#2f6db5" stroke-width="2"/>
@@ -30,5 +30,5 @@
 <path d="M452,256 L578,256" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
 <text x="521.0" y="248.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">fold → upsert</text>
 <text x="521.0" y="248.0" font-size="11" fill="#b8650a" text-anchor="middle">fold → upsert</text>
-<text x="380" y="326" font-size="10.5" fill="#1d1d1d" text-anchor="middle" font-weight="700">carry enough state and the consumer never calls back — reads go local and the source decouples</text>
+<text x="380" y="326" font-size="10.5" fill="#1d1d1d" text-anchor="middle" font-weight="700">carry enough state and the consumer never calls back: reads go local and the source decouples</text>
 </svg>

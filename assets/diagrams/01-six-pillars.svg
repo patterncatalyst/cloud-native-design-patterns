@@ -33,5 +33,5 @@
 <path d="M530,205 L642,92" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M548,236 L642,235" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M530,267 L642,378" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
-<text x="460" y="456" font-size="12" fill="#2f6db5" text-anchor="middle">cloud-native is a set of runtime properties an API must exhibit to thrive on Kubernetes — not a checklist of tools</text>
+<text x="460" y="456" font-size="12" fill="#2f6db5" text-anchor="middle">cloud-native is a set of runtime properties an API must exhibit to thrive on Kubernetes: not a checklist of tools</text>
 </svg>

@@ -721,13 +721,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "aggregation moves toward the client as coupling needs loosen \u2014 compose at a gateway/BFF, never by chaining calls inside services",
+   "text": "aggregation moves toward the client as coupling needs loosen: compose at a gateway/BFF, never by chaining calls inside services",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "aggregation moves toward the client as coupling needs loosen \u2014 compose at a gateway/BFF, never by chaining calls inside services",
+   "originalText": "aggregation moves toward the client as coupling needs loosen: compose at a gateway/BFF, never by chaining calls inside services",
    "lineHeight": 1.25,
    "baseline": 12
   }

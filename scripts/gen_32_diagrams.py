@@ -3,7 +3,7 @@
 import generate_diagram as g
 g.OUT = "../assets/diagrams"
 
-# ── Figure S.1 — cluster topology and host access ───────────────────────
+# ── Figure S.1: cluster topology and host access ───────────────────────
 g.emit("32-openshift-topology", 880, 440,
     bands=[
         {"x": 10, "y": 10, "w": 200, "h": 420, "fill": "#eef4fb",
@@ -57,7 +57,7 @@ g.emit("32-openshift-topology", 880, 440,
     ],
 )
 
-# ── Figure S.2 — image flow ─────────────────────────────────────────────
+# ── Figure S.2: image flow ─────────────────────────────────────────────
 g.emit("32-openshift-image-flow", 880, 320,
     bands=[
         {"x": 10, "y": 10, "w": 540, "h": 210, "fill": "#eef4fb",
@@ -93,4 +93,4 @@ g.emit("32-openshift-image-flow", 880, 320,
     ],
     notes=[],
 )
-print("Done — generated 2 diagrams for Appendix S")
+print("Done: generated 2 diagrams for Appendix S")

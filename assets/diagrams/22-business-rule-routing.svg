@@ -33,5 +33,5 @@
 <path d="M420,335 L360,405" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M560,335 L590,405" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M700,335 L820,405" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
-<text x="590" y="508" font-size="12" fill="#2f6db5" text-anchor="middle">when &#x27;route by header&#x27; isn&#x27;t enough — when the decision is a business rule — push it into a rule engine inside the service</text>
+<text x="590" y="508" font-size="12" fill="#2f6db5" text-anchor="middle">when &#x27;route by header&#x27; isn&#x27;t enough: when the decision is a business rule: push it into a rule engine inside the service</text>
 </svg>

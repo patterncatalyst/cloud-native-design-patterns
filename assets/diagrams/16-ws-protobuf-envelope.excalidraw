@@ -765,13 +765,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "versioned by field number (like gRPC) \u2014 add fields, never renumber",
+   "text": "versioned by field number (like gRPC): add fields, never renumber",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "versioned by field number (like gRPC) \u2014 add fields, never renumber",
+   "originalText": "versioned by field number (like gRPC): add fields, never renumber",
    "lineHeight": 1.25,
    "baseline": 11
   }

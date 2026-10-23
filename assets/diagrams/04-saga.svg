@@ -23,6 +23,6 @@
 <path d="M810,114 L850,114" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
 <path d="M425,158 L425,290" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
 <path d="M310,330 L270,330" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
-<text x="620" y="210" font-size="12" fill="#8a4b06" text-anchor="middle">happy path — each local commit emits the event that triggers the next step</text>
-<text x="570" y="405" font-size="12" fill="#2f6db5" text-anchor="middle">no two-phase commit across services; a failure triggers compensating actions, not rollbacks — sagas go deep in Appendix D</text>
+<text x="620" y="210" font-size="12" fill="#8a4b06" text-anchor="middle">happy path: each local commit emits the event that triggers the next step</text>
+<text x="570" y="405" font-size="12" fill="#2f6db5" text-anchor="middle">no two-phase commit across services; a failure triggers compensating actions, not rollbacks: sagas go deep in Appendix D</text>
 </svg>

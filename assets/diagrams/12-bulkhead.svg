@@ -28,5 +28,5 @@
 <text x="990.0" y="277.0" font-size="11.5" fill="#555555" text-anchor="middle">blast radius bounded</text>
 <text x="225" y="96" font-size="12" fill="#9b1c1c" text-anchor="middle" font-weight="700">Without bulkheads</text>
 <text x="690" y="96" font-size="12" fill="#006e6e" text-anchor="middle" font-weight="700">With bulkheads</text>
-<text x="600" y="402" font-size="12" fill="#2f6db5" text-anchor="middle">watertight compartments from naval architecture — per-tenant connection pools, per-call thread groups, semaphore-bounded operations (Resilience4j, Polly, Istio per-destination pools)</text>
+<text x="600" y="402" font-size="12" fill="#2f6db5" text-anchor="middle">watertight compartments from naval architecture: per-tenant connection pools, per-call thread groups, semaphore-bounded operations (Resilience4j, Polly, Istio per-destination pools)</text>
 </svg>

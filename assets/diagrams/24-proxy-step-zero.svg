@@ -18,5 +18,5 @@
 <path d="M430,233 L430,295" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
 <text x="500.0" y="258.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">future routes</text>
 <text x="500.0" y="258.0" font-size="11" fill="#555" text-anchor="middle">future routes</text>
-<text x="590" y="392" font-size="12" fill="#2e7d32" text-anchor="middle">zero behaviour change for clients on day one — but the lever to route traffic to extracted services is now in place; the proxy is also where TLS, auth, rate-limiting and observability consolidate</text>
+<text x="590" y="392" font-size="12" fill="#2e7d32" text-anchor="middle">zero behaviour change for clients on day one, but the lever to route traffic to extracted services is now in place; the proxy is also where TLS, auth, rate-limiting and observability consolidate</text>
 </svg>

@@ -39,5 +39,5 @@
 <path d="M455,196 L455,228" fill="none" stroke="#555" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#a)"/>
 <text x="489.0" y="214.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">nack / expire</text>
 <text x="489.0" y="214.0" font-size="11" fill="#555" text-anchor="middle">nack / expire</text>
-<text x="380" y="304" font-size="10.5" fill="#777" text-anchor="middle">routing lives in the exchange; an acked message is removed (no replay) — excels at work distribution, RPC, and rich routing</text>
+<text x="380" y="304" font-size="10.5" fill="#777" text-anchor="middle">routing lives in the exchange; an acked message is removed (no replay): excels at work distribution, RPC, and rich routing</text>
 </svg>

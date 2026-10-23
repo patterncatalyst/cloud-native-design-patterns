@@ -3,7 +3,7 @@
 import generate_diagram as g
 g.OUT = "../assets/diagrams"
 
-# ── Figure R.1 — cluster topology and host access ───────────────────────
+# ── Figure R.1: cluster topology and host access ───────────────────────
 g.emit("31-minikube-topology", 880, 420,
     bands=[
         {"x": 10, "y": 10, "w": 200, "h": 400, "fill": "#eef4fb",
@@ -54,7 +54,7 @@ g.emit("31-minikube-topology", 880, 420,
     ],
 )
 
-# ── Figure R.2 — image flow ─────────────────────────────────────────────
+# ── Figure R.2: image flow ─────────────────────────────────────────────
 g.emit("31-minikube-image-flow", 880, 300,
     bands=[
         {"x": 10, "y": 10, "w": 540, "h": 190, "fill": "#eef4fb",
@@ -86,4 +86,4 @@ g.emit("31-minikube-image-flow", 880, 300,
     ],
     notes=[],
 )
-print("Done — generated 2 diagrams for Appendix R")
+print("Done: generated 2 diagrams for Appendix R")

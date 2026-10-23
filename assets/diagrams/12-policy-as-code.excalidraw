@@ -1041,13 +1041,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "policy lives in Git, reviewed like code, applied by the cluster \u2014 no human runs a checklist (OPA/Gatekeeper, Kyverno, Conftest, Kubescape)",
+   "text": "policy lives in Git, reviewed like code, applied by the cluster: no human runs a checklist (OPA/Gatekeeper, Kyverno, Conftest, Kubescape)",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "policy lives in Git, reviewed like code, applied by the cluster \u2014 no human runs a checklist (OPA/Gatekeeper, Kyverno, Conftest, Kubescape)",
+   "originalText": "policy lives in Git, reviewed like code, applied by the cluster: no human runs a checklist (OPA/Gatekeeper, Kyverno, Conftest, Kubescape)",
    "lineHeight": 1.25,
    "baseline": 12
   }

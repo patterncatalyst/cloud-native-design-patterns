@@ -29,10 +29,10 @@
 <text x="847.5" y="218.5" font-size="11.5" fill="#555555" text-anchor="middle">private schema</text>
 <text x="847.5" y="233.5" font-size="11.5" fill="#555555" text-anchor="middle">CloudNativePG</text>
 <rect x="20" y="280" width="935" height="52" rx="9" fill="#fff8ef" stroke="#e8870c" stroke-width="2"/>
-<text x="487.5" y="311.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">polyglot persistence — pick the store per workload (relational · KV · search · object)</text>
+<text x="487.5" y="311.5" font-size="13.5" font-weight="700" fill="#111111" text-anchor="middle">polyglot persistence: pick the store per workload (relational · KV · search · object)</text>
 <path d="M127,112 L127,175" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M367,112 L367,175" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M607,112 L607,175" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
 <path d="M847,112 L847,175" fill="none" stroke="#555" stroke-width="2" marker-end="url(#a)"/>
-<text x="490" y="362" font-size="12" fill="#2f6db5" text-anchor="middle">sharing a database couples deploys and schemas — the most common way a &#x27;microservice&#x27; system quietly fails</text>
+<text x="490" y="362" font-size="12" fill="#2f6db5" text-anchor="middle">sharing a database couples deploys and schemas: the most common way a &#x27;microservice&#x27; system quietly fails</text>
 </svg>

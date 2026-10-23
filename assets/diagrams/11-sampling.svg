@@ -33,7 +33,7 @@
 <path d="M840,357 L890,357" fill="none" stroke="#b8650a" stroke-width="2" marker-end="url(#am)"/>
 <text x="871.0" y="349.0" font-size="11" fill="#ffffff" stroke="#ffffff" stroke-width="3" paint-order="stroke" text-anchor="middle">kept</text>
 <text x="871.0" y="349.0" font-size="11" fill="#b8650a" text-anchor="middle">kept</text>
-<text x="600" y="86" font-size="12" fill="#2f6db5" text-anchor="middle" font-weight="700">HEAD sampling — decide at the START, in the SDK, before the trace completes</text>
-<text x="600" y="290" font-size="12" fill="#006e6e" text-anchor="middle" font-weight="700">TAIL sampling — decide at the END, in the Collector, after the whole trace is seen</text>
-<text x="600" y="440" font-size="12" fill="#8a4b06" text-anchor="middle">common production: parent-based head baseline + tail sampling to keep every error and slow trace — always sample by trace, never by span</text>
+<text x="600" y="86" font-size="12" fill="#2f6db5" text-anchor="middle" font-weight="700">HEAD sampling: decide at the START, in the SDK, before the trace completes</text>
+<text x="600" y="290" font-size="12" fill="#006e6e" text-anchor="middle" font-weight="700">TAIL sampling: decide at the END, in the Collector, after the whole trace is seen</text>
+<text x="600" y="440" font-size="12" fill="#8a4b06" text-anchor="middle">common production: parent-based head baseline + tail sampling to keep every error and slow trace; always sample by trace, never by span</text>
 </svg>

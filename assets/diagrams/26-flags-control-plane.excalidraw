@@ -690,13 +690,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "a flag is a runtime control surface \u2014 the same decoupling that powers canaries, cutovers, kill-switches, and experiments",
+   "text": "a flag is a runtime control surface: the same decoupling that powers canaries, cutovers, kill-switches, and experiments",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "a flag is a runtime control surface \u2014 the same decoupling that powers canaries, cutovers, kill-switches, and experiments",
+   "originalText": "a flag is a runtime control surface: the same decoupling that powers canaries, cutovers, kill-switches, and experiments",
    "lineHeight": 1.25,
    "baseline": 11
   }

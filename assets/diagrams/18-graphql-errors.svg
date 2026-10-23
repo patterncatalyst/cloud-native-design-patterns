@@ -17,5 +17,5 @@
 <text x="880.0" y="222.5" font-size="11.5" fill="#555555" text-anchor="middle">  code: UNAVAILABLE</text>
 <text x="880.0" y="237.5" font-size="11.5" fill="#555555" text-anchor="middle">  retryable: true</text>
 <text x="880.0" y="252.5" font-size="11.5" fill="#555555" text-anchor="middle">  traceId: 4af9c…</text>
-<text x="590" y="388" font-size="12" fill="#2f6db5" text-anchor="middle">return the data you have, null the field that failed, and put a machine code in extensions — don&#x27;t blanket-fail a whole query</text>
+<text x="590" y="388" font-size="12" fill="#2f6db5" text-anchor="middle">return the data you have, null the field that failed, and put a machine code in extensions: don&#x27;t blanket-fail a whole query</text>
 </svg>

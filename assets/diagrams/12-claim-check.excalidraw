@@ -732,13 +732,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "the broker holds only the claim (URI + signed token) \u2014 PII never crosses Kafka's wire or sits in topic retention; the token can expire and the store can revoke",
+   "text": "the broker holds only the claim (URI + signed token): PII never crosses Kafka's wire or sits in topic retention; the token can expire and the store can revoke",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "the broker holds only the claim (URI + signed token) \u2014 PII never crosses Kafka's wire or sits in topic retention; the token can expire and the store can revoke",
+   "originalText": "the broker holds only the claim (URI + signed token): PII never crosses Kafka's wire or sits in topic retention; the token can expire and the store can revoke",
    "lineHeight": 1.25,
    "baseline": 12
   }

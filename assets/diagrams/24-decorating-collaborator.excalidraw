@@ -654,13 +654,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "clients now talk to the decorator; the legacy service keeps running and is eventually replaced behind the decorator's API \u2014 unlike a plain proxy, the decorator owns behaviour, not just routing",
+   "text": "clients now talk to the decorator; the legacy service keeps running and is eventually replaced behind the decorator's API: unlike a plain proxy, the decorator owns behaviour, not just routing",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "clients now talk to the decorator; the legacy service keeps running and is eventually replaced behind the decorator's API \u2014 unlike a plain proxy, the decorator owns behaviour, not just routing",
+   "originalText": "clients now talk to the decorator; the legacy service keeps running and is eventually replaced behind the decorator's API: unlike a plain proxy, the decorator owns behaviour, not just routing",
    "lineHeight": 1.25,
    "baseline": 12
   }

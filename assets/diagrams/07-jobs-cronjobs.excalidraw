@@ -637,13 +637,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "not everything is a request \u2014 long, batch, or periodic work belongs in Jobs/CronJobs (or a queue worker), never blocking an API request",
+   "text": "not everything is a request: long, batch, or periodic work belongs in Jobs/CronJobs (or a queue worker), never blocking an API request",
    "fontSize": 12,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "not everything is a request \u2014 long, batch, or periodic work belongs in Jobs/CronJobs (or a queue worker), never blocking an API request",
+   "originalText": "not everything is a request: long, batch, or periodic work belongs in Jobs/CronJobs (or a queue worker), never blocking an API request",
    "lineHeight": 1.25,
    "baseline": 12
   }

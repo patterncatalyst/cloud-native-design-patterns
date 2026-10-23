@@ -690,13 +690,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "each step is a local transaction; on a failure, run compensating actions in reverse \u2014 atomicity without a distributed lock (full treatment in Appendix D)",
+   "text": "each step is a local transaction; on a failure, run compensating actions in reverse: atomicity without a distributed lock (full treatment in Appendix D)",
    "fontSize": 10,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "each step is a local transaction; on a failure, run compensating actions in reverse \u2014 atomicity without a distributed lock (full treatment in Appendix D)",
+   "originalText": "each step is a local transaction; on a failure, run compensating actions in reverse: atomicity without a distributed lock (full treatment in Appendix D)",
    "lineHeight": 1.25,
    "baseline": 10
   }

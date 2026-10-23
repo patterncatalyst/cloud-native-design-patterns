@@ -463,13 +463,13 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "cure: quorum \u2014 an action needs N/2+1 nodes, so a minority mathematically cannot act (cluster sizes are odd)",
+   "text": "cure is a quorum: an action needs N/2+1 nodes, so a minority mathematically cannot act (cluster sizes are odd)",
    "fontSize": 11,
    "fontFamily": 1,
    "textAlign": "left",
    "verticalAlign": "top",
    "containerId": null,
-   "originalText": "cure: quorum \u2014 an action needs N/2+1 nodes, so a minority mathematically cannot act (cluster sizes are odd)",
+   "originalText": "cure is a quorum: an action needs N/2+1 nodes, so a minority mathematically cannot act (cluster sizes are odd)",
    "lineHeight": 1.25,
    "baseline": 11
   }

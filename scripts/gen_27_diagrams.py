@@ -23,7 +23,7 @@ g.emit("27-ci-gate", 920, 280,
     ],
     notes=[
         {"x": 460, "y": 250, "anchor": "middle", "color": "#2f6db5",
-         "text": "the services run on Docker Engine in CI as they do locally — no managed cloud — and a failed assertion fails the build"},
+         "text": "the services run on Docker Engine in CI as they do locally: no managed cloud, and a failed assertion fails the build"},
     ])
 
 # ---- Figure O.3: one collection, six implementations -----------------------
@@ -50,5 +50,5 @@ g.emit("27-black-box", 920, 40 + 56 * len(IMPLS) + 70,
     ],
     notes=[
         {"x": 460, "y": 40 + 56 * len(IMPLS) + 44, "anchor": "middle", "color": "#333", "bold": True,
-         "text": "because Newman tests the API as a black box, one collection validates every implementation — the contract is the spec, not the code"},
+         "text": "because Newman tests the API as a black box, one collection validates every implementation: the contract is the spec, not the code"},
     ])
