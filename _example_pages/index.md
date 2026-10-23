@@ -1,6 +1,6 @@
 ---
 title: "Runnable Examples"
-description: "Twenty-one runnable examples demonstrating cloud-native patterns in six language stacks — each with automated verification."
+description: "Twenty-one runnable examples demonstrating cloud-native patterns in six language stacks, each with automated verification."
 marker: "▶"
 label: "Examples"
 permalink: /examples/
@@ -63,9 +63,9 @@ for install instructions.
 | 26 | [Failure Modes]({{ '/docs/26-appendix-m-failure-modes/' | relative_url }}) | Timeout, retry, circuit breaker, bulkhead, fallback | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Docker |
 | 27 | [Feature Flags]({{ '/docs/27-appendix-n-feature-flags/' | relative_url }}) | OpenFeature + flagd, targeting rules, rollout | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Docker |
 | 28 | [Newman API Testing]({{ '/docs/28-appendix-o-newman/' | relative_url }}) | Postman collection runner, schema validation, CI | n/a | n/a | n/a | n/a | n/a | n/a | Docker |
-| 30 | [Blazor Server + SignalR]({{ '/docs/30-appendix-q-blazor-signalr/' | relative_url }}) | Real-time dashboard with SignalR circuit and Redis backplane | — | — | — | ✓ | — | — | Docker |
+| 30 | [Blazor Server + SignalR]({{ '/docs/30-appendix-q-blazor-signalr/' | relative_url }}) | Real-time dashboard with SignalR circuit and Redis backplane | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | Docker |
 
-**Legend:** ✓ = available, — = not applicable (language-specific example), n/a = language-agnostic (no application code)
+**Legend:** ✓ = available, ✗ = not applicable (language-specific example), n/a = language-agnostic (no application code)
 
 ---
 
