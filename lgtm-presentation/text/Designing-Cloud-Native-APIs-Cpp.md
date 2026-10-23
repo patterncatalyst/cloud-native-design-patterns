@@ -1,6 +1,6 @@
 # Designing-Cloud-Native-APIs-Cpp
 
-Source: Designing-Cloud-Native-APIs-Cpp.pptx · 281 slides
+Source: Designing-Cloud-Native-APIs-Cpp.pptx · 282 slides
 
 ## [001] CLOUD-NATIVE ARCHITECTURE · Designing Cloud-Native APIs (sldId 256)
 
@@ -4334,3 +4334,23 @@ Times cover the image build and load, the deploy, the checks and the namespace t
 > The recorded run, 2026-10-11: every language passed all ten checks with a fresh namespace per language. After each run, verify-matrix.sh asked Tempo through the lgtm pod which services had sent traces, and all three services reported in every language.
 >
 > The scale-down check was run by hand: with the shipping consumer at zero replicas a new order produces no shipment; scaled back to one, the consumer group resumes from its last committed offset and the shipment appears. That is the event-driven contract from the Event-Driven section, observed on a cluster.
+
+## [282] SCAN TO EXPLORE · Take it with you (sldId 537)
+
+The site
+
+The cloud-native design patterns, with runnable examples
+
+Workshops & Tutorials
+
+The whole series: every workshop, tutorial, and deck in one place
+
+[chip] patterncatalyst.github.io/cloud-native-design-patterns
+
+```patterncatalyst.github.iocloud-native-design-patterns
+patterncatalyst.github.io/patterncatalyst-workshops-tutorials-list
+```
+
+p. 282
+
+> That's the C++ edition end to end. Take it with you: on the left, the site, the cloud-native design patterns with runnable examples; on the right, the Workshops and Tutorials hub, every workshop, tutorial, and deck in the series in one place. Both are public on the Pattern Catalyst GitHub organization.
