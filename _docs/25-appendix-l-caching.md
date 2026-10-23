@@ -4,13 +4,13 @@ marker: "L"
 label: "Appendix L"
 order: 25
 part: "Deep-dive appendices"
-description: "Six standard caching patterns — cache-aside, read-through, write-through, write-around, write-back, and refresh-ahead — each with its consistency story, its failure mode, and when to reach for it; plus the anti-patterns and a decision guide."
+description: "Six standard caching patterns (cache-aside, read-through, write-through, write-around, write-back, and refresh-ahead), each with its consistency story, its failure mode, and when to reach for it; plus the anti-patterns and a decision guide."
 duration: 24 minutes
 ---
 
 Caching is one of the cheapest big performance wins, and the easiest to get
-subtly wrong. The six patterns in this appendix all use the same pieces — an application, a cache
-(Redis here), and a database — and differ in exactly two things: *who does the work* and
+subtly wrong. The six patterns in this appendix all use the same pieces: an application, a cache
+(Redis here), and a database. They differ in exactly two things: *who does the work* and
 *what consistency story you get*. The discipline is to pick the pattern that matches the
 consistency you need and the read/write profile you have, not the one
 that sounds best. Every pattern here also adds an invalidation story and a failure-mode
@@ -18,23 +18,23 @@ story, so the appendix ends on the anti-patterns and a decision guide for mixing
 
 ## Five things a cache earns you
 
-A cache is worth its complexity for five concrete reasons. **Application performance** — a
+A cache is worth its complexity for five concrete reasons. **Application performance**: a
 cache hit is microseconds where a database round trip is milliseconds, so the hot path gets
-roughly 100× faster on hits. **Backend load** — caching shields the database from repeated
+roughly 100× faster on hits. **Backend load**: caching shields the database from repeated
 reads of unchanged data, offloading 80–95% of queries on read-heavy workloads with a sensible
-TTL. **Throughput** — the same Pod fleet serves far more requests because it spends less time
-waiting on the database. **Predictable performance** — p99 latency stops tracking database
+TTL. **Throughput**: the same Pod fleet serves far more requests because it spends less time
+waiting on the database. **Predictable performance**: p99 latency stops tracking database
 load, because the hot path no longer contends on the same lock-bound resource as everyone
-else. And **database cost** — fewer queries means smaller or fewer DB instances, a smaller
+else. And **database cost**: fewer queries means smaller or fewer DB instances, a smaller
 IOPS budget, and less replication bandwidth; the cache tier is almost always cheaper than the
 DB tier it offloads. The trade-off, in one line: every cache adds a consistency story, an
-invalidation story, and a failure-mode story — so pick the pattern that matches what you need.
+invalidation story, and a failure-mode story, so pick the pattern that matches what you need.
 
-## Cache-aside (look-aside) — the default
+## Cache-aside (look-aside): the default
 
 Cache-aside is where everyone starts and the right choice for most reads: the application is
 in charge. Try the cache; on a miss, read the database, populate the cache on the way back,
-and return. It is explicit, debuggable, and has no magic — the cache is just a key-value store
+and return. It is explicit, debuggable, and has no magic: the cache is just a key-value store
 and the app decides what to cache and when. The costs are that every read carries the if/else,
 a miss costs two round trips, and the logic repeats across services unless you extract it. The
 TTL is the consistency knob: longer means fewer DB hits and more stale-read risk. The one
@@ -43,7 +43,7 @@ discipline that keeps it correct is invalidating on writes.
 {% include excalidraw.html
    file="24-cache-aside"
    alt="A client calls the application, which reads the cache (GET), falls back to the database with a SELECT on a miss, then populates the cache with SETEX before returning. The application coordinates every step."
-   caption="Figure L.1 — Cache-aside: the application coordinates; a miss costs two round trips" %}
+   caption="Figure L.1: Cache-aside: the application coordinates; a miss costs two round trips" %}
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
@@ -238,7 +238,7 @@ func (s *Server) updateProduct(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-## Read-through — the cache fetches on miss
+## Read-through: the cache fetches on miss
 
 Read-through moves the database call from the application into the cache layer: the app calls
 `cache.get()` and gets the value back, not knowing or caring whether the cache had it or had to
@@ -251,7 +251,7 @@ declaratively (Spring's `@Cacheable`, Quarkus's `@CacheResult` and `Cache.get`, 
 {% include excalidraw.html
    file="24-read-through"
    alt="A client calls the application, which calls cache.get on a single interface. On a miss the cache itself runs a loader against the database. The application never sees the database directly."
-   caption="Figure L.2 — Read-through: the cache library owns the miss; the app sees one interface" %}
+   caption="Figure L.2: Read-through: the cache library owns the miss; the app sees one interface" %}
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
@@ -421,12 +421,12 @@ var products = ReadThrough[Product]{
 }
 ```
 
-## Write-through — cache and DB written synchronously
+## Write-through: cache and DB written synchronously
 
 When stale reads after a write are not acceptable, write-through updates both stores on the write
 path: write the database, then write the cache, before the response returns. A read immediately
 after a write sees the new value, and the cache is never stale for the writer. The costs are that
-write latency is the sum of both stores, and there is no two-phase commit — so the discipline is to
+write latency is the sum of both stores, and there is no two-phase commit, so the discipline is to
 write the DB first (the source of truth), write the cache second with a `SET` rather than an
 invalidate, and pair it with a short TTL so any window of inconsistency self-heals. The platform
 frameworks express it as `@CachePut` (Spring) or a direct `SetAsync` (FusionCache).
@@ -434,7 +434,7 @@ frameworks express it as `@CachePut` (Spring) or a direct `SetAsync` (FusionCach
 {% include excalidraw.html
    file="24-write-through"
    alt="A client sends a write to the application, which writes the database first as the source of truth, then writes (SET) the cache second, before responding. Both stores are updated on the write path."
-   caption="Figure L.3 — Write-through: DB first, cache second (SET, not invalidate); never stale, pays both latencies" %}
+   caption="Figure L.3: Write-through: DB first, cache second (SET, not invalidate); never stale, pays both latencies" %}
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
@@ -565,9 +565,9 @@ func (s *Server) updateProduct(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-## Write-around — writes skip the cache
+## Write-around: writes skip the cache
 
-When data is written far more often than it is read — audit logs, event records, telemetry — caching
+When data is written far more often than it is read (audit logs, event records, telemetry), caching
 every write is wasteful, because most entries expire before anyone reads them. Write-around writes
 the database and leaves the cache alone; the next reader pays the miss and populates it. The cache
 then holds only things being read, with no pollution by write-only data. The cost is that
@@ -578,7 +578,7 @@ workload.
 {% include excalidraw.html
    file="24-write-around"
    alt="A client sends a write to the application, which writes only the database; the cache is untouched. A later read populates the cache lazily."
-   caption="Figure L.4 — Write-around: writes go to the DB only; the next read populates the cache" %}
+   caption="Figure L.4: Write-around: writes go to the DB only; the next read populates the cache" %}
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
@@ -734,16 +734,16 @@ func (s *Server) getEvent(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-## Write-back (write-behind) — fast writes, eventual durability
+## Write-back (write-behind): fast writes, eventual durability
 
 Write-back is the fastest-write pattern and the one with the most caveats. The client writes to the
-cache and gets an immediate ack — the cache is the source of truth for that window — while a
+cache and gets an immediate ack (the cache is the source of truth for that window) while a
 background flusher drains the cache to the database, batching writes for efficiency. Write latency
 equals cache latency (microseconds), which is enormous throughput on write-heavy workloads. The cost
 is durability: a cache crash before the flusher catches up loses unflushed writes, so the cache must
 be configured for persistence (Redis AOF or RDB) and you must have thought about what "lost the last
 few seconds of writes" means for the business. Reserve it for cases where write throughput is the
-constraint *and* eventual durability is acceptable — real-time game state, telemetry with a
+constraint *and* eventual durability is acceptable: real-time game state, telemetry with a
 downstream aggregator, write-heavy buffering ahead of a slower store.
 
 The API reflects the contract: a write answers `202 Accepted` because the value is queued, not yet
@@ -754,7 +754,7 @@ value still in the cache, so an outage never drops a write silently.
 {% include excalidraw.html
    file="24-write-back"
    alt="A client writes to the application, which writes to the cache and acks immediately. A background flusher drains dirty keys from the cache to the database asynchronously in batches."
-   caption="Figure L.5 — Write-back: ack at cache speed; a background flusher persists later — a crash before flush loses unpersisted writes" %}
+   caption="Figure L.5: Write-back: ack at cache speed; a background flusher persists later; a crash before flush loses unpersisted writes" %}
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
@@ -923,20 +923,20 @@ func flusher(ctx context.Context) {           // 2. drain the dirty set to the D
 }
 ```
 
-## Refresh-ahead — keep hot keys warm
+## Refresh-ahead: keep hot keys warm
 
 Plain cache-aside has a latency cliff: while a key is cached reads are fast, but the instant its TTL
 expires the next reader pays the slow DB fetch. For homepage data, top products, or frequently-queried
 entities that spike is user-visible. Refresh-ahead pre-empts it: a background task tracks a set of hot
 keys and refreshes their values from the database *before* the TTL fires, so users always read warm
 cache. The cost is extra DB load for keys that might not be requested again, plus the need to identify
-which keys are hot — typically by touching a Redis sorted set on every read. Use it where miss latency
+which keys are hot: typically by touching a Redis sorted set on every read. Use it where miss latency
 on a small hot set matters more than DB throughput.
 
 {% include excalidraw.html
    file="24-refresh-ahead"
    alt="A client reads through the application from a cache that is always warm. A background refresher tracks hot keys and fetches them from the database before their TTL expires, refreshing the cache so users never hit a cold miss."
-   caption="Figure L.6 — Refresh-ahead: a background task re-warms hot keys before TTL, eliminating user-visible cold misses" %}
+   caption="Figure L.6: Refresh-ahead: a background task re-warms hot keys before TTL, eliminating user-visible cold misses" %}
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
@@ -1178,7 +1178,7 @@ func (s *Server) refresher(ctx context.Context) {
 
 ## When not to cache, and what to watch for
 
-Caching is a complexity tax, only worth paying when reads hurt — the cheapest cache is no
+Caching is a complexity tax, only worth paying when reads hurt: the cheapest cache is no
 cache, so if reads are already fast, don't add one. The failure modes to design against:
 
 - **Don't cache rarely-read data.** Caching write-once-read-never data thrashes the cache and gains
@@ -1192,38 +1192,38 @@ cache, so if reads are already fast, don't add one. The failure modes to design 
   lock in the loader (only one fetches, the rest wait), with refresh-ahead, or by jittering TTLs
   slightly per entry so similar keys don't expire together.
 - **Watch cache-aside or write-around without invalidation.** The write goes to the DB but a stale
-  cached value can persist for the full TTL — the most common stale-data bug in production. Invalidate
+  cached value can persist for the full TTL: the most common stale-data bug in production. Invalidate
   on every write, or use a shorter TTL.
 - **Never treat the cache as the source of truth.** A cache outage must mean slower reads, not data
-  loss, so always have a DB fallback path — and test it by stopping Redis in staging.
+  loss, so always have a DB fallback path, and test it by stopping Redis in staging.
 
 ## Choosing the right caching pattern
 
 The patterns are not mutually exclusive; matching them to read/write profiles is the engineering work.
-**Cache-aside** is the default for most reads — explicit control, reads dominating writes.
+**Cache-aside** is the default for most reads: explicit control, reads dominating writes.
 **Read-through** is the same semantics with cleaner code when you have a loader-capable library.
 **Write-through** trades write latency for zero stale-read risk, and fits read-heavy data with
 infrequent but consistency-critical writes (financial, healthcare, regulatory). **Write-around** suits
-append-heavy workloads — telemetry, events, logs — where re-reads are rare. **Write-back** is the niche
+append-heavy workloads (telemetry, events, logs) where re-reads are rare. **Write-back** is the niche
 extreme-write-throughput pattern, valid only when eventual durability is acceptable and the cache is
 configured for persistence. **Refresh-ahead** is the hot-key pattern, eliminating user-visible misses on
 a small identified hot set at the cost of extra DB load on it. Most production systems run cache-aside
 for the bulk of traffic, layer refresh-ahead on the hot keys they have identified, and use write-through
-only where stale reads are forbidden — a mix, not a single rule.
+only where stale reads are forbidden: a mix, not a single rule.
 
 ### Cross-check it yourself
 
 Prove the two properties that matter: the cache offloads the database, and a cache outage
 degrades rather than breaks. Put read load on the cache-aside endpoint with `hey` and watch the
 database's query counter (Postgres `pg_stat_statements`, or the query log): after the first miss per
-key the DB call count should flatten while throughput climbs, and p99 should drop sharply — that is the
+key the DB call count should flatten while throughput climbs, and p99 should drop sharply: that is the
 offload working. Then, with load still running, **stop Redis**. The correct behaviour is that latency
-rises (every read becomes a DB read) but requests still return `200` — if you instead see `5xx`, the
+rises (every read becomes a DB read) but requests still return `200`; if you instead see `5xx`, the
 cache is wired as a source of truth rather than an optimisation, which is the one caching mistake you
 cannot ship. Finally, for write-through, write a key and immediately read it back: the read must return
 the new value with no DB round trip; for write-around, write then read and confirm the first read is a
 miss (the DB log shows the `SELECT`) while the second is a hit.
 
 ---
-*Verification status: verified — [`examples/25-caching/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/25-caching/) passes 29/29 checks in each of the six languages on Docker Engine (2026-10-13)
+*Verification status: verified; [`examples/25-caching/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/25-caching/) passes 29/29 checks in each of the six languages on Docker Engine (2026-10-13)
 (cache-aside with invalidation on update, read-through, write-through, write-around, write-back with 202 and a flush retry across a Postgres outage, refresh-ahead, hot-set tracking, and degradation with Redis stopped and restarted).*

@@ -2,20 +2,20 @@
 title: "Event-Driven"
 order: 5
 part: "Foundations & the system"
-description: "Decoupled facts that fan out — the event backbone, producing and consuming with commit-after-side-effect, schemas as the enforced contract, and the difference between event sourcing and event streaming."
+description: "Decoupled facts that fan out: the event backbone, producing and consuming with commit-after-side-effect, schemas as the enforced contract, and the difference between event sourcing and event streaming."
 duration: 72 minutes
 ---
 
 The Data chapter ended with `order.placed` leaving the database through the
 outbox. This chapter is about what that fact does once it's on the wire. An event
-is a statement that something happened, published to whoever cares — and the
+is a statement that something happened, published to whoever cares, and the
 producer cares about *none* of them.
 
 ## One fact, many reactions
 
 `order.placed` fans out to `payment`, `shipping`, and `notification`, and the
-producer names none of them. That is the power move: you can add a new consumer —
-a fraud-check service — **without touching or redeploying the producer.** Contrast
+producer names none of them. That is the power move: you can add a new consumer
+(a fraud-check service) **without touching or redeploying the producer.** Contrast
 the synchronous world, where adding a dependency means changing the caller. This
 is the open/closed principle at the architecture level, with Kafka (run by Strimzi
 on Kubernetes) as the backbone.
@@ -23,9 +23,9 @@ on Kubernetes) as the backbone.
 {% include excalidraw.html
    file="05-event-backbone"
    alt="order-service emits order.placed to a Kafka topic; payment, shipping, and notification each consume it independently, and a later fraud-check service is added as a new consumer without changing the producer"
-   caption="Figure 5.1 — One published fact; consumers added without touching the producer" %}
+   caption="Figure 5.1: One published fact; consumers added without touching the producer" %}
 
-## Core benefits — and the costs they carry
+## Core benefits and the costs they carry
 
 Event-driven design buys three things, and each one comes paired with a cost you
 then have to design for. The benefits are why
@@ -34,26 +34,26 @@ you at 3 a.m.
 
 | Benefit | What it gives you | The cost that shadows it |
 |---|---|---|
-| **Loose coupling** | producers don't know their consumers — add a consumer without touching the producer | **eventual consistency**: readers see the effect *after* the event propagates, not in the producer's transaction |
+| **Loose coupling** | producers don't know their consumers: add a consumer without touching the producer | **eventual consistency**: readers see the effect *after* the event propagates, not in the producer's transaction |
 | **Real-time responsiveness** | reactions fire as facts happen, not on a poll interval | **debugging complexity**: one request's story is now spread across services and a log |
 | **High scalability** | partitioned consumers scale out horizontally; a slow consumer can't back-pressure the producer | **ordering & duplicates**: order holds only *within* a partition, and delivery is at-least-once |
 
 Each cost has a standard answer, and all three already appeared in this book:
 
-- **Eventual consistency** — the write side commits, the event ships, consumers catch
+- **Eventual consistency**: the write side commits, the event ships, consumers catch
   up a moment later. Design reads to tolerate that lag, or read from the write model
   when you need read-your-writes; never assume a consumer is up to date the
   instant the producer commits. This is the same trade the outbox and CQRS sections
   make.
-- **Debugging complexity** — a single user action becomes a chain of events across
+- **Debugging complexity**: a single user action becomes a chain of events across
   several services, so "what happened to order A-1001?" is no longer one log to grep.
   The fix is to thread a correlation / trace id through every event envelope and lean
   on distributed tracing (**Observability**); without it, you are reconstructing the
   story from five terminals.
-- **Ordering & duplicates** — Kafka orders events only within a partition, so key by
+- **Ordering & duplicates**: Kafka orders events only within a partition, so key by
   the entity (the order id) to keep one entity's events in order; there is no global
   order across partitions. And at-least-once delivery means the same event can arrive
-  twice — a producer retry, a consumer rebalance — so every handler must be
+  twice (a producer retry, a consumer rebalance), so every handler must be
   **idempotent**, deduplicating by event id or folding the work into an upsert.
 
 The throughline: the benefits are real, but each one *moves* a hard problem rather than
@@ -62,7 +62,7 @@ removing it. Design for the cost on the same day you reach for the benefit.
 ## Producing and consuming
 
 Two things matter more than the framework. First, **commit after the side-effect,
-not before** — do the work, then acknowledge. Second, because you commit after, a
+not before**: do the work, then acknowledge. Second, because you commit after, a
 crash mid-handler means redelivery, so delivery is **at-least-once** and your
 handlers **must be idempotent** (dedupe by message key or an idempotency key).
 
@@ -236,15 +236,15 @@ func consume(ctx context.Context, cfg Settings) error {
 ### How the code works
 
 The producer is trivial and that's the point: send a **keyed** record to a topic
-and walk away — it names no consumer. The key (the order id) decides the partition,
+and walk away; it names no consumer. The key (the order id) decides the partition,
 which preserves per-order ordering.
 
 The consumer is where the care lives. Every tab disables auto-commit and
 acknowledges *after* `send_email` returns. Commit before the side-effect and a
-crash loses the work silently; commit after and a crash merely *redelivers* — which
+crash loses the work silently; commit after and a crash merely *redelivers*, which
 is why every handler must be idempotent. "Exactly-once" is a marketing term for
-"at-least-once plus a dedupe you wrote." The frameworks differ in surface —
-`Acknowledgment`, `msg.ack()`, consumer-return, `commitSync()` — but the rule is
+"at-least-once plus a dedupe you wrote." The frameworks differ in surface
+(`Acknowledgment`, `msg.ack()`, consumer-return, `commitSync()`), but the rule is
 identical.
 
 ## Schemas are the contract
@@ -257,14 +257,14 @@ in-cluster.
 {% include excalidraw.html
    file="05-schemas-registry"
    alt="An Apicurio Registry at top holds versioned schemas with FORWARD/BACKWARD compatibility. The order-service producer serialises with a schema-id and sends id+bytes through Kafka to a consumer that resolves the id and deserialises; both resolve the schema by id from the registry. A CI publish gate rejects incompatible schemas before merge."
-   caption="Figure 5.2 — Apicurio holds versioned schemas; producer and consumer resolve by schema-id on the hot path, and a CI gate rejects incompatible changes before merge" %}
+   caption="Figure 5.2: Apicurio holds versioned schemas; producer and consumer resolve by schema-id on the hot path, and a CI gate rejects incompatible changes before merge" %}
 
 The mechanics matter. The producer serialises a record and prefixes it with a small
 **schema-id**; only the id plus the encoded bytes travel on the wire, never the schema
 itself. The consumer reads the id, fetches the matching schema from the registry
 (cached after the first lookup), and deserialises. Because the registry enforces a
-compatibility policy — **FORWARD** so old consumers tolerate new producers, or
-**BACKWARD** so new consumers tolerate old data — a change that would break the other
+compatibility policy (**FORWARD** so old consumers tolerate new producers, or
+**BACKWARD** so new consumers tolerate old data), a change that would break the other
 side is refused. Best of all, that check runs in CI at publish time: a breaking schema
 is **rejected before it merges**, not discovered in production when an anonymous
 consumer falls over. That enforcement is what makes "add a consumer safely"
@@ -273,7 +273,7 @@ safe.
 ## Event sourcing vs. event streaming
 
 A vocabulary fix most teams need before going further. **Event sourcing** means
-events *are* the database — there is no current-state row anywhere; current state
+events *are* the database: there is no current-state row anywhere; current state
 is computed by folding the entire event history. Crediting an account isn't
 `UPDATE balance SET balance = balance + 100`; it's `INSERT INTO events ('credit',
 100)`, and reading the balance means summing every event for that account.
@@ -284,11 +284,11 @@ itself the valuable asset (ledgers, audit).
 
 {% include excalidraw.html
    file="05-sourcing-vs-streaming"
-   alt="Two columns. Event sourcing: events are the state — aggregate state is a fold of events from t0, the event log is the database, current state is rebuilt by replaying; fit is audit-heavy, financial, temporal; tools Marten, EventStoreDB, Axon. Event streaming: events are the transport — current state lives in a database, events are facts about changes, consumers react and propagate; fit is integration, fan-out, decoupling; tools Kafka, Pulsar, NATS JetStream."
-   caption="Figure 5.3 — Event sourcing makes events the state; event streaming uses events as transport — and full CQRS often combines both" %}
+   alt="Two columns. Event sourcing: events are the state: aggregate state is a fold of events from t0, the event log is the database, current state is rebuilt by replaying; fit is audit-heavy, financial, temporal; tools Marten, EventStoreDB, Axon. Event streaming: events are the transport: current state lives in a database, events are facts about changes, consumers react and propagate; fit is integration, fan-out, decoupling; tools Kafka, Pulsar, NATS JetStream."
+   caption="Figure 5.3: Event sourcing makes events the state; event streaming uses events as transport, and full CQRS often combines both" %}
 
 The two are not rivals and not mutually exclusive. A common full-CQRS design is
-event-sourced on the write side — the log *is* the system of record — while the read
+event-sourced on the write side (the log *is* the system of record) while the read
 side is a set of streaming projections fed from that same log. The question that
 disambiguates them in any given design is simple: is the **event itself** the source
 of truth (sourcing), or is it a **fact propagated** from a store that still holds the
@@ -303,15 +303,15 @@ open-source tools by the job they do rather than by reputation.
 {% include excalidraw.html
    file="05-tools-landscape"
    alt="Three categories. Substrate (the durable log): Kafka and Pulsar. Compute (transform and aggregate): Flink, with alternatives Kafka Streams and Spark Structured Streaming. Movement (data in and out): NiFi and Debezium. Arrows show substrate feeding compute feeding movement; a typical pipeline runs source DB to Debezium/NiFi to Kafka/Pulsar to Flink to sink."
-   caption="Figure 5.4 — Three jobs: substrate (the durable log), compute (transform & aggregate), and movement (data in & out)" %}
+   caption="Figure 5.4: Three jobs: substrate (the durable log), compute (transform & aggregate), and movement (data in & out)" %}
 
-Three categories cover almost everything. **Substrate** is the durable log itself —
+Three categories cover almost everything. **Substrate** is the durable log itself:
 **Kafka** (the de facto event spine: partitioned, ordered, offset-tracked) or
 **Pulsar** (pub/sub plus queue plus log, with tiered storage and a Kafka-protocol
-shim). **Compute** transforms and aggregates the streams — **Flink** is the heavyweight
+shim). **Compute** transforms and aggregates the streams: **Flink** is the heavyweight
 stateful engine with windowed aggregations and exactly-once checkpointing, sitting on
 top of Kafka or Pulsar; lighter alternatives are Kafka Streams (JVM-only) and Spark
-Structured Streaming. **Movement** gets data in and out — **NiFi** for visual ETL with
+Structured Streaming. **Movement** gets data in and out: **NiFi** for visual ETL with
 hundreds of connectors and back-pressure, and **Debezium** for CDC, tailing the
 database commit log (the same mechanism the Data chapter builds the outbox on). A
 typical pipeline threads all three: source DB → Debezium or NiFi → Kafka or Pulsar →
@@ -322,36 +322,36 @@ plain Kubernetes as everything else.
 ## Choosing the substrate: Kafka vs Pulsar vs AMQP
 
 The tools landscape split the work into substrate, compute, and movement; the
-**substrate** — the durable broker the whole system leans on — is the most consequential
+**substrate**, the durable broker the whole system leans on, is the most consequential
 choice. Three common answers, with different models rather than cosmetic
 differences:
 
 | | **Apache Kafka** | **Apache Pulsar** | **AMQP** (e.g. RabbitMQ) |
 |---|---|---|---|
 | **Model** | partitioned, append-only **log**; consumers track offsets | a log too, but split into **segments** with serving brokers separate from storage | **exchanges route to queues**; a delivered message is removed |
-| **Replay** | native — rewind the offset | native — rewind, like Kafka | not built in; a consumed message is gone unless you kept a copy |
+| **Replay** | native: rewind the offset | native: rewind, like Kafka | not built in; a consumed message is gone unless you kept a copy |
 | **Ordering** | per partition (per key) | per partition (per key) | per queue |
 | **Scaling** | partitions; a rebalance moves consumers | brokers and storage scale **independently**; cold segments can tier to object storage | queues; sharding is largely manual |
-| **Multi-tenancy / geo** | add-on tooling | **first-class** — tenants, namespaces, and geo-replication built in | per-vhost; federation/shovel for geo |
+| **Multi-tenancy / geo** | add-on tooling | **first-class**: tenants, namespaces, and geo-replication built in | per-vhost; federation/shovel for geo |
 | **Latency / throughput** | low latency, very high throughput | low latency, high throughput | very low latency at modest volume; throughput falls as queues deepen |
 | **Best when** | high-throughput streaming where the durable log *is* the source of truth | you want Kafka-style streaming **plus** native multi-tenancy, geo, or storage/compute separation | classic task queues, RPC-style work distribution, and rich routing at lower volumes |
 
 The dividing line is **log versus queue**. Kafka and Pulsar are *logs*: messages
 persist, independent consumer groups read at their own offsets, and replay is just
-rewinding — which is exactly why either can be the source of truth this chapter builds
+rewinding, which is exactly why either can be the source of truth this chapter builds
 on. AMQP is a *queue broker*: a message is delivered and removed, routing is rich
 (exchanges, bindings, topic patterns), and it excels at work distribution and
-request/reply — but "replay last week" means you stood up a separate store, because the
+request/reply, but "replay last week" means you stood up a separate store, because the
 broker didn't keep the messages.
 
 Pulsar's pitch over Kafka is mostly **operational**: because serving and storage are
 separate layers, you can scale them independently and tier cold data to object storage,
 and multi-tenancy and geo-replication are built in rather than bolted on. The price is
-a larger surface to run — more components and moving parts — which only pays off for
+a larger surface to run (more components and moving parts), which only pays off for
 teams that need those properties.
 
-For this book's running system — `order.placed` as a replayable fact that several
-services consume independently — a **log** is the right substrate, and Kafka is the
+For this book's running system, `order.placed` as a replayable fact that several
+services consume independently, a **log** is the right substrate, and Kafka is the
 sensible default. Reach for **Pulsar** when multi-tenancy, geo, or storage/compute
 separation are hard requirements, and for **AMQP** when the job is a *task
 queue* with complex routing rather than an event log you replay.
@@ -360,13 +360,13 @@ queue* with complex routing rather than an event log you replay.
 
 The comparison table is the decision; the architecture is *why* each answer behaves
 the way it does. Three different internal designs produce three different sets of
-advantages — and knowing the design is what lets you build services that lean on a
+advantages, and knowing the design is what lets you build services that lean on a
 broker's strengths instead of fighting them.
 
-### Apache Kafka — the partitioned, replicated log
+### Apache Kafka: the partitioned, replicated log
 
 Kafka is a cluster of brokers serving topics split into **partitions**, and the
-partition — not the topic — is the unit of everything. Each partition is an ordered,
+partition, not the topic, is the unit of everything. Each partition is an ordered,
 append-only log: producers append (keyed by entity, so one entity's events land on one
 partition and stay ordered), and each partition is replicated to a set of in-sync
 replicas so a broker failure loses nothing. Consumers join a **consumer group**, the
@@ -375,13 +375,13 @@ offset**, reading at its own position into the log.
 
 {% include excalidraw.html
    file="05-kafka-architecture"
-   alt="Producers, keyed by entity, append to a Kafka cluster drawn as a partitioned, replicated log with Partition 0, 1, and 2, each a leader plus in-sync replicas. Two consumer groups read from the cluster — a payment group that tracks its own offsets and an analytics group with independent offsets that can replay. A note: records are retained by time or size, not deleted on read; partitions give parallelism, replicas give durability, and groups read independently."
-   caption="Figure 5.5 — Kafka architecture: a partitioned, replicated log read by independent consumer groups" %}
+   alt="Producers, keyed by entity, append to a Kafka cluster drawn as a partitioned, replicated log with Partition 0, 1, and 2, each a leader plus in-sync replicas. Two consumer groups read from the cluster: a payment group that tracks its own offsets and an analytics group with independent offsets that can replay. A note: records are retained by time or size, not deleted on read; partitions give parallelism, replicas give durability, and groups read independently."
+   caption="Figure 5.5: Kafka architecture: a partitioned, replicated log read by independent consumer groups" %}
 
 Its advantages follow from that design. Sequential appends and zero-copy reads give
 high **throughput**; partitions give linear **horizontal scale**; replication
 gives **durability**; and because the log is retained rather than consumed, producers
-and consumers are **decoupled in time** — a consumer can be down for an hour or added
+and consumers are **decoupled in time**: a consumer can be down for an hour or added
 years later and still get the full story. You build services against it the way this
 chapter's producer/consumer code already does: key events by the entity, make
 consumers idempotent, and commit the offset *after* the side effect.
@@ -393,24 +393,24 @@ The mental-model correction most people need: **Kafka is a log, not a queue.**
 {% include excalidraw.html
    file="05-log-truth"
    alt="A partitioned append-only log with offsets 0 through 9, head at the latest. Three consumers track independent offsets: a payment consumer at offset 9 (live), an analytics replay reset to offset 0, and a new consumer reading history from the middle with no producer impact."
-   caption="Figure 5.6 — A partitioned, append-only log: each consumer tracks its own offset, so replay is just rewinding" %}
+   caption="Figure 5.6: A partitioned, append-only log: each consumer tracks its own offset, so replay is just rewinding" %}
 
-Messages aren't deleted when read — they're retained by time or size, and each
+Messages aren't deleted when read; they're retained by time or size, and each
 consumer group tracks **its own offset** into the partition. That one fact has large
 consequences. A live consumer sits at the head, processing new records as they arrive.
 An analytics job can reset to offset zero and replay the entire history. A brand-new
 consumer can join later and read all of history to build its state, with **no impact
-on the producer or on existing consumers** — nobody is draining a queue, so nobody
+on the producer or on existing consumers**; nobody is draining a queue, so nobody
 contends for the messages. Replay is moving an offset backward. That is the
 foundation for event sourcing, for rebuilding a stream processor's state after a
 crash, and for the windowed computation taken up in **06 · Stream Processing**. Both
 Kafka (run by Strimzi in our cluster) and Pulsar give you this durable, replayable,
-partitioned log — not a queue you drain.
+partitioned log, not a queue you drain.
 
-### Apache Pulsar — serving split from storage
+### Apache Pulsar: serving split from storage
 
 Pulsar reaches the same durable-log outcome with a two-layer architecture. A tier of
-**stateless brokers** handles serving — connections, routing, subscriptions — while a
+**stateless brokers** handles serving: connections, routing, subscriptions, while a
 separate **Apache BookKeeper** cluster (the "bookies") owns durable storage, writing
 the log as **segments** rather than fixed partitions. Because brokers hold no data they
 fail over in seconds (another broker just adopts the topic), and because storage is its
@@ -419,24 +419,24 @@ keep them.
 
 {% include excalidraw.html
    file="05-pulsar-architecture"
-   alt="Producers publish to a layer of stateless Pulsar brokers, which write segments to an Apache BookKeeper cluster of bookies; BookKeeper offloads cold segments to tiered object storage. Consumers read from the brokers using subscription modes — exclusive, shared, failover, or key_shared. A note: serving and storage scale independently, stateless brokers fail over fast, and a tenant-to-namespace hierarchy gives native multi-tenancy and geo-replication."
-   caption="Figure 5.7 — Pulsar architecture: stateless brokers over BookKeeper storage, with tiered offload" %}
+   alt="Producers publish to a layer of stateless Pulsar brokers, which write segments to an Apache BookKeeper cluster of bookies; BookKeeper offloads cold segments to tiered object storage. Consumers read from the brokers using subscription modes: exclusive, shared, failover, or key_shared. A note: serving and storage scale independently, stateless brokers fail over fast, and a tenant-to-namespace hierarchy gives native multi-tenancy and geo-replication."
+   caption="Figure 5.7: Pulsar architecture: stateless brokers over BookKeeper storage, with tiered offload" %}
 
 The advantages are exactly that split made useful. Serving and storage **scale
 independently**, so a spike in consumers doesn't force you to grow storage.
-**Multi-tenancy is first-class** — a tenant → namespace → topic hierarchy with
-per-tenant isolation and quotas — and **geo-replication** is built in. And one
+**Multi-tenancy is first-class**, a tenant → namespace → topic hierarchy with
+per-tenant isolation and quotas, and **geo-replication** is built in. And one
 substrate covers both jobs: its **subscription modes** (exclusive, shared, failover,
 key-shared) yield a competing-consumer *queue* and a streaming *log* from the same
-topic. The price is operational surface — brokers plus BookKeeper plus a metadata
-store — which pays off only when you need those properties.
+topic. The price is operational surface (brokers plus BookKeeper plus a metadata
+store), which pays off only when you need those properties.
 
-### AMQP / RabbitMQ — routing through exchanges
+### AMQP / RabbitMQ: routing through exchanges
 
 AMQP brokers are built around **routing**, not retention. A producer publishes to an
 **exchange**, never straight to a queue; the exchange type (direct, topic, fanout,
 headers) plus **bindings** decide which **queues** get a copy. Consumers pull from a
-queue, **acknowledge** each message, and an acked message is **removed** — the broker's
+queue, **acknowledge** each message, and an acked message is **removed**: the broker's
 job is to hand each message to a willing worker, not to keep history. Rejected or
 expired messages flow to a **dead-letter** queue, and queues carry priorities, TTLs,
 and overflow policies.
@@ -444,11 +444,11 @@ and overflow policies.
 {% include excalidraw.html
    file="05-amqp-architecture"
    alt="A producer publishes with a routing key to an exchange (direct, topic, or fanout). Bindings route copies to a queue: orders bound by key and a queue: audit bound by pattern; each queue delivers to competing consumers that acknowledge, after which the message is removed. A dead-letter queue receives nacked, expired, or overflowed messages. A note: routing lives in the exchange and an acked message is removed with no replay, which is why AMQP excels at work distribution, RPC, and rich routing."
-   caption="Figure 5.8 — AMQP architecture: an exchange routes through bindings to queues that competing consumers drain" %}
+   caption="Figure 5.8: AMQP architecture: an exchange routes through bindings to queues that competing consumers drain" %}
 
-Its strengths are the mirror image of a log's. Routing is **rich and dynamic** — fan a
+Its strengths are the mirror image of a log's. Routing is **rich and dynamic**: fan a
 message to many queues, or route by key or pattern, without the producer knowing its
-consumers — and per-message **ack / nack / requeue** makes it excellent for **work
+consumers, and per-message **ack / nack / requeue** makes it excellent for **work
 distribution and request/reply**, where each task goes to exactly one worker and is
 retried on failure. The trade-offs are the flip side: there is **no replay** (a
 consumed message is gone unless you kept a copy), and throughput **degrades as queues
@@ -457,29 +457,29 @@ designed to shed. Reach for it when the job is a task queue with complex
 routing, not an event log you rewind.
 
 For an event backbone the system treats as its memory, the log model is the one that
-wins — which is the idea this chapter builds on.
+wins, which is the idea this chapter builds on.
 
 ## Building event-driven microservices: consume, process, produce
 
 An event-driven microservice is small and shaped the same way every time: it
 **consumes** from one or more input streams, **processes** each event (often against
 some local state), and **produces** to output streams. The broker is the data plane
-between services — there are no direct service-to-service calls on the hot path — and
+between services; there are no direct service-to-service calls on the hot path, and
 each service owns its own state rather than reaching into anyone else's.
 
 {% include excalidraw.html
    file="05-edm-anatomy"
-   alt="An input stream, order.placed, feeds an event-driven microservice drawn as three steps in a row — consume (poll and deserialize), process (map or aggregate), produce (serialize and send) — which emits to an output stream, order.validated. A dashed state store hangs off the process step, marked stateful only, with a read/write arrow. A note: consume to process to produce; the broker is the data plane and the service owns its state."
-   caption="Figure 5.9 — The event-driven microservice: consume, process, produce, with state only when the work needs it" %}
+   alt="An input stream, order.placed, feeds an event-driven microservice drawn as three steps in a row, consume (poll and deserialize), process (map or aggregate), produce (serialize and send), which emits to an output stream, order.validated. A dashed state store hangs off the process step, marked stateful only, with a read/write arrow. A note: consume to process to produce; the broker is the data plane and the service owns its state."
+   caption="Figure 5.9: The event-driven microservice: consume, process, produce, with state only when the work needs it" %}
 
-Processing comes in two flavours. **Stateless** processing — a map, a filter, an
-enrichment — needs no memory of past events: each event is handled on its own, which
-makes the service trivial to scale and to restart. **Stateful** processing —
-aggregations, joins, running totals, deduplication — needs a **state store** the
+Processing comes in two flavours. **Stateless** processing (a map, a filter, an
+enrichment) needs no memory of past events: each event is handled on its own, which
+makes the service trivial to scale and to restart. **Stateful** processing
+(aggregations, joins, running totals, deduplication) needs a **state store** the
 service maintains and can rebuild from the log, a richer topic with its own
 correctness rules. Most services are mostly stateless with a few stateful steps.
 
-The core loop — consume, transform, re-emit — is the same in every stack. Here a
+The core loop (consume, transform, re-emit) is the same in every stack. Here a
 validator consumes `order.placed`, derives `order.validated`, and produces it, holding
 no state:
 
@@ -545,13 +545,13 @@ fetches.EachRecord(func(r *kgo.Record) {
 ```
 
 Keep the produce idempotent and commit the consumer offset *after* the produce
-succeeds — the commit-after-side-effect rule again — so a crash between producing and
+succeeds, the commit-after-side-effect rule again, so a crash between producing and
 committing replays cleanly instead of dropping the derived event.
 
 ## The sidecar pattern: business logic on one side, the broker on the other
 
-The consume/produce machinery — serialization, schema resolution, offset management,
-retries, tracing — is identical across services and has nothing to do with any one
+The consume/produce machinery (serialization, schema resolution, offset management,
+retries, tracing) is identical across services and has nothing to do with any one
 service's business logic. The **sidecar pattern** factors it out: a small companion
 process in the same pod owns all broker I/O, and the business microservice talks to it
 over a simple local API (here, gRPC on `localhost`). The service links **no broker
@@ -560,14 +560,14 @@ client at all**.
 {% include excalidraw.html
    file="05-sidecar"
    alt="Two pods, service A in Go and service B in Python. In each, a business-logic component with no broker client talks over local gRPC to a sidecar that handles broker I/O. Both sidecars connect to a single Kafka cluster (topics, offsets, schema) to consume and produce. A note: the sidecar owns serde, schema, offsets, retries, and tracing, so business logic stays pure and polyglot."
-   caption="Figure 5.10 — The sidecar pattern: a companion process owns broker I/O so the service stays pure and language-agnostic" %}
+   caption="Figure 5.10: The sidecar pattern: a companion process owns broker I/O so the service stays pure and language-agnostic" %}
 
-Three things fall out of that split. **Polyglot** — the business service can be in any
+Three things fall out of that split. **Polyglot**: the business service can be in any
 language, because the sidecar speaks the broker and the service only speaks a local
 gRPC contract (which is why this book's six languages integrate identically).
-**Cross-cutting concerns are centralized** — schema, serde, retry, dead-lettering, and
+**Cross-cutting concerns are centralized**: schema, serde, retry, dead-lettering, and
 tracing live in one audited place instead of being re-implemented per service. And
-**business logic stays pure** — testable with no broker, since publishing is just a
+**business logic stays pure**: testable with no broker, since publishing is just a
 local call. The cost is a second process per pod and one extra local hop, usually a
 fair price for the decoupling. Publishing through the sidecar carries no Kafka types in
 the service:
@@ -643,11 +643,11 @@ specifics.
 ## Eventification: turning data into streams
 
 An event-driven system runs on streams, but most of an organization's data starts life
-trapped inside the database of the service that owns it — data on the *inside*, useless
+trapped inside the database of the service that owns it: data on the *inside*, useless
 to anyone else. **Data liberation** is the practice of getting that data out as an event
 stream the rest of the system can build on. The cleanest mechanism is **change data
 capture (CDC)**: a connector like Debezium tails the database's commit log and emits an
-event for every row change — the same log-tailing the Data chapter's outbox relies on.
+event for every row change, the same log-tailing the Data chapter's outbox relies on.
 When you own the writer, the **outbox** is the alternative: write the event in the same
 transaction as the state change, then relay it. Either way you have **eventified** a
 table into a stream.
@@ -655,32 +655,32 @@ table into a stream.
 {% include excalidraw.html
    file="05-eventification"
    alt="A source database with an orders table feeds a CDC connector (Debezium) that tails the commit log and turns each row change into an event on the topic order.changed, which consumers read to build their own views. Notes: table-to-stream (eventify) and stream-to-table (materialize) are two views of the same data with the log as the bridge; the outbox, writing the event in the same transaction, is the alternative when you own the writer."
-   caption="Figure 5.11 — Eventification: change data capture liberates a table into an event stream" %}
+   caption="Figure 5.11: Eventification: change data capture liberates a table into an event stream" %}
 
 The idea underneath is the **table–stream duality**. A stream of changes folded forward
-gives you a table — its current state — and a table's change history *is* a stream. They
+gives you a table, its current state, and a table's change history *is* a stream. They
 are two views of the same data, and the log is the bridge between them. That duality is
 what the next pattern depends on.
 
 ## Event-carried state transfer and local views
 
-Once data is liberated, events come in two styles. An **event notification** is thin —
-"order A-1001 was placed" — and tells a consumer only that something happened; to act on
+Once data is liberated, events come in two styles. An **event notification** is thin:
+"order A-1001 was placed", and tells a consumer only that something happened; to act on
 it, the consumer must **call back** to the source for the details, which
 re-introduces the synchronous coupling events were meant to remove. **Event-carried
-state transfer (ECST)** instead puts enough state *in the event* — the order's customer,
-total, and status — so the consumer needs no call-back at all.
+state transfer (ECST)** instead puts enough state *in the event* (the order's customer,
+total, and status) so the consumer needs no call-back at all.
 
 {% include excalidraw.html
    file="05-ecst-vs-notification"
-   alt="Two rows. Event notification: a source service sends a thin OrderPlaced with just an id to a consumer, which must make a synchronous GET /orders/{id} call back to the source API to get the details. Event-carried state transfer: the source service sends a fat OrderPlaced carrying the full state, and the consumer folds it into a local view via upsert, with no call-back. A note: carry enough state and the consumer never calls back — reads go local and the source decouples."
-   caption="Figure 5.12 — Event notification forces a call-back; event-carried state transfer lets the consumer keep a local view" %}
+   alt="Two rows. Event notification: a source service sends a thin OrderPlaced with just an id to a consumer, which must make a synchronous GET /orders/{id} call back to the source API to get the details. Event-carried state transfer: the source service sends a fat OrderPlaced carrying the full state, and the consumer folds it into a local view via upsert, with no call-back. A note: carry enough state and the consumer never calls back, reads go local and the source decouples."
+   caption="Figure 5.12: Event notification forces a call-back; event-carried state transfer lets the consumer keep a local view" %}
 
 With ECST the consumer **folds** events into its own **local, denormalized materialized
-view** — a read model shaped exactly for its queries, kept current by the stream and
+view**: a read model shaped exactly for its queries, kept current by the stream and
 rebuildable by replay. Reads become local and fast, and a momentary outage of the source
 no longer stalls the consumer. The cost is **denormalization**: the same facts now live
-in several services' views, kept eventually consistent by the stream — the
+in several services' views, kept eventually consistent by the stream: the
 trade an event-driven system makes, spending storage and duplication to buy decoupling
 and autonomy. The consumer side is a fold into an upsert; the event alone is enough to
 build the row:
@@ -740,24 +740,24 @@ fetches.EachRecord(func(r *kgo.Record) {
 
 ## Stateful microservices: the state store and its changelog
 
-Stateless processing handles each event alone; **stateful** processing — running totals,
-counts, joins, deduplication — has to remember things between events. The cloud-native
+Stateless processing handles each event alone; **stateful** processing (running totals,
+counts, joins, deduplication) has to remember things between events. The cloud-native
 way to remember is a **local state store**: an embedded key-value store, co-located with
 the partition the instance owns, that the processor reads and writes on the hot path.
-There is no network round-trip to a shared database, so it is fast — but it is *local*,
+There is no network round-trip to a shared database, so it is fast, but it is *local*,
 so it has to survive the instance dying.
 
 That is what the **changelog** is for. Every write to the state store is also appended to
 a **compacted changelog topic** in the broker, which makes the store durable and
 **rebuildable**: when an instance crashes or a rebalance moves its partition
 to another instance, the new owner replays the changelog to restore the store before it
-resumes. State lives locally for speed and in the log for safety — the table–stream
+resumes. State lives locally for speed and in the log for safety: the table–stream
 duality doing real work.
 
 {% include excalidraw.html
    file="05-state-store-changelog"
    alt="An order.placed topic feeds a stateful instance whose process step reads and writes a local state store called customer-totals. Every write is mirrored to a compacted, durable changelog topic. When a rebalance creates a new instance, it restores the store by replaying the changelog. A note: every write also goes to the changelog, so on failure or rebalance you replay it to rebuild the store and state is never lost."
-   caption="Figure 5.13 — A stateful instance keeps a local state store and mirrors every write to a compacted changelog it can replay to recover" %}
+   caption="Figure 5.13: A stateful instance keeps a local state store and mirrors every write to a compacted changelog it can replay to recover" %}
 
 Maintaining a per-customer running total looks different in each ecosystem, because the
 embedded-store-plus-changelog machinery is exactly what the JVM stream-processing
@@ -837,7 +837,7 @@ func aggregate(ctx goka.Context, msg any) {
 On the ecosystem side, Kafka Streams (Spring, Quarkus), its .NET port Streamiz, and
 Python's faust-streaming give you the state store and its changelog as first-class `KTable` / `Table`
 abstractions; Go's **goka** does the same with a group table; and in C++, with no such
-framework, you keep the store and mirror writes to a compacted topic by hand — more code,
+framework, you keep the store and mirror writes to a compacted topic by hand: more code,
 the identical pattern.
 
 ## State that doesn't depend on event order
@@ -847,24 +847,24 @@ rebalance can redeliver. So a stateful handler has to stay correct when events a
 **out of order or more than once**. The discipline is to make state updates independent
 of arrival order:
 
-- **Version or timestamp the events** and apply **last-writer-wins** — keep an update only
+- **Version or timestamp the events** and apply **last-writer-wins**: keep an update only
   if its version is newer than what you hold, so a late `v1` can't clobber a `v2` already
   applied.
-- Prefer **commutative** updates — adding to a counter, unioning a set — where order
+- Prefer **commutative** updates (adding to a counter, unioning a set) where order
   doesn't matter.
 - Make every handler **idempotent**, so a duplicate is a no-op (dedupe by event id, or
   fold into an upsert).
 
-For stateful **joins**, the two sides must be **co-partitioned** — same key, same
-partition count — so matching keys land on the same instance and its state store can see
+For stateful **joins**, the two sides must be **co-partitioned** (same key, same
+partition count) so matching keys land on the same instance and its state store can see
 both sides at once.
 
 {% include excalidraw.html
    file="05-order-independent-state"
-   alt="Three status events arrive out of order — v2 PACKED first, v1 PAID second, v3 SHIPPED third. A handler that keeps the highest version (last-writer-wins) feeds a state that converges to v3 SHIPPED, correct in any order. A note: version-keyed or commutative updates plus idempotency on duplicates make state correct regardless of arrival order."
-   caption="Figure 5.14 — Last-writer-wins by version makes state converge correctly no matter the arrival order" %}
+   alt="Three status events arrive out of order: v2 PACKED first, v1 PAID second, v3 SHIPPED third. A handler that keeps the highest version (last-writer-wins) feeds a state that converges to v3 SHIPPED, correct in any order. A note: version-keyed or commutative updates plus idempotency on duplicates make state correct regardless of arrival order."
+   caption="Figure 5.14: Last-writer-wins by version makes state converge correctly no matter the arrival order" %}
 
-The same guarded upsert handles both out-of-order and duplicate status events — apply one
+The same guarded upsert handles both out-of-order and duplicate status events, apply one
 only if its version beats what is already stored:
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
@@ -926,10 +926,10 @@ if !ok || e.Version > cur.Version {                    // highest version wins
 
 A stream processor sees two clocks. **Processing time** is when the consumer happens to
 handle an event; **event time** is when the thing happened, carried *in* the
-event. They drift apart — an event can be produced at 10:00, sit in a partition, and be
-processed at 10:05 — and they drift by different amounts after a backlog or a replay. The
+event. They drift apart: an event can be produced at 10:00, sit in a partition, and be
+processed at 10:05, and they drift by different amounts after a backlog or a replay. The
 rule that keeps results stable is to compute on **event time, never the wall clock**. Do
-that and reprocessing the same input — after a bug fix, or to rebuild a consumer — is
+that and reprocessing the same input (after a bug fix, or to rebuild a consumer) is
 **deterministic**: it yields the same output it did the first time. Anchor a computation
 to processing time and a replay tomorrow produces different windows than it did today.
 
@@ -937,16 +937,16 @@ Event time forces a decision about **late and out-of-order events**, since the n
 delivers neither in order nor on time. A **watermark** is the processor's running
 estimate that "event time has reached T; expect nothing older." It lets time-based
 computation know when it is safe to act: windows up to T can close, and an event older
-than T that shows up afterwards is **late** — held within a grace period, or routed to a
+than T that shows up afterwards is **late**: held within a grace period, or routed to a
 side output rather than silently corrupting a closed result.
 
 {% include excalidraw.html
    file="05-event-time-watermark"
    alt="Events arrive in processing-time order with event-times 12, then 10 (out of order), then 9 (late). A handler orders them by event time with a watermark at T equals 11. Windows up to 11 close into a deterministic result; the event with event-time 9, which is older than T, is late and goes to a side output. A note: key computation off event time, not the wall clock, so replaying the log yields the same answer."
-   caption="Figure 5.15 — Event time plus a watermark: close windows by event time and handle late events explicitly" %}
+   caption="Figure 5.15: Event time plus a watermark: close windows by event time and handle late events explicitly" %}
 
-The deep mechanics of windows and watermarks — tumbling, sliding, and session windows,
-and how a stateful engine like Flink advances them — are the subject of **06 · Stream
+The deep mechanics of windows and watermarks (tumbling, sliding, and session windows,
+and how a stateful engine like Flink advances them) are the subject of **06 · Stream
 Processing**; here the point is the discipline that makes an event-driven system
 replayable: deterministic, event-time computation.
 
@@ -961,8 +961,8 @@ skipped and none is double-counted.
 
 {% include excalidraw.html
    file="05-checkpoint-recovery"
-   alt="A processor consumes from an input log, holding local state and an offset, and periodically snapshots state and offset together to a checkpoint store. On a crash, recovery restores from the checkpoint, seeks the input to the saved offset, and resumes the processor by replaying forward. A note: snapshot state and input offset together so on failure you restore and replay from there — and rewind to reprocess and rebuild."
-   caption="Figure 5.16 — A checkpoint snapshots state and offset as a unit, so recovery restores both and replays the gap" %}
+   alt="A processor consumes from an input log, holding local state and an offset, and periodically snapshots state and offset together to a checkpoint store. On a crash, recovery restores from the checkpoint, seeks the input to the saved offset, and resumes the processor by replaying forward. A note: snapshot state and input offset together so on failure you restore and replay from there, and rewind to reprocess and rebuild."
+   caption="Figure 5.16: A checkpoint snapshots state and offset as a unit, so recovery restores both and replays the gap" %}
 
 The last piece is making the *output* survive recovery too. Replaying after a crash
 re-emits events, so either every downstream consumer is idempotent (the last-writer-wins
@@ -1027,8 +1027,8 @@ cl.EndTransaction(ctx, kgo.TryCommit)                          // commit output 
 ```
 
 Reprocessing is the same machinery, triggered by choice rather than by a crash. Because the log retains history and
-the processor keys off event time, you can **rewind the offsets** — to a checkpoint, or
-all the way to zero — and reprocess: to fix a bug in the logic, to rebuild a consumer's
+the processor keys off event time, you can **rewind the offsets** (to a checkpoint, or
+all the way to zero) and reprocess: to fix a bug in the logic, to rebuild a consumer's
 state from scratch, or to populate a brand-new view. Replay is not only a recovery path;
 it is how an event-driven system evolves without migrations.
 
@@ -1040,43 +1040,43 @@ them.
 
 **Choreography** has no coordinator. Each service reacts to an event and emits its own:
 `OrderPlaced` makes payment charge and emit `PaymentTaken`, which makes inventory reserve
-and emit `StockReserved`, on down the line. It is maximally decoupled — services know only
-the events, not each other — and it scales naturally. The cost is that the end-to-end flow
+and emit `StockReserved`, on down the line. It is maximally decoupled: services know only
+the events, not each other, and it scales naturally. The cost is that the end-to-end flow
 is **emergent**: no single place describes the whole process, so understanding or changing
 it means tracing events across services.
 
 **Orchestration** adds a coordinator that owns the workflow explicitly. The orchestrator
 issues **commands** ("charge this order"), waits for replies, and decides the next step.
-The flow is now legible and centrally monitored — one component knows the whole story — but
+The flow is now legible and centrally monitored: one component knows the whole story, but
 the orchestrator is a **coupling point** and one more thing to keep available.
 
 {% include excalidraw.html
    file="05-choreography-orchestration"
-   alt="Top: choreography — order-service emits OrderPlaced to payment-service, which emits PaymentTaken to inventory-service, which emits StockReserved to shipping-service, a reacting chain with no coordinator. Bottom: orchestration — a central orchestrator that drives the workflow exchanges command and reply messages with payment, inventory, and shipping services. A note: choreography's flow is emergent and decoupled; orchestration's flow is explicit but the coordinator is a coupling point."
-   caption="Figure 5.17 — Choreography reacts to events with no coordinator; orchestration centralizes the flow in one" %}
+   alt="Top: choreography, order-service emits OrderPlaced to payment-service, which emits PaymentTaken to inventory-service, which emits StockReserved to shipping-service, a reacting chain with no coordinator. Bottom: orchestration, a central orchestrator that drives the workflow exchanges command and reply messages with payment, inventory, and shipping services. A note: choreography's flow is emergent and decoupled; orchestration's flow is explicit but the coordinator is a coupling point."
+   caption="Figure 5.17: Choreography reacts to events with no coordinator; orchestration centralizes the flow in one" %}
 
 Neither is universally right. Choreography suits simple, stable flows where decoupling
 matters most; orchestration pays off when a process is complex, needs visibility, or
-changes often. Many systems mix them — choreography between bounded contexts, orchestration
+changes often. Many systems mix them: choreography between bounded contexts, orchestration
 within one.
 
 ## The saga: a transaction across services
 
 The hard part of any multi-service flow is failure: payment succeeds, then shipping can't
-be booked — and there is no distributed lock to roll the whole thing back, because each
+be booked, and there is no distributed lock to roll the whole thing back, because each
 service owns its own data. A **saga** is the event-driven answer. It models the process as
 a sequence of **local transactions**, each in one service, each emitting an event that
-triggers the next. If a step fails, the saga runs **compensating actions** — semantic undos
-like "refund the payment" and "release the stock" — in reverse, returning the system to a
+triggers the next. If a step fails, the saga runs **compensating actions** (semantic undos
+like "refund the payment" and "release the stock") in reverse, returning the system to a
 consistent state without ever holding a lock across services.
 
 {% include excalidraw.html
    file="05-saga-compensation"
-   alt="A saga runs T1 charge payment, then T2 reserve stock, then T3 book shipping, which fails. The failure triggers compensation in reverse: C2 release stock, then C1 refund payment. A note: each step is a local transaction; on a failure, run compensating actions in reverse — atomicity without a distributed lock, with the full treatment in Appendix D."
-   caption="Figure 5.18 — A saga: local transactions forward, compensating actions in reverse when a step fails" %}
+   alt="A saga runs T1 charge payment, then T2 reserve stock, then T3 book shipping, which fails. The failure triggers compensation in reverse: C2 release stock, then C1 refund payment. A note: each step is a local transaction; on a failure, run compensating actions in reverse: atomicity without a distributed lock, with the full treatment in Appendix D."
+   caption="Figure 5.18: A saga: local transactions forward, compensating actions in reverse when a step fails" %}
 
 A saga can be driven either way. A **choreographed saga** advances on events and triggers
-compensations the same way — fully decentralized. An **orchestrated saga** lets the
+compensations the same way: fully decentralized. An **orchestrated saga** lets the
 orchestrator drive both the forward steps and the compensations, which is easier to reason
 about when there are many steps. A choreographed step is just a consume-act-emit handler
 that emits "advance" on success and "compensate" on failure:
@@ -1155,8 +1155,8 @@ if err := payments.Charge(o.ID, o.Total); err != nil {            // local trans
 
 Sagas trade atomicity for availability: the system is **eventually** consistent, briefly
 passing through states where payment is taken but stock isn't yet reserved, which the
-compensations resolve. The full mechanics — idempotent compensations, the semantic-lock and
-pivot-transaction patterns, and what to do when a step can't be compensated — are the
+compensations resolve. The full mechanics (idempotent compensations, the semantic-lock and
+pivot-transaction patterns, and what to do when a step can't be compensated) are the
 subject of **Appendix D**.
 
 ## Integrating event-driven architecture into existing systems
@@ -1169,18 +1169,18 @@ keeps serving everything else, and continue until the new side has grown around 
 the old can be retired.
 
 Two primitives make that incremental migration safe. **Change data capture** liberates the
-legacy system's data into the event backbone — the same data-liberation pattern from
-earlier — so a new service can build its own view from legacy state without calling into the
+legacy system's data into the event backbone (the same data-liberation pattern from
+earlier) so a new service can build its own view from legacy state without calling into the
 monolith. And the **outbox** solves the **dual-write** problem at the seam: writing the
 business state to the database and publishing an event are two separate systems, and a crash
-between them leaves the two inconsistent. The outbox makes them one — write the event into an
+between them leaves the two inconsistent. The outbox makes them one: write the event into an
 `outbox` table *in the same database transaction* as the state change, and let a relay (or
 CDC on that table) publish it. One commit, no lost or phantom events:
 
 {% include excalidraw.html
    file="05-strangler-integration"
    alt="An edge router splits traffic: legacy paths go to the legacy monolith plus its database, and migrated paths go to new EDA services that grow over time. The legacy monolith's state is liberated to the event backbone (Kafka) via CDC plus the outbox, and the new services consume from the backbone. A note: the strangler migrates capability by capability behind the router, while CDC and the outbox feed the new side with no dual-write or big-bang cutover."
-   caption="Figure 5.19 — Strangling a monolith: route by capability, liberate state with CDC and the outbox, grow the new side" %}
+   caption="Figure 5.19: Strangling a monolith: route by capability, liberate state with CDC and the outbox, grow the new side" %}
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
@@ -1266,10 +1266,10 @@ truth. That window is not a bug to hide; it is a property to design for.
 {% include excalidraw.html
    file="05-consistency-window"
    alt="A client writes to the source of truth, which commits and emits an event; the event is applied to a read model or view after a delay of delta-t. A read of the view during that delta-t window may be stale. A note: read-your-writes means routing a writer's own reads to the source, or waiting until the read model reaches the write's version."
-   caption="Figure 5.20 — The consistency window: a read model lags the source by Δt, which read-your-writes hides for the writer" %}
+   caption="Figure 5.20: The consistency window: a read model lags the source by Δt, which read-your-writes hides for the writer" %}
 
-Decide where strong consistency is required — usually a
-small core, like the payment charge itself — and let everything else converge, with a few
+Decide where strong consistency is required (usually a
+small core, like the payment charge itself) and let everything else converge, with a few
 standard tactics to keep it humane:
 
 | Tactic | What it does |
@@ -1286,7 +1286,7 @@ history. Spend that trade where it pays, and avoid it in the few places it doesn
 
 ### Cross-check it yourself
 
-Produce one `order.placed` and watch two independent consumer groups receive it —
+Produce one `order.placed` and watch two independent consumer groups receive it:
 the fan-out is real, not round-robin. Then stop a consumer mid-handler (before it
 commits), restart it, and confirm the message is **redelivered**, not lost: that
 redelivery is the at-least-once guarantee, and the reason your handler dedupes.
@@ -1297,5 +1297,5 @@ it; its `README.md` covers what it does and how to drive it. The same example, w
 the Strimzi operator, also runs on a Kubernetes cluster; Appendix R covers that deployment on minikube and Appendix S covers OpenShift Local.
 
 ---
-*Verification status: verified — [`examples/05-event-driven/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-13) and on minikube (2026-10-11, Appendix R), and 10/10 in five languages on OpenShift Local 4.22.14 (2026-10-11, Appendix S)
+*Verification status: verified; [`examples/05-event-driven/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-13) and on minikube (2026-10-11, Appendix R), and 10/10 in five languages on OpenShift Local 4.22.14 (2026-10-11, Appendix S)
 (event publication to order.placed, fan-out to two independent consumer groups (shipping and notification), and idempotent consumers under a redelivered duplicate event).*

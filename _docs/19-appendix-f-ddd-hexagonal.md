@@ -4,7 +4,7 @@ marker: "F"
 label: "Appendix F"
 order: 19
 part: "Deep-dive appendices"
-description: "Where service boundaries and API contracts come from — strategic DDD to place the lines, tactical DDD to model inside them, and hexagonal architecture to keep REST, gRPC, GraphQL and Kafka out of the domain."
+description: "Where service boundaries and API contracts come from: strategic DDD to place the lines, tactical DDD to model inside them, and hexagonal architecture to keep REST, gRPC, GraphQL and Kafka out of the domain."
 duration: 22 minutes
 ---
 
@@ -20,23 +20,23 @@ polish rescues the result.
 ## Boundaries are an API question
 
 An API is the contract between two **bounded contexts**, which means the hardest API
-questions — where to split a system, what a contract should contain, what stays
-private — are boundary questions wearing API clothing, and DDD is the discipline for
+questions (where to split a system, what a contract should contain, what stays
+private) are boundary questions wearing API clothing, and DDD is the discipline for
 boundaries. It splits cleanly in two. **Strategic DDD** decides *where the lines go*:
 subdomains (core, supporting, generic) and the bounded contexts that realise them,
 each with its own model and its own ubiquitous language. **Tactical DDD** models
 *what lives inside a line*: aggregates as consistency boundaries, plus entities, value
-objects, and domain events — the things that become your API resources and your Kafka
+objects, and domain events: the things that become your API resources and your Kafka
 payloads. Hexagonal architecture then keeps the protocols from leaking into the
 business logic. The single idea worth carrying out of this appendix: boundaries
 dominate outcomes far more than protocol polish does.
 
-## Strategic DDD — placing the boundaries
+## Strategic DDD: placing the boundaries
 
 Classify the business by **value and rate of change**. A *core* subdomain is the
-competitive edge — complex, volatile, where the strongest people belong. A
+competitive edge: complex, volatile, where the strongest people belong. A
 *supporting* subdomain is necessary but not differentiating, so keep its design simple. A
-*generic* subdomain is a solved problem you adopt or buy rather than invent — auth,
+*generic* subdomain is a solved problem you adopt or buy rather than invent: auth,
 notifications. In the running system, order and pricing are core; inventory and
 shipping are supporting; auth and notification are generic. The classification is not
 academic: it tells you where to spend design effort and, later in this book's coupling
@@ -45,11 +45,11 @@ discussion, it predicts which parts change most.
 Each subdomain becomes one or more **bounded contexts**, and a bounded context *is*
 the natural unit for a service and its API: the scope within which one model and one
 ubiquitous language stay consistent. The clarifying example is a single word that
-refuses to mean one thing — an "order" in fulfillment (a pick-and-pack job) is not an
+refuses to mean one thing: an "order" in fulfillment (a pick-and-pack job) is not an
 "order" in billing (a set of charge lines). Forcing one shared canonical model across
 the whole company is how you get a schema nobody can change; instead each context
 exposes *its* model through an API and translates at the edge. The context's published
-API is its only public surface — schema, storage, and internal types stay private,
+API is its only public surface: schema, storage, and internal types stay private,
 which is the "no leaky internal models" rule from the anti-patterns chapter restated
 in DDD terms. And by Conway's law, a boundary that does not match a team's ownership
 generates constant cross-team coordination, so put the lines where a team can own a
@@ -58,59 +58,59 @@ context end to end.
 {% include excalidraw.html
    file="19-strategic-ddd"
    alt="Strategic DDD classifies the business into three kinds of subdomain by value and rate of change. Core: your competitive edge, complex and volatile, your best people (order and pricing). Supporting: necessary but not a differentiator, kept simple (inventory and shipping). Generic: a solved problem you buy or adopt off the shelf (auth and notification). Each subdomain becomes one or more bounded contexts, a model boundary with its own ubiquitous language, and the API is that boundary: one context's order is not another's, and the contract translates between models rather than sharing internals."
-   caption="Figure F.1 — Subdomains classified by value and volatility; each becomes a bounded context whose API is the boundary" %}
+   caption="Figure F.1: Subdomains classified by value and volatility; each becomes a bounded context whose API is the boundary" %}
 
-## Context mapping — how contexts integrate
+## Context mapping: how contexts integrate
 
 Context mapping catalogues the ways two contexts relate, and three of those patterns
 are the ones an API implements:
 
 - An **Open-Host Service** is a context that, because many others integrate with it,
-  publishes a stable, documented API as its public protocol — that is your REST,
+  publishes a stable, documented API as its public protocol: that is your REST,
   gRPC, or GraphQL surface.
-- A **Published Language** is the shared, versioned schema that API speaks — OpenAPI,
-  `.proto`, Avro — which is exactly what lives in the schema registry from the API
+- A **Published Language** is the shared, versioned schema that API speaks (OpenAPI,
+  `.proto`, Avro), which is exactly what lives in the schema registry from the API
   Registry chapter.
 - An **Anticorruption Layer** is the translation you build when *consuming* another
   context, so their concepts never leak into your domain.
 
-The ACL has a cheap opposite worth naming: **Conformist**, where you accept the
+The ACL has a cheap opposite: **Conformist**, where you accept the
 upstream model wholesale and inherit its every change. That is the right call when the
-upstream is clean and stable, and the wrong one when it is messy or volatile — there,
+upstream is clean and stable, and the wrong one when it is messy or volatile. There,
 an ACL localises the blast radius of their changes to a single translation layer. The
 remaining map entries are trade-offs you choose rarely: a Shared Kernel means two
 contexts share a model and therefore change in lockstep (high coupling, use sparingly);
 a Partnership means they co-evolve in coordination; Separate Ways means do not integrate
 at all. The payoff of this section is recognition: the registry-backed contract you
 already have is a Published Language, and the gateway or consumer-edge translation you
-already do is an Anticorruption Layer — now they have names and a theory behind them.
+already do is an Anticorruption Layer; now they have names and a theory behind them.
 
 {% include excalidraw.html
    file="19-context-mapping"
    alt="The eight context-mapping patterns for how two bounded contexts integrate. The three API-relevant ones are starred: Open-Host Service, publish a stable API for all comers; Published Language, a shared schema in OpenAPI, proto, or Avro; and Anticorruption Layer, translate a foreign model at your edge. The others are Conformist, accept the upstream model as-is; Customer and Supplier, upstream serves a negotiated downstream; Shared Kernel, share a model with high coupling used sparingly; Partnership, two contexts evolve together; and Separate Ways, don't integrate at all."
-   caption="Figure F.2 — The context-mapping patterns; the starred three are the ones an API implements" %}
+   caption="Figure F.2: The context-mapping patterns; the starred three are the ones an API implements" %}
 
-## Hexagonal architecture — protocols are adapters
+## Hexagonal architecture: protocols are adapters
 
 Hexagonal architecture (ports and adapters) is the structural answer to "keep the
 protocols out of the domain," and it is the architectural payoff of the whole
 protocols discussion. The **domain core** sits in the middle holding entities,
-aggregates, and domain logic, and it depends on nothing — no framework, no I/O. It
+aggregates, and domain logic, and it depends on nothing: no framework, no I/O. It
 declares **ports**: inbound ports (what it can be asked to do) and outbound ports
-(what it needs from the world). **Driving adapters** — REST, gRPC, GraphQL — translate
-an incoming protocol into a call on an inbound port. **Driven adapters** — a Postgres
-repository, a Kafka publisher — implement the outbound ports. Every dependency arrow
+(what it needs from the world). **Driving adapters** (REST, gRPC, GraphQL) translate
+an incoming protocol into a call on an inbound port. **Driven adapters** (a Postgres
+repository, a Kafka publisher) implement the outbound ports. Every dependency arrow
 points inward: adapters depend on the domain, never the reverse.
 
 {% include excalidraw.html
    file="19-hexagonal-ports"
    alt="A central domain core that depends on nothing, declaring ports. On the left, three driving adapters (REST, gRPC, GraphQL) call inward through an inbound port. On the right, two driven adapters (a Postgres repository and a Kafka publisher) implement outbound ports. All dependency arrows point inward toward the core."
-   caption="Figure F.3 — The domain core is isolated; the four protocols are interchangeable adapters around it" %}
+   caption="Figure F.3: The domain core is isolated; the four protocols are interchangeable adapters around it" %}
 
 The consequence is the one this book cares about: the four protocols are
 *interchangeable adapters*. You can add gRPC alongside REST, or a Kafka consumer, or
 swap Postgres for another store, without touching a line of domain logic. The code
-makes the structure literal — the domain declares plain interfaces for what it needs,
+makes the structure literal: the domain declares plain interfaces for what it needs,
 the application service is pure, and the REST handler is a three-line translation from
 protocol to a domain call.
 
@@ -291,12 +291,12 @@ writeJSON(w, http.StatusCreated, order)
 ```
 
 Read the three blocks the same way in every language. The **ports** are plain
-interfaces the domain declares for what it needs — a repository and an event publisher
-— and the domain imports nothing else. The application service `PlaceOrder` is **pure**:
+interfaces the domain declares for what it needs (a repository and an event publisher),
+and the domain imports nothing else. The application service `PlaceOrder` is **pure**:
 it creates the aggregate (which enforces its own invariants), saves through the
 outbound port, publishes a domain event through the outbound port, and never references
 the web framework, the database driver, or the Kafka client. The **driving adapter** is
-trivial — it turns a request body into a command and calls the use case; a gRPC or
+trivial: it turns a request body into a command and calls the use case; a gRPC or
 GraphQL adapter would be the same handful of lines against the same inbound call. The
 outbound ports are satisfied by **driven adapters** (a Postgres repository, a Kafka
 publisher) injected at startup. That injection is dependency inversion in service of
@@ -306,7 +306,7 @@ the stable thing they all depend on.
 The example proves it with a second driving adapter in every language: a CLI,
 `cli-place-order <sku> <quantity>`, installed on the `PATH` of each order-service image.
 It builds a command, calls the same `PlaceOrder` use case against the same Postgres, and
-prints a `CLI_ORDER_CREATED` line — no HTTP server, and no change to any domain file.
+prints a `CLI_ORDER_CREATED` line, with no HTTP server and no change to any domain file.
 Run it inside the running container with `docker exec cndp-order-service cli-place-order bolt-x 5`;
 the order is then readable through the REST adapter.
 
@@ -314,15 +314,15 @@ the order is then readable through the REST adapter.
 
 Tactical DDD is where the modelling inside a context ties three earlier parts of the
 book together. An **aggregate** is a cluster of objects treated as one consistency
-unit — the boundary inside which invariants hold and a single transaction commits — and
+unit: the boundary inside which invariants hold and a single transaction commits, and
 it usually maps to one API resource. Because it is the transaction boundary, it is also
 the **outbox boundary** from the Data chapter: the state change and the domain event
 commit together, atomically. **Domain events** (`OrderPlaced`) are first-class in DDD,
-and they are precisely the payloads that become Kafka events other contexts react to —
+and they are precisely the payloads that become Kafka events other contexts react to:
 choreography between bounded contexts, as in the Event-Driven chapter. The rule that
 keeps this tractable is to keep aggregates small: one aggregate per transaction,
-reference other aggregates by id rather than nesting them, and let events connect them
-— which is exactly why consistency *across* aggregates needs a saga, the subject of the
+reference other aggregates by id rather than nesting them, and let events connect them.
+That is exactly why consistency *across* aggregates needs a saga, the subject of the
 Saga appendix.
 
 ## How DDD maps to the stack
@@ -343,16 +343,16 @@ treatment is Vlad Khononov's *Learning Domain-Driven Design* (O'Reilly, 2021).
 ### Cross-check it yourself
 
 Test the isolation claim directly, because it is the one that pays the rent. In the
-domain package — `domain/` in Python or C++, the application service and its port
-interfaces in the JVM and .NET versions — grep for framework imports: there should be
+domain package (`domain/` in Python or C++, the application service and its port
+interfaces in the JVM and .NET versions): grep for framework imports: there should be
 no `fastapi`, no `org.springframework.web`, no `Microsoft.AspNetCore`, no
 `drogon`/`grpc`, no database driver. The application service should import only its own
 domain types and the ports it declares. Then prove replaceability by construction: add
 a second driving adapter (a gRPC endpoint, or a Kafka consumer) that calls the *same*
-`PlaceOrder` use case, and confirm the domain files do not change in that diff — only a
+`PlaceOrder` use case, and confirm the domain files do not change in that diff; only a
 new adapter file appears. A clean domain import list plus a no-domain-change diff when
 you bolt on a protocol is hexagonal architecture holding.
 
 ---
-*Verification status: verified — [`examples/19-ddd-hexagonal/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/19-ddd-hexagonal/) passes 17/17 checks in each of the six languages on Docker Engine (2026-10-13)
+*Verification status: verified: [`examples/19-ddd-hexagonal/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/19-ddd-hexagonal/) passes 17/17 checks in each of the six languages on Docker Engine (2026-10-13)
 (source scans proving the domain layer imports no framework or persistence types, REST and CLI adapters driving the same use case, input validation, OrderPlaced event emission).*

@@ -44,7 +44,7 @@ idle, and a drop looks like a broken service. Because the ports are fixed at cre
 {% include excalidraw.html
    file="31-minikube-topology"
    alt="The host runs Docker Engine. Inside the node container cndp-k8s there are two namespaces: strimzi holds the Strimzi operator, and cndp-05 holds order-service, the shipping and notification consumers, a Kafka cluster, Postgres, the LGTM stack and the Postgres Secret. The host reaches order-service on 127.0.0.1:30080 and Grafana on 127.0.0.1:30300, and runs kubectl exec against the Kafka and Postgres pods."
-   caption="Figure R.1 — The node container holds two namespaces; the host reaches two loopback NodePorts and uses kubectl exec for the Kafka and Postgres checks" %}
+   caption="Figure R.1: The node container holds two namespaces; the host reaches two loopback NodePorts and uses kubectl exec for the Kafka and Postgres checks" %}
 
 ## From compose to Kubernetes
 
@@ -175,7 +175,7 @@ Tags are always `v1`; nothing uses `latest`.
 {% include excalidraw.html
    file="31-minikube-image-flow"
    alt="A Containerfile feeds docker build, which uses the host BuildKit cache and produces an image named localhost/cndp-05/language-service:v1 in the Docker image store. minikube image load copies it into containerd in the node container under the same name, and the pod runs it with imagePullPolicy Never."
-   caption="Figure R.2 — Images are built on the host and loaded into the node; pods never pull them" %}
+   caption="Figure R.2: Images are built on the host and loaded into the node; pods never pull them" %}
 
 ## Run it
 
@@ -274,4 +274,4 @@ consumer group resumes from its last committed offset.
 The manifests and scripts are in [`examples/05-event-driven/k8s/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/k8s/).
 
 ---
-*Verification status: verified — [`examples/05-event-driven/k8s/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/k8s/) passes 10/10 checks in each of the six languages on minikube v1.39.0 (Docker driver, containerd, Kubernetes v1.36.5, Strimzi 1.2.0, 2026-10-13, on the code after the S13 and S14 refactors), using the same `verify.sh` as compose with `RUNTIME=kubernetes`. No pod restarted or was OOM-killed under the manifests' memory limits. The consumer scale-down and scale-up in the cross-check was run by hand and is not part of the script.*
+*Verification status: verified: [`examples/05-event-driven/k8s/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/k8s/) passes 10/10 checks in each of the six languages on minikube v1.39.0 (Docker driver, containerd, Kubernetes v1.36.5, Strimzi 1.2.0, 2026-10-13, on the code after the S13 and S14 refactors), using the same `verify.sh` as compose with `RUNTIME=kubernetes`. No pod restarted or was OOM-killed under the manifests' memory limits. The consumer scale-down and scale-up in the cross-check was run by hand and is not part of the script.*

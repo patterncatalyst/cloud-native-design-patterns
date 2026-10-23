@@ -4,14 +4,14 @@ marker: "O"
 label: "Appendix O"
 order: 28
 part: "Deep-dive appendices"
-description: "Turning Postman collections into an automated API test gate with Newman: the anatomy of a collection, writing assertions, running one collection against all six implementations, data-driven tests, schema and contract validation, and wiring it into CI on plain Docker Engine — no new test framework to learn."
+description: "Turning Postman collections into an automated API test gate with Newman: the anatomy of a collection, writing assertions, running one collection against all six implementations, data-driven tests, schema and contract validation, and wiring it into CI on plain Docker Engine: no new test framework to learn."
 duration: 20 minutes
 ---
 
 Postman is already one of the tools this book reaches for to exercise an API by hand. **Newman**
 is its command-line runner: it executes the same Postman collection headlessly, which turns
 the requests your team already pokes at interactively into an automated test gate you can run on
-every change. The payoff is that the assertions live in one place — the collection — and the same
+every change. The payoff is that the assertions live in one place (the collection), and the same
 file serves three audiences: a developer clicking through Postman, a reviewer reading the tests,
 and a CI pipeline failing the build when an assertion breaks.
 
@@ -22,8 +22,8 @@ without the GUI and emits machine-readable results.
 
 {% include excalidraw.html
    file="27-newman-run"
-   alt="A collection.json (requests + tests) and an environment.json (base_url, tokens) feed into 'newman run', the headless CLI, which produces reporters — cli for humans, junit.xml for CI, html to share — feeding a CI gate that passes or fails. The same collection the team runs by hand becomes an automated gate with no new test framework."
-   caption="Figure O.1 — Newman runs a Postman collection headlessly and emits CI-readable results" %}
+   alt="A collection.json (requests + tests) and an environment.json (base_url, tokens) feed into 'newman run', the headless CLI, which produces reporters (cli for humans, junit.xml for CI, html to share), feeding a CI gate that passes or fails. The same collection the team runs by hand becomes an automated gate with no new test framework."
+   caption="Figure O.1: Newman runs a Postman collection headlessly and emits CI-readable results" %}
 
 There is no new test framework to learn: the tests are the JavaScript assertions already
 supported inside Postman, and Newman is the bridge from "works when I click it" to "verified on
@@ -38,7 +38,7 @@ parts that change between runs.
 {% include excalidraw.html
    file="27-collection-anatomy"
    alt="A collection contains folders that group requests by resource; each request has a pre-request script, the HTTP call, and tests; the tests are JavaScript using pm.test and pm.expect to assert status, schema, and response time; environment variables like base_url and token are resolved at run time."
-   caption="Figure O.2 — A collection is folders of requests, each with assertions; the environment supplies the variables" %}
+   caption="Figure O.2: A collection is folders of requests, each with assertions; the environment supplies the variables" %}
 
 The tests are small JavaScript blocks using Postman's `pm` API. A request that creates an order
 might assert the status, the response time, and the shape of the body:
@@ -65,8 +65,8 @@ might assert the status, the response time, and the shape of the body:
 }{% endraw %}
 ```
 
-That last line stores the new id in a variable so a later request — fetch, cancel, or pay for the
-order — can chain off it. Chaining requests through variables is how a collection models a whole
+That last line stores the new id in a variable so a later request (fetch, cancel, or pay for the
+order) can chain off it. Chaining requests through variables is how a collection models a whole
 flow, not just isolated calls.
 
 ## One collection, six backends
@@ -77,8 +77,8 @@ implementation in this book.
 
 {% include excalidraw.html
    file="27-black-box"
-   alt="One collection running under Newman tests the same HTTP API (/orders, /payments) against six order-service implementations — Spring Boot, Quarkus, .NET, Python, C++, and Go. Because Newman tests the API as a black box, one collection validates every implementation; the contract is the spec, not the code."
-   caption="Figure O.3 — One collection is the conformance suite for all six implementations" %}
+   alt="One collection running under Newman tests the same HTTP API (/orders, /payments) against six order-service implementations: Spring Boot, Quarkus, .NET, Python, C++, and Go. Because Newman tests the API as a black box, one collection validates every implementation; the contract is the spec, not the code."
+   caption="Figure O.3: One collection is the conformance suite for all six implementations" %}
 
 The collection *is* the API specification made executable. Point
 it at whichever implementation is running and the assertions are identical. Bringing the service
@@ -149,8 +149,8 @@ This is how you cover boundary values, bad input, and edge cases without duplica
 
 {% include excalidraw.html
    file="27-data-driven"
-   alt="A collection of one request set, combined with an iteration-data.csv of rows (id and qty values including a zero and a large number), runs once per row under newman, producing N result sets — one per case."
-   caption="Figure O.4 — Data-driven runs: one request set, many inputs via --iteration-data" %}
+   alt="A collection of one request set, combined with an iteration-data.csv of rows (id and qty values including a zero and a large number), runs once per row under newman, producing N result sets (one per case)."
+   caption="Figure O.4: Data-driven runs: one request set, many inputs via --iteration-data" %}
 
 ```bash
 {% raw %}newman run orders.postman_collection.json -e local.postman_environment.json \
@@ -167,7 +167,7 @@ becomes a table of positive and negative cases.
 
 ## Contract and schema validation
 
-Beyond status codes, a test can validate the response *shape* against a JSON Schema — which is how
+Beyond status codes, a test can validate the response *shape* against a JSON Schema, which is how
 you turn the metadata and error-format work from earlier appendices into an enforced contract. A
 `Problem Details` error body or an order representation can be checked field by field.
 
@@ -187,19 +187,19 @@ you turn the metadata and error-format work from earlier appendices into an enfo
 ```
 
 Asserting against the schema rather than exact values keeps the test stable as data changes while
-still catching a contract break — a removed field, a wrong type, a renamed property — the moment
+still catching a contract break (a removed field, a wrong type, a renamed property) the moment
 it appears.
 
 ## Newman in CI
 
 The runner exits non-zero when any assertion fails, which is all a pipeline needs to gate a merge.
-The services come up on Docker Engine exactly as they do locally — no managed cloud — and Newman runs
+The services come up on Docker Engine exactly as they do locally (no managed cloud), and Newman runs
 against them.
 
 {% include excalidraw.html
    file="27-ci-gate"
    alt="A pipeline: pull request, build image, docker compose up of the order/payment/inventory services, newman run of the collection, then a gate where pass merges and fail blocks. The services run on Docker Engine in CI as they do locally, and a failed assertion fails the build."
-   caption="Figure O.5 — Newman as a merge gate: bring the stack up on Docker, run the collection, fail the build on a broken contract" %}
+   caption="Figure O.5: Newman as a merge gate: bring the stack up on Docker, run the collection, fail the build on a broken contract" %}
 
 ```yaml
 # .github/workflows/api-tests.yml (any runner that has Docker Engine + Node works)
@@ -227,13 +227,13 @@ boot and fail spuriously.
 
 ## Where Newman fits
 
-Newman is not a replacement for unit tests — it is the layer that sits on top of them. It owns the
+Newman is not a replacement for unit tests: it is the layer that sits on top of them. It owns the
 API/contract tier: real HTTP against a running service, fast enough to run on every pull request.
 
 {% include excalidraw.html
    file="27-test-pyramid"
    alt="A test pyramid: a wide base of unit tests (many, fast, cheap), then service/integration tests, then API/contract tests where Newman runs, then a narrow top of E2E tests (few, slow, brittle). Newman owns the API/contract tier and complements unit tests rather than replacing them."
-   caption="Figure O.6 — Newman owns the API/contract tier — above unit tests, below full end-to-end" %}
+   caption="Figure O.6: Newman owns the API/contract tier (above unit tests, below full end-to-end)" %}
 
 Keep the base of fast unit tests broad, use Newman for the contract and integration behaviour that
 only shows up over real HTTP, and reserve a thin layer of full end-to-end tests for the few
@@ -248,7 +248,7 @@ a `403` when it is present but unauthorised, a `409` or `422` on a business-rule
 `429` carrying `RateLimit` headers when a client exceeds its budget. Confirm idempotency by sending
 the same `Idempotency-Key` twice and asserting the second response matches the first rather than
 creating a duplicate. These tie the testing appendix back to the error-format, security,
-idempotency, and rate-limiting material — a contract is only enforced if its error behaviour is
+idempotency, and rate-limiting material: a contract is only enforced if its error behaviour is
 tested, not just its success behaviour.
 
 ## Take-aways and references
@@ -258,7 +258,7 @@ headlessly so the same assertions guard every change. Because Newman tests over 
 collection is the conformance suite for all six implementations. Validate response *shape* against
 a schema, not just status codes; drive edge cases from data rather than duplicated requests; and
 assert the failure paths as carefully as the happy path. Wire it into CI on plain Docker Engine so the
-build fails on a broken contract, and keep Newman in its lane — the API/contract tier, on top of unit
+build fails on a broken contract, and keep Newman in its lane: the API/contract tier, on top of unit
 tests and under a thin end-to-end layer. The canonical references are the Postman documentation and
 the Newman command-line documentation (install, reporters, and the `--iteration-data` and
 `--bail` flags), and the Postman Learning Center's guides on writing tests with the `pm` API and on
@@ -268,13 +268,13 @@ JSON-schema validation.
 
 Prove the gate end to end against the running stack. Bring the services up with `docker compose up -d --build --wait`,
 then `newman run` the orders collection with `--reporters cli,junit` and confirm a green run and a
-`newman.xml` you could hand to CI. Now break the contract — have the service return
-`200` instead of `201` on create, or drop the `id` field — and confirm Newman exits non-zero and
+`newman.xml` you could hand to CI. Now break the contract (have the service return
+`200` instead of `201` on create, or drop the `id` field) and confirm Newman exits non-zero and
 the failing assertion names the exact expectation. Finally, add a negative row to your
 `--iteration-data` (a zero-quantity order expecting `422`) and confirm it passes against a correct
 service and fails against one that wrongly accepts it. A suite that goes red on a real contract
 break, and only then, is the whole value of this appendix.
 
 ---
-*Verification status: verified — [`examples/28-newman/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/28-newman/) passes 11/11 checks on Docker Engine (2026-10-13)
+*Verification status: verified; [`examples/28-newman/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/28-newman/) passes 11/11 checks on Docker Engine (2026-10-13)
 (a Newman collection run with status-code and state assertions (201, 422, 404, 204, cancel) and JUnit XML export).*

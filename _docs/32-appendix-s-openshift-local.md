@@ -58,7 +58,7 @@ web console login, run `crc console --credentials` yourself.
 {% include excalidraw.html
    file="32-openshift-topology"
    alt="The host runs curl and verify.sh, a browser and oc with the crc-admin context. Inside OpenShift Local there are two namespaces. cndp-amq-streams holds an OLM Subscription with Manual approval and a pinned CSV, and the AMQ Streams operator, which manages the Kafka cluster. cndp-05 holds order-service behind an edge-TLS Route, the shipping and notification consumers, Kafka 4.2.0, Postgres 18 from the sclorg image, the LGTM stack behind a Grafana Route and the Postgres Secret."
-   caption="Figure S.1 — The operator lives in its own namespace and manages Kafka in cndp-05; the host reaches order-service and Grafana through Routes and uses oc exec for the Kafka and Postgres checks" %}
+   caption="Figure S.1: The operator lives in its own namespace and manages Kafka in cndp-05; the host reaches order-service and Grafana through Routes and uses oc exec for the Kafka and Postgres checks" %}
 
 ## Installing an operator with OLM
 
@@ -271,7 +271,7 @@ from a directory the user owns.
 {% include excalidraw.html
    file="32-openshift-image-flow"
    alt="A Containerfile feeds docker build, which uses the host BuildKit cache and produces an image named localhost/cndp-05/language-service:v1 in the Docker image store. skopeo copy reads it from the docker daemon and pushes it over HTTPS to the internal registry, where it becomes an ImageStream tag v1. The pod pulls it with imagePullPolicy Always. The credential is a ten-minute token for the builder service account, held in a shell variable and passed through a pipe."
-   caption="Figure S.2 — skopeo pushes from the Docker image store to the internal registry; the credential never touches a file or an argument list" %}
+   caption="Figure S.2: skopeo pushes from the Docker image store to the internal registry; the credential never touches a file or an argument list" %}
 
 The registry needs a credential, and the design keeps it out of every place a secret leaks to:
 
@@ -489,4 +489,4 @@ on the recorded run; read the ReplicaSet's events if you try it.
 The manifests and scripts are in [`examples/05-event-driven/openshift/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/openshift/).
 
 ---
-*Verification status: verified — [`examples/05-event-driven/openshift/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/openshift/) passes 10/10 checks in each of the five languages on OpenShift Local 4.22.14 (crc 2.64.0, Kubernetes v1.35.6, AMQ Streams `amqstreams.v3.2.1-14`, Kafka 4.2.0, 2026-10-13, on the code after the S13 and S14 refactors), using the same `verify.sh` as compose with `RUNTIME=kubernetes` over HTTPS. Every pod ran under `restricted-v2`, Tempo held a trace with all three services for each language, and teardown left the cluster empty and stopped. The SCC rejection of a fixed root user ID was not exercised.*
+*Verification status: verified: [`examples/05-event-driven/openshift/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/05-event-driven/openshift/) passes 10/10 checks in each of the five languages on OpenShift Local 4.22.14 (crc 2.64.0, Kubernetes v1.35.6, AMQ Streams `amqstreams.v3.2.1-14`, Kafka 4.2.0, 2026-10-13, on the code after the S13 and S14 refactors), using the same `verify.sh` as compose with `RUNTIME=kubernetes` over HTTPS. Every pod ran under `restricted-v2`, Tempo held a trace with all three services for each language, and teardown left the cluster empty and stopped. The SCC rejection of a fixed root user ID was not exercised.*

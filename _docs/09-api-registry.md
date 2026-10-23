@@ -2,7 +2,7 @@
 title: "API Registry"
 order: 9
 part: "The operational platform"
-description: "One authoritative, versioned home for every contract — OpenAPI, .proto, AsyncAPI, and event schemas — with Apicurio's compatibility rules gating breaking changes in CI before code ships."
+description: "One authoritative, versioned home for every contract (OpenAPI, .proto, AsyncAPI, and event schemas) with Apicurio's compatibility rules gating breaking changes in CI before code ships."
 duration: 17 minutes
 ---
 
@@ -15,7 +15,7 @@ ships."
 
 Every contract type lands in the same place: REST OpenAPI specs, GraphQL SDL, gRPC
 `.proto` files, and event schemas (Avro or JSON). In this stack the registry is
-**Apicurio**. Each artifact carries versions and a **compatibility rule** —
+**Apicurio**. Each artifact carries versions and a **compatibility rule**:
 `BACKWARD`, `FORWARD`, or `FULL`. Producers register; consumers fetch and generate
 stubs from the registered version, so no one hand-writes parsing and everyone is
 reading the same source of truth. The Kafka serde libraries do this automatically:
@@ -25,16 +25,16 @@ it.
 {% include excalidraw.html
    file="09-one-registry"
    alt="REST design (OpenAPI), gRPC (.proto), and events (AsyncAPI) all register into one Apicurio Registry that holds OpenAPI, AsyncAPI, proto, Avro, and JSON Schema artifacts with versions and compatibility rules. The registry fans out to three consumers: a CI gate that blocks breaking changes, client codegen for typed stubs, and runtime resolution that serdes by schema-id."
-   caption="Figure 9.1 — One registry for every contract type, feeding the CI gate, code generation, and runtime serde" %}
+   caption="Figure 9.1: One registry for every contract type, feeding the CI gate, code generation, and runtime serde" %}
 
-Read it design-first: every contract type — REST, gRPC, and events alike — is
+Read it design-first: every contract type (REST, gRPC, and events alike) is
 registered *before* code depends on it, and three different consumers read from that
 one home. CI gates breaking changes against it, client builds generate typed stubs
 from it, and at runtime the Kafka serde resolves the exact schema by the id carried on
 each message. One authoritative source, three jobs.
 
 Because every artifact is just bytes addressed by group and id, you talk to the
-registry over plain HTTP — the same `curl` you already use, from any language or a
+registry over plain HTTP; the same `curl` you already use, from any language or a
 pipeline step:
 
 ```bash
@@ -172,13 +172,13 @@ func publish(group, artifactID string, schema []byte) (int, error) {
 This is the guardrail that makes the whole contract story real. The CI pipeline
 posts the new schema version to the registry; if it violates the artifact's
 compatibility rule, Apicurio returns **`400 Bad Request`** and the step fails the
-build, blocking the merge. The contract is enforced *before* code ships — not
+build, blocking the merge. The contract is enforced *before* code ships, not
 discovered broken in production by a downstream team three days later.
 
 {% include excalidraw.html
    file="09-registry-gate"
    alt="A pull request with a schema change posts the new version to the Apicurio registry; the registry checks it against the compatibility rule and either allows merge and publish, or returns 400 and blocks the merge; consumers then fetch the published schema and generate stubs"
-   caption="Figure 9.2 — The registry checks compatibility at publish time and blocks the merge on a breaking change" %}
+   caption="Figure 9.2: The registry checks compatibility at publish time and blocks the merge on a breaking change" %}
 
 ```yaml
 # .github/workflows/contracts.yml — block breaking changes before merge
@@ -207,23 +207,23 @@ The compatibility rules tell you *whether* a change is safe; a strategy tells yo
 *how* to evolve a schema over time without breaking consumers. Four practices, in
 order of increasing cost:
 
-1. **Additive-only** — add optional fields with defaults; never remove or rename. This
+1. **Additive-only**: add optional fields with defaults; never remove or rename. This
    is the cheapest evolution: old consumers ignore the new field, new consumers fall
    back to the default when reading old data. If every change is additive, the
    compatibility rule never fires.
 
-2. **Deprecation workflow** — when a field must go, mark it `@deprecated` (GraphQL,
+2. **Deprecation workflow**: when a field must go, mark it `@deprecated` (GraphQL,
    proto) or add a `deprecation` annotation in the schema. Publish the deprecation,
    monitor usage (field-level metrics, consumer-group offsets), and remove the field
    only once all consumers have migrated. This is the same add → deprecate → watch →
    retire cycle from **Appendix B**.
 
-3. **Default values for new required fields** — if a new field must be present in all
+3. **Default values for new required fields**: if a new field must be present in all
    messages, add it with a default so old data on the topic can still be deserialized.
    Without the default, every consumer that encounters a message written before the
    field existed will fail to deserialize it.
 
-4. **Union types for polymorphism** — when a single topic carries multiple event shapes
+4. **Union types for polymorphism**: when a single topic carries multiple event shapes
    (e.g. `OrderPlaced`, `OrderCancelled`), use Avro unions or protobuf `oneof` so the
    schema accommodates each variant. This keeps the topic type-safe without splitting
    it into per-event topics.
@@ -235,7 +235,7 @@ how often you approach that boundary. Teams that evolve additively rarely trigge
 ## Validate before you publish
 
 Before registering a new version you can ask the registry to **dry-run** the
-compatibility check — validate the schema without creating a version. This is useful
+compatibility check: validate the schema without creating a version. This is useful
 in local development and pre-commit hooks, where you want fast feedback without
 polluting the registry with test versions.
 
@@ -333,12 +333,12 @@ func isCompatible(group, artifactID string, schema []byte) (bool, error) {
 ### Cross-check it yourself
 
 Prove the gate bites. Register `order-placed.avsc`, then make a breaking
-change — rename a required field — and `curl` the new version: you should get a
-`400`, and the CI step should exit non-zero. Then make an additive change — a new
-*optional* field — and confirm it returns `200` and publishes a new version. The
+change (rename a required field) and `curl` the new version: you should get a
+`400`, and the CI step should exit non-zero. Then make an additive change (a new
+*optional* field) and confirm it returns `200` and publishes a new version. The
 breaking change failing the build and the additive change passing it is the entire
 point of the registry.
 
 ---
-*Verification status: verified — [`examples/09-api-registry/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/09-api-registry/) passes 8/8 checks on Docker Engine (2026-10-13)
+*Verification status: verified; [`examples/09-api-registry/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/09-api-registry/) passes 8/8 checks on Docker Engine (2026-10-13)
 (schema registration, BACKWARD compatibility rule, rejection of a breaking change with 400, acceptance of an additive change, versioned retrieval).*
