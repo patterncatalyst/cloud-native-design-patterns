@@ -9,8 +9,8 @@ duration: 22 minutes
 ---
 
 A feature flag is the runtime switch that separates *shipping code* from *releasing a
-feature*. Once an artifact is in production, a flag decides — per request, per user, per
-cohort — whether the new path is taken. That one decoupling is the spine of progressive
+feature*. Once an artifact is in production, a flag decides (per request, per user, per
+cohort) whether the new path is taken. That one decoupling is the spine of progressive
 delivery: you deploy continuously and dark, then release gradually and reversibly, with no
 redeploy on the critical path of either the rollout or the rollback. This appendix covers the
 flag types, how to evaluate flags in a vendor-neutral, open-source way with OpenFeature and
@@ -25,9 +25,9 @@ are different events**, and a flag is what splits them.
 {% include excalidraw.html
    file="26-deploy-release"
    alt="A pipeline: build and deploy with the flag off, then release to 1% with the flag on, then ramp the percentage, then GA at 100%, then retire the flag. The deploy is decoupled from the release; every release and rollback is a config change, not a new deploy."
-   caption="Figure N.1 — Deploy ships the code dark; release is a runtime flag flip — and so is rollback" %}
+   caption="Figure N.1: Deploy ships the code dark; release is a runtime flag flip, and so is rollback" %}
 
-The artifact ships to production with the new path turned off — a non-event, observable only in
+The artifact ships to production with the new path turned off, a non-event, observable only in
 the deploy log. Releasing is then a runtime flag flip: on for 1%, then a wider cohort, then
 everyone, each step reversible by narrowing the flag rather than rolling back a deployment. This
 is what lets a team merge to main many times a day yet release on its own cadence, and it is the
@@ -36,12 +36,12 @@ mechanism behind every canary and every safe cutover in the book.
 ## Four kinds of flag
 
 "Feature flag" covers four different tools, and conflating them is the root of most
-flag messes. They differ along two axes — how long the flag lives, and who decides to flip it.
+flag messes. They differ along two axes: how long the flag lives, and who decides to flip it.
 
 {% include excalidraw.html
    file="26-flag-types"
    alt="A two-by-two of flag types by lifetime and owner: release flags (short-lived, dev-owned, ship dark and remove); experiment/A-B flags (short-lived, data-owned, split variants and measure); ops/kill-switch flags (long-lived, SRE-owned, disable a feature or dependency fast); permission/entitlement flags (long-lived, product-owned, gate by plan or tier)."
-   caption="Figure N.2 — Four flag types by lifetime and owner — each wants different defaults and lifecycle" %}
+   caption="Figure N.2: Four flag types by lifetime and owner, each wanting different defaults and lifecycle" %}
 
 **Release flags** are temporary and developer-owned: they exist to ship new code dark, ramp it,
 and then be removed. **Experiment (A/B) flags** are temporary and data-owned: they split traffic
@@ -56,7 +56,7 @@ feature stays available unless someone kills it).
 ## Evaluating a flag: OpenFeature and flagd
 
 Evaluation should not couple your code to a vendor. **OpenFeature** is the CNCF vendor-neutral
-API standard — one SDK surface across languages — and **flagd** is its lightweight open-source
+API standard (one SDK surface across languages), and **flagd** is its lightweight open-source
 backend that evaluates flags from a file, ConfigMap, or synced source, in-cluster. Together they
 keep the whole feature-flag story open-source and running on plain Kubernetes, with no managed
 SaaS, consistent with the open-source stack used throughout the book; swapping flagd for another provider later is a
@@ -65,10 +65,10 @@ configuration change, not a code change.
 {% include excalidraw.html
    file="26-evaluation-architecture"
    alt="A request carrying user, plan, and region reaches the application, which calls getBooleanValue(flag, default, context) through the OpenFeature SDK; the flagd provider evaluates locally in-cluster against a flag source (ConfigMap, file, or sync). The default is returned if the provider is unreachable, so a flag-system outage never takes the app down, and the SDK is vendor-neutral."
-   caption="Figure N.3 — OpenFeature SDK + flagd: local evaluation, vendor-neutral, fail-safe to the default" %}
+   caption="Figure N.3: OpenFeature SDK + flagd: local evaluation, vendor-neutral, fail-safe to the default" %}
 
 The two properties that matter most: evaluation returns the **default** if the provider is
-unreachable — a flag-system outage must never take the application down — and the SDK is
+unreachable (a flag-system outage must never take the application down), and the SDK is
 **vendor-neutral**, so the app calls `getBooleanValue(flag, default, context)` and never names
 the backend. The evaluation *context* carries the targeting inputs (a stable targeting key plus
 attributes like plan and region) that the rules act on.
@@ -256,26 +256,26 @@ and a `fractional` operator for percentage rollouts.
 This single definition does three things at once: enterprise-plan users always get the new
 checkout (an *entitlement*), everyone else is split 25/75 (a *rollout*), and a second flag is
 turned off entirely (a *kill switch*, via `state`). The `fractional` operator buckets on the
-`targetingKey`, which is what gives **sticky assignment** — the same user hashes to the same
+`targetingKey`, which is what gives **sticky assignment**: the same user hashes to the same
 bucket every time.
 
 {% include excalidraw.html
    file="26-progressive-rollout"
    alt="A stable userId is hashed into a bucket 0 to 99; the flag returns the new variant if the bucket is below the rollout threshold (5, then 25, then 100) and the old variant otherwise. The same user always lands in the same bucket, so assignment is consistent across repeat visits, and widening or narrowing the threshold ramps or rolls back instantly without a deploy."
-   caption="Figure N.4 — Percentage rollout via sticky bucketing: consistent per-user assignment, instant ramp and rollback" %}
+   caption="Figure N.4: Percentage rollout via sticky bucketing: consistent per-user assignment, instant ramp and rollback" %}
 
-Sticky bucketing matters for two reasons. For a **rollout**, it prevents flicker — a user who
+Sticky bucketing matters for two reasons. For a **rollout**, it prevents flicker: a user who
 got the new checkout on their first visit keeps getting it, rather than bouncing between variants
-on refresh. For an **experiment**, it is a correctness requirement — a user must stay in one arm
+on refresh. For an **experiment**, it is a correctness requirement: a user must stay in one arm
 of the test for the measurement to mean anything. Ramping the rollout is editing the `25` upward;
-rolling back is editing it down — both take effect in the running fleet within flagd's sync
+rolling back is editing it down, and both take effect in the running fleet within flagd's sync
 interval, with no redeploy.
 
 ## The kill switch
 
 A kill switch is the operational flag you reach for during an incident: wrap a risky or expensive
 dependency in a flag so it can be disabled instantly without a deploy. It is the human-driven
-complement to the circuit breaker from the Failure Modes appendix — the breaker
+complement to the circuit breaker from the Failure Modes appendix: the breaker
 trips automatically on errors; the kill switch is flipped by a person.
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
@@ -350,7 +350,7 @@ this book. The same decoupling expresses several of them.
 {% include excalidraw.html
    file="26-flags-control-plane"
    alt="A flag control plane (flagd) sits at the centre with four spokes: a kill-switch disables a dependency (pairing with the circuit breaker), a canary combines a flag with L7 routing, a strangler cutover routes a percentage to a new service, and an experiment picks a sticky-bucketed variant."
-   caption="Figure N.5 — A flag is a runtime control surface — the same lever behind canaries, cutovers, kill-switches, and experiments" %}
+   caption="Figure N.5: A flag is a runtime control surface, the same lever behind canaries, cutovers, kill-switches, and experiments" %}
 
 A **canary** is a percentage flag deciding which build a request exercises, often paired with the
 L7 routing from the routing appendix. A **strangler-fig cutover** is a flag (or the proxy's
@@ -368,7 +368,7 @@ is dead code, a hidden conditional, and a live risk surface that nobody remember
 {% include excalidraw.html
    file="26-flag-lifecycle"
    alt="A lifecycle: create the flag default off, roll it out from 0 to 100 percent with targeting, reach GA fully on, then remove the flag and its dead code. Every release flag is born with a removal ticket because a stale flag is dead code, a hidden branch, and a live risk surface."
-   caption="Figure N.6 — The flag lifecycle: a release flag is born with a removal ticket" %}
+   caption="Figure N.6: The flag lifecycle: a release flag is born with a removal ticket" %}
 
 The discipline that keeps it healthy: give every *release* flag an owner and an expiry from the
 moment it is created, and treat removing it as part of finishing the feature, not optional
@@ -383,7 +383,7 @@ depend on (a test suite that only exercises the default path will not catch a bu
 flag), keep the number of *simultaneously interacting* flags small, and default flags off in test
 environments unless a test sets them explicitly. Observability ties flags back to the
 Observability chapter: record the resolved variant as a span attribute and a metric label, so a
-latency or error change can be attributed to a specific flag and cohort — "the new checkout's p99
+latency or error change can be attributed to a specific flag and cohort: "the new checkout's p99
 is worse for the 25% on `on`" is only visible if the variant is on the telemetry. The recurring
 anti-patterns to avoid are using flags as a general configuration store (they are for *release
 control*, not for tuning timeouts), letting release flags become permanent, stacking many flags
@@ -408,14 +408,14 @@ the same OpenFeature SDK.
 
 Prove the three properties this appendix rests on, against a running flagd. **Decoupling:** with
 the service running, edit the `new-checkout` flag in flagd's source from `off` to a 25% fractional
-rule and confirm the running fleet changes behaviour within the sync interval — no redeploy, and
+rule and confirm the running fleet changes behaviour within the sync interval, with no redeploy, and
 narrowing it back is your rollback. **Sticky assignment:** call the endpoint repeatedly with the
 same `X-User` and confirm it always resolves the same variant, then sweep many distinct users and
 confirm the split lands near 25%. **Fail-safe:** stop flagd entirely and confirm every evaluation
-returns the coded default and the service keeps serving `200`s — if it instead errors, a flag
+returns the coded default and the service keeps serving `200`s. If it instead errors, a flag
 lookup is on a critical path without a default, which is the one feature-flag mistake you cannot
 ship.
 
 ---
-*Verification status: verified — [`examples/27-feature-flags/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/27-feature-flags/) passes 14/14 checks in each of the six languages on Docker Engine (2026-10-13)
+*Verification status: verified: [`examples/27-feature-flags/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/27-feature-flags/) passes 14/14 checks in each of the six languages on Docker Engine (2026-10-13)
 (plan-based targeting rules, sticky assignment and percentage rollout, kill switch, simple boolean flag, flag listing, and safe defaults while flagd is down).*

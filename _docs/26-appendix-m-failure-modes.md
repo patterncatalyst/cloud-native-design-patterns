@@ -4,7 +4,7 @@ marker: "M"
 label: "Appendix M"
 order: 26
 part: "Deep-dive appendices"
-description: "The synthesis appendix — a taxonomy of how distributed systems fail (partition, split-brain, partial, gray, amplification, cascading) and the defensive toolkit mapped to each: timeouts and deadlines, retry with backoff and jitter, circuit breakers, bulkheads, load shedding, quorum, and the mesh."
+description: "The synthesis appendix: a taxonomy of how distributed systems fail (partition, split-brain, partial, gray, amplification, cascading) and the defensive toolkit mapped to each: timeouts and deadlines, retry with backoff and jitter, circuit breakers, bulkheads, load shedding, quorum, and the mesh."
 duration: 24 minutes
 ---
 
@@ -12,15 +12,15 @@ This is the synthesis appendix. It pulls together error handling, graceful shutd
 observability, and the resilience patterns scattered across the book and points them at
 the specific ways distributed systems fail. If you keep one thing from it, keep the matrix
 at the end, which maps each failure mode to the patterns that defend it. The reframe that
-organises everything: we are not trying to *prevent* failure — across a network that is
-impossible — we are trying to *bound* it and recover. That shifts every question from "how
+organises everything: we are not trying to *prevent* failure (across a network that is
+impossible), we are trying to *bound* it and recover. That shifts every question from "how
 do we stop failures" to "how do we contain and survive them."
 
 ## Distributed systems fail differently
 
 The single most important conceptual shift for a developer moving from monoliths is
 **partial failure**. In a single process, a function call returns or throws, synchronously,
-in-process. Across a network there is a whole spectrum in between — including the two worst
+in-process. Across a network there is a whole spectrum in between, including the two worst
 cases: the call that *hangs* indefinitely, and the call that *succeeded on the server but
 whose response was lost*, leaving the client unsure whether retrying is safe. Two further
 properties make distributed failure hard: failures are **correlated** (one failure causes
@@ -35,92 +35,92 @@ underneath them.
 {% include excalidraw.html
    file="25-failure-taxonomy"
    alt="Three families feed into a distributed system: NETWORK (partition, split-brain: alive but cannot talk), COMPONENT (partial, gray failure: some fail, some lie), and LOAD (amplification, cascading: a failure feeds on itself). The defensive toolkit answers them: timeouts, retries, circuit breakers, bulkheads, load shedding, fallback, quorum, Istio, graceful shutdown, observability."
-   caption="Figure M.1 — Three families of distributed failure, over the defensive toolkit that addresses them" %}
+   caption="Figure M.1: Three families of distributed failure, over the defensive toolkit that addresses them" %}
 
-**Network** failures are partition and split-brain — nodes are alive but cannot talk.
-**Component** failures are partial and gray — some dependencies fail outright, some degrade
+**Network** failures are partition and split-brain: nodes are alive but cannot talk.
+**Component** failures are partial and gray: some dependencies fail outright, some degrade
 and are perceived differently by different observers. **Load** failures are amplification and
-cascading — a failure feeds on itself or spreads to neighbours. It restates the maxim from the
-first chapter: all management is risk management — you manage the *distribution* of failures,
+cascading: a failure feeds on itself or spreads to neighbours. It restates the maxim from the
+first chapter: all management is risk management; you manage the *distribution* of failures,
 not their existence.
 
 ## Network partition
 
 A partition is **not a crash**. Every node is healthy and running; the network between them is
-what failed — which is exactly what makes partitions so confusing to debug, since each
+what failed, which is exactly what makes partitions so confusing to debug, since each
 component looks fine in isolation.
 
 {% include excalidraw.html
    file="25-network-partition"
    alt="Three nodes on the left form a majority partition A; two nodes on the right form a minority partition B; the link between them is down. Note: every node is healthy and only the network failed, and CAP forces a choice between consistency and availability while partitioned."
-   caption="Figure M.2 — A network partition: healthy nodes that cannot reach each other" %}
+   caption="Figure M.2: A network partition: healthy nodes that cannot reach each other" %}
 
 This is where CAP becomes concrete: while partitioned you must choose to stay **consistent**
 (the minority side refuses writes, sacrificing availability) or **available** (both sides
 accept writes, sacrificing consistency and reconciling later). Kubernetes itself uses etcd,
-which chooses consistency — the minority side of a control-plane partition stops accepting
+which chooses consistency: the minority side of a control-plane partition stops accepting
 writes. Address it with quorum/consensus, idempotent writes (so a retried write after the heal
 is safe), and a design that tolerates partitions and reconciles.
 
 ## Split-brain
 
 Split-brain is the catastrophic outcome of a partition in a system that elects a leader. Both
-sides lose contact, each assumes the other died, each promotes itself — and now two primaries
+sides lose contact, each assumes the other died, each promotes itself, and now two primaries
 accept conflicting writes, leaving divergent state with no clean merge on heal.
 
 {% include excalidraw.html
    file="25-split-brain"
    alt="A partition where each side has self-elected a leader that accepts writes, producing two primaries with conflicting writes. The cure noted is quorum: an action needs a majority, so a minority partition cannot act."
-   caption="Figure M.3 — Split-brain: a partition elects two leaders; quorum is the only real cure" %}
+   caption="Figure M.3: Split-brain: a partition elects two leaders; quorum is the only real cure" %}
 
 The prevention is **quorum**: an action requires a majority (N/2 + 1) to agree, so a minority
-partition mathematically cannot act — it knows it is the minority and steps down. This is why
+partition mathematically cannot act: it knows it is the minority and steps down. This is why
 cluster sizes are odd (3, 5, 7): to always have a clear majority. Fencing tokens
 (monotonically increasing IDs that let a resource reject a stale leader's writes) and leases
 are complementary, and etcd/Raft give the Kubernetes control plane this property out of the
-box. As the matrix will show, quorum is the *only* answer to split-brain — no amount of
+box. As the matrix will show, quorum is the *only* answer to split-brain: no amount of
 retrying or circuit-breaking helps when the problem is two leaders.
 
 ## Partial failure
 
 This is the slide for developers moving from monoliths. In-process, the order and inventory
-services are function calls in one process — if one is "down," the process is down.
+services are function calls in one process: if one is "down," the process is down.
 Distributed, the order service calls inventory (healthy), payment (down), and shipping (slow),
 and must make a **per-dependency decision** for each.
 
 {% include excalidraw.html
    file="25-partial-failure"
    alt="An order service makes one decision per dependency: use the result from a healthy inventory service, fall back or fail for a down payment service, and time out then fall back for a slow shipping service."
-   caption="Figure M.4 — Partial failure: each dependency needs its own use / fall-back / time-out decision" %}
+   caption="Figure M.4: Partial failure: each dependency needs its own use / fall-back / time-out decision" %}
 
-The mistake behind most production incidents is treating a remote call like a local one — no
-timeout, no fallback, no circuit breaker — so a single down dependency hangs the caller. The
+The mistake behind most production incidents is treating a remote call like a local one (no
+timeout, no fallback, no circuit breaker), so a single down dependency hangs the caller. The
 next several patterns are precisely the per-dependency defences: timeouts, circuit breakers,
 fallbacks, and bulkheads.
 
 ## Gray failure
 
 Gray failure is the mode that defeats naive health checking. The classic shape: a node is slow
-or dropping a fraction of requests, but its liveness probe — a trivial `GET /healthz` — still
+or dropping a fraction of requests, but its liveness probe (a trivial `GET /healthz`) still
 returns `200`, so Kubernetes keeps it in rotation and the load balancer keeps sending it
 traffic.
 
 {% include excalidraw.html
    file="25-gray-failure"
-   alt="A pod that is slow or dropping 5% of requests has a liveness probe that still returns 200, so the probe sees it as healthy, while real client traffic sees errors and latency — differential observability."
-   caption="Figure M.5 — Gray failure: the probe sees healthy, the client sees errors" %}
+   alt="A pod that is slow or dropping 5% of requests has a liveness probe that still returns 200, so the probe sees it as healthy, while real client traffic sees errors and latency: differential observability."
+   caption="Figure M.5: Gray failure: the probe sees healthy, the client sees errors" %}
 
-This is **differential observability** — the observer that *decides* (the probe) sees something
+This is **differential observability**: the observer that *decides* (the probe) sees something
 different from the observer that *matters* (the client). The fixes are all about observing from
 the right vantage point: deep health checks that exercise real dependencies, RED metrics
-measured on actual traffic, SLO burn-rate alerts, and — critically — Istio outlier detection,
+measured on actual traffic, SLO burn-rate alerts, and, critically, Istio outlier detection,
 which ejects a host from the pool when it returns consecutive errors, regardless of what the
 host's own probe claims.
 
 ## Amplification loops and retry storms
 
-Amplification is a positive feedback loop in which the system's own defensive behaviour —
-retrying — becomes the attack. Two effects compound: retries **multiply** across layers (a
+Amplification is a positive feedback loop in which the system's own defensive behaviour,
+retrying, becomes the attack. Two effects compound: retries **multiply** across layers (a
 gateway that retries 3×, calling a service that retries 3×, calling another that retries 3×,
 turns one request into 27 at the bottom), and they **synchronise** (every client that failed at
 the same moment retries at the same moment).
@@ -128,9 +128,9 @@ the same moment retries at the same moment).
 {% include excalidraw.html
    file="25-amplification"
    alt="One client request hits a gateway that retries three times, then a service that retries three times, then a service that retries three times, producing 27 requests at the bottom of the stack."
-   caption="Figure M.6 — Amplification: retries multiply across layers and synchronise into a thundering herd" %}
+   caption="Figure M.6: Amplification: retries multiply across layers and synchronise into a thundering herd" %}
 
-The result can be **metastable** — the system stays collapsed even after the original trigger is
+The result can be **metastable**: the system stays collapsed even after the original trigger is
 gone, because the retry load alone sustains the failure. Breaking it requires backoff with
 jitter (de-synchronise), a retry budget (cap retries to a small percentage of live traffic),
 retrying at exactly *one* layer, and a circuit breaker. This is the same dynamic as the
@@ -146,8 +146,8 @@ the user-facing edge.
 
 {% include excalidraw.html
    file="25-cascading"
-   alt="A slow database blocks Service C's threads, which exhausts its resources so it fails for all callers, which fills Service B's pool, which takes down the edge — the failure propagates up the graph."
-   caption="Figure M.7 — Cascading failure: one slow dependency exhausts resources up the whole call graph" %}
+   alt="A slow database blocks Service C's threads, which exhausts its resources so it fails for all callers, which fills Service B's pool, which takes down the edge: the failure propagates up the graph."
+   caption="Figure M.7: Cascading failure: one slow dependency exhausts resources up the whole call graph" %}
 
 The amplifiers are synchronous call chains and unbounded resources (unbounded queues, unbounded
 thread pools, no timeouts). Each defensive pattern breaks one link: timeouts stop threads
@@ -157,7 +157,7 @@ edge before it enters the system.
 
 ## The defensive toolkit
 
-**No pattern in the toolkit is sufficient alone** — several interact, and production
+**No pattern in the toolkit is sufficient alone**: several interact, and production
 resilience is their composition. Retry without a circuit breaker amplifies; a circuit breaker without a fallback
 just fails faster; a bulkhead without a timeout still lets threads block within its pool. The
 patterns here each get a diagram and per-language code; the platform-level pieces (Istio,
@@ -165,7 +165,7 @@ shutdown, observability) sit underneath the application-level ones.
 
 ## Timeouts and deadline propagation
 
-Two ideas. First, **every remote call must have a timeout** — the default in many HTTP clients
+Two ideas. First, **every remote call must have a timeout**: the default in many HTTP clients
 is infinite, which is exactly how one slow dependency hangs a whole service. Second, **deadline
 propagation**: the original deadline travels with the request, and each hop subtracts the time
 it used and passes the remainder downstream; when too little budget remains to plausibly finish,
@@ -174,7 +174,7 @@ the downstream fails immediately rather than starting work that will be thrown a
 {% include excalidraw.html
    file="25-timeouts-deadline"
    alt="A 1000ms deadline at the edge travels through Service A (uses 200ms, 800 left), Service B (uses 300ms, 500 left), to the database, which decides whether enough budget remains to start."
-   caption="Figure M.8 — Deadline propagation: the budget travels and shrinks; too little left means fail now" %}
+   caption="Figure M.8: Deadline propagation: the budget travels and shrinks; too little left means fail now" %}
 
 gRPC does this natively with deadlines; for HTTP you carry the remaining budget in a header
 convention like `X-Deadline-Ms` and honour it at each hop.
@@ -325,19 +325,19 @@ code, body, err := callBackend(ctx, map[string]string{"X-Deadline-Ms": strconv.I
 
 ## Retry with exponential backoff and jitter
 
-Retry is the most abused resilience pattern, because the naive version — retry immediately, a
-fixed number of times, at every layer — is exactly how the amplification storm forms. The
+Retry is the most abused resilience pattern, because the naive version (retry immediately, a
+fixed number of times, at every layer) is exactly how the amplification storm forms. The
 correct version has four properties: **exponential backoff** (100ms, 200ms, 400ms), **jitter**
 (randomness so clients don't synchronise), a **cap** on both attempts and total time, and a
 **retry budget** (retries may never exceed, say, 10% of live traffic).
 
 {% include excalidraw.html
    file="25-retry-backoff"
-   alt="Three attempts with growing, jittered waits between them — about 100ms plus jitter, then about 200ms plus jitter — capped at three attempts."
-   caption="Figure M.9 — Retry done right: exponential backoff, jitter, a hard cap, idempotent calls only" %}
+   alt="Three attempts with growing, jittered waits between them (about 100ms plus jitter, then about 200ms plus jitter), capped at three attempts."
+   caption="Figure M.9: Retry done right: exponential backoff, jitter, a hard cap, idempotent calls only" %}
 
-It applies to **idempotent operations only** — retrying a non-idempotent `POST` without an
-idempotency key can double-charge a customer — and it is **always paired with a circuit
+It applies to **idempotent operations only**: retrying a non-idempotent `POST` without an
+idempotency key can double-charge a customer. It is also **always paired with a circuit
 breaker**, so once a dependency is clearly down you stop retrying entirely.
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
@@ -475,7 +475,7 @@ allows a few trial calls; if they succeed it closes, if they fail it re-opens.
 {% include excalidraw.html
    file="25-circuit-breaker"
    alt="A three-state machine: CLOSED (calls pass, count failures) trips to OPEN (fail fast, don't call) when failures exceed the threshold; after a reset timeout OPEN moves to HALF-OPEN (a few trial calls); a successful trial returns to CLOSED, a failed trial returns to OPEN."
-   caption="Figure M.10 — The circuit breaker: closed, open, half-open — one breaker per dependency, paired with a fallback" %}
+   caption="Figure M.10: The circuit breaker: closed, open, half-open; one breaker per dependency, paired with a fallback" %}
 
 Two details are crucial: **one breaker per dependency** (never a single global breaker), and
 **pair it with a fallback** so an open breaker degrades gracefully rather than just erroring
@@ -640,13 +640,13 @@ func handleBreaker(w http.ResponseWriter, r *http.Request) {
 A bulkhead bounds concurrency so one saturated dependency cannot consume all of a service's
 threads or connections. It got its full per-language treatment in the Security chapter, so the
 point to re-state here is the interaction: **a bulkhead bounds how many, a timeout bounds how
-long** — concurrency-limiting alone does not help if the bounded calls block forever, so the two
+long**: concurrency-limiting alone does not help if the bounded calls block forever, so the two
 must be combined. The mesh provides bulkheading at the connection-pool level, covered next in this appendix.
 
 ## Load shedding and graceful degradation
 
-Two related patterns engineers tend to skip. **Load shedding** feels like giving up —
-choosing to reject requests — but it is the difference between degrading and collapsing. The
+Two related patterns engineers tend to skip. **Load shedding** feels like giving up
+(choosing to reject requests), but it is the difference between degrading and collapsing. The
 arithmetic is simple: at 120% of capacity, accepting everything makes *everything* slow and
 timing out (0% goodput); shedding the excess 20% means the 80% you accept is served well. Shed
 by priority (drop health-check-style or low-value traffic first, protect revenue-critical paths),
@@ -655,12 +655,12 @@ and let adaptive concurrency limiters shed automatically based on observed laten
 **Graceful degradation** is the product-level decision about what to return when you cannot
 return everything: serve a stale cache, omit the personalised section, queue the write for later,
 show a default recommendation. A product page that can't reach the reviews service should still
-show the product — just without reviews. Together with the breaker these form a system: the
+show the product, just without reviews. Together with the breaker these form a system: the
 breaker decides to *stop calling*, the fallback decides *what to return instead*, and load
-shedding decides *what not to accept* in the first place — and none of them can be done
+shedding decides *what not to accept* in the first place, and none of them can be done
 intelligently without the observability from the Observability chapter to measure saturation.
 
-## Istio — resilience at the mesh layer
+## Istio: resilience at the mesh layer
 
 The service mesh delivers a large slice of this toolkit without code in every service, in every
 language.
@@ -668,11 +668,11 @@ language.
 {% include excalidraw.html
    file="25-istio-resilience"
    alt="An Istio Envoy sidecar wraps service-to-service calls: a VirtualService configures timeout and retries with backoff and jitter; a DestinationRule configures connectionPool (mesh bulkhead) and outlierDetection, which ejects a bad host from the callee pool."
-   caption="Figure M.11 — The mesh supplies timeouts, retries, connection-pool bulkheads, and gray-failure ejection" %}
+   caption="Figure M.11: The mesh supplies timeouts, retries, connection-pool bulkheads, and gray-failure ejection" %}
 
 A `VirtualService` configures per-route timeouts and retries (Envoy adds backoff and jitter
 automatically); a `DestinationRule` configures `connectionPool` limits (mesh-level bulkheading)
-and `outlierDetection` — the mesh's answer to gray failure, ejecting a host that returns
+and `outlierDetection`: the mesh's answer to gray failure, ejecting a host that returns
 consecutive errors regardless of what its own probe claims.
 
 ```yaml
@@ -706,7 +706,7 @@ spec:
 ```
 
 The discipline that prevents amplification: **don't double up**. If Istio is retrying, do not
-*also* retry in the app — decide where each concern lives. Push uniform concerns (timeouts,
+*also* retry in the app: decide where each concern lives. Push uniform concerns (timeouts,
 outlier detection, mesh bulkheads) to Istio; keep business-aware concerns (fallbacks, idempotency
 keys) in the app.
 
@@ -716,10 +716,10 @@ Two threads from elsewhere in the book close the loop. **Graceful shutdown** (th
 Shutdown appendix) is what prevents dropped requests during a rolling deploy: on `SIGTERM`, flip
 readiness to draining so the platform stops sending new work, cover the deregistration lag, drain
 in-flight work under a bounded timeout, then exit. **Observing failure** (the Observability
-chapter) is what makes these modes visible at all — a default CPU/memory dashboard will not show
+chapter) is what makes these modes visible at all: a default CPU/memory dashboard will not show
 a gray failure or an amplification loop. Measure RED per *dependency* (so partial failures are
 visible), compare health-check status to real-traffic SLOs (so gray failures are visible), and
-watch request-rate versus user-action-rate (so amplification is visible) — then pivot from the
+watch request-rate versus user-action-rate (so amplification is visible), then pivot from the
 metric to the trace to the logs by trace id when something breaks.
 
 ## Which pattern addresses which failure mode
@@ -736,10 +736,10 @@ to see what a pattern buys you across modes.
 | Amplification |  | ✓ | ✓ |  | ✓ |  |  |  |
 | Cascading | ✓ |  | ✓ | ✓ | ✓ |  |  | ✓ |
 
-Two observations to state aloud. **Quorum/consensus is the only real answer to split-brain** — no
+Two observations to state aloud. **Quorum/consensus is the only real answer to split-brain**: no
 amount of retrying or breaking helps when the problem is two leaders; you need majority rule.
 And almost every other cell is about assembling a **portfolio**: there is no single pattern that
-handles partial, gray, amplification, and cascading failures — you layer timeouts,
+handles partial, gray, amplification, and cascading failures: you layer timeouts,
 retries-with-budget, breakers, bulkheads, shedding, and fallbacks, and you observe the result.
 
 ## Take-aways and references
@@ -760,7 +760,7 @@ throttling), the Istio traffic-management docs, and the metastable-failures rese
 
 Reproduce the two dynamics that this appendix turns on. **Cascading and the breaker:** put steady
 load on a service with `hey` (or `ghz` for gRPC) while you force its downstream dependency to be
-slow, and watch the downstream call count — without a breaker it climbs and the caller's threads
+slow, and watch the downstream call count: without a breaker it climbs and the caller's threads
 fill (cascading); with a per-dependency breaker configured, the count *plateaus* as the breaker
 trips and the caller returns its fallback fast. **Deadline propagation:** issue a request with a
 small deadline header to a chain of two services and confirm from the logs that the *second* hop
@@ -772,5 +772,5 @@ This appendix touches difficult operational territory; if you are diagnosing a l
 Google SRE cascading-failures chapter is the fastest way to a shared vocabulary with your team.
 
 ---
-*Verification status: verified — [`examples/26-failure-modes/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/26-failure-modes/) passes 22/22 checks in each of the six languages on Docker Engine (2026-10-13)
+*Verification status: verified; [`examples/26-failure-modes/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/26-failure-modes/) passes 22/22 checks in each of the six languages on Docker Engine (2026-10-13)
 (timeout, retry exhaustion, circuit breaker closed, open and recovered with fallback, deadline-budget propagation, bulkhead limit, a full bulkhead refusing the overflow with 429 and admitting again).*

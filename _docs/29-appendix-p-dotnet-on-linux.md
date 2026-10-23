@@ -10,38 +10,38 @@ duration: 15 minutes
 
 > **This appendix is .NET-specific.** It exists for developers who know C# but have
 > only ever run it on Windows with Visual Studio. Every other chapter is
-> multi-language — this one answers the questions that come up when the deployment
+> multi-language; this one answers the questions that come up when the deployment
 > target changes from IIS on Windows Server to a container on Linux.
 
 The move from Windows to Linux changes _where_ .NET runs, not _what_ it is. The same
 language, the same compiler, the same runtime, the same NuGet packages. What disappears
 is the Windows-only substrate: IIS, the Windows registry, COM interop, Windows
 Services. What replaces them is the same thing that replaced them for Java and Python
-years ago — a container runtime, a process supervisor (Kubernetes), and a
+years ago: a container runtime, a process supervisor (Kubernetes), and a
 standards-based web server (Kestrel).
 
 This appendix walks through four layers, from source code to running container:
 
-1. **C# and .NET** — the language vs. the platform, and why the distinction matters.
-2. **CIL and the CoreCLR runtime** — what `dotnet build` produces and how it executes.
-3. **Kestrel** — the web server built into ASP.NET Core.
-4. **Containers** — multi-stage builds, Red Hat UBI images, and what ships to production.
+1. **C# and .NET**: the language vs. the platform, and why the distinction matters.
+2. **CIL and the CoreCLR runtime**: what `dotnet build` produces and how it executes.
+3. **Kestrel**: the web server built into ASP.NET Core.
+4. **Containers**: multi-stage builds, Red Hat UBI images, and what ships to production.
 
 ## C# is a language. .NET is a platform.
 
 The distinction matters because conflating them causes architectural confusion. **C#** is
-a statically-typed, garbage-collected language — one of several that target .NET. F# and
+a statically-typed, garbage-collected language, one of several that target .NET. F# and
 VB.NET are the others. All three compile to the same intermediate representation and run
 on the same runtime.
 
 **.NET** (since .NET 5, unified; previously split into .NET Framework, .NET Core, and
-Mono) is the platform: a runtime (CoreCLR), a base class library (BCL — `System.*`,
+Mono) is the platform: a runtime (CoreCLR), a base class library (BCL: `System.*`,
 `Microsoft.Extensions.*`), a compiler toolchain (Roslyn for C#, the F# compiler), a
-package manager (NuGet), and a CLI (`dotnet`). The platform is cross-platform — the
+package manager (NuGet), and a CLI (`dotnet`). The platform is cross-platform: the
 same `dotnet publish` output runs on Linux x86-64, Linux ARM64, macOS, and Windows
 without recompilation, because the output is not native machine code.
 
-The practical consequence: when this book says ".NET 10," it means the platform — the
+The practical consequence: when this book says ".NET 10," it means the platform: the
 runtime, the BCL, and the ASP.NET Core framework that sits on top. When it says "C#," it
 means the language syntax. A `.csproj` file targets a .NET version (`net10.0`), not a C#
 version, because the platform version determines what APIs are available.
@@ -49,35 +49,35 @@ version, because the platform version determines what APIs are available.
 ## CIL: what `dotnet build` produces
 
 When Roslyn compiles a C# source file, the output is not x86 machine code. It is
-**Common Intermediate Language** (CIL, historically called MSIL or just IL) — a
+**Common Intermediate Language** (CIL, historically called MSIL or just IL): a
 CPU-agnostic bytecode stored in `.dll` files. A `.dll` built on macOS runs unmodified on
 Linux because the bytes inside are CIL, not native instructions.
 
 {% include excalidraw.html
    file="29-dotnet-compilation"
    alt="The .NET compilation pipeline. C# source is compiled by Roslyn into CIL bytecode stored in DLL files. At runtime, CoreCLR loads the CIL and RyuJIT compiles it method-at-a-time into native x86-64 code. NativeAOT is an alternative that compiles ahead of time."
-   caption="Figure P.1 — From C# source to native code: Roslyn emits CIL bytecode, RyuJIT compiles to native at runtime" %}
+   caption="Figure P.1: From C# source to native code (Roslyn emits CIL bytecode, RyuJIT compiles to native at runtime)" %}
 
-The runtime — **CoreCLR** — loads these CIL assemblies and compiles them to native code
+The runtime (**CoreCLR**) loads these CIL assemblies and compiles them to native code
 on the fly using **RyuJIT**, the just-in-time compiler. RyuJIT compiles one method at a
 time, the first time it is called. After that first call, the method runs at native
-speed — there is no interpreter step and no re-compilation on subsequent calls.
+speed: there is no interpreter step and no re-compilation on subsequent calls.
 
 CoreCLR on Linux is `libcoreclr.so`, a shared library. It provides:
 
-- **JIT compilation** (RyuJIT) — CIL to native x86-64 or ARM64.
-- **Garbage collection** — a generational, concurrent GC that runs on its own threads.
+- **JIT compilation** (RyuJIT): CIL to native x86-64 or ARM64.
+- **Garbage collection**: a generational, concurrent GC that runs on its own threads.
   Server GC mode (the default in ASP.NET Core) allocates one heap per CPU core.
-- **Type system** — reflection, generics, interface dispatch.
-- **Threading** — maps .NET threads to pthreads; `Task` and `async/await` run on the
+- **Type system**: reflection, generics, interface dispatch.
+- **Threading**: maps .NET threads to pthreads; `Task` and `async/await` run on the
   thread pool.
-- **Exception handling** — uses platform-specific unwinding (libunwind on Linux).
-- **P/Invoke** — call native C libraries directly (`libpq`, `librdkafka`, `openssl`).
+- **Exception handling**: uses platform-specific unwinding (libunwind on Linux).
+- **P/Invoke**: call native C libraries directly (`libpq`, `librdkafka`, `openssl`).
 
 ### NativeAOT: the ahead-of-time alternative
 
 .NET also offers **NativeAOT** compilation, which runs Roslyn and the AOT compiler at
-build time to produce a single native binary — no JIT, no `libcoreclr.so`, no `.dll`
+build time to produce a single native binary: no JIT, no `libcoreclr.so`, no `.dll`
 files at runtime. The trade-off is real: NativeAOT binaries start faster and use less
 memory, but they cannot use runtime code generation (no `Reflection.Emit`, limited
 reflection). For the examples in this book, the JIT path is the default because it
@@ -86,7 +86,7 @@ supports the full library ecosystem without restrictions.
 ### What the runtime is _not_
 
 CoreCLR is not a virtual machine in the JVM sense. There is no bytecode interpreter
-running continuously — CIL is compiled to native code before it executes. After JIT
+running continuously: CIL is compiled to native code before it executes. After JIT
 compilation, a .NET method is indistinguishable from a method compiled by GCC or Clang.
 The runtime is still present (for GC, exception handling, and type loading), but the
 hot path is native machine code.
@@ -98,27 +98,27 @@ Services). IIS managed the process lifecycle, handled TLS, parsed HTTP, and forw
 requests to the .NET application via a proprietary hosting model.
 
 On Linux (and on modern Windows), **Kestrel** replaces all of that. Kestrel is the web
-server built into ASP.NET Core — it is not a separate process, not a reverse proxy, and
+server built into ASP.NET Core: it is not a separate process, not a reverse proxy, and
 not optional. When a .NET web application starts, Kestrel binds to a port and handles
 HTTP directly.
 
 {% include excalidraw.html
    file="29-kestrel-pipeline"
    alt="Kestrel request processing pipeline. Kestrel handles TLS via OpenSSL, parses HTTP using Span-based parsers, passes requests through the ASP.NET Core middleware pipeline (routing, auth, CORS, diagnostics), and dispatches to application endpoints (minimal APIs, gRPC, GraphQL, WebSockets, health checks)."
-   caption="Figure P.2 — Kestrel processes requests end to end: TLS, HTTP parsing, middleware, endpoint dispatch" %}
+   caption="Figure P.2: Kestrel processes requests end to end (TLS, HTTP parsing, middleware, endpoint dispatch)" %}
 
 Key things Kestrel does:
 
-- **Listens on TCP sockets** — using `epoll` on Linux (or `io_uring` on newer kernels).
+- **Listens on TCP sockets**: using `epoll` on Linux (or `io_uring` on newer kernels).
   No external web server needed.
-- **Handles TLS** — via OpenSSL on Linux. In Kubernetes, TLS is typically terminated by
+- **Handles TLS**: via OpenSSL on Linux. In Kubernetes, TLS is typically terminated by
   the service mesh (Istio) or ingress controller, so Kestrel often runs plain HTTP
   inside the Pod.
-- **Parses HTTP/1.1, HTTP/2, and HTTP/3** — using zero-allocation `Span<byte>` parsers.
+- **Parses HTTP/1.1, HTTP/2, and HTTP/3**: using zero-allocation `Span<byte>` parsers.
   gRPC requires HTTP/2, which Kestrel supports natively.
-- **Runs the middleware pipeline** — each request passes through a configurable chain:
+- **Runs the middleware pipeline**: each request passes through a configurable chain:
   routing, authentication, CORS, diagnostics, exception handling.
-- **Dispatches to endpoints** — minimal APIs, gRPC services, GraphQL servers,
+- **Dispatches to endpoints**: minimal APIs, gRPC services, GraphQL servers,
   WebSocket handlers, and health check endpoints all share the same Kestrel host.
 
 ### Why not nginx or Apache in front?
@@ -127,7 +127,7 @@ In production Kubernetes, the answer is usually: you do not need them. The servi
 handles TLS termination, load balancing, and retries. Kestrel handles everything else.
 Adding nginx as a sidecar adds latency, memory, and operational complexity for features
 Kestrel already provides. The one exception is when you need nginx-specific features
-like rate limiting at the edge — in that case, it sits in front as an ingress controller,
+like rate limiting at the edge. In that case, it sits in front as an ingress controller,
 not as a per-Pod sidecar.
 
 ### Kestrel configuration in practice
@@ -147,19 +147,19 @@ builder.WebHost.ConfigureKestrel(k =>
 ```
 
 The `+` binds to all interfaces (0.0.0.0). Port 8080 is the convention for non-root
-containers — ports below 1024 require root, which containers should not run as.
+containers: ports below 1024 require root, which containers should not run as.
 
 ## Containers: what ships to production
 
 A .NET application in a container is a Linux process. There is no VM, no app pool, no
-IIS — just `dotnet YourApp.dll` running as PID 1 (or behind a container init process
+IIS: just `dotnet YourApp.dll` running as PID 1 (or behind a container init process
 like `tini`). The container image must contain the .NET runtime and your application's
 published DLLs; it does not need the SDK, Roslyn, NuGet, or MSBuild.
 
 {% include excalidraw.html
    file="29-container-layers"
    alt="Multi-stage container build. The build stage uses the UBI9 .NET 10 SDK image to restore NuGet packages and compile the application. Only the published output is copied to the runtime stage, which uses the smaller UBI9 ASP.NET runtime image. The SDK never ships."
-   caption="Figure P.3 — Multi-stage build: the SDK compiles, only the runtime and app DLLs ship" %}
+   caption="Figure P.3: Multi-stage build (the SDK compiles, only the runtime and app DLLs ship)" %}
 
 ### Multi-stage Containerfiles
 
@@ -202,11 +202,11 @@ code, and intermediate build artifacts are all discarded. The final image is typ
 The examples use **Red Hat Universal Base Images** (UBI) instead of the
 `mcr.microsoft.com/dotnet/*` images from Microsoft. UBI images are:
 
-- **Freely redistributable** — no subscription required to pull, run, or ship them.
-- **Based on RHEL 9** — same packages, same security patches, same lifecycle.
-- **Supported by Red Hat** — when running on RHEL, UBI images get full
+- **Freely redistributable**: no subscription required to pull, run, or ship them.
+- **Based on RHEL 9**: same packages, same security patches, same lifecycle.
+- **Supported by Red Hat**: when running on RHEL, UBI images get full
   commercial support.
-- **Minimal by default** — `ubi9-minimal` variants use microdnf instead of yum,
+- **Minimal by default**: `ubi9-minimal` variants use microdnf instead of yum,
   producing smaller images.
 
 The .NET UBI images (`ubi9/dotnet-100` for SDK, `ubi9/dotnet-100-aspnet` for runtime)
@@ -219,10 +219,10 @@ Microsoft's releases but the build, base OS layer and support lifecycle are Red 
 
 Layer by layer, from bottom to top:
 
-1. **UBI9 base** (~70 MB) — glibc, openssl, ca-certificates, tzdata, libicu.
-2. **ASP.NET Core runtime** (~100 MB) — `libcoreclr.so`, `libclrjit.so`, the BCL
+1. **UBI9 base** (~70 MB): glibc, openssl, ca-certificates, tzdata, libicu.
+2. **ASP.NET Core runtime** (~100 MB): `libcoreclr.so`, `libclrjit.so`, the BCL
    assemblies (`System.*.dll`), and the ASP.NET Core shared framework.
-3. **Your application** (~5–80 MB) — your compiled `.dll` files, third-party NuGet
+3. **Your application** (~5–80 MB): your compiled `.dll` files, third-party NuGet
    package DLLs, appsettings.json.
 
 Things that are _not_ in the final image: the SDK, MSBuild, Roslyn, NuGet, your source
@@ -232,13 +232,13 @@ code, `obj/` and `bin/` intermediates, test projects.
 
 When Kubernetes starts the container, `dotnet OrderService.dll` runs:
 
-1. CoreCLR initializes — loads `libcoreclr.so`, starts the GC, initializes the thread
+1. CoreCLR initializes: loads `libcoreclr.so`, starts the GC, initializes the thread
    pool.
-2. The host builder runs — registers services (DI), configures logging, sets up
+2. The host builder runs: registers services (DI), configures logging, sets up
    OpenTelemetry.
-3. Kestrel binds to port 8080 — begins accepting HTTP connections.
-4. The application is ready — Kubernetes starts sending liveness and readiness probes.
-5. On shutdown, Kubernetes sends **SIGTERM** — the .NET host catches it and begins
+3. Kestrel binds to port 8080: begins accepting HTTP connections.
+4. The application is ready: Kubernetes starts sending liveness and readiness probes.
+5. On shutdown, Kubernetes sends **SIGTERM**: the .NET host catches it and begins
    graceful shutdown: stops accepting new requests, drains in-flight requests, flushes
    telemetry, disposes services.
 
@@ -248,19 +248,19 @@ no w3wp.exe, no application domain. The container _is_ the process boundary.
 ### Cross-check it yourself
 
 Verify the compilation pipeline by inspecting a published application's output. Run
-`dotnet publish -c Release` on any example and list the output directory — you will see
+`dotnet publish -c Release` on any example and list the output directory: you will see
 `.dll` files (CIL bytecode, not native code), a `.deps.json` (dependency graph), and a
 `.runtimeconfig.json` (runtime version selector). Open one of the `.dll` files with
-`dotnet-ildasm` or `ILSpy` and you will see CIL opcodes, not x86 instructions — proof
+`dotnet-ildasm` or `ILSpy` and you will see CIL opcodes, not x86 instructions: proof
 that the JIT does its work at runtime, not at build time.
 
 Then build a container image and inspect its layers. Run
-`docker image inspect <image> | jq '.[0].RootFS.Layers | length'` — you should see the UBI
+`docker image inspect <image> | jq '.[0].RootFS.Layers | length'`: you should see the UBI
 base layer, the runtime layer, and your application layer. Compare the image size to the
 SDK image: the runtime image should be roughly 4x smaller.
 
 ---
-*Verification status: unverified — the three diagrams (P.1 compilation pipeline, P.2
+*Verification status: unverified. The three diagrams (P.1 compilation pipeline, P.2
 Kestrel pipeline, P.3 container layers) are structurally correct based on the .NET 10
 architecture, and the Containerfile pattern matches the verified examples in this book. The
 UBI image sizes (~780 MB SDK, ~170 MB runtime) are approximate and will vary by .NET

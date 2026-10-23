@@ -4,7 +4,7 @@ marker: "E"
 label: "Appendix E"
 order: 18
 part: "Deep-dive appendices"
-description: "One error contract — a stable code, a safe message, a trace id, a retryable flag, field details — mapped onto REST, gRPC, Kafka and GraphQL, plus the retry-storm controls that keep a single failure from becoming an outage."
+description: "One error contract (a stable code, a safe message, a trace id, a retryable flag, field details) mapped onto REST, gRPC, Kafka and GraphQL, plus the retry-storm controls that keep a single failure from becoming an outage."
 duration: 24 minutes
 ---
 
@@ -12,10 +12,10 @@ Cloud-native systems rarely fall apart on the happy path; they fall apart on the
 error path, because that path gets the least design attention and the least
 testing. This appendix fixes the error path with the principle the book applies
 throughout: **agree one contract, then encode it consistently.** Pick a
-single error model — a stable machine code, a safe human message, a correlation id,
-a retryable flag, and structured field details — and map *that same model* onto each
+single error model (a stable machine code, a safe human message, a correlation id,
+a retryable flag, and structured field details) and map *that same model* onto each
 protocol the system speaks: REST, gRPC, Kafka, and GraphQL. We close on the failure
-mode that turns a brief wobble into a full outage — the retry storm — and the small
+mode that turns a brief wobble into a full outage (the retry storm) and the small
 set of controls that prevent it.
 
 ## The five facts every error carries
@@ -23,9 +23,9 @@ set of controls that prevent it.
 Before any protocol-specific encoding, decide what an error *is* in this system.
 Every error, everywhere, carries the same five facts:
 
-- A **stable machine-readable code** clients branch on — `STOCK_UNAVAILABLE`, not a
+- A **stable machine-readable code** clients branch on: `STOCK_UNAVAILABLE`, not a
   localized sentence that changes when someone edits the copy.
-- A **human-readable message** that is safe to surface — no internals.
+- A **human-readable message** that is safe to surface: no internals.
 - A **correlation / trace id** that ties the error back to the distributed trace
   from the Observability chapter, so one id pivots from the client's failure to the
   exact span that produced it.
@@ -33,7 +33,7 @@ Every error, everywhere, carries the same five facts:
   off correctly instead of guessing.
 - Structured **field-level details** when the problem is about specific inputs.
 
-The four protocols differ only in *where* those facts go on the wire — REST puts
+The four protocols differ only in *where* those facts go on the wire: REST puts
 them in a `problem+json` body, gRPC in a status plus typed details, Kafka in record
 headers and a dead-letter record, GraphQL in an `errors[]` entry's `extensions`. Agree
 the model once as a shared contract, and never leak a stack trace, a SQL fragment,
@@ -43,9 +43,9 @@ a coupling that lets a callee's internals constrain a caller.
 {% include excalidraw.html
    file="18-one-error-model"
    alt="One error model maps to four wire formats. Every error carries five facts: a stable machine code like STOCK_UNAVAILABLE, a human-readable message safe to show, a correlation or trace id, a retryable flag with a retry-after when known, and field-level details. Those same facts map onto REST as application/problem+json (RFC 9457), gRPC as a status code plus google.rpc.Status details, Kafka as headers plus a dead-letter record, and GraphQL as an errors array with extensions and a code."
-   caption="Figure E.1 — One error contract, four wire formats: agree the facts once, then map them per protocol" %}
+   caption="Figure E.1: One error contract, four wire formats (agree the facts once, then map them per protocol)" %}
 
-## REST — status is the category, the body is the specifics
+## REST: status is the category, the body is the specifics
 
 REST error handling works on two layers, and conflating them is the usual mistake.
 The **HTTP status class is the category**, and it is what drives client behaviour: a
@@ -53,21 +53,21 @@ The **HTTP status class is the category**, and it is what drives client behaviou
 `503` say "busy" and must travel with a `Retry-After` header so callers back off;
 `5xx` says a server fault that an *idempotent* call may retry with backoff. The
 **body carries the specifics**: RFC 9457 Problem Details (media type
-`application/problem+json`, which superseded RFC 7807) gives a standard envelope —
-`type`, `title`, `status`, `detail`, `instance` — that you extend with the stable
+`application/problem+json`, which superseded RFC 7807) gives a standard envelope
+(`type`, `title`, `status`, `detail`, `instance`) that you extend with the stable
 `code` and the `traceId`.
 
 The discipline that makes this maintainable is **one mapping seam**: domain code
 raises a typed exception, and exactly one place turns it into the wire format, so
 ad-hoc error JSON never spreads across endpoints. Every version here
-omits internals — no stack trace, no exception class name, no SQL — so nothing about the implementation leaks. The status
+omits internals (no stack trace, no exception class name, no SQL), so nothing about the implementation leaks. The status
 matches the category (`409`, a conflict the client can act on), and the body carries
 the code and the trace id for correlation.
 
 {% include excalidraw.html
    file="18-rest-errors"
    alt="REST error handling in two layers. Choose the status class first: 4xx is a client error, fix the request and do not retry as-is; 429 or 503 means busy, back off and honour the Retry-After header; 5xx is a server error, retry idempotent calls with backoff. The body is an application/problem+json document (RFC 9457) carrying type, title, status 409, detail, instance, the machine code STOCK_UNAVAILABLE, and a traceId for correlation."
-   caption="Figure E.2 — REST errors: the HTTP status class is the category; an RFC 9457 problem+json body carries the specifics" %}
+   caption="Figure E.2: REST errors (the HTTP status class is the category; an RFC 9457 problem+json body carries the specifics)" %}
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
@@ -234,31 +234,31 @@ func writeProblem(w http.ResponseWriter, r *http.Request, err error) {
 
 Each one registers a single handler family and lets the framework attach the
 `application/problem+json` content type. In a larger codebase you would key a
-base-class handler on the error family — one `switch` on a `code` — so a new domain
+base-class handler on the error family (one `switch` on a `code`), so a new domain
 error means a new case, not a new endpoint-local block of error JSON.
 
-## gRPC — the canonical code *is* the contract
+## gRPC: the canonical code *is* the contract
 
 gRPC ships a small, fixed set of canonical status codes, and **choosing the right
 one is the contract**, because clients and the Istio mesh decide retry behaviour
 straight from the code. `INVALID_ARGUMENT` and `NOT_FOUND` are client bugs: do not
 retry. `FAILED_PRECONDITION` and `ALREADY_EXISTS` are state issues: do not retry.
 `UNAVAILABLE` and `ABORTED` are transient: retry with backoff. `RESOURCE_EXHAUSTED`
-means you are being rate-limited — honour the `RetryInfo` delay. `DEADLINE_EXCEEDED`
+means you are being rate-limited: honour the `RetryInfo` delay. `DEADLINE_EXCEEDED`
 means the timeout needs tuning. The cardinal sin is collapsing everything into a
 generic `INTERNAL`, which strips automated clients of the one signal they use to
 decide whether and when to retry.
 
 Beyond the code, attach a `google.rpc.Status` in the trailers carrying the rich
-details — `ErrorInfo` (a machine `reason` plus a `domain`) and `RetryInfo` (exactly
-how long to wait) — so a gRPC caller receives the same five facts as a REST caller.
+details: `ErrorInfo` (a machine `reason` plus a `domain`) and `RetryInfo` (exactly
+how long to wait), so a gRPC caller receives the same five facts as a REST caller.
 `UNAVAILABLE` tells both the client and the mesh "transient, retryable," and
 the `RetryInfo` tells them precisely how long to back off.
 
 {% include excalidraw.html
    file="18-grpc-errors"
    alt="gRPC error handling. The canonical status code is the contract: INVALID_ARGUMENT and NOT_FOUND are client bugs, don't retry; FAILED_PRECONDITION and ALREADY_EXISTS are state issues, don't retry; UNAVAILABLE and ABORTED are transient, retry with backoff; RESOURCE_EXHAUSTED means honour the RetryInfo delay; DEADLINE_EXCEEDED means tune the timeout and maybe retry. A google.rpc.Status in the trailers carries the rich details: code UNAVAILABLE 14, a message, an ErrorInfo with reason and domain, and a RetryInfo delay."
-   caption="Figure E.3 — gRPC errors: a canonical status code drives retry behaviour, with google.rpc.Status details in the trailers" %}
+   caption="Figure E.3: gRPC errors (a canonical status code drives retry behaviour, with google.rpc.Status details in the trailers)" %}
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
@@ -402,14 +402,14 @@ func (s *Inventory) ReserveStock(
 The shape is identical across stacks: build a `google.rpc.Status` with the canonical
 code, pack `ErrorInfo` and `RetryInfo` into its details, and hand it to the
 framework's "abort with rich status" call so it lands in the trailers. The client
-library unpacks those details and the mesh reads the code — which is why getting the
+library unpacks those details and the mesh reads the code, which is why getting the
 code right is what prevents both silently lost work and runaway retries.
 
-## Kafka — move failures aside so a poison record can't block the partition
+## Kafka: move failures aside so a poison record can't block the partition
 
 A Kafka consumer has a failure mode that request/response protocols do not: a single
 **poison record** can block an entire partition forever. Retry it in place and the
-offset never advances, so every record queued behind it is stuck too —
+offset never advances, so every record queued behind it is stuck too:
 head-of-line blocking at the log level. The fix is to **move the failure aside and
 keep the offset moving**: try a bounded number of in-place retries, then route the
 record to a delayed-retry topic (reprocessed after a delay, off the live path), and
@@ -419,13 +419,13 @@ DLQ record carries the original payload plus error and trace headers.
 
 The frameworks differ in how much they do for you. Spring Kafka, SmallRye Reactive
 Messaging express the policy declaratively; with `Confluent.Kafka`, `aiokafka` and
-`rdkafka++` you write the loop yourself — which makes the invariant explicit:
+`rdkafka++` you write the loop yourself, which makes the invariant explicit:
 the commit happens on *every* branch.
 
 {% include excalidraw.html
    file="18-kafka-dlq"
    alt="A Kafka consumer reads from the orders topic main partition and processes each record. On success it acks and commits, the happy path. On failure it routes the record to a retry.5s delayed-retry topic, then a retry.30s topic, and after N tries to an orders.DLQ dead-letter queue for alerting and tooling. The offset is committed either way, so a poison record never blocks head-of-line processing."
-   caption="Figure E.4 — Kafka: route failures to delayed-retry topics then a DLQ, and commit the offset on every branch so the partition never stalls" %}
+   caption="Figure E.4: Kafka (route failures to delayed-retry topics then a DLQ, and commit the offset on every branch so the partition never stalls)" %}
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
@@ -597,18 +597,18 @@ investigation. One more requirement makes the whole thing safe: `handle()` must 
 **idempotent**, because at-least-once delivery means a retried record may have already
 applied in part.
 
-## GraphQL — partial success, with `errors[]`
+## GraphQL: partial success, with `errors[]`
 
 GraphQL breaks the one-request-one-status assumption that REST and gRPC rely on. A
 single query fans out across many resolvers, so the response is almost always
 `HTTP 200` and carries *both* a `data` object and an `errors` array. When one field
-fails — say `stock` cannot reach inventory — **that field is set to `null`**, an entry
+fails (say `stock` cannot reach inventory), **that field is set to `null`**, an entry
 is appended to `errors[]` with a message and the `path` to the failed field, and the
 shared contract rides in `extensions`: `code`, `retryable`, `traceId`. Every other
 field the client asked for still returns.
 
 The anti-pattern to name out loud is **blanket-failing** the whole operation (or
-returning a `500`) when only one field broke — that discards data the client already
+returning a `500`) when only one field broke: that discards data the client already
 successfully fetched. The right move is to raise from the *single field's* resolver
 and let the framework null just that field; partial success is a feature, and the
 client decides whether to retry only the part that failed.
@@ -616,7 +616,7 @@ client decides whether to retry only the part that failed.
 {% include excalidraw.html
    file="18-graphql-errors"
    alt="A GraphQL partial-success response. The HTTP 200 response carries a data object where the order has id 1037 and total 59.90 but stock is null because that field failed. Alongside it an errors array entry names the failure: message inventory unavailable, the path to order then stock, and an extensions object with code UNAVAILABLE, retryable true, and a traceId. Every other field still returns."
-   caption="Figure E.5 — GraphQL: one HTTP 200, the failed field nulled, and an errors[] entry carrying the machine code in extensions" %}
+   caption="Figure E.5: GraphQL (one HTTP 200, the failed field nulled, and an errors[] entry carrying the machine code in extensions)" %}
 
 {% include codetabs.html langs="Spring Boot|Quarkus|.NET|Python|C++|Go" %}
 
@@ -787,28 +787,28 @@ func (r *orderResolver) Stock(ctx context.Context, obj *Order) (*int, error) {
 The pattern is the same everywhere: raise (or `co_return`-throw) from the single
 field's resolver, and let the framework catch it, null *that* field, and append the
 `errors[]` entry with your `extensions`. Resisting the urge to let the exception
-bubble to the top is the whole discipline — the client sees the order, the total, a
+bubble to the top is the whole discipline: the client sees the order, the total, a
 `null` stock, reads `extensions.code`, and retries just `stock`.
 
-## How a retry storm forms — and how to stop it
+## How a retry storm forms and how to stop it
 
 Everything so far makes retryability explicit, which is exactly why this last section
 matters: **retries that are not bounded are how a brief blip becomes a full outage.**
 The loop is a positive feedback loop. A service slows; calls start timing out; clients
-retry — often three times — which *triples* the load on the already-struggling
+retry (often three times), which *triples* the load on the already-struggling
 service; which causes more timeouts; which causes more retries. Naive retry logic is
 the amplifier.
 
 {% include excalidraw.html
    file="18-retry-storm"
-   alt="Top: a feedback loop between clients and a struggling order service — clients retry three times, tripling load, which produces more timeouts, which produces more retries. Bottom: six controls that break the loop — timeout, bounded retries, backoff plus jitter, circuit breaker, retry budget, and shed load."
-   caption="Figure E.6 — Unbounded retries amplify a struggling service; each control removes one multiplier from the loop" %}
+   alt="Top: a feedback loop between clients and a struggling order service: clients retry three times, tripling load, which produces more timeouts, which produces more retries. Bottom: six controls that break the loop: timeout, bounded retries, backoff plus jitter, circuit breaker, retry budget, and shed load."
+   caption="Figure E.6: Unbounded retries amplify a struggling service; each control removes one multiplier from the loop" %}
 
 The controls that break the loop are the lower band of the figure, and they compose:
 
 - **Timeout** every call, so a slow dependency cannot pin a caller's thread or
   connection indefinitely.
-- **Bound the retries** to a small number, and only for *idempotent* calls — retrying
+- **Bound the retries** to a small number, and only for *idempotent* calls: retrying
   a non-idempotent write risks doubling the side effect.
 - **Backoff with jitter** so a thundering herd of clients does not retry in lockstep
   and re-synchronise the spike.
@@ -819,8 +819,8 @@ The controls that break the loop are the lower band of the figure, and they comp
 - **Shed load early** with `429` / `503` (or `UNAVAILABLE`) rather than queueing work
   you have no capacity to finish.
 
-The Istio configuration from the Communications chapter gives several of these — the
-timeout, the bounded retry policy, the outlier-detection circuit breaker — at the mesh
+The Istio configuration from the Communications chapter gives several of these (the
+timeout, the bounded retry policy, the outlier-detection circuit breaker) at the mesh
 layer, so they apply uniformly without every service re-implementing them.
 
 ## One contract, four encodings
@@ -828,12 +828,12 @@ layer, so they apply uniformly without every service re-implementing them.
 The cross-cutting checklist that ties the appendix together: the same five facts ride
 every protocol, expressed as `problem+json`, a `google.rpc.Status`, a GraphQL
 `extensions` object, or a Kafka DLQ header. Let each protocol carry the *category*
-natively — HTTP status, gRPC code, a GraphQL `errors[]` entry, a Kafka DLQ-versus-retry
-routing decision — instead of inventing a parallel scheme. Make retryability explicit
+natively (HTTP status, gRPC code, a GraphQL `errors[]` entry, a Kafka DLQ-versus-retry
+routing decision) instead of inventing a parallel scheme. Make retryability explicit
 and machine-readable so clients and the mesh back off correctly rather than guessing.
 Never leak internals onto the wire; map them to a code and keep the detail in the
-server-side log, joined back by the trace id. And bound every retry — timeout, small
-maximum, backoff plus jitter, circuit breaker, retry budget — while keeping every
+server-side log, joined back by the trace id. And bound every retry (timeout, small
+maximum, backoff plus jitter, circuit breaker, retry budget) while keeping every
 handler idempotent. Get those right and the failure paths become as boring as the
 happy ones.
 
@@ -842,16 +842,16 @@ happy ones.
 Prove the contract holds on the wire, in two protocols. For REST, trigger the stock
 conflict and inspect the response with curl: `curl -i` should show `HTTP/1.1 409`, a
 `Content-Type: application/problem+json` header, and a body whose `code` is
-`STOCK_UNAVAILABLE` and whose `traceId` is present — paste that trace id into Grafana
+`STOCK_UNAVAILABLE` and whose `traceId` is present: paste that trace id into Grafana
 Tempo and confirm it lands on the span that raised the error. For gRPC, call the
 method with `grpcurl` against a downed inventory and confirm the status is
 `UNAVAILABLE` (not `INTERNAL`) and that the `RetryInfo` detail carries the two-second
 delay. Then exercise the storm controls directly: point `hey` at the REST endpoint
 (or `ghz` at the gRPC one) with the dependency forced to fail, and watch the circuit
-breaker trip — total downstream calls should *plateau* rather than climb with offered
+breaker trip: total downstream calls should *plateau* rather than climb with offered
 load. A flat downstream-call line under rising pressure is the retry budget and breaker
 doing their job; a climbing one means a control is missing.
 
 ---
-*Verification status: verified — [`examples/18-errors/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/18-errors/) passes 13/13 checks in each of the six languages on Docker Engine (2026-10-13)
+*Verification status: verified. [`examples/18-errors/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/18-errors/) passes 13/13 checks in each of the six languages on Docker Engine (2026-10-13)
 (RFC 9457 problem details over REST for validation (422), stock conflict (409) and upstream unavailable (503), with error codes, traceId, retryable and retryAfter fields).*
