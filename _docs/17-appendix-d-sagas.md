@@ -316,7 +316,7 @@ free.
    alt="The orchestrator owns the saga context. It calls service A, which returns a reservation_id and warehouse region; that output is persisted into the saga context (reservation_id r-77, region eu-1) written after A and read before B; the orchestrator then calls service B with the context, which supplies the reservation_id B needs. If the orchestrator crashes between persisting A's output and calling B, on restart it loads the saga context, sees A is done, and resumes at B without re-calling A."
    caption="Figure D.3: A's output flows to B through the orchestrator's persisted context; B never calls A, and a crash resumes cleanly" %}
 
-### Cross-check it yourself
+## Build, run, observe
 
 Force the unhappy path. Run the saga with `book_shipping` rigged to fail, and
 confirm the database shows `release_stock` then `refund_payment` executing in that
@@ -326,6 +326,17 @@ resume from its persisted `step_index` and `context`, not start over. Reverse-or
 inverses over only the completed steps, plus a clean resume, shows the saga
 works.
 
----
-*Verification status: verified: [`examples/17-sagas/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/17-sagas/) passes 11/11 checks in each of the six languages on Docker Engine (2026-10-13)
-(orchestrated saga happy path, compensation in reverse order on failure, skipped compensation for steps that never completed, resume of a RUNNING saga after an orchestrator restart).*
+```bash
+cd examples/17-sagas/python     # or any of the six language stacks
+docker compose up -d --build --wait
+cd ..
+./verify.sh
+```
+
+`verify.sh` runs the language-agnostic end-to-end checks against the running stack
+(11/11 in each of the six languages), asserting the happy-path saga runs
+`charge_payment`, `reserve_stock`, and `book_shipping` in order with no compensation,
+a saga with `book_shipping` rigged to fail ends `COMPENSATED` and compensates in
+reverse order (`release_stock` then `refund_payment`), `cancel_shipping` never runs
+because shipping never completed, and a saga force-set to `RUNNING` in Postgres
+resumes to `COMPLETED` after the orchestrator container is stopped and restarted.

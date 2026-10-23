@@ -264,7 +264,19 @@ the Newman command-line documentation (install, reporters, and the `--iteration-
 `--bail` flags), and the Postman Learning Center's guides on writing tests with the `pm` API and on
 JSON-schema validation.
 
-### Cross-check it yourself
+## Build, run, observe
+
+```bash
+cd examples/28-newman
+docker compose up -d --build --wait
+./verify.sh
+```
+
+`verify.sh` checks health, runs the Postman collection with Newman, confirms the assertion
+count comes back with zero failures, checks the CLI output names the 201, 422, 404 and 204
+status assertions and the cancel-status assertion, then re-runs the collection with the JUnit
+reporter and confirms the exported `newman.xml` contains `testsuites` and `testcase` elements.
+It is the single stack, not six languages.
 
 Prove the gate end to end against the running stack. Bring the services up with `docker compose up -d --build --wait`,
 then `newman run` the orders collection with `--reporters cli,junit` and confirm a green run and a
@@ -274,7 +286,3 @@ the failing assertion names the exact expectation. Finally, add a negative row t
 `--iteration-data` (a zero-quantity order expecting `422`) and confirm it passes against a correct
 service and fails against one that wrongly accepts it. A suite that goes red on a real contract
 break, and only then, is the whole value of this appendix.
-
----
-*Verification status: verified; [`examples/28-newman/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/28-newman/) passes 11/11 checks on Docker Engine (2026-10-13)
-(a Newman collection run with status-code and state assertions (201, 422, 404, 204, cancel) and JUnit XML export).*

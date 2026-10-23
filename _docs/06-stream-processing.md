@@ -327,7 +327,22 @@ lever: true scale-to-zero when the topic is quiet, springing back the moment lag
 builds. Picking the signal (lag for events, request rate for HTTP) is the whole
 point; scaling a backlog-bound consumer on CPU would miss the load entirely.
 
-### Cross-check it yourself
+## Build, run, observe
+
+```bash
+cd examples/06-stream-processing/python     # or any of the six language stacks
+docker compose up -d --build --wait
+cd ..
+./verify.sh
+```
+
+`verify.sh` runs the language-agnostic end-to-end checks against the running stack (11/11 in
+each of the six languages), asserting orders for two merchants land in the derived
+`revenue.by-merchant` topic with a per-merchant aggregation, the `stream-processor` consumer
+group exists, pausing that consumer and sending a burst of orders makes its lag on
+`order.placed` rise above zero, resuming it drains the lag back down, and the burst's
+merchant eventually shows up in the revenue stream (the windowed aggregation catching up
+end to end).
 
 Make lag visible, then make it move. Pause the `payment-consumer`, publish a burst
 of `order.placed` with `hey` driving `order-service`, and watch the consumer-group
@@ -337,7 +352,3 @@ behaviour to confirm.
 
 The code is in [`examples/06-stream-processing/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/06-stream-processing/). The run script there builds and
 runs it; its `README.md` covers what it does and how to drive it.
-
----
-*Verification status: verified: [`examples/06-stream-processing/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/06-stream-processing/) passes 11/11 checks in each of the six languages on Docker Engine (2026-10-13)
-(per-merchant revenue aggregation onto a derived Kafka topic, the stream-processor consumer group, consumer lag that builds while the processor is paused and drains on resume, and the burst appearing in the revenue stream).*

@@ -97,8 +97,3 @@ concerns (workflows and the platform planes); and finally anti-patterns as a
 reflective close. The deep-dive appendices at the end go deeper on the questions
 that always come up (protocols, versioning, WebSockets, sagas, and more) and
 can be read on demand.
-
----
-*Verification status: conceptual chapter; no runnable code. The patterns named
-here are defined and applied in their own chapters, where the code ships with a
-runnable example per language.*

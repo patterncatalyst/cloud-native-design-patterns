@@ -333,8 +333,3 @@ optional field to a schema and confirm the `BACKWARD` check passes; change a fie
 type or reuse a protobuf tag and confirm it fails with `400`. The mechanical check
 catching the breaking change, instead of a reviewer's memory, is the principle
 made real.
-
----
-*Verification status: unverified: examples transcribed from the source decks; the
-REST, gRPC, and GraphQL compatibility behaviour and the Kafka `schema.version` header
-are exercised against the registry in the `examples/09-api-registry/` runner.*

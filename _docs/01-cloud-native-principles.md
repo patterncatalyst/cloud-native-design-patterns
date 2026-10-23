@@ -290,7 +290,20 @@ The same two ideas appear in every tab:
 Notice what *isn't* here: no retry logic, no scaling code, no port-binding
 plumbing. Those are the right column of Figure 1.3: the platform's job.
 
-### Cross-check it yourself
+## Build, run, observe
+
+```bash
+cd examples/01-cloud-native-principles/python     # or any of the six language stacks
+docker compose up -d --build --wait
+cd ..
+./verify.sh
+```
+
+`verify.sh` runs the language-agnostic end-to-end checks against the running stack (13/13 in
+each of the six languages), asserting the service reports its name, version and config
+source from the environment (Factor III), liveness stays `200` while readiness flips from
+`200` to `503` and back as Postgres is stopped and restarted, and a CRUD round trip
+(create an order, list it back) succeeds while the database is up.
 
 With the service running, the probes are just HTTP. Hit liveness and readiness
 with `curl` and confirm liveness returns healthy while the database is down but
@@ -300,7 +313,3 @@ database and back as you start it, without the process ever restarting.
 
 The code is in [`examples/01-cloud-native-principles/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/01-cloud-native-principles/). The run script there builds
 and runs it; its `README.md` covers what it does and how to drive it.
-
----
-*Verification status: verified; [`examples/01-cloud-native-principles/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/01-cloud-native-principles/) passes 13/13 checks in each of the six languages on Docker Engine (2026-10-13)
-(health probes, config from environment, CRUD, readiness flip on dependency failure).*

@@ -665,7 +665,19 @@ organisational failure to avoid is the cluster that ends up running three ingres
 because three teams each picked one: choose one ingress, one gateway, one mesh, manage routing
 through GitOps, watch certificate rotation, and load-test the failure paths.
 
-### Cross-check it yourself
+## Build, run, observe
+
+```bash
+cd examples/22-l7-routing/python     # or any of the six language stacks
+docker compose up -d --build --wait
+cd ..
+./verify.sh
+```
+
+`verify.sh` runs the language-agnostic end-to-end checks against the running stack (15/15 in
+each of the six languages), asserting Envoy's weighted traffic split and header-based routing
+override, the in-app router sending VIP orders to `orders.priority` and ordinary orders to
+`orders.default`, and that changing the routing ruleset takes effect without a redeploy.
 
 Prove a routing decision twice: once at the mesh, once in the app. For the mesh: apply the
 canary `VirtualService`/`DestinationRule`, drive a few hundred requests with `hey`, and confirm
@@ -679,7 +691,3 @@ HTTP call) while the ordinary one fell through to `orders.default`; then change 
 ruleset, not the dispatcher, and confirm the routing changes without a redeploy. Weights that
 track the config and a ruleset that can move routing without a code change are the two halves of
 this appendix working.
-
----
-*Verification status: verified; [`examples/22-l7-routing/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/22-l7-routing/) passes 15/15 checks in each of the six languages on Docker Engine (2026-10-13)
-(Envoy weighted traffic split, header-based routing override, in-app rule-driven routing, and changing routing rules without a redeploy. Canary promotion and circuit breaking are not covered).*

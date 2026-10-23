@@ -404,7 +404,18 @@ flag types), and the *Accelerate* / DORA research (Forsgren, Humble, Kim) for th
 distinction and progressive delivery; Unleash is a capable open-source alternative backend behind
 the same OpenFeature SDK.
 
-### Cross-check it yourself
+## Build, run, observe
+
+```bash
+cd examples/27-feature-flags/python     # or any available language stack
+docker compose up -d --build --wait
+cd ..
+./verify.sh
+```
+
+`verify.sh` runs 14 checks against the running stack: plan-based targeting rules, sticky
+assignment and percentage rollout for `new-checkout`, the `recommendations-enabled` kill
+switch, the `dark-mode` boolean toggle, flag listing, and safe defaults while flagd is down.
 
 Prove the three properties this appendix rests on, against a running flagd. **Decoupling:** with
 the service running, edit the `new-checkout` flag in flagd's source from `off` to a 25% fractional
@@ -415,7 +426,3 @@ confirm the split lands near 25%. **Fail-safe:** stop flagd entirely and confirm
 returns the coded default and the service keeps serving `200`s. If it instead errors, a flag
 lookup is on a critical path without a default, which is the one feature-flag mistake you cannot
 ship.
-
----
-*Verification status: verified: [`examples/27-feature-flags/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/27-feature-flags/) passes 14/14 checks in each of the six languages on Docker Engine (2026-10-13)
-(plan-based targeting rules, sticky assignment and percentage rollout, kill switch, simple boolean flag, flag listing, and safe defaults while flagd is down).*

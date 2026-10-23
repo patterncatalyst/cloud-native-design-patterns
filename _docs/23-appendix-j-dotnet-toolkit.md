@@ -215,14 +215,3 @@ log line) into Grafana and verify the span carries the service name and the
 `ActivitySource`-based attributes. A new service that answers both probes and emits a
 correlated trace on its first request has the spine of every pattern in this book working
 before you have written any business logic.
-
----
-*Verification status: package versions and licenses were checked against nuget.org on
-2026-10-10 (Confluent.Kafka 2.16.0, Apache-2.0; Streamiz.Kafka.Net 1.8.2, MIT; Temporalio,
-Asp.Versioning and Microsoft.Extensions.Resilience, MIT; Polly 8, BSD-3-Clause). MassTransit
-v9 and MediatR are commercially licensed, which is why the examples use Confluent.Kafka
-directly and Wolverine is the OSS alternative. The three tables
-were transcribed from the source deck, so the rows match the deck; the .NET 10 LTS support
-window (through Nov 2028) follows Microsoft's published policy. There is no per-language
-`examples/` runner for this appendix; the recipe's cross-check is the closest thing to a
-runnable proof.*

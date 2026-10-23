@@ -298,10 +298,3 @@ Drawn from real review comments:
 
 The throughline: each protocol is a tool with a shape. Match the shape to the
 interaction, and most of these mistakes never arise.
-
----
-*Verification status: the gRPC stub call and server-streaming handler are shown in
-all six languages and mirror the patterns compiled and run in the Communications
-chapter; the comparison axes, streaming modes, and performance levers are conceptual.
-The protocol choices this appendix argues are exercised in Communications and
-Composition.*
