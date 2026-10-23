@@ -142,8 +142,3 @@ might expect.
 | RFC | Request for Comments | An IETF standard, e.g. RFC 9457 Problem Details, RFC 9745 Deprecation |
 | IETF | Internet Engineering Task Force | Publisher of the HTTP, Problem Details, and `Idempotency-Key` specs |
 | MIT, BSD, Apache 2.0, AGPL | open-source software licenses | The licenses on the pinned toolkit and platform components |
-
----
-*Verification status: compiled from the book's own usage: every entry appears in the
-chapters or appendices. Expansions follow each technology's canonical naming; where a term
-is overloaded (`ACL`), the meaning used in this book is called out explicitly.*

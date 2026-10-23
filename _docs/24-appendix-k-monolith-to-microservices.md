@@ -572,7 +572,20 @@ architectural take-home is the property named at the start: design every step to
 config change, because migrations fail when they reach an irreversible step too early. The
 book-length treatment is Sam Newman's *Monolith to Microservices* (O'Reilly).
 
-### Cross-check it yourself
+## Build, run, observe
+
+```bash
+cd examples/24-monolith-to-microservices/python     # or any of the six language stacks
+docker compose up -d --build --wait
+cd ..
+./verify.sh
+```
+
+`verify.sh` runs the language-agnostic end-to-end checks against the running stack (19/19 in
+each of the six languages), asserting the strangler fig router's per-tenant content-based
+routing, a reversible cutover (flip and flip back), the decorating collaborator adding caching
+and Kafka `order.placed` event emission, and that the legacy service remains untouched
+throughout.
 
 Prove the two properties this appendix rests on: reversibility and equivalence. Stand the
 content router in front of a stub "monolith" and a stub "new service" that tag their responses,
@@ -584,7 +597,3 @@ twice and confirm the second response is served from cache (the legacy backend s
 two: check its access log), then `POST` once and confirm both that the legacy service recorded the
 write *and* that an `order.placed` event landed on Kafka. Same client-visible API, new behaviour
 underneath, legacy untouched: that is the decorator doing its job.
-
----
-*Verification status: verified. [`examples/24-monolith-to-microservices/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/24-monolith-to-microservices/) passes 19/19 checks in each of the six languages on Docker Engine (2026-10-13)
-(strangler fig router with per-tenant routing, reversible cutover, a decorating collaborator adding caching and Kafka event emission, and an untouched legacy service).*

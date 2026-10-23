@@ -546,7 +546,7 @@ SignalR**.
   payload), not JSON text, and bound each connection's send buffer so a slow
   client applies backpressure instead of exhausting the pod.
 
-### Cross-check it yourself
+## Build, run, observe
 
 Prove the backplane carries messages between pods. Connect a client to `ws-pod-1`, then send it a
 message *from* `ws-pod-2`: with the backplane wired up it arrives; rip the backplane
@@ -554,6 +554,16 @@ out and it vanishes, because no other pod can reach that socket. Then scale the
 Deployment down by one and confirm the dropped clients reconnect with backoff and
 resume from their last sequence rather than losing the stream.
 
----
-*Verification status: verified; [`examples/16-websockets/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/16-websockets/) passes 6/6 checks in each of the six languages on Docker Engine (2026-10-13)
-(WebSocket connect, cross-pod delivery and broadcast over the Redis pub/sub backplane, monotonic sequence numbers).*
+```bash
+cd examples/16-websockets/python     # or any of the six language stacks
+docker compose up -d --build --wait
+cd ..
+./verify.sh
+```
+
+`verify.sh` runs the language-agnostic end-to-end checks against the running stack
+(6/6 in each of the six languages), asserting both pods report healthy, a client can
+open a WebSocket connection to `ws-pod-1`, a message sent through `ws-pod-2`'s REST
+API arrives on that client over the Redis pub/sub backplane, a broadcast from
+`ws-pod-2` reaches a client connected to `ws-pod-1`, and the `seq` field on a burst of
+messages is monotonic and gap-free.

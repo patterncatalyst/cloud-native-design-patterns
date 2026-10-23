@@ -258,10 +258,3 @@ Then build a container image and inspect its layers. Run
 `docker image inspect <image> | jq '.[0].RootFS.Layers | length'`: you should see the UBI
 base layer, the runtime layer, and your application layer. Compare the image size to the
 SDK image: the runtime image should be roughly 4x smaller.
-
----
-*Verification status: unverified. The three diagrams (P.1 compilation pipeline, P.2
-Kestrel pipeline, P.3 container layers) are structurally correct based on the .NET 10
-architecture, and the Containerfile pattern matches the verified examples in this book. The
-UBI image sizes (~780 MB SDK, ~170 MB runtime) are approximate and will vary by .NET
-version. The NativeAOT section describes general availability behavior as of .NET 8+.*

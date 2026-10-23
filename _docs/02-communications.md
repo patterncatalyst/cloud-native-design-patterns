@@ -402,7 +402,21 @@ piles onto the struggling service in a retry storm. Putting the policy in the me
 means one bounded, observable rule for every caller, instead of each team
 re-inventing (and mis-tuning) retries in code.
 
-### Cross-check it yourself
+## Build, run, observe
+
+```bash
+cd examples/02-communications/python     # or any of the six language stacks
+docker compose up -d --build --wait
+cd ..
+./verify.sh
+```
+
+`verify.sh` runs the language-agnostic end-to-end checks against the running stack (10/10 in
+each of the six languages), asserting a create returns `201` with an id and status, a bad
+body returns `422` before business logic runs, cursor pagination returns a page with a
+`next_cursor`, an order with available stock comes back confirmed while one exceeding stock
+is rejected (the gRPC stock reservation), a GraphQL orders query returns data, and the
+`order.placed` Kafka topic exists after a create.
 
 Use plain tools. `curl` and Postman exercise the REST contract: confirm a create
 returns **201** and that a bad body returns **400** before your logic runs.
@@ -411,7 +425,3 @@ bounded retries behave under pressure rather than trusting they do.
 
 The code is in [`examples/02-communications/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/02-communications/). The run script there builds and runs
 it; its `README.md` covers what it does and how to drive it.
-
----
-*Verification status: verified: [`examples/02-communications/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/02-communications/) passes 10/10 checks in each of the six languages on Docker Engine (2026-10-13)
-(REST create and validation (201, 422), cursor pagination, order confirmation and rejection driven by the gRPC stock reservation, a GraphQL orders query, and the order.placed Kafka topic).*

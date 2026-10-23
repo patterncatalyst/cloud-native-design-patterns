@@ -743,7 +743,27 @@ Every pattern is a trade, so the cost line matters as much as the benefit:
 - **Claim-check** when payloads are large or sensitive. Cost: a second fetch and a
   store to manage, in exchange for keeping bulk and PII off the broker.
 
-### Cross-check it yourself
+## Build, run, observe
+
+```bash
+cd examples/12-security/python     # or any of the six language stacks
+docker compose up -d --build --wait
+cd ..
+./verify.sh
+```
+
+`verify.sh` runs the language-agnostic end-to-end checks against the running
+stack (18/18 in each of the six languages), asserting: `/healthz` bypasses the
+identity check; a request with no `X-Forwarded-Client-Cert` is refused with
+`403` and a "no validated identity" body, while a request carrying the header
+succeeds with `201` and echoes back the sidecar identity and the JWT subject
+claim; a valet key is minted, verifies successfully, and is rejected with `403`
+when tampered or used for the wrong operation; the per-tenant bulkhead reports
+independent pools per tenant, and filling one tenant's pool with eight
+concurrent slow requests gets some of them refused with `429` while another
+tenant is still served `201`; and conftest's Rego policy accepts a
+compliant manifest and rejects one with an untrusted image. JWT signature
+validation, RBAC enforcement, and rate limiting are not covered.
 
 Test the deny path, which is the one that matters. Call `order-service` *directly*,
 bypassing the mesh, with no `X-Forwarded-Client-Cert`, and confirm you get `403`:
@@ -751,7 +771,3 @@ the app trusts only the sidecar. Then apply a Deployment with an unsigned image 
 confirm Gatekeeper rejects it at admission, and that the same policy fails the CI
 step pre-merge. A request without identity being refused, and an unsigned image
 being blocked twice, is the layered model working.
-
----
-*Verification status: verified: [`examples/12-security/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/12-security/) passes 18/18 checks in each of the six languages on Docker Engine (2026-10-13)
-(sidecar identity trust (403 without X-Forwarded-Client-Cert, health-check bypass), propagation of the JWT subject claim, valet-key mint, verify and tamper rejection, per-tenant bulkhead state, a full tenant pool refusing the overflow with 429 while another tenant is still served, and conftest Rego policy evaluation of a good and a bad manifest. JWT signature validation, RBAC enforcement and rate limiting are not covered).*

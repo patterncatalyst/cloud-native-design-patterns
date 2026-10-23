@@ -228,8 +228,14 @@ k6, Locust.
   `float("5.10") == 5.1` is a known trap.
 - **No positional language** anywhere (slides or site): no "above / below / next slide /
   previous section / see slide N". Cross-reference the **concept**, not a number.
-- Chapters end with `### Cross-check it yourself` + an italic `*Verification status: …*`
-  footer. **Flip the footer to verified once `examples/NN-*/` runs green.**
+- Hands-on chapters end with a `## Build, run, observe` section: the example's
+  `verify.sh` command (start one language's stack, run the language-agnostic
+  checks) and what it asserts, plus the observe guidance. **No reader-facing
+  `*Verification status: …*` footer** on the page: the per-chapter run records
+  live in `_plans/verification-log.md` (the `plans` collection is
+  `output: false`). Conceptual chapters have no Build, run, observe section.
+  When an example's `verify.sh` runs green, update `_plans/verification-log.md`,
+  not a chapter footer.
 - **Validate before commit:** front-matter parses; raw-guard balance; **0 unguarded `{{`**;
   each codetab block-count == its `langs` count; referenced figures exist (`.svg` + `.excalidraw`);
   **0 positional terms**.

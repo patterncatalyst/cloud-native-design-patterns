@@ -1211,7 +1211,20 @@ a small identified hot set at the cost of extra DB load on it. Most production s
 for the bulk of traffic, layer refresh-ahead on the hot keys they have identified, and use write-through
 only where stale reads are forbidden: a mix, not a single rule.
 
-### Cross-check it yourself
+## Build, run, observe
+
+```bash
+cd examples/25-caching/python     # or any of the six language stacks
+docker compose up -d --build --wait
+cd ..
+./verify.sh
+```
+
+`verify.sh` runs the language-agnostic end-to-end checks against the running stack (29/29 in
+each of the six languages), asserting cache-aside with invalidation on update, read-through,
+write-through, write-around, write-back with a 202 and a flush retry across a Postgres outage,
+refresh-ahead with hot-set tracking, and degradation (not failure) when Redis is stopped and
+restarted.
 
 Prove the two properties that matter: the cache offloads the database, and a cache outage
 degrades rather than breaks. Put read load on the cache-aside endpoint with `hey` and watch the
@@ -1223,7 +1236,3 @@ cache is wired as a source of truth rather than an optimisation, which is the on
 cannot ship. Finally, for write-through, write a key and immediately read it back: the read must return
 the new value with no DB round trip; for write-around, write then read and confirm the first read is a
 miss (the DB log shows the `SELECT`) while the second is a hit.
-
----
-*Verification status: verified; [`examples/25-caching/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/25-caching/) passes 29/29 checks in each of the six languages on Docker Engine (2026-10-13)
-(cache-aside with invalidation on update, read-through, write-through, write-around, write-back with 202 and a flush retry across a Postgres outage, refresh-ahead, hot-set tracking, and degradation with Redis stopped and restarted).*

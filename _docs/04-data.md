@@ -317,7 +317,20 @@ pattern; the choreography-versus-orchestration trade-off, how a saga holds its s
 and how a later step gets an earlier step's data are taken up in depth in **Appendix D
 · Sagas**.
 
-### Cross-check it yourself
+## Build, run, observe
+
+```bash
+cd examples/04-data/python     # or any of the six language stacks
+docker compose up -d --build --wait
+cd ..
+./verify.sh
+```
+
+`verify.sh` runs the language-agnostic end-to-end checks against the running stack (8/8 in
+each of the six languages), asserting Kafka Connect comes up and the Debezium outbox
+connector reaches `RUNNING`, a create writes both the order row and its outbox row in one
+transaction, and the Debezium relay publishes the outbox row to the `order.placed` Kafka
+topic with the order's payload intact.
 
 You do not have to trust that the commit and the event stay in step: you can
 watch it. With the example running, stop the Kafka broker, place an order, and
@@ -329,7 +342,3 @@ without a re-request, is the property the outbox buys you.
 
 The code is in [`examples/04-data/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/04-data/). The run script there builds and runs it; its
 `README.md` covers what it does and how to drive it.
-
----
-*Verification status: verified; [`examples/04-data/`](https://github.com/patterncatalyst/cloud-native-design-patterns/tree/main/examples/04-data/) passes 8/8 checks in each of the six languages on Docker Engine (2026-10-13)
-(transactional write of order and outbox row, Debezium outbox connector running, relay of the outbox event to the order.placed Kafka topic with its payload).*
