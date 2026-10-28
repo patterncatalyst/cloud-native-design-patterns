@@ -4,13 +4,13 @@ Source: Designing-Cloud-Native-APIs-Python.pptx · 282 slides
 
 ## [001] CLOUD-NATIVE ARCHITECTURE · Designing Cloud-Native APIs (sldId 256)
 
-From principles to a running system on Kubernetes — communication, composition, data, events, and the platform that governs them.
+From principles to a running system on Kubernetes: communication, composition, data, events, and the platform that governs them.
 
 Robert Sedor
 
 Chief Architect, Application Development
 
-> Welcome and framing. This is a working architect's tour of designing cloud-native APIs — not a survey of buzzwords. Set expectations: we build one realistic system (five services and a gateway) and re-examine it from twelve angles, then the appendices go deep on protocols, versioning, WebSockets, sagas, errors, caching, failure modes and API testing, and run Example 05 on minikube. Tell the audience the whole deck is a reference they can keep. Mention the running stack up front: Python/FastAPI, gRPC, GraphQL, Kafka, Kubernetes.
+> Welcome and framing. This is a working architect's tour of designing cloud-native APIs: not a survey of buzzwords. Set expectations: we build one realistic system (five services and a gateway) and re-examine it from twelve angles, then the appendices go deep on protocols, versioning, WebSockets, sagas, errors, caching, failure modes and API testing, and run Example 05 on minikube. Tell the audience the whole deck is a reference they can keep. Mention the running stack up front: Python/FastAPI, gRPC, GraphQL, Kafka, Kubernetes.
 
 ## [002] AGENDA · Agenda (sldId 257)
 
@@ -45,13 +45,13 @@ p. 1
 
 ## [003] OVERVIEW · What we'll build, and the order we'll build it (sldId 258)
 
-- Foundations — cloud-native principles and the canonical system we carry throughout
-- Communications — REST, gRPC, GraphQL, and synchronous vs. asynchronous
-- Composition & Data — gateways, federation, database-per-service, outbox, sagas
-- Event-driven & Stream processing — the log, schemas, derived streams, KEDA scaling
-- Workflows & Jobs — orchestration, choreography, batch and scheduled work
-- The API platform — gateway, registry (Apicurio), metadata (OpenMetadata), observability
-- Anti-patterns — and the heuristics that keep you out of them
+- Foundations: cloud-native principles and the canonical system we carry throughout
+- Communications: REST, gRPC, GraphQL, and synchronous vs. asynchronous
+- Composition & Data: gateways, federation, database-per-service, outbox, sagas
+- Event-driven & Stream processing: the log, schemas, derived streams, KEDA scaling
+- Workflows & Jobs: orchestration, choreography, batch and scheduled work
+- The API platform: gateway, registry (Apicurio), metadata (OpenMetadata), observability
+- Anti-patterns, and the heuristics that keep you out of them
 
 p. 2
 
@@ -60,30 +60,30 @@ p. 2
 ## [004] SETTING UP · Why patterns matter more in the age of AI (sldId 259)
 
 - AI tooling (Claude, Claude Code, frontier models) turns intent into code at a rate that was not possible before. The bottleneck shifted: it's no longer typing, it's knowing what to ask for and what to accept.
-- Patterns are your vocabulary at three layers: design patterns (factory, strategy, observer), architecture patterns (hexagonal, microservices, event-driven), system design patterns (sagas, caching, strangler fig — the scope of this deck).
+- Patterns are your vocabulary at three layers: design patterns (factory, strategy, observer), architecture patterns (hexagonal, microservices, event-driven), system design patterns (sagas, caching, strangler fig: the scope of this deck).
 - Without that vocabulary you can't specify precisely, can't evaluate what comes back, can't tell good code from plausible-looking code, or notice when an anti-pattern is dressed as a solution. The AI is fluent; you still need to be literate.
-- All architecture is the least-worst decision — every choice trades something away.
-- All management is risk management — you manage the distribution of failures, not their existence.
-- There is no such thing as a free lunch — every pattern has a cost; ask whether you can afford it.
-- There is no problem which cannot be made worse — the wrong fix amplifies the original pain.
+- All architecture is the least-worst decision: every choice trades something away.
+- All management is risk management: you manage the distribution of failures, not their existence.
+- There is no such thing as a free lunch: every pattern has a cost; ask whether you can afford it.
+- There is no problem which cannot be made worse: the wrong fix amplifies the original pain.
 
 p. 3
 
-> Open the deck by naming the elephant. AI coding tools (Claude, Claude Code, Cursor, Copilot, every frontier model) are now in production engineering workflows. They produce code fluently. From a one-sentence prompt they will produce a microservices decomposition, a saga, a cache layer, a strangler fig wrapper, a CQRS write side: plausible enough to compile, deploy and run. The risk is also new: a developer who doesn't have the vocabulary to evaluate what comes back is rolling dice in production. The patterns in this deck are not nostalgic computer-science trivia; they are the literacy that lets you direct AI tooling instead of being directed by it. Walk the three layers of patterns briefly: design patterns are code-level vocabulary (Gang of Four); architecture patterns describe how applications fit together (hexagonal, microservices, BFF, event-driven); system design patterns, the focus of this deck, span services, data and runtime (sagas, caching, the strangler fig, outbox, decomposition, L7 routing). The four maxims are the philosophical spine. ‘Least-worst decision’: every architecture choice is a set of trades (latency for throughput, consistency for availability, simplicity for flexibility), and the job is not to find the optionless option but to make the trades visible and explicit. ‘Risk management’: you manage the distribution of failures, not their existence. ‘No free lunch’: every pattern (cache, saga, eventing, decomposition) has a cost — a stale read window, a compensation path, a coordination tax, an operational complexity. The question is whether you are buying the right thing for what you are paying. ‘No problem cannot be made worse’ is the warning corollary: a confidently-wrong intervention amplifies the original pain, and AI tooling makes confident interventions fast and cheap. The closing line is the audience take-home: AI is the amplifier; the patterns are the literacy that decides which direction it amplifies.
+> Open the deck by naming the elephant. AI coding tools (Claude, Claude Code, Cursor, Copilot, every frontier model) are now in production engineering workflows. They produce code fluently. From a one-sentence prompt they will produce a microservices decomposition, a saga, a cache layer, a strangler fig wrapper, a CQRS write side: plausible enough to compile, deploy and run. The risk is also new: a developer who doesn't have the vocabulary to evaluate what comes back is rolling dice in production. The patterns in this deck are not nostalgic computer-science trivia; they are the literacy that lets you direct AI tooling instead of being directed by it. Walk the three layers of patterns briefly: design patterns are code-level vocabulary (Gang of Four); architecture patterns describe how applications fit together (hexagonal, microservices, BFF, event-driven); system design patterns, the focus of this deck, span services, data and runtime (sagas, caching, the strangler fig, outbox, decomposition, L7 routing). The four maxims are the philosophical spine. ‘Least-worst decision’: every architecture choice is a set of trades (latency for throughput, consistency for availability, simplicity for flexibility), and the job is not to find the optionless option but to make the trades visible and explicit. ‘Risk management’: you manage the distribution of failures, not their existence. ‘No free lunch’: every pattern (cache, saga, eventing, decomposition) has a cost: a stale read window, a compensation path, a coordination tax, an operational complexity. The question is whether you are buying the right thing for what you are paying. ‘No problem cannot be made worse’ is the warning corollary: a confidently-wrong intervention amplifies the original pain, and AI tooling makes confident interventions fast and cheap. The closing line is the audience take-home: AI is the amplifier; the patterns are the literacy that decides which direction it amplifies.
 
 ## [005] SETTING UP · Three layers of patterns literacy (sldId 260)
 
 p. 4
 
-> The visual companion to the three layers of patterns literacy. Three stacked boxes: design patterns at the bottom (Gang of Four: factory, strategy, observer, decorator, repository, etc.); architecture patterns in the middle (hexagonal, microservices, modular monolith, BFF, federation, pipes-and-filters, event-driven, layered); and at the top, system design patterns, the scope of this deck (sagas, caching, the strangler fig, outbox, event sourcing, CQRS, decomposition, back-pressure, bulkhead, L7 routing, rule-based dispatch). The arrows up the middle show how each lower layer informs the next: you can't reason about a saga (system layer) without knowing what a state machine and a compensation are (architecture / design layer); you can't reason about content-based routing without understanding the strategy pattern. The blue caption in the middle is the through-line: knowing this vocabulary is what lets you ask AI tooling for the right thing, recognise what it produces, and judge why it is or isn't fit. The four maxims at the bottom in red are the philosophical anchors for every section: each concrete choice in the deck is an exercise in those four principles. Make the audience comfortable with the maxims, especially the last one (no problem cannot be made worse) — it's the warning at the heart of using AI tooling well.
+> The visual companion to the three layers of patterns literacy. Three stacked boxes: design patterns at the bottom (Gang of Four: factory, strategy, observer, decorator, repository, etc.); architecture patterns in the middle (hexagonal, microservices, modular monolith, BFF, federation, pipes-and-filters, event-driven, layered); and at the top, system design patterns, the scope of this deck (sagas, caching, the strangler fig, outbox, event sourcing, CQRS, decomposition, back-pressure, bulkhead, L7 routing, rule-based dispatch). The arrows up the middle show how each lower layer informs the next: you can't reason about a saga (system layer) without knowing what a state machine and a compensation are (architecture / design layer); you can't reason about content-based routing without understanding the strategy pattern. The blue caption in the middle is the through-line: knowing this vocabulary is what lets you ask AI tooling for the right thing, recognise what it produces, and judge why it is or isn't fit. The four maxims at the bottom in red are the philosophical anchors for every section: each concrete choice in the deck is an exercise in those four principles. Make the audience comfortable with the maxims, especially the last one (no problem cannot be made worse): it's the warning at the heart of using AI tooling well.
 
 ## [006] THE RUNNING EXAMPLE · One system, carried end to end (sldId 261)
 
-We will design every concern against these five services and a gateway — the same example, re-examined from each angle.
+We will design every concern against these five services and a gateway: the same example, re-examined from each angle.
 
 p. 5
 
-> This is the single most important slide to anchor on — every later example refers back to it. Walk each service: order-service owns the order lifecycle and exposes REST at the edge; inventory, payment and shipping are internal, reached by gRPC and contributing to GraphQL reads; notification-service is Kafka-only, consuming order.placed. The graphql-gateway composes reads across them. Emphasize that each service exposes only the protocols that fit its role — not a uniform surface. Promise the audience we'll return to this picture a dozen times.
+> This is the single most important slide to anchor on: every later example refers back to it. Walk each service: order-service owns the order lifecycle and exposes REST at the edge; inventory, payment and shipping are internal, reached by gRPC and contributing to GraphQL reads; notification-service is Kafka-only, consuming order.placed. The graphql-gateway composes reads across them. Emphasize that each service exposes only the protocols that fit its role: not a uniform surface. Promise the audience we'll return to this picture a dozen times.
 
 ## [007] Cloud-Native Principles (sldId 262)
 
@@ -91,7 +91,7 @@ p. 5
 
 Properties first, tools second.
 
-> Transition into section one. The core message: cloud-native is not a stack you buy, it is a set of runtime properties your service must exhibit. Tools (Kubernetes, Istio, KEDA) exist to make those properties cheap to obtain — but if your service isn't written to lean on them, no platform can rescue it.
+> Transition into section one. The core message: cloud-native is not a stack you buy, it is a set of runtime properties your service must exhibit. Tools (Kubernetes, Istio, KEDA) exist to make those properties cheap to obtain, but if your service isn't written to lean on them, no platform can rescue it.
 
 ## [008] CLOUD-NATIVE PRINCIPLES · Cloud-native is a set of runtime properties (sldId 263)
 
@@ -104,21 +104,21 @@ p. 6
 ## [009] CLOUD-NATIVE PRINCIPLES · The platform makes the properties the default (sldId 264)
 
 - Kubernetes gives you the disposable process model: liveness/readiness probes, rolling deploys, self-healing.
-- KEDA (and the http-add-on) make elasticity real — scale on lag or RPS, all the way to zero.
+- KEDA (and the http-add-on) make elasticity real: scale on lag or RPS, all the way to zero.
 - Istio supplies resilience and security at the wire: timeouts, retries, circuit breaking, mTLS.
 - OpenTelemetry + Tempo / Mimir / Prometheus / Grafana / Kiali make every request observable.
-- Your job is to write services that lean on these — not to reimplement them per service.
+- Your job is to write services that lean on these: not to reimplement them per service.
 
 p. 7
 
-> The punchline is the bold line: your job is to lean on the platform, not reimplement it. Concretely — don't write your own retry library when Istio does it at the wire; don't build a bespoke autoscaler when KEDA scales on lag and RPS; don't hand-roll metrics plumbing when OpenTelemetry plus the LGTM stack gives it to you. Every line of resilience code you write per service is a line you maintain forever and that drifts between teams. The platform makes the good behaviour the default.
+> The punchline is the bold line: your job is to lean on the platform, not reimplement it. Concretely: don't write your own retry library when Istio does it at the wire; don't build a bespoke autoscaler when KEDA scales on lag and RPS; don't hand-roll metrics plumbing when OpenTelemetry plus the LGTM stack gives it to you. Every line of resilience code you write per service is a line you maintain forever and that drifts between teams. The platform makes the good behaviour the default.
 
 ## [010] CLOUD-NATIVE PRINCIPLES · Design-first: the contract precedes the code (sldId 265)
 
-- Agree the interface before implementing it — OpenAPI for REST, .proto for gRPC, AsyncAPI for events.
+- Agree the interface before implementing it: OpenAPI for REST, .proto for gRPC, AsyncAPI for events.
 - The contract is a versioned artifact in the registry, gated in CI, owned by the producing domain.
 - Consumers code against the contract and generated stubs, never against your database or internals.
-- This is what makes services independently deployable — the promise the contract encodes is the boundary.
+- This is what makes services independently deployable: the promise the contract encodes is the boundary.
   - Tooling: uv with exact pins in pyproject.toml and a uv.lock for reproducible Python builds; FastAPI emits OpenAPI; buf / protoc for gRPC; Strawberry exports SDL.
 
 p. 8
@@ -127,9 +127,9 @@ p. 8
 
 ## [011] CLOUD-NATIVE PRINCIPLES · The twelve-factor app, revisited (sldId 266)
 
-- The twelve-factor app (2011) is the original recipe for software that's disposable, scalable and portable — the discipline beneath the runtime properties we just saw.
+- The twelve-factor app (2011) is the original recipe for software that's disposable, scalable and portable: the discipline beneath the runtime properties we just saw.
 - It predates Kubernetes but maps onto it almost one-to-one: most factors are now things the platform provides, not code you write.
-- So read the factors by ownership — a few you still author (config from the environment, statelessness, clean start/stop, logs as streams) and the rest the platform hands you (scaling, build/release/run, attached backing services).
+- So read the factors by ownership: a few you still author (config from the environment, statelessness, clean start/stop, logs as streams) and the rest the platform hands you (scaling, build/release/run, attached backing services).
 - In a microservices, event-driven system they get richer: “backing services” means Postgres, Kafka and the schema registry as swappable URLs; “logs” becomes correlated traces, metrics and logs.
 - Treat it as a pre-flight check: “will this survive the platform?” The twelve factors are listed and mapped to where each lives in our architecture.
 
@@ -139,11 +139,11 @@ p. 9
 
 ## [012] CLOUD-NATIVE PRINCIPLES · What the twelve factors are (sldId 267)
 
-The original 2011 checklist — most are now platform concerns; only a few are yours to write.
+The original 2011 checklist: most are now platform concerns; only a few are yours to write.
 
 p. 10
 
-> A lot of people nod along to ‘twelve-factor’ without being able to name the twelve, so here they are at a glance, one line each. Don't read them aloud — let people scan. Two takeaways to say: first, this 2011 list predicted cloud-native a decade early; second, many factors are now handled by the platform (build/release/run, concurrency, disposability, port binding, backing services) versus the few you still actively write (config from the environment, statelessness, logs as streams). That sets up the map of each factor onto our architecture.
+> A lot of people nod along to ‘twelve-factor’ without being able to name the twelve, so here they are at a glance, one line each. Don't read them aloud: let people scan. Two takeaways to say: first, this 2011 list predicted cloud-native a decade early; second, many factors are now handled by the platform (build/release/run, concurrency, disposability, port binding, backing services) versus the few you still actively write (config from the environment, statelessness, logs as streams). That sets up the map of each factor onto our architecture.
 
 ## [013] CLOUD-NATIVE PRINCIPLES · Twelve factors, mapped to our system (sldId 268)
 
@@ -151,7 +151,7 @@ Most factors are now platform defaults you adopt; a few are discipline you still
 
 p. 11
 
-> This is the payoff: not the traditional twelve-factor table, but a map of where each factor lives in the system we're building. Read it left to right: the twelve factors cluster into five things they ask of you, and each maps to a concrete piece of our stack and the section that covers it. Build & ship (codebase, dependencies, build/release/run, parity) becomes one repo, one image per release, the same image everywhere (§1). Configure becomes environment config (§1). Run on the platform (stateless processes, concurrency, disposability, port binding) becomes stateless pods, KEDA scaling, fast start/stop, and services behind Istio (§1, 2, 6). Attach resources becomes Postgres, Kafka and Apicurio as swappable URLs (§4–5). Operate (logs, admin processes) becomes OpenTelemetry into the LGTM stack and admin work as Jobs/CronJobs (§7, 11). The caption is the message: most of these are now defaults you adopt, not code you write — which is exactly what 'cloud-native' buys you.
+> This is the payoff: not the traditional twelve-factor table, but a map of where each factor lives in the system we're building. Read it left to right: the twelve factors cluster into five things they ask of you, and each maps to a concrete piece of our stack and the section that covers it. Build & ship (codebase, dependencies, build/release/run, parity) becomes one repo, one image per release, the same image everywhere (§1). Configure becomes environment config (§1). Run on the platform (stateless processes, concurrency, disposability, port binding) becomes stateless pods, KEDA scaling, fast start/stop, and services behind Istio (§1, 2, 6). Attach resources becomes Postgres, Kafka and Apicurio as swappable URLs (§4–5). Operate (logs, admin processes) becomes OpenTelemetry into the LGTM stack and admin work as Jobs/CronJobs (§7, 11). The caption is the message: most of these are now defaults you adopt, not code you write: which is exactly what 'cloud-native' buys you.
 
 ## [014] CLOUD-NATIVE PRINCIPLES · A 12-factor FastAPI service, ready for the platform (sldId 269)
 
@@ -191,7 +191,7 @@ p. 12
 
 Match the interaction style to the call.
 
-> Section two. The thesis: there is no single right protocol — there is a right protocol per interaction. Resist the urge to standardize on one wire for everything. The section gives a decision rule and then shows each protocol in code against the running system.
+> Section two. The thesis: there is no single right protocol: there is a right protocol per interaction. Resist the urge to standardize on one wire for everything. The section gives a decision rule and then shows each protocol in code against the running system.
 
 ## [016] COMMUNICATIONS · Pick the protocol for the interaction (sldId 271)
 
@@ -199,7 +199,7 @@ REST for reach, gRPC for internal speed, GraphQL for client-driven reads, async 
 
 p. 13
 
-> Four interaction styles, four defaults. REST for the public/edge surface where reach and caching matter; gRPC for internal service-to-service where latency and streaming matter; GraphQL for client-driven reads that compose many sources in one round trip; async events for decoupled facts that fan out. Most real systems use all four — the skill is matching each call to the right one. Note the sync/async chips at the bottom. This slide is the map for the whole section.
+> Four interaction styles, four defaults. REST for the public/edge surface where reach and caching matter; gRPC for internal service-to-service where latency and streaming matter; GraphQL for client-driven reads that compose many sources in one round trip; async events for decoupled facts that fan out. Most real systems use all four: the skill is matching each call to the right one. Note the sync/async chips at the bottom. This slide is the map for the whole section.
 
 ## [017] COMMUNICATIONS · REST at the edge with FastAPI (sldId 272)
 
@@ -222,11 +222,11 @@ async def list_orders(after: str | None = Query(None), limit: int = 50):
     return await orders.page(after=after, limit=limit)
 ```
 
-Resource-shaped URLs, validated contracts, correct status codes, cursor pagination — the edge surface other teams depend on.
+Resource-shaped URLs, validated contracts, correct status codes, cursor pagination: the edge surface other teams depend on.
 
 p. 14
 
-> This is the edge surface. Point out four things teams routinely get wrong: (1) resource-shaped URLs (nouns, not verbs); (2) request and response contracts validated by Pydantic so bad input never reaches your logic; (3) correct status codes — 201 on create, not 200; (4) cursor pagination, not offset, because offset breaks under concurrent writes and gets slow at depth. FastAPI emits the OpenAPI spec from the handlers without extra code, and that spec is what we register and gate. Test this surface with curl and Postman.
+> This is the edge surface. Point out four things teams routinely get wrong: (1) resource-shaped URLs (nouns, not verbs); (2) request and response contracts validated by Pydantic so bad input never reaches your logic; (3) correct status codes: 201 on create, not 200; (4) cursor pagination, not offset, because offset breaks under concurrent writes and gets slow at depth. FastAPI emits the OpenAPI spec from the handlers without extra code, and that spec is what we register and gate. Test this surface with curl and Postman.
 
 ## [018] COMMUNICATIONS · gRPC for internal service-to-service calls (sldId 273)
 
@@ -248,11 +248,11 @@ class InventoryServicer(inventory_pb2_grpc.InventoryServicer):
             reserved=remaining >= 0, remaining=max(remaining, 0))
 ```
 
-Schema-first, binary, multiplexed over HTTP/2 — the right default for chatty internal paths. Test with ghz.
+Schema-first, binary, multiplexed over HTTP/2: the right default for chatty internal paths. Test with ghz.
 
 p. 15
 
-> gRPC for the internal paths. The .proto is the contract, and it lives in the registry like OpenAPI. Highlight that the field numbers (=1, =2) are the wire contract — we return to exactly why in Appendix B. Generated stubs (via protoc or buf) mean both sides share types; no hand-written JSON parsing. It's binary and multiplexed over HTTP/2, so it's fast and supports streaming. The right default for chatty service-to-service calls where you control both ends. Load-test it with ghz.
+> gRPC for the internal paths. The .proto is the contract, and it lives in the registry like OpenAPI. Highlight that the field numbers (=1, =2) are the wire contract: we return to exactly why in Appendix B. Generated stubs (via protoc or buf) mean both sides share types; no hand-written JSON parsing. It's binary and multiplexed over HTTP/2, so it's fast and supports streaming. The right default for chatty service-to-service calls where you control both ends. Load-test it with ghz.
 
 ## [019] COMMUNICATIONS · Synchronous coupling vs. asynchronous facts (sldId 274)
 
@@ -260,15 +260,15 @@ A synchronous call shares fate; an event shares a fact. Reach for async wherever
 
 p. 16
 
-> The central trade-off of the whole talk in one picture. Top row: a synchronous call couples caller to callee in time and availability — if payment-service is down, the order request fails too, and availability multiplies downward across a chain. Bottom row: emitting order.placed as a fact lets the order succeed immediately; consumers catch up from the log if they were down. The rule: reach for async wherever immediacy isn't strictly required. This sets up the entire event-driven section later.
+> The central trade-off of the whole talk in one picture. Top row: a synchronous call couples caller to callee in time and availability: if payment-service is down, the order request fails too, and availability multiplies downward across a chain. Bottom row: emitting order.placed as a fact lets the order succeed immediately; consumers catch up from the log if they were down. The rule: reach for async wherever immediacy isn't strictly required. This sets up the entire event-driven section later.
 
 ## [020] COMMUNICATIONS · The mesh handles the wire, not your code (sldId 275)
 
-Istio sidecars give you mTLS, retries, timeouts and telemetry — uniformly, without per-service code.
+Istio sidecars give you mTLS, retries, timeouts and telemetry: uniformly, without per-service code.
 
 p. 17
 
-> Service mesh in one picture. Your app speaks plain HTTP or gRPC to localhost; the Istio sidecar (Envoy) intercepts and adds mTLS, retries, timeouts and telemetry on the wire — uniformly, for every service, with zero application code. istiod is the control plane distributing policy and identity (SPIFFE). The key insight ties back to principles: resilience and security become platform defaults, not per-service reimplementations. The configuration itself is an Istio VirtualService.
+> Service mesh in one picture. Your app speaks plain HTTP or gRPC to localhost; the Istio sidecar (Envoy) intercepts and adds mTLS, retries, timeouts and telemetry on the wire: uniformly, for every service, with zero application code. istiod is the control plane distributing policy and identity (SPIFFE). The key insight ties back to principles: resilience and security become platform defaults, not per-service reimplementations. The configuration itself is an Istio VirtualService.
 
 ## [021] COMMUNICATIONS · Resilience as configuration, not per-call code (sldId 276)
 
@@ -295,7 +295,7 @@ Bounded retries with backoff live in the mesh. Unbounded client retries are how 
 
 p. 18
 
-> Resilience as configuration. This VirtualService gives inventory a 2-second timeout, two retry attempts with an 800ms per-try timeout, retrying only on connect-failure and unavailable. The critical word is bounded — attempts: 2, not infinite. Tell the war story: unbounded client-side retries are how a brief blip becomes a full outage, because every caller piles on the struggling service (a retry storm). Putting this in the mesh means it's consistent across every service and tunable without redeploying code.
+> Resilience as configuration. This VirtualService gives inventory a 2-second timeout, two retry attempts with an 800ms per-try timeout, retrying only on connect-failure and unavailable. The critical word is bounded: attempts: 2, not infinite. Tell the war story: unbounded client-side retries are how a brief blip becomes a full outage, because every caller piles on the struggling service (a retry storm). Putting this in the mesh means it's consistent across every service and tunable without redeploying code.
 
 ## [022] Composition (sldId 277)
 
@@ -303,7 +303,7 @@ p. 18
 
 Aggregate at the edge, not inside services.
 
-> Section three. The question: when a client needs data from several services, where does the joining happen? The answer that keeps services decoupled: at the edge, in a gateway or BFF — never by services calling each other in deep chains. That chaining is how you accidentally rebuild a monolith over the network.
+> Section three. The question: when a client needs data from several services, where does the joining happen? The answer that keeps services decoupled: at the edge, in a gateway or BFF: never by services calling each other in deep chains. That chaining is how you accidentally rebuild a monolith over the network.
 
 ## [023] COMPOSITION · One query, many services (sldId 278)
 
@@ -338,15 +338,15 @@ The gateway owns aggregation; each field resolves against the owning service. Gr
 
 p. 20
 
-> The resolver makes federation concrete. The Order type's stock field resolves on demand by calling inventory-service over gRPC; the top-level order query calls order-service over REST. Each field resolves against its owning service — the gateway is just the composition layer. Mention the N+1 risk: naive per-field resolution can explode into many back-end calls, so production gateways use DataLoader-style batching. Strawberry is the modern code-first choice; Graphene is the alternative if you need its broader ecosystem. The schema's SDL is exported to the registry.
+> The resolver makes federation concrete. The Order type's stock field resolves on demand by calling inventory-service over gRPC; the top-level order query calls order-service over REST. Each field resolves against its owning service: the gateway is just the composition layer. Mention the N+1 risk: naive per-field resolution can explode into many back-end calls, so production gateways use DataLoader-style batching. Strawberry is the modern code-first choice; Graphene is the alternative if you need its broader ecosystem. The schema's SDL is exported to the registry.
 
-## [025] COMPOSITION · Three ways to compose — and where each belongs (sldId 280)
+## [025] COMPOSITION · Three ways to compose, and where each belongs (sldId 280)
 
 Push aggregation to a gateway or BFF. Chaining calls inside services rebuilds the monolith over the network.
 
 p. 21
 
-> Three composition patterns: an API gateway (one composed schema for everyone), a backend-for-frontend (a tailored aggregate per client type — web vs mobile), and GraphQL federation (a distributed graph). All three push aggregation outward to the edge. The anti-pattern to call out explicitly: service-to-service call chains, where order calls inventory calls pricing calls... — synchronous, deeply coupled, and impossible to reason about. That rebuilds the monolith with network latency between the pieces.
+> Three composition patterns: an API gateway (one composed schema for everyone), a backend-for-frontend (a tailored aggregate per client type: web vs mobile), and GraphQL federation (a distributed graph). All three push aggregation outward to the edge. The anti-pattern to call out explicitly: service-to-service call chains, where order calls inventory calls pricing calls...: synchronous, deeply coupled, and impossible to reason about. That rebuilds the monolith with network latency between the pieces.
 
 ## [026] Data (sldId 281)
 
@@ -354,7 +354,7 @@ p. 21
 
 Own your data; share it through contracts.
 
-> Section four, and the hardest discipline to hold. The rule: each service owns its data and shares it only through APIs and events — never through a shared database or by reaching into another service's tables. This is what makes independent deployment and independent scaling real. The slides cover ownership, the dual-write trap, and the saga.
+> Section four, and the hardest discipline to hold. The rule: each service owns its data and shares it only through APIs and events: never through a shared database or by reaching into another service's tables. This is what makes independent deployment and independent scaling real. The slides cover ownership, the dual-write trap, and the saga.
 
 ## [027] DATA · A database per service (sldId 282)
 
@@ -362,15 +362,15 @@ Each service owns its schema and storage engine; no other service touches its ta
 
 p. 22
 
-> Database-per-service. Each service owns its schema and even its storage engine — order and payment on Postgres, something else on a document store if that fits. No other service touches those tables directly; the only doors in are the API and the events. The hard part is social, not technical: someone will always want to 'just join across two services' databases' for a report. That shortcut is the single most common way microservice independence dies. Reporting needs go through the metadata/lineage layer or a dedicated read model, not direct table access.
+> Database-per-service. Each service owns its schema and even its storage engine: order and payment on Postgres, something else on a document store if that fits. No other service touches those tables directly; the only doors in are the API and the events. The hard part is social, not technical: someone will always want to 'just join across two services' databases' for a report. That shortcut is the single most common way microservice independence dies. Reporting needs go through the metadata/lineage layer or a dedicated read model, not direct table access.
 
-## [028] DATA · CQRS — Command Query Responsibility Segregation (sldId 283)
+## [028] DATA · CQRS: Command Query Responsibility Segregation (sldId 283)
 
 Separate the write model from the read model. They have different shapes, scales and even different stores.
 
 p. 23
 
-> CQRS (Command Query Responsibility Segregation) is the pattern of using different models for writes and reads. The write side optimises for invariants and consistency: a normalised schema in a transactional store (Postgres, MySQL). The read side optimises for query shape: denormalised wide tables, an Elasticsearch index, a Mongo document, or whatever fits the question being asked. The two are linked by a stream of events: either domain events emitted by the write side, or the database commit log itself via CDC, the log-tailing pattern. The cost: eventual consistency, a small lag between the write committing and the read model catching up. The benefit: each side can scale, schema-evolve and even be stored independently. Use this pattern when reads and writes have different shapes and access patterns. Avoid it when a single store handles both; CQRS adds operational complexity that isn't free. The classic motivating case: a service that takes thousands of writes per second but is read by analytics, dashboards and search — the write model serves the writes, the read model serves the rest. CQRS pairs naturally with event sourcing on the write side and event streaming for projections; the Event-Driven section draws both distinctions.
+> CQRS (Command Query Responsibility Segregation) is the pattern of using different models for writes and reads. The write side optimises for invariants and consistency: a normalised schema in a transactional store (Postgres, MySQL). The read side optimises for query shape: denormalised wide tables, an Elasticsearch index, a Mongo document, or whatever fits the question being asked. The two are linked by a stream of events: either domain events emitted by the write side, or the database commit log itself via CDC, the log-tailing pattern. The cost: eventual consistency, a small lag between the write committing and the read model catching up. The benefit: each side can scale, schema-evolve and even be stored independently. Use this pattern when reads and writes have different shapes and access patterns. Avoid it when a single store handles both; CQRS adds operational complexity that isn't free. The classic motivating case: a service that takes thousands of writes per second but is read by analytics, dashboards and search: the write model serves the writes, the read model serves the rest. CQRS pairs naturally with event sourcing on the write side and event streaming for projections; the Event-Driven section draws both distinctions.
 
 ## [029] DATA · CQRS in practice (sldId 284)
 
@@ -401,25 +401,25 @@ async for msg in consumer:                          # subscribes to order.placed
 
 p. 24
 
-> The Python shape. The write side is a normal POST handler in an existing transaction (we already saw the outbox pattern). The read side is a separate GET that queries a denormalised 'order_summary' table that holds the JOINed, aggregated view the UI needs. The projection (bottom of the slide) is a Kafka consumer that subscribes to order events and upserts into the read model — the upsert must be idempotent because Kafka delivery is at-least-once. The read-model table is denormalised, not 3NF: it holds customer_name (denormalised from customers), line_count (aggregated from order_lines), and any other field the query needs without a JOIN. Different teams can own the read side and the write side. Different scaling: the read store can be scaled horizontally (read replicas, search index) without affecting writes. CQRS adds complexity: use it when the read and write shapes have diverged, not as a default.
+> The Python shape. The write side is a normal POST handler in an existing transaction (we already saw the outbox pattern). The read side is a separate GET that queries a denormalised 'order_summary' table that holds the JOINed, aggregated view the UI needs. The projection (bottom of the slide) is a Kafka consumer that subscribes to order events and upserts into the read model: the upsert must be idempotent because Kafka delivery is at-least-once. The read-model table is denormalised, not 3NF: it holds customer_name (denormalised from customers), line_count (aggregated from order_lines), and any other field the query needs without a JOIN. Different teams can own the read side and the write side. Different scaling: the read store can be scaled horizontally (read replicas, search index) without affecting writes. CQRS adds complexity: use it when the read and write shapes have diverged, not as a default.
 
-## [030] DATA · Log tailing — the database commit log is the event stream (sldId 285)
+## [030] DATA · Log tailing: the database commit log is the event stream (sldId 285)
 
 Debezium tails the WAL and publishes every committed row as a Kafka event. No dual-write.
 
 p. 25
 
-> The mechanism that makes CQRS projections and the outbox pattern work: Change Data Capture, or CDC. The application writes ordinary SQL. The database commits and the change lands in the write-ahead log (WAL on Postgres, redo log on Oracle, binlog on MySQL, transaction log on SQL Server). Debezium, an Apache 2.0 open-source project running as a set of Kafka Connect connectors, tails that log via the database's native replication protocol (logical replication slots on Postgres, etc.), translates row-level deltas into Kafka events, and publishes them with commit ordering preserved. The application doesn't know Debezium exists. There is no dual-write — the commit is the single source of truth, and the event is a strictly downstream consequence. This is why log tailing matters before the outbox: the outbox is a targeted use of CDC for a specific case (publishing events that aren't naturally row-level), and CQRS projections are the other big use. Debezium supports Postgres, MySQL, MariaDB, SQL Server, Oracle, MongoDB, Db2, Cassandra, and Vitess out of the box. Run mode: deploy as Kafka Connect workers, or use Debezium Server (standalone) if you don't want a Kafka Connect cluster. WAL = Write-Ahead Log: the database's commit-ordered durable log that already exists for replication and crash recovery; Debezium just subscribes to it.
+> The mechanism that makes CQRS projections and the outbox pattern work: Change Data Capture, or CDC. The application writes ordinary SQL. The database commits and the change lands in the write-ahead log (WAL on Postgres, redo log on Oracle, binlog on MySQL, transaction log on SQL Server). Debezium, an Apache 2.0 open-source project running as a set of Kafka Connect connectors, tails that log via the database's native replication protocol (logical replication slots on Postgres, etc.), translates row-level deltas into Kafka events, and publishes them with commit ordering preserved. The application doesn't know Debezium exists. There is no dual-write: the commit is the single source of truth, and the event is a strictly downstream consequence. This is why log tailing matters before the outbox: the outbox is a targeted use of CDC for a specific case (publishing events that aren't naturally row-level), and CQRS projections are the other big use. Debezium supports Postgres, MySQL, MariaDB, SQL Server, Oracle, MongoDB, Db2, Cassandra, and Vitess out of the box. Run mode: deploy as Kafka Connect workers, or use Debezium Server (standalone) if you don't want a Kafka Connect cluster. WAL = Write-Ahead Log: the database's commit-ordered durable log that already exists for replication and crash recovery; Debezium just subscribes to it.
 
-## [031] DATA · Dual-write is unsafe — use the outbox (sldId 286)
+## [031] DATA · Dual-write is unsafe: use the outbox (sldId 286)
 
 Write state and the outbox row in one transaction; CDC relays the committed fact to Kafka.
 
 p. 26
 
-> This is the slide that prevents a class of production bugs. The dual-write problem: if you write to your database and then publish to Kafka as two separate operations, a crash between them leaves you inconsistent — the order exists but the event was never sent, or vice versa. The fix is the transactional outbox: write the state change and an outbox row in one local transaction, then a change-data-capture tool (Debezium) tails the database log and relays the committed row to Kafka. The database commit is the single source of truth. The outbox write itself is one database transaction, shown in code.
+> This is the slide that prevents a class of production bugs. The dual-write problem: if you write to your database and then publish to Kafka as two separate operations, a crash between them leaves you inconsistent: the order exists but the event was never sent, or vice versa. The fix is the transactional outbox: write the state change and an outbox row in one local transaction, then a change-data-capture tool (Debezium) tails the database log and relays the committed row to Kafka. The database commit is the single source of truth. The outbox write itself is one database transaction, shown in code.
 
-## [032] DATA · The outbox write — one transaction, no lost events (sldId 287)
+## [032] DATA · The outbox write: one transaction, no lost events (sldId 287)
 
 [chip] python · asyncpg + Debezium
 
@@ -458,15 +458,15 @@ p. 28
 
 Emit facts; let consumers decide.
 
-> Section five — the asynchronous backbone we kept pointing at. The mental shift: a producer emits a fact about something that happened (order.placed) and does not know or care who consumes it. Consumers decide what to do. This inverts the dependency direction, and it is what decouples services in time and ownership.
+> Section five: the asynchronous backbone we kept pointing at. The mental shift: a producer emits a fact about something that happened (order.placed) and does not know or care who consumes it. Consumers decide what to do. This inverts the dependency direction, and it is what decouples services in time and ownership.
 
-## [035] EVENT-DRIVEN · The event backbone — one fact, many reactions (sldId 290)
+## [035] EVENT-DRIVEN · The event backbone: one fact, many reactions (sldId 290)
 
 order.placed fans out to consumers the producer never names. Add a consumer without touching the producer.
 
 p. 29
 
-> order.placed fans out to payment, shipping and notification — and the producer names none of them. The power move: you can add a new consumer (say, a fraud-check service) without touching or redeploying the producer. Contrast with the synchronous world, where adding a dependency means changing the caller. This is the open/closed principle at the architecture level. Kafka (run by Strimzi on Kubernetes) is the backbone; Pulsar is an alternative with similar semantics.
+> order.placed fans out to payment, shipping and notification, and the producer names none of them. The power move: you can add a new consumer (say, a fraud-check service) without touching or redeploying the producer. Contrast with the synchronous world, where adding a dependency means changing the caller. This is the open/closed principle at the architecture level. Kafka (run by Strimzi on Kubernetes) is the backbone; Pulsar is an alternative with similar semantics.
 
 ## [036] EVENT-DRIVEN · Producing and consuming with aiokafka (sldId 291)
 
@@ -488,13 +488,13 @@ async for msg in consumer:
     await consumer.commit()                  # at-least-once; handlers idempotent
 ```
 
-Commit offsets after the side-effect, and make handlers idempotent — at-least-once delivery is the contract.
+Commit offsets after the side-effect, and make handlers idempotent: at-least-once delivery is the contract.
 
 p. 30
 
 > Two things to drill home from this code. First, enable_auto_commit=False, and commit only once the side-effect (send_email) has succeeded: commit first and then crash, and the work is lost. Second, because we commit after, a crash mid-handler means the message is redelivered, so delivery is at-least-once and your handlers must be idempotent (dedupe by message key or an idempotency key). Exactly-once is a marketing term that mostly means at-least-once plus idempotency. The schema-aware serde line leads into schemas and the registry.
 
-## [037] EVENT-DRIVEN · Schemas are the contract — the registry enforces them (sldId 292)
+## [037] EVENT-DRIVEN · Schemas are the contract: the registry enforces them (sldId 292)
 
 Apicurio holds versioned schemas; compatibility is checked at publish time so breaking changes are rejected early.
 
@@ -508,15 +508,15 @@ Two patterns, often confused. Sourcing: the events are the state. Streaming: eve
 
 p. 32
 
-> The vocabulary clarification most teams need before they go further with events. Event sourcing means events are the database — there is no 'current state' row anywhere; current state is computed by folding the entire event history. Adding a credit to an account isn't UPDATE balance SET balance = balance + 100; it's INSERT INTO events VALUES ('credit', 100), and reading the balance means summing every event for that account (with snapshots for performance). Strong fit for audit-heavy systems (banking, healthcare records, regulatory), temporal queries ("what was the balance on March 3rd?"), and any domain where the history is itself a primary asset. Tools: Marten (Postgres-backed, .NET), EventStoreDB, Axon (JVM). Event streaming means events are how facts move between services — each service still keeps its current state in a normal database, but emits events ("order.placed", "payment.processed") that other services subscribe to. The event is a transport mechanism, not a storage mechanism. Strong fit for integration, fan-out, decoupling. Tools: Kafka, Pulsar, NATS JetStream. These are not mutually exclusive. A common combination is full CQRS: the write side is event-sourced (so you have an audit trail of state changes), and the read-side projections are fed by streaming those events to consumers that build denormalised views. The acid test: is the event itself the source of truth (sourcing), or is it a propagated fact about a change that happened in a store (streaming)? In most enterprise architectures, streaming is far more common than sourcing; sourcing fits domains where audit and replay are core.
+> The vocabulary clarification most teams need before they go further with events. Event sourcing means events are the database: there is no 'current state' row anywhere; current state is computed by folding the entire event history. Adding a credit to an account isn't UPDATE balance SET balance = balance + 100; it's INSERT INTO events VALUES ('credit', 100), and reading the balance means summing every event for that account (with snapshots for performance). Strong fit for audit-heavy systems (banking, healthcare records, regulatory), temporal queries ("what was the balance on March 3rd?"), and any domain where the history is itself a primary asset. Tools: Marten (Postgres-backed, .NET), EventStoreDB, Axon (JVM). Event streaming means events are how facts move between services: each service still keeps its current state in a normal database, but emits events ("order.placed", "payment.processed") that other services subscribe to. The event is a transport mechanism, not a storage mechanism. Strong fit for integration, fan-out, decoupling. Tools: Kafka, Pulsar, NATS JetStream. These are not mutually exclusive. A common combination is full CQRS: the write side is event-sourced (so you have an audit trail of state changes), and the read-side projections are fed by streaming those events to consumers that build denormalised views. The acid test: is the event itself the source of truth (sourcing), or is it a propagated fact about a change that happened in a store (streaming)? In most enterprise architectures, streaming is far more common than sourcing; sourcing fits domains where audit and replay are core.
 
-## [039] EVENT-DRIVEN · Event-driven tools landscape — Kafka, Pulsar, Flink, NiFi (sldId 294)
+## [039] EVENT-DRIVEN · Event-driven tools landscape: Kafka, Pulsar, Flink, NiFi (sldId 294)
 
 Different jobs, often together: substrate (Kafka, Pulsar), compute (Flink), movement (NiFi, Debezium).
 
 p. 33
 
-> Each of the four tools does a different job. Kafka is the substrate: a partitioned, ordered, durable log. Consumers track their own offsets and can replay. It's the de facto event spine for cloud-native architectures; Strimzi runs it natively on Kubernetes. Pulsar is also substrate, in the same broad category as Kafka but with native pub/sub plus queue semantics in the same product, tiered storage that pushes cold data to cheap object stores automatically, and multi-tenancy built into the broker. Pulsar has a Kafka-protocol shim so consumers can speak Kafka while writing to Pulsar. Flink is compute: not a transport layer, but a stateful stream-processing engine. Flink sits on top of Kafka or Pulsar, consumes streams, applies operators (windowed aggregations, joins, filters, stateful transformations) with exactly-once semantics via checkpointing, and produces new streams. Alternatives: Kafka Streams (lighter, JVM-only, embedded library), Spark Structured Streaming (heavier, batch-mindset). NiFi is movement: a visual dataflow / ETL tool with 200+ source-and-sink connectors and back-pressure built in. Think of it as the answer to 'I need to get data from SFTP to Kafka to an object store with these transforms in the middle' — you draw the flow in the UI rather than writing a pipeline. Debezium (covered in the Data section) is the CDC variant of movement. Together they compose: typical pipeline is source DB → Debezium or NiFi → Kafka or Pulsar → Flink for windowed aggregations → sink. The mistake is treating these as competitors. They complement each other; pick by the question your team is asking: durably hold events (substrate), compute over them (Flink), move them around (NiFi/Debezium).
+> Each of the four tools does a different job. Kafka is the substrate: a partitioned, ordered, durable log. Consumers track their own offsets and can replay. It's the de facto event spine for cloud-native architectures; Strimzi runs it natively on Kubernetes. Pulsar is also substrate, in the same broad category as Kafka but with native pub/sub plus queue semantics in the same product, tiered storage that pushes cold data to cheap object stores automatically, and multi-tenancy built into the broker. Pulsar has a Kafka-protocol shim so consumers can speak Kafka while writing to Pulsar. Flink is compute: not a transport layer, but a stateful stream-processing engine. Flink sits on top of Kafka or Pulsar, consumes streams, applies operators (windowed aggregations, joins, filters, stateful transformations) with exactly-once semantics via checkpointing, and produces new streams. Alternatives: Kafka Streams (lighter, JVM-only, embedded library), Spark Structured Streaming (heavier, batch-mindset). NiFi is movement: a visual dataflow / ETL tool with 200+ source-and-sink connectors and back-pressure built in. Think of it as the answer to 'I need to get data from SFTP to Kafka to an object store with these transforms in the middle': you draw the flow in the UI rather than writing a pipeline. Debezium (covered in the Data section) is the CDC variant of movement. Together they compose: typical pipeline is source DB → Debezium or NiFi → Kafka or Pulsar → Flink for windowed aggregations → sink. The mistake is treating these as competitors. They complement each other; pick by the question your team is asking: durably hold events (substrate), compute over them (Flink), move them around (NiFi/Debezium).
 
 ## [040] EVENT-DRIVEN · The log is the source of truth (sldId 295)
 
@@ -536,11 +536,11 @@ Streams in, derived streams out.
 
 ## [042] STREAM PROCESSING · Derive new streams from streams (sldId 297)
 
-A streaming app is a topology of sources, stateful processors and sinks — joins, windows and aggregates.
+A streaming app is a topology of sources, stateful processors and sinks: joins, windows and aggregates.
 
 p. 35
 
-> A stream-processing app is a topology: sources (input topics), stateful processors (filter, join, window, aggregate) and sinks (output topics or stores). The output of one topology is just another stream that other services consume. Emphasize stateful — unlike a simple consumer, these processors keep local state (running totals, window buffers) that must survive restarts. That state-management problem is what the next code slide and KEDA slide address.
+> A stream-processing app is a topology: sources (input topics), stateful processors (filter, join, window, aggregate) and sinks (output topics or stores). The output of one topology is just another stream that other services consume. Emphasize stateful: unlike a simple consumer, these processors keep local state (running totals, window buffers) that must survive restarts. That state-management problem is what the next code slide and KEDA slide address.
 
 ## [043] STREAM PROCESSING · A windowed aggregation with faust-streaming (sldId 298)
 
@@ -577,7 +577,7 @@ p. 36
 
 ## [044] STREAM PROCESSING · KEDA scales workers on the signal that matters (sldId 299)
 
-Scale Kafka workers on consumer lag and HTTP services on request rate — both down to zero when idle.
+Scale Kafka workers on consumer lag and HTTP services on request rate: both down to zero when idle.
 
 p. 37
 
@@ -614,7 +614,7 @@ One mechanism, two signals: queue depth for async workers, concurrency for synch
 
 p. 38
 
-> Two manifests, one idea. The ScaledObject scales payment-consumer on Kafka lag for the order.placed topic, with minReplicaCount: 0 — true scale to zero when the topic is quiet, springing back when lag builds. The HTTPScaledObject does the same for the synchronous order-service based on request load via the http-add-on. The lagThreshold of 100 is the tuning knob: how many messages of backlog before adding a worker. Point out that scale-to-zero plus a cold-start budget is the trade-off to discuss with the audience for latency-sensitive paths.
+> Two manifests, one idea. The ScaledObject scales payment-consumer on Kafka lag for the order.placed topic, with minReplicaCount: 0: true scale to zero when the topic is quiet, springing back when lag builds. The HTTPScaledObject does the same for the synchronous order-service based on request load via the http-add-on. The lagThreshold of 100 is the tuning knob: how many messages of backlog before adding a worker. Point out that scale-to-zero plus a cold-start budget is the trade-off to discuss with the audience for latency-sensitive paths.
 
 ## [046] Workflows and Jobs (sldId 301)
 
@@ -630,7 +630,7 @@ A coordinator that commands keeps the flow in one place; events that trigger eac
 
 p. 39
 
-> The two ways to coordinate a multi-step process. Orchestration: a central coordinator explicitly commands each service in turn, so the flow is visible and observable, but the coordinator can become a god-service. Choreography: each service reacts to the previous one's event with no central brain — maximally decoupled, but the end-to-end flow is emergent and hard to see. Neither is universally right; choose by the selection criteria in the comparison. This connects straight to the saga discussion and Appendix D.
+> The two ways to coordinate a multi-step process. Orchestration: a central coordinator explicitly commands each service in turn, so the flow is visible and observable, but the coordinator can become a god-service. Choreography: each service reacts to the previous one's event with no central brain: maximally decoupled, but the end-to-end flow is emergent and hard to see. Neither is universally right; choose by the selection criteria in the comparison. This connects straight to the saga discussion and Appendix D.
 
 ## [048] WORKFLOWS AND JOBS · Choosing between the two (sldId 303)
 
@@ -646,7 +646,7 @@ Choreography
 
 - Each service reacts to the previous event
 - Maximally decoupled; no central bottleneck
-- Flow is emergent — harder to see end-to-end
+- Flow is emergent: harder to see end-to-end
 - Risk: nobody owns the overall process
 - Good for simple, additive event reactions
 
@@ -656,11 +656,11 @@ p. 40
 
 ## [049] WORKFLOWS AND JOBS · Jobs, CronJobs and queue workers (sldId 304)
 
-Long, batch or periodic work belongs in Jobs/CronJobs or a scaled queue worker — never on the request path.
+Long, batch or periodic work belongs in Jobs/CronJobs or a scaled queue worker: never on the request path.
 
 p. 41
 
-> Where non-request work lives on Kubernetes. A Job runs a task to completion (a data migration, a nightly export). A CronJob schedules Jobs (the reconciliation that runs at 2am). A queue worker continuously drains a topic and is scaled by KEDA on lag. The anti-pattern: doing long or heavy work inside an HTTP handler, blocking the request and timing out the client. The rule of thumb on screen — long, batch or periodic work never belongs on the request path. Hand it to a Job or a worker and return immediately, ideally with a status URL the client can poll.
+> Where non-request work lives on Kubernetes. A Job runs a task to completion (a data migration, a nightly export). A CronJob schedules Jobs (the reconciliation that runs at 2am). A queue worker continuously drains a topic and is scaled by KEDA on lag. The anti-pattern: doing long or heavy work inside an HTTP handler, blocking the request and timing out the client. The rule of thumb on screen: long, batch or periodic work never belongs on the request path. Hand it to a Job or a worker and return immediately, ideally with a status URL the client can poll.
 
 ## [050] API Management (sldId 305)
 
@@ -680,11 +680,11 @@ p. 42
 
 ## [052] API MANAGEMENT · Versioning and evolution are part of management (sldId 307)
 
-- Evolve additively — new optional fields and endpoints; never repurpose or remove without a new version.
+- Evolve additively: new optional fields and endpoints; never repurpose or remove without a new version.
 - Carry a major version in the path (/v2) or media type; deprecate with headers and a sunset date.
 - The registry's compatibility rules (BACKWARD / FORWARD / FULL) enforce this mechanically at publish time.
 - Run old and new side by side; migrate consumers off the old contract before you retire it.
-- Lifecycle: design → register → publish → consume → deprecate → retire — each step has an owner and a gate.
+- Lifecycle: design → register → publish → consume → deprecate → retire: each step has an owner and a gate.
 
 p. 43
 
@@ -696,7 +696,7 @@ p. 43
 
 One versioned home for every contract.
 
-> Section nine. If contracts are the boundary, they need one authoritative home. The registry is where every OpenAPI spec, .proto, AsyncAPI doc and event schema lives — versioned, compatibility-checked, and gated in CI. This is the difference between 'we have contracts somewhere in git' and 'contracts are enforced before code ships'.
+> Section nine. If contracts are the boundary, they need one authoritative home. The registry is where every OpenAPI spec, .proto, AsyncAPI doc and event schema lives: versioned, compatibility-checked, and gated in CI. This is the difference between 'we have contracts somewhere in git' and 'contracts are enforced before code ships'.
 
 ## [054] API REGISTRY · Apicurio: contracts, versioned and gated (sldId 309)
 
@@ -727,11 +727,11 @@ def publish(group: str, artifact_id: str, schema: str):
 # rule set once per artifact, e.g. BACKWARD: new consumers can read old data
 ```
 
-The CI job fails the build on an incompatible change — the contract is enforced before code ships, not after.
+The CI job fails the build on an incompatible change: the contract is enforced before code ships, not after.
 
 p. 45
 
-> This is the guardrail that makes the whole contract story real. The CI pipeline posts the new schema version to Apicurio; if it violates the artifact's compatibility rule, Apicurio returns 400 and the script fails the build, blocking the merge. The point to make: the contract is enforced before code ships, not discovered broken in production by a downstream team. The rule (e.g. BACKWARD — new consumers can read old data) is set once per artifact and then enforced automatically forever. Tie it back: this is design-first from section 1, now mechanized.
+> This is the guardrail that makes the whole contract story real. The CI pipeline posts the new schema version to Apicurio; if it violates the artifact's compatibility rule, Apicurio returns 400 and the script fails the build, blocking the merge. The point to make: the contract is enforced before code ships, not discovered broken in production by a downstream team. The rule (e.g. BACKWARD: new consumers can read old data) is set once per artifact and then enforced automatically forever. Tie it back: this is design-first, now mechanized.
 
 ## [056] API Metadata (sldId 311)
 
@@ -739,7 +739,7 @@ p. 45
 
 If they can't find it, it doesn't exist.
 
-> Section ten. A contract that's enforced but undiscoverable is half useless. Metadata is the discovery and trust layer: a searchable catalog of every API, topic and table, with ownership, lineage and quality signals. If a consumer can't find your API and trust it, they'll build their own or screen-scrape — and your boundary erodes.
+> Section ten. A contract that's enforced but undiscoverable is half useless. Metadata is the discovery and trust layer: a searchable catalog of every API, topic and table, with ownership, lineage and quality signals. If a consumer can't find your API and trust it, they'll build their own or screen-scrape, and your boundary erodes.
 
 ## [057] API METADATA · Discovery, lineage and ownership (sldId 312)
 
@@ -751,15 +751,15 @@ p. 46
 
 ## [058] API METADATA · What the catalog gives every consumer (sldId 313)
 
-- Discovery — search across APIs, topics and tables; find the owning team and how to get access.
-- Trust — published SLOs, data-quality test results, freshness, and a tier/criticality rating.
-- Lineage — column- and topic-level lineage answers 'if I change this, who breaks?' before you change it.
-- Ownership & governance — tags, classifications (PII), and accountable owners attached to every asset.
+- Discovery: search across APIs, topics and tables; find the owning team and how to get access.
+- Trust: published SLOs, data-quality test results, freshness, and a tier/criticality rating.
+- Lineage: column- and topic-level lineage answers 'if I change this, who breaks?' before you change it.
+- Ownership & governance: tags, classifications (PII), and accountable owners attached to every asset.
   - Ingestion runs as a scheduled connector against OpenAPI specs, the registry, Kafka and Postgres.
 
 p. 47
 
-> Four concrete payoffs for consumers. Discovery: search across APIs, topics and tables, and find the owning team and how to get access — no more asking around in Slack. Trust: published SLOs, data-quality results, freshness and a criticality tier tell you whether to depend on it. Lineage: column- and topic-level impact analysis answers the change-safety question proactively. Ownership and governance: tags, PII classifications and accountable owners on every asset — which is also what your compliance team needs. The throughline of sections 9–10: a contract is only as good as your ability to find it, trust it, and know who owns it.
+> Four concrete payoffs for consumers. Discovery: search across APIs, topics and tables, and find the owning team and how to get access: no more asking around in Slack. Trust: published SLOs, data-quality results, freshness and a criticality tier tell you whether to depend on it. Lineage: column- and topic-level impact analysis answers the change-safety question proactively. Ownership and governance: tags, PII classifications and accountable owners on every asset: which is also what your compliance team needs. The throughline of sections 9–10: a contract is only as good as your ability to find it, trust it, and know who owns it.
 
 ## [059] Observability (sldId 314)
 
@@ -767,7 +767,7 @@ p. 47
 
 Instrument once; correlate everything.
 
-> Section eleven, and the one that makes everything else operable. In a distributed system you cannot debug by reading one log file — a single user action touches five services. Observability is how you reconstruct that story. The key word is correlate: traces, metrics and logs become useful together only when they share a trace_id so you can pivot between them.
+> Section eleven, and the one that makes everything else operable. In a distributed system you cannot debug by reading one log file: a single user action touches five services. Observability is how you reconstruct that story. The key word is correlate: traces, metrics and logs become useful together only when they share a trace_id so you can pivot between them.
 
 ## [060] OBSERVABILITY · Three signals, one correlated story (sldId 315)
 
@@ -777,38 +777,38 @@ p. 48
 
 > Three signals, each answering a different question. Traces: where did the time go and which service failed in this one request? Metrics: what are the aggregate rates, errors and latencies over time? Logs: what exactly happened in this component? OpenTelemetry is the vendor-neutral way to emit all three from your code. The LGTM-style stack stores them (Tempo for traces, Mimir/Prometheus for metrics, Loki for logs), and Grafana joins them. The magic is the shared trace_id linking a metric spike to the exact traces and logs behind it. The instrumentation comes first, then the trace.
 
-## [061] OBSERVABILITY · The signals in depth — traces, metrics, logs, baggage, profiles (sldId 316)
+## [061] OBSERVABILITY · The signals in depth: traces, metrics, logs, baggage, profiles (sldId 316)
 
 Three classic pillars plus two that matter more every year. OpenTelemetry emits all five; one trace_id correlates them.
 
 p. 49
 
-> Expand the 'three pillars' framing into the five signals modern observability uses. Traces answer where the time went and which hop failed in one request. Metrics answer the trend question — aggregate rates, errors, latencies over time (the RED method: Rate, Errors, Duration; the USE method: Utilisation, Saturation, Errors). Logs answer what exactly happened in one component. Baggage is the signal most people miss — it's key-value context (tenant_id, user_tier, feature_flag) that propagates along the whole trace, so a value set at the edge is readable in a Kafka consumer three hops downstream. Profiles are the newest signal — continuous CPU / memory / lock sampling per service, answering which function is burning the CPU (Pyroscope, Parca, Grafana Phlare). The correlation bar at the bottom is the whole point: traces, metrics, logs, baggage and profiles all share trace_id + span_id + resource attributes (service.name, k8s.pod.name, deployment.version), so you can pivot — a metric spike leads to an exemplar trace, which leads to its logs, which leads to its CPU profile. OpenTelemetry is the vendor-neutral SDK and wire format for all five; traces/metrics/logs are GA, baggage is stable, profiling is the newest (the OTel profiling signal reached the ecosystem in 2024).
+> Expand the 'three pillars' framing into the five signals modern observability uses. Traces answer where the time went and which hop failed in one request. Metrics answer the trend question: aggregate rates, errors, latencies over time (the RED method: Rate, Errors, Duration; the USE method: Utilisation, Saturation, Errors). Logs answer what exactly happened in one component. Baggage is the signal most people miss: it's key-value context (tenant_id, user_tier, feature_flag) that propagates along the whole trace, so a value set at the edge is readable in a Kafka consumer three hops downstream. Profiles are the newest signal: continuous CPU / memory / lock sampling per service, answering which function is burning the CPU (Pyroscope, Parca, Grafana Phlare). The correlation bar at the bottom is the whole point: traces, metrics, logs, baggage and profiles all share trace_id + span_id + resource attributes (service.name, k8s.pod.name, deployment.version), so you can pivot: a metric spike leads to an exemplar trace, which leads to its logs, which leads to its CPU profile. OpenTelemetry is the vendor-neutral SDK and wire format for all five; traces/metrics/logs are GA, baggage is stable, profiling is the newest (the OTel profiling signal reached the ecosystem in 2024).
 
-## [062] OBSERVABILITY · What each signal answers — and when to reach for it (sldId 317)
+## [062] OBSERVABILITY · What each signal answers, and when to reach for it (sldId 317)
 
-- Traces — 'where did the time go in this request, which hop failed?' Reach for it when debugging latency or a specific failed request. Stored in Tempo / Jaeger.
-- Metrics — 'what is the aggregate rate / error / latency trend, is it getting worse?' Reach for it for dashboards, alerting, capacity. RED (Rate, Errors, Duration) for request-driven services; USE (Utilisation, Saturation, Errors) for resources. Stored in Prometheus / Mimir.
-- Logs — 'what exactly happened in this component at this instant?' Reach for it for detail the trace doesn't carry. Structured (JSON), keyed by trace_id. Stored in Loki / ELK.
-- Baggage — 'carry a value (tenant_id, user_tier) along the whole request so downstream services and their telemetry can use it.' Set once at the edge, readable everywhere downstream. W3C Baggage spec.
-- Profiles — 'which function is burning CPU / allocating memory / holding locks, continuously, in production?' Reach for it for the latency the trace shows but doesn't explain. Pyroscope / Parca.
+- Traces: 'where did the time go in this request, which hop failed?' Reach for it when debugging latency or a specific failed request. Stored in Tempo / Jaeger.
+- Metrics: 'what is the aggregate rate / error / latency trend, is it getting worse?' Reach for it for dashboards, alerting, capacity. RED (Rate, Errors, Duration) for request-driven services; USE (Utilisation, Saturation, Errors) for resources. Stored in Prometheus / Mimir.
+- Logs: 'what exactly happened in this component at this instant?' Reach for it for detail the trace doesn't carry. Structured (JSON), keyed by trace_id. Stored in Loki / ELK.
+- Baggage: 'carry a value (tenant_id, user_tier) along the whole request so downstream services and their telemetry can use it.' Set once at the edge, readable everywhere downstream. W3C Baggage spec.
+- Profiles: 'which function is burning CPU / allocating memory / holding locks, continuously, in production?' Reach for it for the latency the trace shows but doesn't explain. Pyroscope / Parca.
   - The discipline: emit traces + metrics + logs always; add baggage when downstream needs request-scoped context; add profiling when you have CPU/memory mysteries a trace can't resolve.
 
 p. 50
 
-> Walk each signal and the question it answers — the framing 'what question does this answer' is more useful to an engineer than 'what is this signal.' Traces are per-request; metrics are aggregate; logs are detail. The two newer ones deserve emphasis. Baggage is underused: most teams propagate trace context but never realise they can also propagate their own key-values (tenant, user tier, AB-test cohort) along the same mechanism, and then filter traces and logs by tenant. Profiling is the frontier: continuous profilers (Pyroscope, Parca, Grafana Phlare) run in production at low overhead and answer the 'the trace says this span took 200ms but why' question by showing the actual call stack burning the CPU. The sub-bullet is the practical guidance on which to adopt when.
+> Walk each signal and the question it answers: the framing 'what question does this answer' is more useful to an engineer than 'what is this signal.' Traces are per-request; metrics are aggregate; logs are detail. The two newer ones deserve emphasis. Baggage is underused: most teams propagate trace context but never realise they can also propagate their own key-values (tenant, user tier, AB-test cohort) along the same mechanism, and then filter traces and logs by tenant. Profiling is the frontier: continuous profilers (Pyroscope, Parca, Grafana Phlare) run in production at low overhead and answer the 'the trace says this span took 200ms but why' question by showing the actual call stack burning the CPU. The sub-bullet is the practical guidance on which to adopt when.
 
-## [063] OBSERVABILITY · Auto-injection vs. instrumentation — three distinct things (sldId 318)
+## [063] OBSERVABILITY · Auto-injection vs. instrumentation: three distinct things (sldId 318)
 
-- Manual instrumentation — you write the spans. tracer.start_span(...), span.set_attribute(...), span.add_event(...). Needed for business operations the libraries can't know about ('reserve_stock', 'score_fraud'). The most signal per line, the most effort.
-- Auto-instrumentation — a library / agent wraps known frameworks for you. HTTP servers and clients, gRPC, JDBC / database drivers, Kafka, Redis — each becomes spans with zero code change. Covers the plumbing; misses your domain.
-- Auto-injection — the platform puts the auto-instrumentation agent into the pod for you. The OpenTelemetry Operator watches for an annotation (instrumentation.opentelemetry.io/inject) and mutates the pod at admission — no agent in your image, no Dockerfile change, no redeploy of the app to add tracing.
+- Manual instrumentation: you write the spans. tracer.start_span(...), span.set_attribute(...), span.add_event(...). Needed for business operations the libraries can't know about ('reserve_stock', 'score_fraud'). The most signal per line, the most effort.
+- Auto-instrumentation: a library / agent wraps known frameworks for you. HTTP servers and clients, gRPC, JDBC / database drivers, Kafka, Redis: each becomes spans with zero code change. Covers the plumbing; misses your domain.
+- Auto-injection: the platform puts the auto-instrumentation agent into the pod for you. The OpenTelemetry Operator watches for an annotation (instrumentation.opentelemetry.io/inject) and mutates the pod at admission: no agent in your image, no Dockerfile change, no redeploy of the app to add tracing.
 - How they layer: auto-injection delivers the agent → the agent provides auto-instrumentation of frameworks → you add manual spans for business logic on top. All three coexist in the same trace.
   - Trade-off: auto-instrumentation is convenient but can be noisy (every framework call becomes a span) and slightly slower. Manual is precise but is work you own. Most teams: auto for the plumbing, manual for the domain, injection to roll it out fleet-wide.
 
 p. 51
 
-> Auto-injection, auto-instrumentation and manual instrumentation are three things people conflate. Manual: you call the tracer API yourself; necessary for domain operations. Auto-instrumentation: the OTel instrumentation libraries (or a language agent) wrap known frameworks: your HTTP handler, your DB driver, your Kafka client all emit spans without you touching them. Auto-injection: a Kubernetes-level mechanism; the OpenTelemetry Operator sees a pod annotation and injects the language agent + config as an init container / env vars at admission time, so you don't even put the agent in your image. Per-language specifics: Python: 'opentelemetry-instrument' wrapper or the operator injects it; instrumentation packages per library. Java/Quarkus: the OTel Java agent (-javaagent) auto-instruments everything; Quarkus also has build-time OTel extension. Spring: Micrometer Tracing + the OTel bridge, or the Java agent. .NET: OTel auto-instrumentation via the OpenTelemetry.AutoInstrumentation package or the operator's .NET injection; manual via System.Diagnostics.ActivitySource. The bold line is the mental model: injection delivers the agent, the agent instruments frameworks, you add manual spans on top — they layer into one trace.
+> Auto-injection, auto-instrumentation and manual instrumentation are three things people conflate. Manual: you call the tracer API yourself; necessary for domain operations. Auto-instrumentation: the OTel instrumentation libraries (or a language agent) wrap known frameworks: your HTTP handler, your DB driver, your Kafka client all emit spans without you touching them. Auto-injection: a Kubernetes-level mechanism; the OpenTelemetry Operator sees a pod annotation and injects the language agent + config as an init container / env vars at admission time, so you don't even put the agent in your image. Per-language specifics: Python: 'opentelemetry-instrument' wrapper or the operator injects it; instrumentation packages per library. Java/Quarkus: the OTel Java agent (-javaagent) auto-instruments everything; Quarkus also has build-time OTel extension. Spring: Micrometer Tracing + the OTel bridge, or the Java agent. .NET: OTel auto-instrumentation via the OpenTelemetry.AutoInstrumentation package or the operator's .NET injection; manual via System.Diagnostics.ActivitySource. The bold line is the mental model: injection delivers the agent, the agent instruments frameworks, you add manual spans on top: they layer into one trace.
 
 ## [064] OBSERVABILITY · Auto-instrument FastAPI with OpenTelemetry (sldId 319)
 
@@ -828,21 +828,21 @@ async def place_order(body: OrderIn):
     # trace_id flows: REST -> gRPC -> Kafka -> consumer, automatically
 ```
 
-The OTEL Collector exports traces to Tempo, metrics to Mimir/Prometheus, logs to Loki — all keyed by trace_id.
+The OTEL Collector exports traces to Tempo, metrics to Mimir/Prometheus, logs to Loki: all keyed by trace_id.
 
 p. 52
 
 > The payoff line is how little code this takes. instrument_app(app) makes every FastAPI request a span automatically; the aiokafka instrumentor propagates trace context onto the event so the trace continues into consumers. You only hand-write spans for custom business operations worth measuring, like reserve_stock. The crucial behaviour is the last comment: the trace_id flows REST → gRPC → Kafka → consumer with no manual plumbing, because the instrumentors inject and extract context at each hop. The Collector ships everything to the backends keyed by that trace_id. Instrument once, correlate everything.
 
-## [065] OBSERVABILITY · How correlation works — context propagation (sldId 320)
+## [065] OBSERVABILITY · How correlation works: context propagation (sldId 320)
 
 The trace context rides in-band with the request (W3C traceparent). The same trace_id at every hop is what stitches the story.
 
 p. 53
 
-> Demystify the magic word 'correlation.' It is not a backend join — it's the trace context physically travelling with the request, in-band, at every hop. The W3C traceparent header is the standard: version-traceid-parentspanid-flags. The trace_id (16 bytes) is constant across every hop of the request — that constancy is literally what stitches the distributed story into one trace. The span_id is new per operation, and each span records its parent span_id, which is how the backend rebuilds the tree. The flags byte carries the sampling decision (01 = sampled) so every hop honours the same decision. Alongside traceparent rides tracestate (vendor-specific) and baggage (your key-values). The transport differs per hop but the mechanism is identical: HTTP uses the traceparent header, gRPC uses metadata, Kafka uses message headers. The SDK injects the context on the way out and extracts it on the way in — automatically, which is why auto-instrumentation 'just works' across services. This propagated context is exactly why the same trace_id shows up on the trace waterfall, on every structured log line, and as an exemplar on your metrics — they all read it from the same in-band context.
+> Demystify the magic word 'correlation.' It is not a backend join: it's the trace context physically travelling with the request, in-band, at every hop. The W3C traceparent header is the standard: version-traceid-parentspanid-flags. The trace_id (16 bytes) is constant across every hop of the request: that constancy is literally what stitches the distributed story into one trace. The span_id is new per operation, and each span records its parent span_id, which is how the backend rebuilds the tree. The flags byte carries the sampling decision (01 = sampled) so every hop honours the same decision. Alongside traceparent rides tracestate (vendor-specific) and baggage (your key-values). The transport differs per hop but the mechanism is identical: HTTP uses the traceparent header, gRPC uses metadata, Kafka uses message headers. The SDK injects the context on the way out and extracts it on the way in: automatically, which is why auto-instrumentation 'just works' across services. This propagated context is exactly why the same trace_id shows up on the trace waterfall, on every structured log line, and as an exemplar on your metrics: they all read it from the same in-band context.
 
-## [066] OBSERVABILITY · Baggage in practice — carry request context downstream (sldId 321)
+## [066] OBSERVABILITY · Baggage in practice: carry request context downstream (sldId 321)
 
 [chip] python · OpenTelemetry baggage API
 
@@ -874,40 +874,40 @@ p. 54
 
 ## [067] OBSERVABILITY · A single trace stitches the whole request (sldId 322)
 
-One trace_id propagates from the edge REST call through gRPC, Kafka and the consumer — five services, one story.
+One trace_id propagates from the edge REST call through gRPC, Kafka and the consumer: five services, one story.
 
 p. 55
 
 > This is what the instrumentation buys you, visually. One trace_id propagates from the edge REST POST through the gRPC ReserveStock call, onto the published order.placed event, and into the consumer that sends the notification. Five services, one readable waterfall. Point at the time axis: you can see exactly which span dominated latency. That same trace_id appears as an exemplar on your metrics and on every log line, so a latency alert is one click from the offending trace and its logs. This is what makes the choreographed, event-driven design from earlier sections debuggable.
 
-## [068] OBSERVABILITY · Sampling — head vs. tail (sldId 323)
+## [068] OBSERVABILITY · Sampling: head vs. tail (sldId 323)
 
 You can't store every trace at scale. Head decides at the start (cheap, blind); tail decides at the end (smart, costly).
 
 p. 56
 
-> The cost-control reality: at scale you cannot store every trace, so you sample. The key question is when the keep/drop decision is made. Head sampling decides at the start, in the SDK, before the trace even completes — typically 'keep 1 in N' (probabilistic) or 'keep N per second' (rate-limiting). It's cheap and low-overhead, but it is blind at decision time: it can't keep a trace because it errored or was slow, because it decides before knowing. Tail sampling decides at the end, in the Collector, after the whole trace has been seen — the Collector buffers spans, waits for the trace to complete, then applies rules: keep all errors, keep all traces over 500ms, keep rare routes, sample the boring successful ones at 1%. Tail is smart but costs memory (buffering in-flight traces) and CPU (the Collector does real work). The strategies, named: probabilistic (keep X%), rate-limiting (cap per second), parent-based (follow the upstream's decision so a trace isn't half-sampled), and tail rules (error / latency / attribute based). The common production setup is both: a parent-based head sample for a representative baseline, plus tail sampling at the Collector to guarantee every error and every slow trace is captured regardless of the baseline rate. Two rules to drill home: always sample by trace, not by span (a half-sampled trace is worse than no trace), and propagate the sampling flag (the 01 in traceparent) so every service agrees. Metrics and logs are usually not sampled the same way: metrics aggregate everything (you don't sample a counter), and logs are typically kept in full with retention limits or sampled on their own policy.
+> The cost-control reality: at scale you cannot store every trace, so you sample. The key question is when the keep/drop decision is made. Head sampling decides at the start, in the SDK, before the trace even completes: typically 'keep 1 in N' (probabilistic) or 'keep N per second' (rate-limiting). It's cheap and low-overhead, but it is blind at decision time: it can't keep a trace because it errored or was slow, because it decides before knowing. Tail sampling decides at the end, in the Collector, after the whole trace has been seen: the Collector buffers spans, waits for the trace to complete, then applies rules: keep all errors, keep all traces over 500ms, keep rare routes, sample the boring successful ones at 1%. Tail is smart but costs memory (buffering in-flight traces) and CPU (the Collector does real work). The strategies, named: probabilistic (keep X%), rate-limiting (cap per second), parent-based (follow the upstream's decision so a trace isn't half-sampled), and tail rules (error / latency / attribute based). The common production setup is both: a parent-based head sample for a representative baseline, plus tail sampling at the Collector to guarantee every error and every slow trace is captured regardless of the baseline rate. Two rules to drill home: always sample by trace, not by span (a half-sampled trace is worse than no trace), and propagate the sampling flag (the 01 in traceparent) so every service agrees. Metrics and logs are usually not sampled the same way: metrics aggregate everything (you don't sample a counter), and logs are typically kept in full with retention limits or sampled on their own policy.
 
 ## [069] OBSERVABILITY · Choosing a sampling strategy (sldId 324)
 
-- Probabilistic (head) — keep a fixed percentage (e.g. 10%). Simplest; predictable volume; blind to errors. Good baseline for high-traffic, low-stakes services.
-- Rate-limiting (head) — keep at most N traces/sec per service. Protects your backend from traffic spikes; good when load is bursty.
-- Parent-based (head) — honour the upstream service's sampling decision (carried in the traceparent flags). Essential in distributed systems: it stops a trace being sampled at service A but dropped at service B, which would give you broken half-traces.
-- Tail-based (Collector) — buffer the whole trace, then keep by rule: all errors, all traces over a latency threshold, rare routes, plus a small % of the rest. The gold standard for keeping what matters, at the cost of Collector memory + CPU.
+- Probabilistic (head): keep a fixed percentage (e.g. 10%). Simplest; predictable volume; blind to errors. Good baseline for high-traffic, low-stakes services.
+- Rate-limiting (head): keep at most N traces/sec per service. Protects your backend from traffic spikes; good when load is bursty.
+- Parent-based (head): honour the upstream service's sampling decision (carried in the traceparent flags). Essential in distributed systems: it stops a trace being sampled at service A but dropped at service B, which would give you broken half-traces.
+- Tail-based (Collector): buffer the whole trace, then keep by rule: all errors, all traces over a latency threshold, rare routes, plus a small % of the rest. The gold standard for keeping what matters, at the cost of Collector memory + CPU.
 - Recommended production setup: parent-based head sampling at a modest baseline (1-10%) for representativeness, plus tail sampling at the Collector to guarantee every error and slow trace is kept.
   - Don't sample metrics the way you sample traces (metrics aggregate everything). Keep logs in full with retention limits, or sample them on their own policy keyed by trace_id so a kept trace keeps its logs.
 
 p. 57
 
-> The decision guide for sampling. Probabilistic is the simplest and the most common starting point — keep 10%, predictable volume. Rate-limiting is better when traffic is bursty because it caps absolute volume. Parent-based is non-negotiable in a distributed system: without it, service A samples a trace but service B independently drops it, and you get a broken trace with holes — worse than no trace. Tail-based sampling gives the most control: because the Collector sees the whole trace before deciding, it can guarantee you keep every error and every slow request, which are the traces you want during an incident. The cost is the Collector must buffer in-flight traces (memory) and evaluate rules (CPU), and it must see all spans of a trace (which constrains how you load-balance the Collector — use a trace-ID-aware load balancer). The recommended setup combines head (for a cheap representative baseline) and tail (for guaranteed capture of the interesting traces). The sub-bullet is the reminder: traces, metrics and logs are sampled differently — you never sample a metric counter, and logs typically follow their own retention or are sampled to match their parent trace.
+> The decision guide for sampling. Probabilistic is the simplest and the most common starting point: keep 10%, predictable volume. Rate-limiting is better when traffic is bursty because it caps absolute volume. Parent-based is non-negotiable in a distributed system: without it, service A samples a trace but service B independently drops it, and you get a broken trace with holes: worse than no trace. Tail-based sampling gives the most control: because the Collector sees the whole trace before deciding, it can guarantee you keep every error and every slow request, which are the traces you want during an incident. The cost is the Collector must buffer in-flight traces (memory) and evaluate rules (CPU), and it must see all spans of a trace (which constrains how you load-balance the Collector: use a trace-ID-aware load balancer). The recommended setup combines head (for a cheap representative baseline) and tail (for guaranteed capture of the interesting traces). The sub-bullet is the reminder: traces, metrics and logs are sampled differently: you never sample a metric counter, and logs typically follow their own retention or are sampled to match their parent trace.
 
 ## [070] OBSERVABILITY · Prove it with simple tools before you ship (sldId 325)
 
-- curl / Postman — exercise REST contracts and inspect status codes, headers and pagination.
-- hey — quick HTTP load to watch latency, error rate and the KEDA http-add-on scale the service.
-- ghz — load-test gRPC endpoints and confirm timeouts and retries behave under pressure.
-- GraphQL Playground — explore the composed schema and watch the gateway fan out in Tempo.
-- Kiali — read the live service-mesh topology, mTLS status and request flow during a load test.
+- curl / Postman: exercise REST contracts and inspect status codes, headers and pagination.
+- hey: quick HTTP load to watch latency, error rate and the KEDA http-add-on scale the service.
+- ghz: load-test gRPC endpoints and confirm timeouts and retries behave under pressure.
+- GraphQL Playground: explore the composed schema and watch the gateway fan out in Tempo.
+- Kiali: read the live service-mesh topology, mTLS status and request flow during a load test.
 
 p. 58
 
@@ -919,7 +919,7 @@ p. 58
 
 Defence in depth, in layers.
 
-> Section 12 — security. The Anti-Patterns section that used to be 12 has shifted to 13. We organise this section around two ideas: the 4 C's of cloud-native security (concentric layers, each protecting what is inside it), and the seven patterns that you'll meet over and over in practice. The bias of this section: security is not a single product or a single team. It's a property of how the system is designed and run, owned at every layer. Each pattern here exists because no single layer is enough on its own.
+> Security. We organise this section around two ideas: the 4 C's of cloud-native security (concentric layers, each protecting what is inside it), and the seven patterns that you'll meet over and over in practice. The bias of this section: security is not a single product or a single team. It's a property of how the system is designed and run, owned at every layer. Each pattern here exists because no single layer is enough on its own.
 
 ## [072] SECURITY · The 4 C's of cloud-native security (sldId 327)
 
@@ -929,12 +929,12 @@ p. 59
 
 > The mental model from the CNCF security paper. Four concentric layers of responsibility, each enforcing controls appropriate to its scope. Cloud is the outermost layer (IAM, VPC, KMS, audit logs, region selection), owned by the platform team or cloud admin. Cluster is the Kubernetes layer (RBAC, NetworkPolicy, Pod Security Standards, admission control), owned by platform/SRE. Container is the workload (minimal base images, non-root users, signed images, vulnerability scanning, secret mounting), owned jointly by app teams and platform. Code is the innermost layer (secure defaults, input validation, dependency scanning, secrets handling), owned by app teams. The point of the concentric metaphor: a weakness in any layer leaks into the inner ones. Strong code on a weak container is still vulnerable. Strong container on a weak cluster is still vulnerable. We design controls at all four. The 4 C's table lists each layer's controls and its owner.
 
-## [073] SECURITY · The 4 C's — what each layer enforces, and who owns it (sldId 328)
+## [073] SECURITY · The 4 C's: what each layer enforces, and who owns it (sldId 328)
 
-- Cloud — IAM (principles of least privilege), VPC isolation, KMS for keys, audit logging, region & data-residency controls. Owner: platform / cloud admin.
-- Cluster — Kubernetes RBAC, NetworkPolicy (default-deny + targeted allows), Pod Security Standards (restricted profile), admission control (OPA Gatekeeper / Kyverno), secret encryption at rest, etcd encryption. Owner: platform / SRE.
-- Container — minimal base images (distroless, UBI-minimal), non-root users, read-only root filesystems, image signing (Sigstore / Cosign), vulnerability scanning (Trivy, Grype) on every build, secret mounting via projected volumes (never bake secrets into images). Owner: app team + platform.
-- Code — secure defaults (parameterised queries, output encoding), input validation at the trust boundary, dependency scanning (Dependabot, Snyk, OSV-Scanner), secrets handling (no plaintext in source, no logging secrets), CSRF / SSRF / XXE awareness, threat modeling. Owner: app team.
+- Cloud: IAM (principles of least privilege), VPC isolation, KMS for keys, audit logging, region & data-residency controls. Owner: platform / cloud admin.
+- Cluster: Kubernetes RBAC, NetworkPolicy (default-deny + targeted allows), Pod Security Standards (restricted profile), admission control (OPA Gatekeeper / Kyverno), secret encryption at rest, etcd encryption. Owner: platform / SRE.
+- Container: minimal base images (distroless, UBI-minimal), non-root users, read-only root filesystems, image signing (Sigstore / Cosign), vulnerability scanning (Trivy, Grype) on every build, secret mounting via projected volumes (never bake secrets into images). Owner: app team + platform.
+- Code: secure defaults (parameterised queries, output encoding), input validation at the trust boundary, dependency scanning (Dependabot, Snyk, OSV-Scanner), secrets handling (no plaintext in source, no logging secrets), CSRF / SSRF / XXE awareness, threat modeling. Owner: app team.
 - Cross-cutting: observability (audit who did what when), incident response runbooks, threat modeling per service, regular dependency updates.
   - The pattern: a control at the wrong layer is the most common source of false confidence. Network ACLs cannot save you from an SQL injection. Code-level input validation cannot save you from a compromised image. Defence in depth is real.
 
@@ -944,49 +944,49 @@ p. 60
 
 ## [074] SECURITY · Seven patterns to know (sldId 329)
 
-- Sidecar — move security concerns out of the app into a companion process. mTLS, JWT, audit, rate-limiting belong there.
-- Valet Key — hand the client a short-lived signed token to access a resource directly. Less app proxying, less attack surface.
-- Strangler Fig (for security modernisation) — encapsulate legacy auth behind an API gateway, replace pieces over time.
-- Zero-Trust / Identity-Aware Proxy — every request authenticated and authorised. Perimeter trust is dead.
-- Policy-as-Code — security gates declared in Git, evaluated at admission and at build. No human runs a checklist.
-- Bulkhead — isolate resources so one failure (or compromise) cannot starve or cascade into others.
-- Claim-Check — send a reference, not the payload. Keeps PII out of message bus history and limits the blast radius if a topic leaks.
-  - The seven appear in different layers and combine. Each slide that follows shows the pattern, then implementation — platform config where it's mostly YAML, code where it's mostly code.
+- Sidecar: move security concerns out of the app into a companion process. mTLS, JWT, audit, rate-limiting belong there.
+- Valet Key: hand the client a short-lived signed token to access a resource directly. Less app proxying, less attack surface.
+- Strangler Fig (for security modernisation): encapsulate legacy auth behind an API gateway, replace pieces over time.
+- Zero-Trust / Identity-Aware Proxy: every request authenticated and authorised. Perimeter trust is dead.
+- Policy-as-Code: security gates declared in Git, evaluated at admission and at build. No human runs a checklist.
+- Bulkhead: isolate resources so one failure (or compromise) cannot starve or cascade into others.
+- Claim-Check: send a reference, not the payload. Keeps PII out of message bus history and limits the blast radius if a topic leaks.
+  - The seven appear in different layers and combine. Each slide that follows shows the pattern, then implementation: platform config where it's mostly YAML, code where it's mostly code.
 
 p. 61
 
 > The roadmap for the next fourteen slides. These patterns span the 4 C's: Zero-Trust and Policy-as-Code are cluster-layer; Sidecar straddles cluster and container; Valet Key, Bulkhead, and Claim-Check are mostly code-layer; Strangler Fig is architecture-layer (modernisation). You'll see each pattern with a diagram explaining how it works, then either a YAML configuration block (for the platform-heavy patterns) or language-specific code (for the code-heavy patterns). Use the sub-bullet to set audience expectation that the section alternates between pattern-and-implementation pairs.
 
-## [075] SECURITY · SIDECAR · Sidecar pattern — push security out of the app (sldId 330)
+## [075] SECURITY · SIDECAR · Sidecar pattern: push security out of the app (sldId 330)
 
-mTLS, JWT validation, rate limiting, audit logging — a companion process in the same Pod handles them all.
+mTLS, JWT validation, rate limiting, audit logging: a companion process in the same Pod handles them all.
 
 p. 62
 
-> The sidecar pattern — a separate container running in the same Pod as the application, sharing localhost. The sidecar handles cross-cutting security concerns: terminates mTLS, validates JWTs, rate-limits, audits, enforces policy. The app receives only authenticated, authorised requests with trusted headers attached (X-Forwarded-Client-Cert, the validated JWT claims, the request ID). Why this matters: one security policy applied uniformly across every workload regardless of language. Same Envoy sidecar protects your Java app, your Python app, your Go app. App teams write business code, not crypto code. The sidecar is enforced by the platform (Istio injects them automatically) so it can't be disabled by accident. Examples in the field: Istio Envoy sidecars (the dominant choice), Linkerd2-proxy, OPA Sidecar for policy decisions, Cilium L7 with per-endpoint policy.
+> The sidecar pattern: a separate container running in the same Pod as the application, sharing localhost. The sidecar handles cross-cutting security concerns: terminates mTLS, validates JWTs, rate-limits, audits, enforces policy. The app receives only authenticated, authorised requests with trusted headers attached (X-Forwarded-Client-Cert, the validated JWT claims, the request ID). Why this matters: one security policy applied uniformly across every workload regardless of language. Same Envoy sidecar protects your Java app, your Python app, your Go app. App teams write business code, not crypto code. The sidecar is enforced by the platform (Istio injects them automatically) so it can't be disabled by accident. Examples in the field: Istio Envoy sidecars (the dominant choice), Linkerd2-proxy, OPA Sidecar for policy decisions, Cilium L7 with per-endpoint policy.
 
 ## [076] SECURITY · SIDECAR · Reading the sidecar's trusted headers (sldId 331)
 
-- The sidecar handles mTLS, JWT validation, and policy decisions — the app trusts the headers the sidecar attaches and reads them as plain values.
-- X-Forwarded-Client-Cert — the validated client identity from mTLS. Includes the SPIFFE ID (spiffe://cluster.local/ns/orders/sa/order-service) or the X.509 Subject. Set only by the sidecar; the app must reject requests that don't have it.
-- JWT claims — the sidecar validates the signature, then passes the claims forward as a header or sets request.auth.claims via an envoy filter. The app reads sub, aud, scope, custom claims; it never re-validates the signature.
-- Request ID — the sidecar attaches X-Request-Id for traceability. Log it; propagate it to downstream calls; correlate it with audit logs.
+- The sidecar handles mTLS, JWT validation, and policy decisions: the app trusts the headers the sidecar attaches and reads them as plain values.
+- X-Forwarded-Client-Cert: the validated client identity from mTLS. Includes the SPIFFE ID (spiffe://cluster.local/ns/orders/sa/order-service) or the X.509 Subject. Set only by the sidecar; the app must reject requests that don't have it.
+- JWT claims: the sidecar validates the signature, then passes the claims forward as a header or sets request.auth.claims via an envoy filter. The app reads sub, aud, scope, custom claims; it never re-validates the signature.
+- Request ID: the sidecar attaches X-Request-Id for traceability. Log it; propagate it to downstream calls; correlate it with audit logs.
 - Mode: only trust these headers when the sidecar is in front. In direct-to-Pod traffic (port-forward, debugging, mistakes), they could be spoofed. Use a NetworkPolicy to ensure traffic only enters via the sidecar's mTLS port.
   - Examples: Istio Envoy sidecars (auto-injected), Linkerd2-proxy, OPA Sidecar (policy decisions), Cilium L7 policy. License: all Apache 2.0.
 
 p. 63
 
-> The audience point: the sidecar pattern works only if the app uses the headers the sidecar attaches. The most common failure mode is an app that ignores X-Forwarded-Client-Cert and falls back to 'allow if you got here.' Make the headers required, not optional. The second-most-common failure mode is forgetting that traffic can sometimes bypass the sidecar (port-forward for debugging, host networking, direct pod-to-pod calls within the same node). NetworkPolicy is what closes that gap — only allow inbound traffic on the sidecar's mTLS port, never the app's container port directly. With both the sidecar and the NetworkPolicy, the app can fully trust the headers and become much simpler — no crypto code, no JWT parsing library, just header reads.
+> The audience point: the sidecar pattern works only if the app uses the headers the sidecar attaches. The most common failure mode is an app that ignores X-Forwarded-Client-Cert and falls back to 'allow if you got here.' Make the headers required, not optional. The second-most-common failure mode is forgetting that traffic can sometimes bypass the sidecar (port-forward for debugging, host networking, direct pod-to-pod calls within the same node). NetworkPolicy is what closes that gap, only allow inbound traffic on the sidecar's mTLS port, never the app's container port directly. With both the sidecar and the NetworkPolicy, the app can fully trust the headers and become much simpler: no crypto code, no JWT parsing library, just header reads.
 
-## [077] SECURITY · VALET KEY · Valet key pattern — short-lived signed token, direct access (sldId 332)
+## [077] SECURITY · VALET KEY · Valet key pattern: short-lived signed token, direct access (sldId 332)
 
 App mints a scoped, time-bound token; client uses it directly against the resource. App never proxies the bytes.
 
 p. 64
 
-> The valet key pattern: instead of streaming a large file through your application, the application mints a scoped, time-bound, operation-restricted token (a 'valet key') and the client uses it to interact directly with the storage system. Pros: dramatically less data through the application (memory, bandwidth, latency); no long-lived credentials at the client; no app-side credential to leak; the token can expire and be revoked. Cons: requires the storage side to validate tokens; the token's permissions and TTL must be carefully scoped — a leaked token still has its window. Every implementation has the same shape: sign the operation, the object key and the expiry with a key the storage side can check. Example 12 mints and verifies such a ticket in the service itself (HMAC-SHA256, an HS256 JWT in Go and C++), and most object stores, open-source ones included, accept signed URLs of the same shape. The code shows the pattern in the service's language.
+> The valet key pattern: instead of streaming a large file through your application, the application mints a scoped, time-bound, operation-restricted token (a 'valet key') and the client uses it to interact directly with the storage system. Pros: dramatically less data through the application (memory, bandwidth, latency); no long-lived credentials at the client; no app-side credential to leak; the token can expire and be revoked. Cons: requires the storage side to validate tokens; the token's permissions and TTL must be carefully scoped: a leaked token still has its window. Every implementation has the same shape: sign the operation, the object key and the expiry with a key the storage side can check. Example 12 mints and verifies such a ticket in the service itself (HMAC-SHA256, an HS256 JWT in Go and C++), and most object stores, open-source ones included, accept signed URLs of the same shape. The code shows the pattern in the service's language.
 
-## [078] SECURITY · VALET KEY · Valet key — scoped, time-bound, op-restricted (sldId 333)
+## [078] SECURITY · VALET KEY · Valet key: scoped, time-bound, op-restricted (sldId 333)
 
 [chip] python · FastAPI + hmac (stdlib)
 
@@ -1035,7 +1035,7 @@ p. 65
 
 p. 66
 
-> The strangler fig was covered as a general pattern in Appendix K — here it shows up specifically for security modernisation, which is a common need: most enterprises have legacy auth (LDAP-only, custom SSO, NTLM, hardcoded API keys) buried in critical systems, and a 'big bang' replacement is too risky. The gateway becomes the bilingual translator: it validates modern JWTs from your IdP at the edge and translates to whatever the legacy backend expects (X-Remote-User header, basic auth, NTLM, custom session cookie). Per route, you migrate when the new path is verified — if anything breaks, flip the gateway config back to forwarding legacy headers. The sub-bullet points to Appendix K for the full mechanics; this slide is the application of those mechanics to a specific security need.
+> The strangler fig was covered as a general pattern in Appendix K: here it shows up specifically for security modernisation, which is a common need: most enterprises have legacy auth (LDAP-only, custom SSO, NTLM, hardcoded API keys) buried in critical systems, and a 'big bang' replacement is too risky. The gateway becomes the bilingual translator: it validates modern JWTs from your IdP at the edge and translates to whatever the legacy backend expects (X-Remote-User header, basic auth, NTLM, custom session cookie). Per route, you migrate when the new path is verified: if anything breaks, flip the gateway config back to forwarding legacy headers. The sub-bullet points to Appendix K for the full mechanics; this slide is the application of those mechanics to a specific security need.
 
 ## [080] SECURITY · ZERO-TRUST · Zero-trust / Identity-Aware Proxy (sldId 335)
 
@@ -1043,28 +1043,28 @@ Every request authenticated and authorised, on every hop. Perimeter trust is dea
 
 p. 67
 
-> The model: there is no trusted network. Every request, from any source, to any service, on every hop — authenticated and authorised. The old model (top of the diagram) was 'get inside the VPN, everything inside is trusted': once an attacker is in, they move laterally with little resistance. The new model (bottom): the user authenticates to an IAP (Identity-Aware Proxy) which evaluates identity, device posture, location, MFA. The IAP then forwards to a policy engine (OPA, Cedar) which returns an allow/deny per-request. The downstream service still authenticates the caller (mTLS + SPIFFE ID) and re-authorises against policy. Inside the cluster: mTLS via SPIFFE identity (every workload has an X.509 cert identifying its service account), AuthorizationPolicy per workload restricting which other workloads can call which endpoints. A breach in one service gives you nothing because the next call still has to prove identity and pass policy.
+> The model: there is no trusted network. Every request, from any source, to any service, on every hop: authenticated and authorised. The old model (top of the diagram) was 'get inside the VPN, everything inside is trusted': once an attacker is in, they move laterally with little resistance. The new model (bottom): the user authenticates to an IAP (Identity-Aware Proxy) which evaluates identity, device posture, location, MFA. The IAP then forwards to a policy engine (OPA, Cedar) which returns an allow/deny per-request. The downstream service still authenticates the caller (mTLS + SPIFFE ID) and re-authorises against policy. Inside the cluster: mTLS via SPIFFE identity (every workload has an X.509 cert identifying its service account), AuthorizationPolicy per workload restricting which other workloads can call which endpoints. A breach in one service gives you nothing because the next call still has to prove identity and pass policy.
 
 ## [081] SECURITY · ZERO-TRUST · Implementing zero-trust (sldId 336)
 
-- Edge (IAP): Pomerium or OAuth2 Proxy in front of an OIDC provider such as Keycloak — they terminate TLS, validate identity (OAuth/OIDC against your IdP), apply the route's access policy, then issue a JWT the downstream service sees in X-Forwarded-* headers.
+- Edge (IAP): Pomerium or OAuth2 Proxy in front of an OIDC provider such as Keycloak: they terminate TLS, validate identity (OAuth/OIDC against your IdP), apply the route's access policy, then issue a JWT the downstream service sees in X-Forwarded-* headers.
 - Inside the cluster (mTLS): Istio + SPIFFE assigns every workload an X.509 cert identifying its service account (spiffe://cluster.local/ns/orders/sa/order-service). Every service-to-service call is mutually authenticated automatically.
 - Authorization: Istio AuthorizationPolicy declares 'order-service can call payment-service /charge but nothing else, only when carrying a valid customer JWT.' Per-workload, fine-grained, declarative.
 - Policy decisions: OPA / Cedar evaluate context (user, time, device, target, action) and return allow/deny. Out-of-process so policy can change without redeploying every service.
 - App-side discipline: read the validated peer identity from X-Forwarded-Client-Cert; never accept calls that arrive without it; log every authorization decision.
-  - License notes: Istio, SPIFFE/SPIRE, OPA, Cedar — all open source (Apache 2.0 or similar). Pomerium (Apache 2.0) and OAuth2 Proxy (MIT) are open source too.
+  - License notes: Istio, SPIFFE/SPIRE, OPA, Cedar: all open source (Apache 2.0 or similar). Pomerium (Apache 2.0) and OAuth2 Proxy (MIT) are open source too.
 
 p. 68
 
-> Concrete implementations to ground the model. The edge IAP is what your users hit — they authenticate against your IdP (Keycloak, or Dex federating an existing directory), the IAP issues a session, every request from then on carries identity. Inside the cluster, SPIFFE is the service-identity mechanism that makes mTLS work without manual cert management — it's what gives every Pod a verifiable identity. Istio's AuthorizationPolicy is the declarative layer on top: 'who can call what.' OPA / Cedar is the more flexible policy engine when your decision logic is complex (per-tenant, per-time-of-day, per-data-classification). The bold line is the app-side discipline: don't make these external policies redundant by accepting unauthenticated calls in your code; use the peer identity from the headers as a required input.
+> Concrete implementations to ground the model. The edge IAP is what your users hit: they authenticate against your IdP (Keycloak, or Dex federating an existing directory), the IAP issues a session, every request from then on carries identity. Inside the cluster, SPIFFE is the service-identity mechanism that makes mTLS work without manual cert management: it's what gives every Pod a verifiable identity. Istio's AuthorizationPolicy is the declarative layer on top: 'who can call what.' OPA / Cedar is the more flexible policy engine when your decision logic is complex (per-tenant, per-time-of-day, per-data-classification). The bold line is the app-side discipline: don't make these external policies redundant by accepting unauthenticated calls in your code; use the peer identity from the headers as a required input.
 
-## [082] SECURITY · POLICY-AS-CODE · Policy-as-Code — security gates in Git (sldId 337)
+## [082] SECURITY · POLICY-AS-CODE · Policy-as-Code: security gates in Git (sldId 337)
 
 OPA Gatekeeper / Kyverno enforce declarative policies at admission. CI runs the same policies pre-merge.
 
 p. 69
 
-> Security policies as code: declarative, version-controlled, tested, applied automatically. The flow on the diagram: a developer commits manifests; CI runs conftest or Kyverno against the manifests pre-merge (catches violations before they reach the cluster); on `kubectl apply` (or ArgoCD / Flux), the Kubernetes API server calls the admission controller (OPA Gatekeeper / Kyverno) which evaluates the ConstraintTemplate / ClusterPolicy against the incoming object. Non-conformant resources are rejected — they never become running Pods. The policy file lives in Git, reviewed like code, applied by the cluster. No human runs a checklist; consistency is enforced uniformly. Example policies: images must come from approved registries, no privileged containers, no host network, no host path mounts, all containers have resource limits, all images are signed.
+> Security policies as code: declarative, version-controlled, tested, applied automatically. The flow on the diagram: a developer commits manifests; CI runs conftest or Kyverno against the manifests pre-merge (catches violations before they reach the cluster); on `kubectl apply` (or ArgoCD / Flux), the Kubernetes API server calls the admission controller (OPA Gatekeeper / Kyverno) which evaluates the ConstraintTemplate / ClusterPolicy against the incoming object. Non-conformant resources are rejected: they never become running Pods. The policy file lives in Git, reviewed like code, applied by the cluster. No human runs a checklist; consistency is enforced uniformly. Example policies: images must come from approved registries, no privileged containers, no host network, no host path mounts, all containers have resource limits, all images are signed.
 
 ## [083] SECURITY · POLICY-AS-CODE · OPA Gatekeeper ConstraintTemplate (Rego) (sldId 338)
 
@@ -1104,13 +1104,13 @@ p. 70
 
 > The two-piece pattern: ConstraintTemplate defines the logic (in Rego, OPA's policy language), Constraint is the instance that applies the logic to specific resources with specific parameters. The Rego in violation[{msg}] reads as 'for every container in the Pod, if its image doesn't start with any of the allowed registries, emit a violation with this message.' Gatekeeper translates that into an admission webhook that rejects non-conformant Pods before they're scheduled. The Constraint binds the template to the kinds (Pods) and namespaces (everything except system namespaces), with the allowedRegistries list as the parameter. Lives in Git, applied via `kubectl apply` (or ArgoCD), versioned and reviewed like code. An equivalent Kyverno expression is more YAML-native if your team prefers it; Rego is more expressive for complex logic.
 
-## [084] SECURITY · BULKHEAD · Bulkhead — isolate resources, bound the blast radius (sldId 339)
+## [084] SECURITY · BULKHEAD · Bulkhead: isolate resources, bound the blast radius (sldId 339)
 
 Per-tenant / per-call / per-priority pools. One tenant's storm cannot starve others. One compromise cannot cascade.
 
 p. 71
 
-> Bulkhead: borrowed from naval architecture, where watertight compartments stop one breach from sinking the ship. In software, you isolate resources (connection pools, thread pools, async semaphores, queues) by tenant, by call type, or by priority. The left side of the diagram (red) shows the default: one shared pool means a single tenant's traffic storm starves everyone else's. The right side: separate pools, each with its own bounded size. A storm from tenant A consumes tenant A's pool and rejects further A requests — tenants B and background workloads keep running. Why this matters for security as well as resilience: a compromised tenant or a compromised endpoint can be used to mount a denial-of-service against the shared system; bulkheads cap that to its own pool. Implementations: Resilience4j Bulkhead (JVM), Polly (.NET), asyncio.Semaphore (Python), Istio per-destination connection pools at the mesh layer.
+> Bulkhead: borrowed from naval architecture, where watertight compartments stop one breach from sinking the ship. In software, you isolate resources (connection pools, thread pools, async semaphores, queues) by tenant, by call type, or by priority. The left side of the diagram (red) shows the default: one shared pool means a single tenant's traffic storm starves everyone else's. The right side: separate pools, each with its own bounded size. A storm from tenant A consumes tenant A's pool and rejects further A requests: tenants B and background workloads keep running. Why this matters for security as well as resilience: a compromised tenant or a compromised endpoint can be used to mount a denial-of-service against the shared system; bulkheads cap that to its own pool. Implementations: Resilience4j Bulkhead (JVM), Polly (.NET), asyncio.Semaphore (Python), Istio per-destination connection pools at the mesh layer.
 
 ## [085] SECURITY · BULKHEAD · Per-tenant bulkheads in asyncio (sldId 340)
 
@@ -1144,7 +1144,7 @@ p. 72
 >
 > The in-flight counter feeds the bulkhead-state endpoint without reading the semaphore's private state. Per-tenant HTTP connection pools are a separate bulkhead at the socket level: the semaphore caps concurrent work, the pool caps sockets. At the platform layer, Istio's per-destination connection-pool limits complement both.
 
-## [086] SECURITY · CLAIM-CHECK · Claim-check — send a reference, not the payload (sldId 341)
+## [086] SECURITY · CLAIM-CHECK · Claim-check: send a reference, not the payload (sldId 341)
 
 Large or sensitive payload goes to a secure store; the message bus carries only an opaque token to fetch it.
 
@@ -1186,18 +1186,18 @@ p. 74
 
 ## [088] SECURITY · Choosing the right pattern (sldId 343)
 
-- Sidecar — when you want one security policy uniformly across every workload, regardless of language. Cost: an extra container per Pod (memory + startup time).
-- Valet Key — when clients need direct access to a large or specific resource (file upload, image download). Cost: storage system must validate tokens (most do).
-- Strangler Fig (auth) — when you have legacy authentication you can't change all at once. Cost: a gateway running translation logic during the transition.
-- Zero-Trust / IAP — the default model for any system with users outside your immediate control. Cost: mTLS everywhere has real CPU and operational overhead.
-- Policy-as-Code — always. Always. The cost of not having it (drift, inconsistency, forgotten review steps) is much higher than the cost of adopting OPA / Kyverno.
-- Bulkhead — any multi-tenant system, any system with mixed-priority workloads. Cost: pools are extra moving parts to size and tune.
-- Claim-Check — when payloads carry PII or are large enough to bloat the message bus. Cost: an extra fetch hop and the store-and-bus must agree on token semantics.
+- Sidecar: when you want one security policy uniformly across every workload, regardless of language. Cost: an extra container per Pod (memory + startup time).
+- Valet Key: when clients need direct access to a large or specific resource (file upload, image download). Cost: storage system must validate tokens (most do).
+- Strangler Fig (auth): when you have legacy authentication you can't change all at once. Cost: a gateway running translation logic during the transition.
+- Zero-Trust / IAP: the default model for any system with users outside your immediate control. Cost: mTLS everywhere has real CPU and operational overhead.
+- Policy-as-Code: always. Always. The cost of not having it (drift, inconsistency, forgotten review steps) is much higher than the cost of adopting OPA / Kyverno.
+- Bulkhead: any multi-tenant system, any system with mixed-priority workloads. Cost: pools are extra moving parts to size and tune.
+- Claim-Check: when payloads carry PII or are large enough to bloat the message bus. Cost: an extra fetch hop and the store-and-bus must agree on token semantics.
 - Most production systems combine all of these, not as a checklist but as a decision per concern.
 
 p. 75
 
-> Close the section with the decision rules. The cost lines are there because every pattern is a trade. Sidecar costs a container per Pod (a few MB of memory, a couple hundred ms of startup); for most systems the security uniformity makes it worth that. Valet key requires storage-side validation: the store, or a small gateway in front of it, must check the signature, the operation and the expiry. Strangler fig (auth) is a deliberate transition strategy; the gateway running translation is the cost. Zero-trust / mTLS everywhere has real CPU overhead (TLS handshakes are not free) — mesh implementations like Istio amortise it well but it's not zero. Policy-as-code's cost is the upfront investment in writing policies; the ongoing cost is near zero. Bulkheads are extra moving parts to tune. Claim-check adds a hop. The bold line is the take-home: production systems combine all seven, chosen per concern, not applied as a one-size-fits-all checklist.
+> Close the section with the decision rules. The cost lines are there because every pattern is a trade. Sidecar costs a container per Pod (a few MB of memory, a couple hundred ms of startup); for most systems the security uniformity makes it worth that. Valet key requires storage-side validation: the store, or a small gateway in front of it, must check the signature, the operation and the expiry. Strangler fig (auth) is a deliberate transition strategy; the gateway running translation is the cost. Zero-trust / mTLS everywhere has real CPU overhead (TLS handshakes are not free): mesh implementations like Istio amortise it well but it's not zero. Policy-as-code's cost is the upfront investment in writing policies; the ongoing cost is near zero. Bulkheads are extra moving parts to tune. Claim-check adds a hop. The bold line is the take-home: production systems combine all seven, chosen per concern, not applied as a one-size-fits-all checklist.
 
 ## [089] SECURITY · Take-aways and references (sldId 344)
 
@@ -1211,7 +1211,7 @@ p. 75
 
 p. 76
 
-> Close with the take-aways the audience should remember. Defence in depth across the 4 C's is the philosophical anchor. Identity-as-perimeter is the operational anchor. Policy-in-Git is the automation anchor. The PII-never-in-cleartext and bulkhead lines are the specific applications. The reference list is what you'd recommend for further reading — NIST 800-204A is the canonical microservices security paper; CNCF's Cloud Native Security Whitepaper organises the same material; OWASP API Top 10 is the application-layer reference; SLSA covers supply-chain security (signing, provenance, build integrity). The open-source list emphasises that the entire security stack is buildable with Apache 2.0 components.
+> Close with the take-aways the audience should remember. Defence in depth across the 4 C's is the philosophical anchor. Identity-as-perimeter is the operational anchor. Policy-in-Git is the automation anchor. The PII-never-in-cleartext and bulkhead lines are the specific applications. The reference list is what you'd recommend for further reading: NIST 800-204A is the canonical microservices security paper; CNCF's Cloud Native Security Whitepaper organises the same material; OWASP API Top 10 is the application-layer reference; SLSA covers supply-chain security (signing, provenance, build integrity). The open-source list emphasises that the entire security stack is buildable with Apache 2.0 components.
 
 ## [090] Anti-Patterns (sldId 345)
 
@@ -1227,19 +1227,19 @@ Each anti-pattern reintroduces the coupling the architecture worked to remove.
 
 p. 77
 
-> Walk the grid briefly — most of these are callbacks to earlier sections. Distributed monolith (services that must deploy together), shared database (two services on one table), chatty calls (deep synchronous chains), no contract/leaky internal models (DB rows as the public API), missing observability (debugging by guesswork), retry storms (no backoff). The unifying diagnosis is on screen: each one reintroduces the coupling the architecture worked to remove. If you only remember one slide for code review, it's this one. The anti-pattern heuristics turn these into positive rules.
+> Walk the grid briefly: most of these are callbacks to earlier sections. Distributed monolith (services that must deploy together), shared database (two services on one table), chatty calls (deep synchronous chains), no contract/leaky internal models (DB rows as the public API), missing observability (debugging by guesswork), retry storms (no backoff). The unifying diagnosis is on screen: each one reintroduces the coupling the architecture worked to remove. If you only remember one slide for code review, it's this one. The anti-pattern heuristics turn these into positive rules.
 
 ## [092] ANTI-PATTERNS · The heuristics that keep you out of them (sldId 347)
 
-- If two services must deploy together, they are one service — merge them or fix the contract.
+- If two services must deploy together, they are one service: merge them or fix the contract.
 - One writer per dataset; everyone else reads through the API or subscribes to its events.
 - Push aggregation to a gateway/BFF; forbid service-to-service call chains deeper than one hop.
-- No contract in the registry, no merge — and every retry has a timeout and a bound.
+- No contract in the registry, no merge, and every retry has a timeout and a bound.
 - If you can't trace it, you can't run it: observability is a launch requirement, not a follow-up.
 
 p. 78
 
-> These are the five tests to apply in design and code review. (1) If two services must deploy together, they are one service: merge them or fix the contract. (2) One writer per dataset; everyone else reads through the API or subscribes to events — no shared tables. (3) Push aggregation to a gateway or BFF and forbid synchronous call chains deeper than one hop. (4) No contract in the registry, no merge — and every retry has a timeout and a bound. (5) If you can't trace it, you can't run it — observability is a launch requirement, not a follow-up. Offer these as a checklist the team can literally paste into a PR template.
+> These are the five tests to apply in design and code review. (1) If two services must deploy together, they are one service: merge them or fix the contract. (2) One writer per dataset; everyone else reads through the API or subscribes to events: no shared tables. (3) Push aggregation to a gateway or BFF and forbid synchronous call chains deeper than one hop. (4) No contract in the registry, no merge, and every retry has a timeout and a bound. (5) If you can't trace it, you can't run it: observability is a launch requirement, not a follow-up. Offer these as a checklist the team can literally paste into a PR template.
 
 ## [093] IN CLOSING · The whole talk, in five lines (sldId 348)
 
@@ -1251,22 +1251,22 @@ p. 78
 
 p. 79
 
-> The recap — read these five as the entire talk compressed. If the audience remembers nothing else: cloud-native is properties not tools; match the protocol to the interaction and compose at the edge; own your data and share it as contracts and facts; make the contract a governed artifact (registry, metadata, observability); and watch for coupling sneaking back in. Pause here before References and Q&A. If it's the long-form session, this is the natural point to say 'and now the appendices go deeper on four things people always ask about' and continue.
+> The recap: read these five as the entire talk compressed. If the audience remembers nothing else: cloud-native is properties not tools; match the protocol to the interaction and compose at the edge; own your data and share it as contracts and facts; make the contract a governed artifact (registry, metadata, observability); and watch for coupling sneaking back in. Pause here before References and Q&A. If it's the long-form session, this is the natural point to say 'and now the appendices go deeper on four things people always ask about' and continue.
 
 ## [094] REFERENCES · The shoulders this stands on (sldId 349)
 
-- Building Microservices, 2nd ed. — Sam Newman (O'Reilly)
-- Designing Data-Intensive Applications, 2nd ed. — Martin Kleppmann & Chris Riccomini (O'Reilly)
-- Building Event-Driven Microservices, 2nd ed. — Adam Bellemare (O'Reilly)
-- Cloud Native Patterns — Cornelia Davis (Manning)
-- Patterns of Distributed Systems — Unmesh Joshi (Addison-Wesley)
-- Architecture Modernization — Nick Tune & Jean-Georges Perrin (Manning)
-- Cloud Native Anti-Patterns — Gerald Bachlmayr et al. (Packt)
-- Principles of Web API Design — James Higginbotham (Addison-Wesley)
-- Patterns for API Design — Olaf Zimmermann et al. (Addison-Wesley)
-- API Design Patterns — JJ Geewax (Manning)
-- Learning Domain-Driven Design — Vlad Khononov (O'Reilly)
-- Balancing Coupling in Software Design — Vlad Khononov (Addison-Wesley)
+- Building Microservices, 2nd ed., Sam Newman (O'Reilly)
+- Designing Data-Intensive Applications, 2nd ed., Martin Kleppmann & Chris Riccomini (O'Reilly)
+- Building Event-Driven Microservices, 2nd ed., Adam Bellemare (O'Reilly)
+- Cloud Native Patterns, Cornelia Davis (Manning)
+- Patterns of Distributed Systems, Unmesh Joshi (Addison-Wesley)
+- Architecture Modernization: Nick Tune & Jean-Georges Perrin (Manning)
+- Cloud Native Anti-Patterns: Gerald Bachlmayr et al. (Packt)
+- Principles of Web API Design, James Higginbotham (Addison-Wesley)
+- Patterns for API Design: Olaf Zimmermann et al. (Addison-Wesley)
+- API Design Patterns, JJ Geewax (Manning)
+- Learning Domain-Driven Design, Vlad Khononov (O'Reilly)
+- Balancing Coupling in Software Design, Vlad Khononov (Addison-Wesley)
 - The full list, with publisher links: patterncatalyst.github.io/cloud-native-design-patterns/bibliography/
 
 p. 80
@@ -1279,27 +1279,27 @@ Questions?
 
 > End of the main talk. Thank the audience and open for questions. The appendices are deep-dive backup material: pull them up on demand during Q&A, or work through them if you're running the full-length session. They cover the questions that always come up: how the three protocols differ, how to version each one, how to run WebSockets on Kubernetes, and the hard parts of saga state and compensation.
 
-## [096] REFERENCE · Glossary of acronyms (1 of 2) — protocols, data, events (sldId 351)
+## [096] REFERENCE · Glossary of acronyms (1 of 2): protocols, data, events (sldId 351)
 
-- Protocols & APIs — REST (Representational State Transfer); RPC (Remote Procedure Call); gRPC (Google's RPC framework, over HTTP/2 + Protobuf); HTTP (HyperText Transfer Protocol); TLS / mTLS (Transport Layer Security / mutual TLS, where both peers present certificates); SSE (Server-Sent Events); BFF (Backend-For-Frontend); SDK (Software Development Kit); API (Application Programming Interface).
-- Messaging & integration — AMQP (Advanced Message Queuing Protocol); ESB (Enterprise Service Bus); DLQ (Dead-Letter Queue, where un-processable messages go); SerDe (Serializer / Deserializer); pub/sub (publish-subscribe).
-- Data & persistence — CQRS (Command Query Responsibility Segregation); CDC (Change Data Capture); WAL (Write-Ahead Log: the DB's commit-ordered durable log); ACID (Atomicity, Consistency, Isolation, Durability); TTL (Time-To-Live: how long a cached key lives before expiring); LRU (Least Recently Used: a cache eviction policy); SETEX (the Redis "SET with EXpiry" command: sets a key and its TTL atomically); ORM (Object-Relational Mapping); asyncpg (Python's async Postgres driver); Pydantic (Python validation / serialisation library, not an acronym).
-- Domain modelling & flow — DDD (Domain-Driven Design); OHS (Open Host Service: a published, stable interface a context offers others); ACL (Anti-Corruption Layer in DDD, which translates between models; ACL also means Access Control List in security); Saga (not an acronym: a sequence of local transactions with compensating actions).
+- Protocols & APIs: REST (Representational State Transfer); RPC (Remote Procedure Call); gRPC (Google's RPC framework, over HTTP/2 + Protobuf); HTTP (HyperText Transfer Protocol); TLS / mTLS (Transport Layer Security / mutual TLS, where both peers present certificates); SSE (Server-Sent Events); BFF (Backend-For-Frontend); SDK (Software Development Kit); API (Application Programming Interface).
+- Messaging & integration: AMQP (Advanced Message Queuing Protocol); ESB (Enterprise Service Bus); DLQ (Dead-Letter Queue, where un-processable messages go); SerDe (Serializer / Deserializer); pub/sub (publish-subscribe).
+- Data & persistence: CQRS (Command Query Responsibility Segregation); CDC (Change Data Capture); WAL (Write-Ahead Log: the DB's commit-ordered durable log); ACID (Atomicity, Consistency, Isolation, Durability); TTL (Time-To-Live: how long a cached key lives before expiring); LRU (Least Recently Used: a cache eviction policy); SETEX (the Redis "SET with EXpiry" command: sets a key and its TTL atomically); ORM (Object-Relational Mapping); asyncpg (Python's async Postgres driver); Pydantic (Python validation / serialisation library, not an acronym).
+- Domain modelling & flow: DDD (Domain-Driven Design); OHS (Open Host Service: a published, stable interface a context offers others); ACL (Anti-Corruption Layer in DDD, which translates between models; ACL also means Access Control List in security); Saga (not an acronym: a sequence of local transactions with compensating actions).
 
 p. 81
 
-> Glossary part 1, the protocol/data/event vocabulary. Call out the ones most likely to trip people up: gRPC is recursively 'gRPC Remote Procedure Call' but practically it's Google's high-performance RPC over HTTP/2 with Protocol Buffers. mTLS (mutual TLS) is the one people often gloss — ordinary TLS authenticates the server to the client; mutual TLS also authenticates the client to the server, which is the basis of zero-trust service identity. The data row has the SETEX and TTL the audience asked about explicitly: TTL is the expiry duration on a cached key; SETEX is the Redis command that sets a value and its TTL in one atomic operation (SETEX key seconds value). LRU is the eviction policy that drops the least-recently-touched key when the cache is full. CDC and WAL go together — CDC tails the WAL. Call out the ACL ambiguity: in the DDD/data sections ACL means Anti-Corruption Layer; in the security section it means Access Control List.
+> Glossary part 1, the protocol/data/event vocabulary. Call out the ones most likely to trip people up: gRPC is recursively 'gRPC Remote Procedure Call' but practically it's Google's high-performance RPC over HTTP/2 with Protocol Buffers. mTLS (mutual TLS) is the one people often gloss: ordinary TLS authenticates the server to the client; mutual TLS also authenticates the client to the server, which is the basis of zero-trust service identity. The data row has the SETEX and TTL the audience asked about explicitly: TTL is the expiry duration on a cached key; SETEX is the Redis command that sets a value and its TTL in one atomic operation (SETEX key seconds value). LRU is the eviction policy that drops the least-recently-touched key when the cache is full. CDC and WAL go together: CDC tails the WAL. Call out the ACL ambiguity: in the DDD/data sections ACL means Anti-Corruption Layer; in the security section it means Access Control List.
 
-## [097] REFERENCE · Glossary of acronyms (2 of 2) — platform, security, telemetry (sldId 352)
+## [097] REFERENCE · Glossary of acronyms (2 of 2): platform, security, telemetry (sldId 352)
 
-- Kubernetes & cloud — K8s (Kubernetes); RBAC (Role-Based Access Control); HPA (Horizontal Pod Autoscaler); KEDA (Kubernetes Event-Driven Autoscaling); PSS (Pod Security Standards); CRD (Custom Resource Definition); IAM (Identity & Access Management); KMS (Key Management Service); VPC (Virtual Private Cloud); CNI (Container Network Interface).
-- Identity & security — SPIFFE (Secure Production Identity Framework For Everyone); SPIRE (the SPIFFE Runtime Environment); OPA (Open Policy Agent); IAP (Identity-Aware Proxy); JWT (JSON Web Token); OIDC (OpenID Connect); OAuth (Open Authorization); MFA (Multi-Factor Authentication); PII (Personally Identifiable Information); SLSA (Supply-chain Levels for Software Artifacts); CVE (Common Vulnerabilities & Exposures); SBOM (Software Bill of Materials).
-- Observability — OTel (OpenTelemetry); RED (Rate, Errors, Duration: the request-driven metrics method); USE (Utilisation, Saturation, Errors: the resource metrics method); MDC (Mapped Diagnostic Context, per-thread log context); LGTM (Loki, Grafana, Tempo, Mimir); SLO / SLI / SLA (Service-Level Objective / Indicator / Agreement); p99 (99th-percentile latency).
-- Runtime & build — WSGI / ASGI (Web / Asynchronous Server Gateway Interface: Python's sync / async web server contracts); GIL (Global Interpreter Lock); venv (virtual environment); DI (Dependency Injection); DTO (Data Transfer Object); GC (Garbage Collection).
+- Kubernetes & cloud: K8s (Kubernetes); RBAC (Role-Based Access Control); HPA (Horizontal Pod Autoscaler); KEDA (Kubernetes Event-Driven Autoscaling); PSS (Pod Security Standards); CRD (Custom Resource Definition); IAM (Identity & Access Management); KMS (Key Management Service); VPC (Virtual Private Cloud); CNI (Container Network Interface).
+- Identity & security: SPIFFE (Secure Production Identity Framework For Everyone); SPIRE (the SPIFFE Runtime Environment); OPA (Open Policy Agent); IAP (Identity-Aware Proxy); JWT (JSON Web Token); OIDC (OpenID Connect); OAuth (Open Authorization); MFA (Multi-Factor Authentication); PII (Personally Identifiable Information); SLSA (Supply-chain Levels for Software Artifacts); CVE (Common Vulnerabilities & Exposures); SBOM (Software Bill of Materials).
+- Observability: OTel (OpenTelemetry); RED (Rate, Errors, Duration: the request-driven metrics method); USE (Utilisation, Saturation, Errors: the resource metrics method); MDC (Mapped Diagnostic Context, per-thread log context); LGTM (Loki, Grafana, Tempo, Mimir); SLO / SLI / SLA (Service-Level Objective / Indicator / Agreement); p99 (99th-percentile latency).
+- Runtime & build: WSGI / ASGI (Web / Asynchronous Server Gateway Interface: Python's sync / async web server contracts); GIL (Global Interpreter Lock); venv (virtual environment); DI (Dependency Injection); DTO (Data Transfer Object); GC (Garbage Collection).
 
 p. 82
 
-> Glossary part 2, the platform/security/observability vocabulary. The Kubernetes row: HPA scales on CPU/memory, KEDA scales on event sources (queue depth, Kafka lag, HTTP rate) — the distinction matters in the autoscaling discussion. PSS (Pod Security Standards) replaced the deprecated PodSecurityPolicy. The security row has the terms from section 12: SPIFFE/SPIRE give workloads cryptographic identities for mTLS; OPA is the policy engine behind policy-as-code; IAP is the zero-trust edge proxy; JWT/OIDC/OAuth are the token/identity standards; SLSA/CVE/SBOM are supply-chain security. The observability row has RED and USE, the two metrics methods worth memorising: RED (Rate, Errors, Duration) for services, USE (Utilisation, Saturation, Errors) for resources. p99 means the 99th-percentile latency — 99% of requests are faster than this; it's what you alert on, not the average. The runtime row is tailored to this deck's language.
+> Glossary part 2, the platform/security/observability vocabulary. The Kubernetes row: HPA scales on CPU/memory, KEDA scales on event sources (queue depth, Kafka lag, HTTP rate): the distinction matters in the autoscaling discussion. PSS (Pod Security Standards) replaced the deprecated PodSecurityPolicy. The security row has the terms from section 12: SPIFFE/SPIRE give workloads cryptographic identities for mTLS; OPA is the policy engine behind policy-as-code; IAP is the zero-trust edge proxy; JWT/OIDC/OAuth are the token/identity standards; SLSA/CVE/SBOM are supply-chain security. The observability row has RED and USE, the two metrics methods worth memorising: RED (Rate, Errors, Duration) for services, USE (Utilisation, Saturation, Errors) for resources. p99 means the 99th-percentile latency: 99% of requests are faster than this; it's what you alert on, not the average. The runtime row is tailored to this deck's language.
 
 ## [098] Appendix A · Protocols in Depth (sldId 353)
 
@@ -1307,11 +1307,11 @@ A
 
 REST, gRPC and GraphQL: how they differ.
 
-> Appendix A. This is the deep dive behind the 'pick the protocol' slide from section 2. We compare the three on three axes: the mental model each imposes, how they handle fetching and round trips, and what travels on the wire. By the end the audience should be able to defend a protocol choice on technical grounds, not fashion.
+> Appendix A. This is the deep dive behind choosing a protocol. We compare the three on three axes: the mental model each imposes, how they handle fetching and round trips, and what travels on the wire. By the end the audience should be able to defend a protocol choice on technical grounds, not fashion.
 
 ## [099] APPENDIX A · PROTOCOLS · Three paradigms and their mental models (sldId 354)
 
-REST models resources, gRPC models procedures, GraphQL models a typed graph — the same intent, three shapes.
+REST models resources, gRPC models procedures, GraphQL models a typed graph: the same intent, three shapes.
 
 p. 83
 
@@ -1323,15 +1323,15 @@ REST trades round trips or bespoke endpoints for simplicity; GraphQL shapes one 
 
 p. 84
 
-> This is the practical difference clients feel. With REST you often need several round trips (order, then its items, then stock, then shipping) or you build a bespoke aggregate endpoint — and you still get fixed payload shapes that over- or under-fetch. GraphQL collapses that into one tailored query where the client names the fields, so no over- or under-fetching and the client controls the cost. gRPC is a single typed, binary call with a fixed reply shape: no field selection, but the fastest of the three. The trade: GraphQL gives clients flexibility at the cost of gateway complexity; gRPC gives speed at the cost of rigidity; REST gives reach and simplicity at the cost of round trips.
+> This is the practical difference clients feel. With REST you often need several round trips (order, then its items, then stock, then shipping) or you build a bespoke aggregate endpoint, and you still get fixed payload shapes that over- or under-fetch. GraphQL collapses that into one tailored query where the client names the fields, so no over- or under-fetching and the client controls the cost. gRPC is a single typed, binary call with a fixed reply shape: no field selection, but the fastest of the three. The trade: GraphQL gives clients flexibility at the cost of gateway complexity; gRPC gives speed at the cost of rigidity; REST gives reach and simplicity at the cost of round trips.
 
 ## [101] APPENDIX A · PROTOCOLS · The wire: transport, encoding and streaming (sldId 356)
 
-Reach and caching, or raw speed, or client-shaped responses — choose on the wire properties you need.
+Reach and caching, or raw speed, or client-shaped responses: choose on the wire properties you need.
 
 p. 85
 
-> What travels on the wire, and why it constrains your choice. REST: HTTP/1.1 or /2, JSON text, request/response, cacheable via standard HTTP, browser-native — maximum reach. gRPC: HTTP/2 only, protobuf binary, full uni- and bidirectional streaming, no HTTP caching, and it needs grpc-web to work from a browser. GraphQL: HTTP POST to a single URL, JSON, request/response plus subscriptions, caching is application-level (not HTTP), browser-native. The decision rule: if you need broad reach and HTTP caching, REST; if you need raw speed and streaming between services you control, gRPC; if you need client-shaped responses over many sources, GraphQL.
+> What travels on the wire, and why it constrains your choice. REST: HTTP/1.1 or /2, JSON text, request/response, cacheable via standard HTTP, browser-native: maximum reach. gRPC: HTTP/2 only, protobuf binary, full uni- and bidirectional streaming, no HTTP caching, and it needs grpc-web to work from a browser. GraphQL: HTTP POST to a single URL, JSON, request/response plus subscriptions, caching is application-level (not HTTP), browser-native. The decision rule: if you need broad reach and HTTP caching, REST; if you need raw speed and streaming between services you control, gRPC; if you need client-shaped responses over many sources, GraphQL.
 
 ## [102] APPENDIX A · PROTOCOLS · Choosing between them in practice (sldId 357)
 
@@ -1355,7 +1355,7 @@ p. 86
 
 p. 87
 
-> The failure modes, drawn from real review comments. REST: verbs in URLs, returning 200 with an error body, offset pagination that breaks under load, and throwing away free HTTP caching. gRPC: trying to call it straight from a browser without grpc-web, or using it as 'REST with protobuf' and never touching its streaming superpower. GraphQL: the classic N+1 resolver explosion (fix with DataLoader batching), no depth or complexity limits so a malicious query melts the gateway, and reaching for it when a plain GET would do. The universal one is the last bold-adjacent: leaking your database schema onto the wire kills your ability to evolve — the same leaky-internal-models anti-pattern from section 12.
+> The failure modes, drawn from real review comments. REST: verbs in URLs, returning 200 with an error body, offset pagination that breaks under load, and throwing away free HTTP caching. gRPC: trying to call it straight from a browser without grpc-web, or using it as 'REST with protobuf' and never touching its streaming superpower. GraphQL: the classic N+1 resolver explosion (fix with DataLoader batching), no depth or complexity limits so a malicious query melts the gateway, and reaching for it when a plain GET would do. The universal one is the last bold-adjacent: leaking your database schema onto the wire kills your ability to evolve: the same leaky-internal-models anti-pattern.
 
 ## [104] Appendix B · Versioning & Evolution (sldId 359)
 
@@ -1367,7 +1367,7 @@ REST vs RESTful, proto breaking changes, GraphQL evolution.
 
 ## [105] APPENDIX B · VERSIONING · Four ways to version a REST API (sldId 360)
 
-URI versioning is common and visible; media-type versioning keeps URLs stable — the more RESTful choice.
+URI versioning is common and visible; media-type versioning keeps URLs stable: the more RESTful choice.
 
 p. 88
 
@@ -1397,11 +1397,11 @@ The resource URL is stable; the representation is negotiated. New clients ask fo
 
 p. 89
 
-> This makes 'RESTful versioning' concrete. There's one URL for the order resource — it never changes. The client signals which representation it wants via the Accept header; the server negotiates and responds with the matching Content-Type. New clients ask for the v2 media type and get the new currency field; old clients send nothing, default to v1, and are completely unaffected. Contrast with /v2/orders, where you've now got two URLs for the same underlying thing. Mention that you'd normally structure this with response models per version rather than hand-building dicts, but the negotiation mechanism is the point.
+> This makes 'RESTful versioning' concrete. There's one URL for the order resource: it never changes. The client signals which representation it wants via the Accept header; the server negotiates and responds with the matching Content-Type. New clients ask for the v2 media type and get the new currency field; old clients send nothing, default to v1, and are completely unaffected. Contrast with /v2/orders, where you've now got two URLs for the same underlying thing. Mention that you'd normally structure this with response models per version rather than hand-building dicts, but the negotiation mechanism is the point.
 
 ## [107] APPENDIX B · VERSIONING · gRPC / protobuf: what is a breaking change (sldId 362)
 
-Field numbers are the contract — names and order are not. Never reuse or renumber a field.
+Field numbers are the contract: names and order are not. Never reuse or renumber a field.
 
 p. 90
 
@@ -1462,19 +1462,19 @@ Additive change plus @deprecated plus usage metrics replaces versioning entirely
 
 p. 93
 
-> The mechanics in Strawberry. We add total_minor additively and mark the old total field with a deprecation_reason. The field keeps working and nothing breaks, but the deprecation shows up in introspection and in tools like Playground, nudging client developers. The crucial operational piece is the comment: you instrument field-level usage on the server, and you only remove total when its usage drops to zero. That's the whole GraphQL philosophy — evolution governed by data, with the breaking removal deferred until it's provably safe. Compare and contrast with REST's media types and gRPC's tag rules: each protocol answers the same problem differently.
+> The mechanics in Strawberry. We add total_minor additively and mark the old total field with a deprecation_reason. The field keeps working and nothing breaks, but the deprecation shows up in introspection and in tools like Playground, nudging client developers. The crucial operational piece is the comment: you instrument field-level usage on the server, and you only remove total when its usage drops to zero. That's the whole GraphQL philosophy: evolution governed by data, with the breaking removal deferred until it's provably safe. Compare and contrast with REST's media types and gRPC's tag rules: each protocol answers the same problem differently.
 
 ## [111] APPENDIX B · VERSIONING · Principles that cut across all three (sldId 366)
 
 - Additive change is always safe; removal and mutation are where you break people.
-- Make compatibility mechanical — the registry's BACKWARD/FORWARD/FULL rules, checked in CI, not by reviewers' memory.
+- Make compatibility mechanical: the registry's BACKWARD/FORWARD/FULL rules, checked in CI, not by reviewers' memory.
 - Never break silently: deprecate with a reason, a replacement and a sunset date; measure who's still on the old version.
-- Run old and new in parallel and migrate consumers before retiring — retirement is the only step that can break.
+- Run old and new in parallel and migrate consumers before retiring: retirement is the only step that can break.
 - Version data the same way you version APIs: event schemas in the registry follow the identical rules.
 
 p. 94
 
-> Step back to the universal principles, because the protocol-specific rules all rhyme. Additive change is safe; removal and mutation break people — so design to add. Make compatibility mechanical: the registry's rules checked in CI, never a reviewer remembering. Never break silently: deprecate with a reason, a replacement, a sunset date, and measure who's still on the old thing. Run old and new in parallel and migrate before you retire, because retirement is the only inherently breaking move. And the bold line that connects this back to the event-driven section: your event schemas version by exactly the same rules — the registry treats an Avro schema and an OpenAPI spec identically. Versioning data and versioning APIs are the same discipline.
+> Step back to the universal principles, because the protocol-specific rules all rhyme. Additive change is safe; removal and mutation break people, so design to add. Make compatibility mechanical: the registry's rules checked in CI, never a reviewer remembering. Never break silently: deprecate with a reason, a replacement, a sunset date, and measure who's still on the old thing. Run old and new in parallel and migrate before you retire, because retirement is the only inherently breaking move. And the bold line that connects this back to the event-driven section: your event schemas version by exactly the same rules: the registry treats an Avro schema and an OpenAPI spec identically. Versioning data and versioning APIs are the same discipline.
 
 ## [112] Appendix C · WebSockets at Scale (sldId 367)
 
@@ -1482,7 +1482,7 @@ C
 
 FastAPI, pod pinning, the backplane, binary framing, reconnection.
 
-> Appendix C covers the protocol left out of the main interaction-styles discussion, because it behaves so differently on Kubernetes. WebSockets are long-lived, stateful and pinned to a pod — the opposite of the stateless request model the platform assumes. We'll build one in FastAPI, see why it fights scaling, fix it with a backplane, make it fast and versioned with protobuf, and make it survivable with reconnection.
+> Appendix C covers the protocol left out of the main interaction-styles discussion, because it behaves so differently on Kubernetes. WebSockets are long-lived, stateful and pinned to a pod: the opposite of the stateless request model the platform assumes. We'll build one in FastAPI, see why it fights scaling, fix it with a backplane, make it fast and versioned with protobuf, and make it survivable with reconnection.
 
 ## [113] APPENDIX C · WEBSOCKETS · A WebSocket endpoint in FastAPI (sldId 368)
 
@@ -1508,7 +1508,7 @@ Short to write, but clients{} is per-pod. That single line is the entire scaling
 
 p. 95
 
-> FastAPI makes the endpoint trivial: accept, then loop receiving and handling messages full-duplex until disconnect. But point hard at the clients dict — it lives in this pod's memory. That one design fact drives everything in this appendix: the connection and the knowledge of who's connected live on exactly one pod. Everything stateless about HTTP (any replica can serve any request) is now false. The scaling problem follows from that.
+> FastAPI makes the endpoint trivial: accept, then loop receiving and handling messages full-duplex until disconnect. But point hard at the clients dict: it lives in this pod's memory. That one design fact drives everything in this appendix: the connection and the knowledge of who's connected live on exactly one pod. Everything stateless about HTTP (any replica can serve any request) is now false. The scaling problem follows from that.
 
 ## [114] APPENDIX C · WEBSOCKETS · Why WebSockets fight Kubernetes scaling (sldId 369)
 
@@ -1523,12 +1523,12 @@ p. 96
 - Pinning: a connection is bound to one pod; the LB can't move it without dropping it.
 - Uneven load: new replicas only receive new connections, so existing hotspots persist.
 - Rollouts hurt: every deploy or scale-down severs the connections on the affected pods.
-- Cross-pod delivery: to push to user X you must reach whichever pod holds X — which you don't track.
+- Cross-pod delivery: to push to user X you must reach whichever pod holds X: which you don't track.
 - Connection limits & memory: each socket is held-open state; pods cap out on file descriptors, not CPU.
 
 p. 97
 
-> Name the five distinct problems so the audience can recognize them. Pinning: the LB can't migrate a live socket. Uneven load: scaling adds capacity for new connections but doesn't rebalance existing ones. Rollouts hurt: every deploy is a mass disconnect event — you need graceful drain and client reconnection. Cross-pod delivery: to push a message to user X you must route to the specific pod holding X's socket, and nothing tracks that by default. And the resource shape is different (the bold point): you scale on open-connection count, file descriptors and memory, not CPU, so your KEDA/HPA trigger has to change too. The pub/sub backplane solves or eases every one of these.
+> Name the five distinct problems so the audience can recognize them. Pinning: the LB can't migrate a live socket. Uneven load: scaling adds capacity for new connections but doesn't rebalance existing ones. Rollouts hurt: every deploy is a mass disconnect event: you need graceful drain and client reconnection. Cross-pod delivery: to push a message to user X you must route to the specific pod holding X's socket, and nothing tracks that by default. And the resource shape is different (the bold point): you scale on open-connection count, file descriptors and memory, not CPU, so your KEDA/HPA trigger has to change too. The pub/sub backplane solves or eases every one of these.
 
 ## [116] APPENDIX C · WEBSOCKETS · Scaling out: a pub/sub backplane (sldId 371)
 
@@ -1536,9 +1536,9 @@ Each pod owns only its own sockets; a Redis or Kafka backplane fans a message ou
 
 p. 98
 
-> The pattern that makes WebSockets horizontally scalable. Each pod still owns only its own sockets, which is fine, but every pod subscribes and publishes to a shared backplane: Redis pub/sub for low latency, or a Kafka topic if you want durability and replay. When a publisher wants to push order.updated to user X, it publishes to the backplane without knowing which pod holds X; the backplane fans the message to all pods, and the one pod that holds X's socket delivers it. Now scale-up and zero-downtime rollouts work again, because no pod is the single home of a conversation — connections can land anywhere and still receive everything. Redis is the common default; Kafka if you already run it and want the durability.
+> The pattern that makes WebSockets horizontally scalable. Each pod still owns only its own sockets, which is fine, but every pod subscribes and publishes to a shared backplane: Redis pub/sub for low latency, or a Kafka topic if you want durability and replay. When a publisher wants to push order.updated to user X, it publishes to the backplane without knowing which pod holds X; the backplane fans the message to all pods, and the one pod that holds X's socket delivers it. Now scale-up and zero-downtime rollouts work again, because no pod is the single home of a conversation: connections can land anywhere and still receive everything. Redis is the common default; Kafka if you already run it and want the durability.
 
-## [117] APPENDIX C · WEBSOCKETS · Binary framing with protobuf — fast and versioned (sldId 372)
+## [117] APPENDIX C · WEBSOCKETS · Binary framing with protobuf: fast and versioned (sldId 372)
 
 [chip] protobuf + python
 
@@ -1563,7 +1563,7 @@ Protobuf frames are smaller and faster than JSON; the versioned envelope and seq
 
 p. 99
 
-> Two wins in one slide. Performance: protobuf binary frames over send_bytes are markedly smaller and cheaper to parse than JSON text — meaningful when you're pushing high-frequency updates to many sockets. Versioning: because WebSocket messages have no URL to hang a version on, you version the envelope. A version field lets the client detect an incompatible payload format and renegotiate or reconnect; the type field dispatches to the right protobuf message; and a monotonic seq number per connection is what makes reconnection and replay possible, the basis of resume-don't-restart failure handling. So the envelope solves both 'make it fast' and 'how do I version a socket message' at once.
+> Two wins in one slide. Performance: protobuf binary frames over send_bytes are markedly smaller and cheaper to parse than JSON text: meaningful when you're pushing high-frequency updates to many sockets. Versioning: because WebSocket messages have no URL to hang a version on, you version the envelope. A version field lets the client detect an incompatible payload format and renegotiate or reconnect; the type field dispatches to the right protobuf message; and a monotonic seq number per connection is what makes reconnection and replay possible, the basis of resume-don't-restart failure handling. So the envelope solves both 'make it fast' and 'how do I version a socket message' at once.
 
 ## [118] APPENDIX C · WEBSOCKETS · Failure handling: resume, don't restart (sldId 373)
 
@@ -1571,7 +1571,7 @@ Heartbeats detect dead links; the client reconnects with backoff and resumes fro
 
 p. 100
 
-> The cloud-native posture: treat every connection as disposable and design for its loss. Heartbeats (ping/pong) detect a dead link quickly — TCP alone can hang for minutes. When the connection drops, the client reconnects with exponential backoff plus jitter (so ten thousand clients don't reconnect in lockstep and hammer your pods after a rollout). On reconnect, the client sends its last-seen sequence number (last_seq = 1042); the server replays only the events the client missed (1043 onward), and because each frame carries a seq, the client can dedupe — so the whole thing is at-least-once and idempotent. The principle on screen: resume, don't restart. A reconnect should be invisible to the user, not a full state reload.
+> The cloud-native posture: treat every connection as disposable and design for its loss. Heartbeats (ping/pong) detect a dead link quickly: TCP alone can hang for minutes. When the connection drops, the client reconnects with exponential backoff plus jitter (so ten thousand clients don't reconnect in lockstep and hammer your pods after a rollout). On reconnect, the client sends its last-seen sequence number (last_seq = 1042); the server replays only the events the client missed (1043 onward), and because each frame carries a seq, the client can dedupe, so the whole thing is at-least-once and idempotent. The principle on screen: resume, don't restart. A reconnect should be invisible to the user, not a full state reload.
 
 ## [119] APPENDIX C · WEBSOCKETS · A cloud-native WebSocket checklist (sldId 374)
 
@@ -1583,7 +1583,7 @@ p. 100
 
 p. 101
 
-> The operational checklist to leave on screen. Externalize fan-out to a backplane so no pod is special. Scale and set your KEDA/HPA trigger on connection count and memory, not CPU, and cap connections per pod realistically. Drain gracefully on shutdown — stop accepting, tell clients to reconnect, and let backoff-with-jitter spread the reconnect storm across your rollout. Heartbeat to detect dead links fast; reconnect with backoff and jitter; resume from a per-connection sequence number so the user never notices. And the security note in bold that teams forget: authenticate on connect and re-authenticate on resume, because a resume is a new TCP connection that could come from anywhere. Do these and WebSockets are just another well-behaved cloud-native workload.
+> The operational checklist to leave on screen. Externalize fan-out to a backplane so no pod is special. Scale and set your KEDA/HPA trigger on connection count and memory, not CPU, and cap connections per pod realistically. Drain gracefully on shutdown: stop accepting, tell clients to reconnect, and let backoff-with-jitter spread the reconnect storm across your rollout. Heartbeat to detect dead links fast; reconnect with backoff and jitter; resume from a per-connection sequence number so the user never notices. And the security note in bold that teams forget: authenticate on connect and re-authenticate on resume, because a resume is a new TCP connection that could come from anywhere. Do these and WebSockets are just another well-behaved cloud-native workload.
 
 ## [120] Appendix D · Saga State & Compensation (sldId 375)
 
@@ -1595,11 +1595,11 @@ Persisting state, compensating cleanly, and the step-B-needs-A's-data problem.
 
 ## [121] APPENDIX D · SAGAS · Where a Python saga keeps its state (sldId 376)
 
-Memory won't survive a pod restart — persist every step transition in a DB, an event log, or a workflow engine.
+Memory won't survive a pod restart: persist every step transition in a DB, an event log, or a workflow engine.
 
 p. 102
 
-> First problem: the orchestrator must survive a crash mid-flow, so in-memory state is a non-starter — a pod restart would strand every in-flight saga with no idea what to compensate. Three real options. A DB-backed state machine: one row per saga instance holding its status and a context blob; you own the transitions — simplest, and great for most cases. Event-sourced: append each step as an event and rebuild state by replay — full audit history, fits naturally with the Kafka log. A workflow engine like Temporal or Camunda: durable execution with retries and timers built in — most power, least code, but a new dependency to run. The cross-cutting rule on screen: the state transition and the outbound command must commit together (the outbox pattern again), or you get lost or duplicated steps.
+> First problem: the orchestrator must survive a crash mid-flow, so in-memory state is a non-starter: a pod restart would strand every in-flight saga with no idea what to compensate. Three real options. A DB-backed state machine: one row per saga instance holding its status and a context blob; you own the transitions: simplest, and great for most cases. Event-sourced: append each step as an event and rebuild state by replay: full audit history, fits naturally with the Kafka log. A workflow engine like Temporal or Camunda: durable execution with retries and timers built in: most power, least code, but a new dependency to run. The cross-cutting rule on screen: the state transition and the outbound command must commit together (the outbox pattern again), or you get lost or duplicated steps.
 
 ## [122] APPENDIX D · SAGAS · A persisted saga state machine (sldId 377)
 
@@ -1627,11 +1627,11 @@ One locked row per saga, advanced one durable step at a time. A crash just means
 
 p. 103
 
-> This is the DB-backed option made concrete, and the default choice for a bounded saga. Key ideas: one row per saga, selected FOR UPDATE so two workers can't advance the same saga concurrently. The status guard makes advance() idempotent — calling it on a finished saga is a no-op, which matters because retries and redeliveries will call it again. Each successful step accumulates its result into the context blob, which is what lets a later step read data an earlier step produced, and bumps the step index; the row is saved durably after every step inside the same transaction as the work record. Recovery needs no special path: after a crash, a sweeper loads RUNNING sagas and calls advance() again. No special crash logic.
+> This is the DB-backed option made concrete, and the default choice for a bounded saga. Key ideas: one row per saga, selected FOR UPDATE so two workers can't advance the same saga concurrently. The status guard makes advance() idempotent: calling it on a finished saga is a no-op, which matters because retries and redeliveries will call it again. Each successful step accumulates its result into the context blob, which is what lets a later step read data an earlier step produced, and bumps the step index; the row is saved durably after every step inside the same transaction as the work record. Recovery needs no special path: after a crash, a sweeper loads RUNNING sagas and calls advance() again. No special crash logic.
 
 ## [123] APPENDIX D · SAGAS · Compensating transactions unwind a failed saga (sldId 378)
 
-Each committed step has an inverse; on failure they run in reverse order — there is no cross-service rollback.
+Each committed step has an inverse; on failure they run in reverse order: there is no cross-service rollback.
 
 p. 104
 
@@ -1662,7 +1662,7 @@ Compensate only completed steps, in reverse, with an idempotency key so a retry 
 
 p. 105
 
-> The compensation logic. A simple map gives each forward step its inverse. We iterate reversed(STEPS[:step_index]), only the steps that completed, newest first, and invoke each compensation. The idempotency_key built from saga_id plus step is the line that prevents the nightmare scenario: a retry double-refunding a customer. The compensating service dedupes on that key. In a production version you'd track per-step compensation status too, so if compensation itself crashes halfway you resume from the right place rather than re-running already-done compensations — but the idempotency key makes even naive re-runs safe. This is why compensations are designed up front, as part of each step, not bolted on after.
+> The compensation logic. A simple map gives each forward step its inverse. We iterate reversed(STEPS[:step_index]), only the steps that completed, newest first, and invoke each compensation. The idempotency_key built from saga_id plus step is the line that prevents the nightmare scenario: a retry double-refunding a customer. The compensating service dedupes on that key. In a production version you'd track per-step compensation status too, so if compensation itself crashes halfway you resume from the right place rather than re-running already-done compensations, but the idempotency key makes even naive re-runs safe. This is why compensations are designed up front, as part of each step, not bolted on after.
 
 ## [125] APPENDIX D · SAGAS · When step B needs data only step A produced (sldId 380)
 
@@ -1670,9 +1670,9 @@ Don't make B call A. Persist A's output into the saga context and pass it forwar
 
 p. 106
 
-> This case is a common source of bad designs. The orchestrator calls service A, then service B — but B needs a value that only A produced (say A returns a reservation_id and a warehouse region that B requires to proceed). The tempting wrong answer is to have B call A directly — now you've created a hidden synchronous dependency between B and A, exactly the chatty coupling the whole architecture fights. The right answer is on screen: the orchestrator owns a saga context (a 'blackboard'), persists A's output into it after step A, and passes the needed values into B's call. B never knows A exists. And note this is already in our state-machine code — that 's.context[step] = result' line is exactly this.
+> This case is a common source of bad designs. The orchestrator calls service A, then service B, but B needs a value that only A produced (say A returns a reservation_id and a warehouse region that B requires to proceed). The tempting wrong answer is to have B call A directly: now you've created a hidden synchronous dependency between B and A, exactly the chatty coupling the whole architecture fights. The right answer is on screen: the orchestrator owns a saga context (a 'blackboard'), persists A's output into it after step A, and passes the needed values into B's call. B never knows A exists. And note this is already in our state-machine code: that 's.context[step] = result' line is exactly this.
 
-## [126] APPENDIX D · SAGAS · Carrying context forward — and resuming after a crash (sldId 381)
+## [126] APPENDIX D · SAGAS · Carrying context forward, and resuming after a crash (sldId 381)
 
 [chip] python · asyncpg
 
@@ -1696,7 +1696,7 @@ B reads A's result from the persisted context, never from A. Resume = reload the
 
 p. 107
 
-> This closes the loop and answers the resume question directly. Because step A persisted its output into the saga context (committed durably with the state transition), step B reads reservation_id and region out of context: it calls shipping.book with data that originated in A, but it never calls A. Now the crash scenario you raised: the orchestrator dies between A completing and B starting. On restart, the sweeper reloads the saga row; step_index already points at book_shipping and the context already contains A's result, both committed before the crash. It calls advance(), B runs with A's data, and A is never re-invoked — no lost data, no duplicate reservation. The persisted context is simultaneously the answer to 'how does B get A's data' and 'how do I resume cleanly' — one mechanism, both problems. That's the payoff of persisting state every step.
+> This closes the loop and answers the resume question directly. Because step A persisted its output into the saga context (committed durably with the state transition), step B reads reservation_id and region out of context: it calls shipping.book with data that originated in A, but it never calls A. Now the crash scenario you raised: the orchestrator dies between A completing and B starting. On restart, the sweeper reloads the saga row; step_index already points at book_shipping and the context already contains A's result, both committed before the crash. It calls advance(), B runs with A's data, and A is never re-invoked: no lost data, no duplicate reservation. The persisted context is simultaneously the answer to 'how does B get A's data' and 'how do I resume cleanly': one mechanism, both problems. That's the payoff of persisting state every step.
 
 ## [127] Appendix E · API Error Handling (sldId 382)
 
@@ -1712,7 +1712,7 @@ The same five facts in every error; only the encoding changes per protocol.
 
 p. 108
 
-> Start with what every error must carry, regardless of protocol: a stable machine-readable code clients can branch on (not a localized string), a human-readable message safe to show, a correlation/trace id that ties the error to the distributed trace from section 11, a retryable flag (with retry-after when known), and structured field-level details. The four protocols just encode those same five facts differently — REST as problem+json, gRPC as status+details, Kafka via headers and a DLQ record, GraphQL as an errors[] entry with extensions. Agree this once as a shared contract; never leak stack traces or internal type names to callers.
+> Start with what every error must carry, regardless of protocol: a stable machine-readable code clients can branch on (not a localized string), a human-readable message safe to show, a correlation/trace id that ties the error to the distributed trace, a retryable flag (with retry-after when known), and structured field-level details. The four protocols just encode those same five facts differently: REST as problem+json, gRPC as status+details, Kafka via headers and a DLQ record, GraphQL as an errors[] entry with extensions. Agree this once as a shared contract; never leak stack traces or internal type names to callers.
 
 ## [129] APPENDIX E · ERRORS · REST: status, then Problem Details (sldId 384)
 
@@ -1746,11 +1746,11 @@ async def on_stock_error(request: Request, exc: StockError):
         })
 ```
 
-Map every domain error to problem+json in one handler — stable code, safe message, trace id; never a raw stack trace.
+Map every domain error to problem+json in one handler: stable code, safe message, trace id; never a raw stack trace.
 
 p. 110
 
-> A single exception handler is the right pattern: domain code raises a typed exception, and one place maps it to the wire format, so you never scatter ad-hoc error JSON across endpoints. Note the media type is application/problem+json (RFC 9457), the status matches the category (409 here — a conflict the client can act on), and the body carries the stable code and the traceId for correlation. What's absent: any stack trace, exception class name, or SQL; those leak internals and are an attack surface. In FastAPI you'd register one handler per error family, or a base-class handler that switches on a code.
+> A single exception handler is the right pattern: domain code raises a typed exception, and one place maps it to the wire format, so you never scatter ad-hoc error JSON across endpoints. Note the media type is application/problem+json (RFC 9457), the status matches the category (409 here: a conflict the client can act on), and the body carries the stable code and the traceId for correlation. What's absent: any stack trace, exception class name, or SQL; those leak internals and are an attack surface. In FastAPI you'd register one handler per error family, or a base-class handler that switches on a code.
 
 ## [131] APPENDIX E · ERRORS · gRPC: status codes + rich details (sldId 386)
 
@@ -1758,7 +1758,7 @@ A small fixed set of canonical codes, plus structured google.rpc.Status details 
 
 p. 111
 
-> gRPC gives you a small, fixed set of canonical status codes, and the code you choose is part of the contract, because clients (and the Istio mesh) decide retry behaviour from it. INVALID_ARGUMENT and NOT_FOUND are client bugs: don't retry. FAILED_PRECONDITION and ALREADY_EXISTS are state issues: don't retry. UNAVAILABLE and ABORTED are transient: retry with backoff. RESOURCE_EXHAUSTED means you're being rate-limited — honour the RetryInfo delay. DEADLINE_EXCEEDED means tune the timeout. Beyond the code, attach a google.rpc.Status in the trailers with rich details, ErrorInfo (machine reason + domain) and RetryInfo (how long to wait), so the client gets the same five facts as everywhere else.
+> gRPC gives you a small, fixed set of canonical status codes, and the code you choose is part of the contract, because clients (and the Istio mesh) decide retry behaviour from it. INVALID_ARGUMENT and NOT_FOUND are client bugs: don't retry. FAILED_PRECONDITION and ALREADY_EXISTS are state issues: don't retry. UNAVAILABLE and ABORTED are transient: retry with backoff. RESOURCE_EXHAUSTED means you're being rate-limited: honour the RetryInfo delay. DEADLINE_EXCEEDED means tune the timeout. Beyond the code, attach a google.rpc.Status in the trailers with rich details, ErrorInfo (machine reason + domain) and RetryInfo (how long to wait), so the client gets the same five facts as everywhere else.
 
 ## [132] APPENDIX E · ERRORS · gRPC errors with rich status details (sldId 387)
 
@@ -1785,15 +1785,15 @@ Pick the canonical code (UNAVAILABLE = retryable) and attach ErrorInfo + RetryIn
 
 p. 112
 
-> This is the rich-error model in Python via the grpcio-status package. The canonical code UNAVAILABLE tells the client and the mesh this is transient and retryable; the google.rpc.Status carries structured details — ErrorInfo with a machine reason and domain, and RetryInfo telling the client exactly how long to wait before retrying. abort_with_status puts all of it in the trailers. The key discipline: don't overload a generic INTERNAL code for everything — the code is how automated clients decide whether and when to retry, so getting it right is what prevents both lost work and retry storms.
+> This is the rich-error model in Python via the grpcio-status package. The canonical code UNAVAILABLE tells the client and the mesh this is transient and retryable; the google.rpc.Status carries structured details: ErrorInfo with a machine reason and domain, and RetryInfo telling the client exactly how long to wait before retrying. abort_with_status puts all of it in the trailers. The key discipline: don't overload a generic INTERNAL code for everything: the code is how automated clients decide whether and when to retry, so getting it right is what prevents both lost work and retry storms.
 
 ## [133] APPENDIX E · ERRORS · Kafka: retry topics and a dead-letter queue (sldId 388)
 
-Commit the offset, route the failed record aside, and keep consuming — a poison record never blocks the partition.
+Commit the offset, route the failed record aside, and keep consuming: a poison record never blocks the partition.
 
 p. 113
 
-> Kafka error handling has a failure mode unique to logs: a single poison record can block the whole partition forever if you keep retrying it in place, because the offset never advances — head-of-line blocking that stalls every record behind it. The fix is to move failures aside: try a bounded number of in-place retries, then route the record to a delayed-retry topic (reprocessed after a delay without blocking the live stream), and after N attempts send it to a dead-letter queue for humans or tooling. You commit the offset either way, so the main consumer keeps making progress. The DLQ record carries the original payload plus error and trace headers.
+> Kafka error handling has a failure mode unique to logs: a single poison record can block the whole partition forever if you keep retrying it in place, because the offset never advances: head-of-line blocking that stalls every record behind it. The fix is to move failures aside: try a bounded number of in-place retries, then route the record to a delayed-retry topic (reprocessed after a delay without blocking the live stream), and after N attempts send it to a dead-letter queue for humans or tooling. You commit the offset either way, so the main consumer keeps making progress. The DLQ record carries the original payload plus error and trace headers.
 
 ## [134] APPENDIX E · ERRORS · Kafka retry + DLQ with aiokafka (sldId 389)
 
@@ -1817,11 +1817,11 @@ async for msg in consumer:
         await consumer.commit()        # commit so head-of-line is free
 ```
 
-Retry a bounded number of times, then DLQ — and always commit, so one poison record can't stall the partition.
+Retry a bounded number of times, then DLQ, and always commit, so one poison record can't stall the partition.
 
 p. 114
 
-> The whole point is the final commit in the except branch: whether the record succeeded, got routed to a retry topic, or landed in the DLQ, we commit the offset so the partition keeps moving. The retries header tracks attempts and is incremented on each delayed-retry hop; after MAX_RETRIES the record goes to the DLQ with its payload and a traceId header for investigation. This is the manual version of what a framework gives you declaratively — and it's the pattern that stops one bad message from taking down a consumer group. Make handle() idempotent, because at-least-once delivery means retried records may have partially applied.
+> The whole point is the final commit in the except branch: whether the record succeeded, got routed to a retry topic, or landed in the DLQ, we commit the offset so the partition keeps moving. The retries header tracks attempts and is incremented on each delayed-retry hop; after MAX_RETRIES the record goes to the DLQ with its payload and a traceId header for investigation. This is the manual version of what a framework gives you declaratively, and it's the pattern that stops one bad message from taking down a consumer group. Make handle() idempotent, because at-least-once delivery means retried records may have partially applied.
 
 ## [135] APPENDIX E · ERRORS · GraphQL: partial success with errors[] (sldId 390)
 
@@ -1829,7 +1829,7 @@ One HTTP 200; the failed field is null and explained in errors[] with a machine 
 
 p. 115
 
-> GraphQL breaks the one-request-one-status assumption: a single query can touch many resolvers, so the response is almost always HTTP 200 and carries both a data object and an errors array. When one field fails (say stock can't reach inventory), that field is set to null, an entry is added to errors[] with a message and the path to the failed field, and the machine code goes in extensions.code along with retryable and traceId. The rest of the data still returns. The anti-pattern to call out: blanket-failing the whole query (or returning a 500) when only one field broke — that throws away useful data the client already asked for. Partial success is a feature; let the client decide whether to retry just the failed field.
+> GraphQL breaks the one-request-one-status assumption: a single query can touch many resolvers, so the response is almost always HTTP 200 and carries both a data object and an errors array. When one field fails (say stock can't reach inventory), that field is set to null, an entry is added to errors[] with a message and the path to the failed field, and the machine code goes in extensions.code along with retryable and traceId. The rest of the data still returns. The anti-pattern to call out: blanket-failing the whole query (or returning a 500) when only one field broke: that throws away useful data the client already asked for. Partial success is a feature; let the client decide whether to retry just the failed field.
 
 ## [136] APPENDIX E · ERRORS · GraphQL field errors with Strawberry (sldId 391)
 
@@ -1854,31 +1854,31 @@ class Order:
                             "traceId": current_trace_id()})
 ```
 
-Raise from the field resolver: Strawberry nulls just that field and adds it to errors[] with your extensions — the rest of data still returns.
+Raise from the field resolver: Strawberry nulls just that field and adds it to errors[] with your extensions: the rest of data still returns.
 
 p. 116
 
-> Raising a GraphQLError from a single field's resolver is exactly right: Strawberry catches it, sets that field to null, and appends an entry to the errors[] array with the message, the path, and your extensions — while every other field in the query resolves and returns normally. The extensions object is where the shared error contract lives in GraphQL: code, retryable, traceId. Resist the urge to let the exception bubble to the top and fail the whole operation; that's the blanket-failure anti-pattern. The client sees the order and total, sees stock is null, reads extensions.code, and decides whether to retry just stock.
+> Raising a GraphQLError from a single field's resolver is exactly right: Strawberry catches it, sets that field to null, and appends an entry to the errors[] array with the message, the path, and your extensions: while every other field in the query resolves and returns normally. The extensions object is where the shared error contract lives in GraphQL: code, retryable, traceId. Resist the urge to let the exception bubble to the top and fail the whole operation; that's the blanket-failure anti-pattern. The client sees the order and total, sees stock is null, reads extensions.code, and decides whether to retry just stock.
 
-## [137] APPENDIX E · ERRORS · How a retry storm forms — and how to stop it (sldId 392)
+## [137] APPENDIX E · ERRORS · How a retry storm forms, and how to stop it (sldId 392)
 
 Naive retries multiply load on a struggling service; bounded, spaced, circuit-broken retries break the feedback loop.
 
 p. 117
 
-> This is the failure mode that turns a brief blip into a full outage. The loop: a service slows, calls start timing out, clients retry (often 3x), which triples the load on the already-struggling service, causing more timeouts, causing more retries. It's a positive feedback loop, and naive retry logic is the amplifier. The controls that break it, bottom of the slide: bound every call with a timeout; cap retries to a small number and only for idempotent calls; space them with exponential backoff plus jitter (so clients don't retry in lockstep); add a circuit breaker to fail fast while the dependency is down; enforce a retry budget (cap retries as a percentage of traffic); and shed load early with 429/UNAVAILABLE rather than queueing work you can't do. The Istio config from section 2 provides several of these at the mesh layer without code changes.
+> This is the failure mode that turns a brief blip into a full outage. The loop: a service slows, calls start timing out, clients retry (often 3x), which triples the load on the already-struggling service, causing more timeouts, causing more retries. It's a positive feedback loop, and naive retry logic is the amplifier. The controls that break it, bottom of the slide: bound every call with a timeout; cap retries to a small number and only for idempotent calls; space them with exponential backoff plus jitter (so clients don't retry in lockstep); add a circuit breaker to fail fast while the dependency is down; enforce a retry budget (cap retries as a percentage of traffic); and shed load early with 429/UNAVAILABLE rather than queueing work you can't do. The Istio mesh config provides several of these at the mesh layer without code changes.
 
 ## [138] APPENDIX E · ERRORS · Error-handling heuristics across all four (sldId 393)
 
-- One contract, four encodings: a stable code, a safe message, a trace id, a retryable flag, field details — everywhere.
+- One contract, four encodings: a stable code, a safe message, a trace id, a retryable flag, field details: everywhere.
 - The category lives in the protocol: HTTP status, gRPC code, GraphQL errors[] entry, Kafka DLQ vs retry topic.
-- Make retryability explicit and honour it: Retry-After, RetryInfo, extensions.retryable — don't make clients guess.
+- Make retryability explicit and honour it: Retry-After, RetryInfo, extensions.retryable: don't make clients guess.
 - Never leak internals: no stack traces, SQL, or class names on the wire; map them to a code and log the detail server-side.
 - Bound every retry (timeout, small max, backoff + jitter, circuit breaker, retry budget) and make handlers idempotent.
 
 p. 118
 
-> The cross-cutting checklist to leave on screen. One contract expressed four ways — the same five facts whether it's problem+json, google.rpc.Status, a GraphQL extensions object, or a Kafka DLQ header. Let each protocol carry the category natively rather than inventing your own. Make retryability explicit and machine-readable so clients and the mesh back off correctly instead of guessing. Never leak internals — that's both a security issue and a coupling issue. And the bold line is the one that prevents outages: every retry is bounded and spaced, protected by a circuit breaker and a retry budget, and every handler is idempotent so a redelivered or retried request is safe. Get these right and your failure paths become as boring as your happy paths.
+> The cross-cutting checklist to leave on screen. One contract expressed four ways: the same five facts whether it's problem+json, google.rpc.Status, a GraphQL extensions object, or a Kafka DLQ header. Let each protocol carry the category natively rather than inventing your own. Make retryability explicit and machine-readable so clients and the mesh back off correctly instead of guessing. Never leak internals: that's both a security issue and a coupling issue. And the bold line is the one that prevents outages: every retry is bounded and spaced, protected by a circuit breaker and a retry budget, and every handler is idempotent so a redelivered or retried request is safe. Get these right and your failure paths become as boring as your happy paths.
 
 ## [139] Appendix F · DDD & Hexagonal Architecture (sldId 394)
 
@@ -1886,13 +1886,13 @@ F
 
 Where the boundaries and the contracts come from.
 
-> Appendix F. The whole talk assumes you've drawn good service boundaries and know what each API should say — this is where those come from. Domain-Driven Design gives you the strategic tools to place boundaries (subdomains, bounded contexts) and the tactical tools to model what's inside (aggregates, domain events); hexagonal architecture keeps the four protocols we've discussed as mere adapters around a clean domain core. Together they answer: where does an API boundary go, what should its contract say, and how do I keep REST/gRPC/GraphQL/Kafka out of my business logic. The reference is Vlad Khononov's Learning Domain-Driven Design.
+> Appendix F. The whole talk assumes you've drawn good service boundaries and know what each API should say: this is where those come from. Domain-Driven Design gives you the strategic tools to place boundaries (subdomains, bounded contexts) and the tactical tools to model what's inside (aggregates, domain events); hexagonal architecture keeps the four protocols we've discussed as mere adapters around a clean domain core. Together they answer: where does an API boundary go, what should its contract say, and how do I keep REST/gRPC/GraphQL/Kafka out of my business logic. The reference is Vlad Khononov's Learning Domain-Driven Design.
 
 ## [140] APPENDIX F · DDD · Why DDD belongs in an API talk (sldId 395)
 
-- An API is a contract between two bounded contexts — so “where's the boundary?” and “what does the contract say?” are DDD questions before they're API questions.
+- An API is a contract between two bounded contexts, so “where's the boundary?” and “what does the contract say?” are DDD questions before they're API questions.
 - Strategic DDD places the boundaries: subdomains (core, supporting, generic) and bounded contexts, each with its own model and ubiquitous language.
-- Tactical DDD models what's inside: aggregates (consistency boundaries), entities, value objects and domain events — which become your resources and your Kafka events.
+- Tactical DDD models what's inside: aggregates (consistency boundaries), entities, value objects and domain events: which become your resources and your Kafka events.
 - Hexagonal architecture keeps it clean: the domain core is isolated, and REST, gRPC, GraphQL and Kafka are just adapters plugged into ports.
 - Get the boundaries right and the APIs almost design themselves; get them wrong and no amount of REST polish will save you.
 
@@ -1906,14 +1906,14 @@ Place boundaries by business value and rate of change; each context owns one mod
 
 p. 120
 
-> Strategic DDD first. Classify the business into subdomains by value and volatility: core subdomains are your competitive edge, complex and fast-changing, where your best people belong; supporting subdomains are necessary but not differentiating, so build them cheaply; generic subdomains are solved problems you buy or adopt (auth, notifications). Each subdomain becomes one or more bounded contexts — a boundary inside which one model and one ubiquitous language are consistent. The punchline here is the bottom box: that boundary is exactly where the API sits, and the contract translates between two contexts' models rather than sharing internals. Map it to our system: order and pricing are core, inventory and shipping supporting, auth and notification generic.
+> Strategic DDD first. Classify the business into subdomains by value and volatility: core subdomains are your competitive edge, complex and fast-changing, where your best people belong; supporting subdomains are necessary but not differentiating, so build them cheaply; generic subdomains are solved problems you buy or adopt (auth, notifications). Each subdomain becomes one or more bounded contexts: a boundary inside which one model and one ubiquitous language are consistent. The punchline here is the bottom box: that boundary is exactly where the API sits, and the contract translates between two contexts' models rather than sharing internals. Map it to our system: order and pricing are core, inventory and shipping supporting, auth and notification generic.
 
 ## [142] APPENDIX F · DDD · A bounded context is a service-and-API boundary (sldId 397)
 
-- A bounded context is the scope within which one model and one ubiquitous language stay consistent — the natural unit for a service and its API.
+- A bounded context is the scope within which one model and one ubiquitous language stay consistent: the natural unit for a service and its API.
 - The same word means different things across contexts: an “order” in fulfillment is not an “order” in billing. Don't force one shared model across the system.
-- The context's published API is its only public surface; the schema, storage and internal types stay private — this is the “no leaky internal models” rule from anti-patterns, restated.
-- Put boundaries where the business naturally splits and where a team can own them end-to-end (Conway's law) — that's where the integration cost is worth paying.
+- The context's published API is its only public surface; the schema, storage and internal types stay private: this is the “no leaky internal models” rule from anti-patterns, restated.
+- Put boundaries where the business naturally splits and where a team can own them end-to-end (Conway's law): that's where the integration cost is worth paying.
 
 p. 121
 
@@ -1925,15 +1925,15 @@ The relationship patterns between contexts, and which ones your API implements.
 
 p. 122
 
-> Context mapping catalogues the ways two contexts relate. Walk the starred ones because they're what APIs implement: an Open-Host Service is a context that, because many others integrate with it, publishes a stable public API; the Published Language is the shared, versioned schema that API speaks; and an Anticorruption Layer is the translation you build when consuming someone else's context so their model doesn't leak into yours. The others are trade-offs: Conformist means you just accept the upstream model; Shared Kernel means you share a model and therefore change in lockstep — high coupling, use sparingly; Partnership means two contexts co-evolve; Separate Ways means don't integrate. The starred three are the ones to design explicitly.
+> Context mapping catalogues the ways two contexts relate. Walk the starred ones because they're what APIs implement: an Open-Host Service is a context that, because many others integrate with it, publishes a stable public API; the Published Language is the shared, versioned schema that API speaks; and an Anticorruption Layer is the translation you build when consuming someone else's context so their model doesn't leak into yours. The others are trade-offs: Conformist means you just accept the upstream model; Shared Kernel means you share a model and therefore change in lockstep: high coupling, use sparingly; Partnership means two contexts co-evolve; Separate Ways means don't integrate. The starred three are the ones to design explicitly.
 
 ## [144] APPENDIX F · DDD · Open-Host Service & Published Language (sldId 399)
 
-- Open-Host Service: a context integrated by many publishes a stable, documented API as its public protocol — that's your REST / gRPC / GraphQL surface.
+- Open-Host Service: a context integrated by many publishes a stable, documented API as its public protocol: that's your REST / gRPC / GraphQL surface.
 - Published Language: the shared, versioned schema that API speaks (OpenAPI, .proto, Avro), which is exactly what lives in the Apicurio registry.
 - Anticorruption Layer: when you consume another context, translate their model into yours at the edge so their concepts never leak into your domain.
-- Conformist is the cheap opposite — accept their model wholesale and inherit their changes; choose an ACL instead when the upstream model is messy or volatile.
-- So the registry-backed contract from section 9 is a Published Language, and edge/gateway translation is an Anticorruption Layer.
+- Conformist is the cheap opposite: accept their model wholesale and inherit their changes; choose an ACL instead when the upstream model is messy or volatile.
+- So the registry-backed contract is a Published Language, and edge/gateway translation is an Anticorruption Layer.
 
 p. 123
 
@@ -1945,7 +1945,7 @@ The domain core is isolated; REST, gRPC, GraphQL and Kafka are just adapters tha
 
 p. 124
 
-> This is the architectural payoff of the whole protocols discussion. The domain core in the middle holds entities, aggregates and domain logic and depends on nothing — no framework, no I/O. It declares ports: inbound ports (what it can be asked to do) and outbound ports (what it needs from the world). Driving adapters on the left (REST, gRPC, GraphQL) translate an incoming protocol into a call on an inbound port. Driven adapters on the right (a Postgres repository, a Kafka publisher) implement the outbound ports. The arrows all point inward: adapters depend on the domain, never the reverse. The consequence we care about: the four protocols we spent the talk on are interchangeable adapters; you can add gRPC alongside REST, or a Kafka consumer, without touching a line of domain logic.
+> This is the architectural payoff of the whole protocols discussion. The domain core in the middle holds entities, aggregates and domain logic and depends on nothing: no framework, no I/O. It declares ports: inbound ports (what it can be asked to do) and outbound ports (what it needs from the world). Driving adapters on the left (REST, gRPC, GraphQL) translate an incoming protocol into a call on an inbound port. Driven adapters on the right (a Postgres repository, a Kafka publisher) implement the outbound ports. The arrows all point inward: adapters depend on the domain, never the reverse. The consequence we care about: the four protocols we spent the talk on are interchangeable adapters; you can add gRPC alongside REST, or a Kafka consumer, without touching a line of domain logic.
 
 ## [146] APPENDIX F · HEXAGONAL · Ports & adapters in code (sldId 401)
 
@@ -1976,18 +1976,18 @@ The domain depends only on ports it declares; REST/gRPC/Kafka are adapters wired
 
 p. 125
 
-> Walk the three blocks. Ports: the domain declares plain interfaces (Protocols) for what it needs, a repository and an event publisher, and depends on nothing else. The application service PlaceOrder is pure: it creates the aggregate, saves via the port, publishes a domain event via the port, and never imports FastAPI, asyncpg or Kafka. The REST adapter is trivial — it turns an HTTP body into a command and calls the use case; a gRPC or GraphQL adapter would be the same three lines. The outbound ports are implemented by adapters (a Postgres repository, a Kafka publisher) injected at startup. This is dependency inversion in service of the boundary: the protocols are replaceable, the domain is stable.
+> Walk the three blocks. Ports: the domain declares plain interfaces (Protocols) for what it needs, a repository and an event publisher, and depends on nothing else. The application service PlaceOrder is pure: it creates the aggregate, saves via the port, publishes a domain event via the port, and never imports FastAPI, asyncpg or Kafka. The REST adapter is trivial: it turns an HTTP body into a command and calls the use case; a gRPC or GraphQL adapter would be the same three lines. The outbound ports are implemented by adapters (a Postgres repository, a Kafka publisher) injected at startup. This is dependency inversion in service of the boundary: the protocols are replaceable, the domain is stable.
 
 ## [147] APPENDIX F · DDD · Aggregates and domain events (sldId 402)
 
-- An aggregate is a cluster of objects treated as one consistency unit — the boundary inside which invariants hold and a single transaction commits. It's usually what sits behind one API resource.
-- That makes the aggregate the natural transaction boundary, and therefore the outbox boundary: the state change and the domain event commit together (section 4).
-- Domain events (“OrderPlaced”) are first-class in DDD; they become the Kafka events other contexts react to (section 5) — choreography between bounded contexts.
-- Keep aggregates small: one aggregate per transaction, reference others by id, and let events connect them — which is exactly the saga story in Appendix D.
+- An aggregate is a cluster of objects treated as one consistency unit: the boundary inside which invariants hold and a single transaction commits. It's usually what sits behind one API resource.
+- That makes the aggregate the natural transaction boundary, and therefore the outbox boundary: the state change and the domain event commit together.
+- Domain events (“OrderPlaced”) are first-class in DDD; they become the Kafka events other contexts react to: choreography between bounded contexts.
+- Keep aggregates small: one aggregate per transaction, reference others by id, and let events connect them: which is exactly the saga story.
 
 p. 126
 
-> Tactical DDD, and it ties three earlier sections together. The aggregate is the consistency boundary: invariants hold within it and one transaction commits it, and it typically maps to a single API resource. Because it's the transaction boundary, it's also the outbox boundary from section 4: state plus event commit atomically. Domain events are the DDD concept that becomes your Kafka topic payloads, enabling choreography across contexts (section 5). And the small-aggregate rule (one per transaction, reference others by id, connect via events) is precisely why cross-aggregate consistency needs a saga (Appendix D). This slide is where DDD stops being abstract and visibly underpins the data, event and saga designs.
+> Tactical DDD ties the aggregate, the outbox, and the saga design together. The aggregate is the consistency boundary: invariants hold within it and one transaction commits it, and it typically maps to a single API resource. Because it's the transaction boundary, it's also the outbox boundary: state plus event commit atomically. Domain events are the DDD concept that becomes your Kafka topic payloads, enabling choreography across contexts. And the small-aggregate rule (one per transaction, reference others by id, connect via events) is precisely why cross-aggregate consistency needs a saga. This slide is where DDD stops being abstract and visibly underpins the data, event and saga designs.
 
 ## [148] APPENDIX F · DDD · How DDD maps to our API stack (sldId 403)
 
@@ -1996,110 +1996,110 @@ p. 126
 - Anticorruption Layer → model translation at the gateway / consumer edge.
 - Aggregate → an API resource and the transaction/outbox boundary behind it.
 - Domain event → a Kafka event other contexts consume.
-  - Reference: Vlad Khononov — Learning Domain-Driven Design (O'Reilly, 2021).
+  - Reference: Vlad Khononov, Learning Domain-Driven Design (O'Reilly, 2021).
 
 p. 127
 
-> The summary map — leave it up while you recap. Every DDD concept on the left has shown up concretely on the right somewhere in the talk: contexts are services, the OHS/Published Language is the registry-backed contract, the ACL is edge translation, aggregates are resources and outbox boundaries, domain events are Kafka events. The message: DDD is the naming and reasoning behind the boundaries the whole architecture already relies on, not a separate methodology bolted on. Point people to Khononov's Learning Domain-Driven Design for the full treatment.
+> The summary map: leave it up while you recap. Every DDD concept on the left has shown up concretely on the right somewhere in the talk: contexts are services, the OHS/Published Language is the registry-backed contract, the ACL is edge translation, aggregates are resources and outbox boundaries, domain events are Kafka events. The message: DDD is the naming and reasoning behind the boundaries the whole architecture already relies on, not a separate methodology bolted on. Point people to Khononov's Learning Domain-Driven Design for the full treatment.
 
 ## [149] Appendix G · Balancing Coupling (sldId 404)
 
 G
 
-Coupling isn't the enemy — imbalance is.
+Coupling isn't the enemy: imbalance is.
 
-> Appendix G. We've thrown around “coupled” and “decoupled” throughout as if loose is always better. This sharpens it, using Vlad Khononov's Balancing Coupling model. The reframe: coupling is necessary, since a system with zero coupling does nothing, so the goal is to balance it, not eliminate it. Coupling has three dimensions (integration strength, distance and volatility), and a coupling only hurts when all three are high together. This gives precise language for why a shared database is bad but a registry-backed API contract is fine, and it ties every anti-pattern from section 12 back to one model.
+> Appendix G. We've thrown around “coupled” and “decoupled” throughout as if loose is always better. This sharpens it, using Vlad Khononov's Balancing Coupling model. The reframe: coupling is necessary, since a system with zero coupling does nothing, so the goal is to balance it, not eliminate it. Coupling has three dimensions (integration strength, distance and volatility), and a coupling only hurts when all three are high together. This gives precise language for why a shared database is bad but a registry-backed API contract is fine, and it ties every anti-pattern back to one model.
 
-## [150] APPENDIX G · COUPLING · Coupling is necessary — balance it, don't eliminate it (sldId 405)
+## [150] APPENDIX G · COUPLING · Coupling is necessary: balance it, don't eliminate it (sldId 405)
 
 - Components must share some knowledge to collaborate; a system with zero coupling also has zero behaviour. “Loosely coupled” is too blunt a goal.
 - Khononov's model evaluates the connection between two components, not the components themselves, along three dimensions: integration strength, distance and volatility.
-- The headline: a coupling is only painful when strength, distance and volatility are all high at once — reduce any one and the pain drops.
-- This is why “just split it into microservices” can backfire: spreading strong, volatile coupling across a network maximises all three dimensions — a distributed monolith.
+- The headline: a coupling is only painful when strength, distance and volatility are all high at once: reduce any one and the pain drops.
+- This is why “just split it into microservices” can backfire: spreading strong, volatile coupling across a network maximises all three dimensions: a distributed monolith.
 
 p. 128
 
-> Frame the appendix. The central, slightly contrarian idea: coupling is not a defect to be driven to zero — it's necessary, and the real skill is balancing it. Credit Khononov's Balancing Coupling model and stress that it measures the connection between components, not the components, along three dimensions. The headline sentence is the whole model in one line — pain needs all three of strength, distance and volatility to be high. The bold line is the cautionary tale that resonates with anyone burned by microservices: splitting strongly- and volatile-coupled code across a network doesn't remove the coupling, it just adds distance to it — the distributed monolith.
+> Frame the appendix. The central, slightly contrarian idea: coupling is not a defect to be driven to zero: it's necessary, and the real skill is balancing it. Credit Khononov's Balancing Coupling model and stress that it measures the connection between components, not the components, along three dimensions. The headline sentence is the whole model in one line: pain needs all three of strength, distance and volatility to be high. The bold line is the cautionary tale that resonates with anyone burned by microservices: splitting strongly- and volatile-coupled code across a network doesn't remove the coupling, it just adds distance to it: the distributed monolith.
 
 ## [151] APPENDIX G · COUPLING · Coupling has three dimensions (sldId 406)
 
-Integration strength × distance × volatility — a coupling only hurts when all three are high.
+Integration strength × distance × volatility: a coupling only hurts when all three are high.
 
 p. 129
 
-> The model in one picture. Integration strength is how much knowledge two parts share — the more they share, the more likely a change in one forces a change in the other. Distance is how far apart they sit (same method, class, module, service, or system), and it sets the cost of a change that has to cross the boundary. Volatility is how often the coupled thing changes. The cost box at the bottom is the key relationship: strong plus distant is global complexity (the distributed monolith), but it only bites when the code is volatile. A strong, distant coupling on something that never changes costs you nothing. That's why all three dimensions have to be considered together rather than chasing “lose coupling” in the abstract.
+> The model in one picture. Integration strength is how much knowledge two parts share: the more they share, the more likely a change in one forces a change in the other. Distance is how far apart they sit (same method, class, module, service, or system), and it sets the cost of a change that has to cross the boundary. Volatility is how often the coupled thing changes. The cost box at the bottom is the key relationship: strong plus distant is global complexity (the distributed monolith), but it only bites when the code is volatile. A strong, distant coupling on something that never changes costs you nothing. That's why all three dimensions have to be considered together rather than chasing “lose coupling” in the abstract.
 
 ## [152] APPENDIX G · COUPLING · The three dimensions, in practice (sldId 407)
 
-- Integration strength: how much knowledge two parts share — from intrusive (private internals) down to contract (an explicit interface). Less shared knowledge = looser coupling.
-- Distance: how far apart they sit — method, class, module, service, system. Greater distance raises the cost of any change that crosses the boundary.
-- Volatility: how often the coupled thing changes. Khononov derives it from DDD subdomain type — core is volatile, generic is stable.
+- Integration strength: how much knowledge two parts share: from intrusive (private internals) down to contract (an explicit interface). Less shared knowledge = looser coupling.
+- Distance: how far apart they sit: method, class, module, service, system. Greater distance raises the cost of any change that crosses the boundary.
+- Volatility: how often the coupled thing changes. Khononov derives it from DDD subdomain type: core is volatile, generic is stable.
 - Modularity = strength XOR distance: keep strong coupling local, and make anything distant a weak (contract) coupling. Being both strong and distant is the trap.
 
 p. 130
 
-> Unpack each dimension with a concrete handle. Strength is a ladder (intrusive to contract). Distance is intuitive — the further apart, the more it costs to change across the seam. Volatility is the clever part of the model: you can't know the future, but you can predict change-rate from DDD subdomain type (core changes a lot, generic barely changes), which connects this appendix straight back to Appendix F. The bold line is Khononov's modularity rule rendered as a slogan, strength XOR distance: you want exactly one of them, not both; strong-and-local (a cohesive module) is fine, weak-and-distant (microservices via contracts) is fine, strong-and-distant is the distributed monolith.
+> Unpack each dimension with a concrete handle. Strength is a ladder (intrusive to contract). Distance is intuitive: the further apart, the more it costs to change across the seam. Volatility is the clever part of the model: you can't know the future, but you can predict change-rate from DDD subdomain type (core changes a lot, generic barely changes), which connects this appendix straight back to the DDD subdomain model. The bold line is Khononov's modularity rule rendered as a slogan, strength XOR distance: you want exactly one of them, not both; strong-and-local (a cohesive module) is fine, weak-and-distant (microservices via contracts) is fine, strong-and-distant is the distributed monolith.
 
 ## [153] APPENDIX G · COUPLING · Integration strength: a ladder, worst to best (sldId 408)
 
-From intrusive (shared internals) to contract (a versioned schema) — across distance, aim for the bottom rung.
+From intrusive (shared internals) to contract (a versioned schema): across distance, aim for the bottom rung.
 
 p. 131
 
-> Integration strength has four levels, worst to best. Intrusive coupling: one component reaches into another's private internals — the classic case is two services on one database, where either can break the other invisibly. Functional coupling: they share business logic or rules and must change together for functional reasons. Model coupling: they share a data model or DTOs — a shared library of types. Contract coupling: they integrate only through an explicit, stable, versioned contract — and that's our REST, gRPC, GraphQL and Kafka schemas in the registry. Lower on the ladder means less shared knowledge and looser coupling. The rule that matters: the greater the distance between two components, the further down this ladder you need to be.
+> Integration strength has four levels, worst to best. Intrusive coupling: one component reaches into another's private internals: the classic case is two services on one database, where either can break the other invisibly. Functional coupling: they share business logic or rules and must change together for functional reasons. Model coupling: they share a data model or DTOs: a shared library of types. Contract coupling: they integrate only through an explicit, stable, versioned contract, and that's our REST, gRPC, GraphQL and Kafka schemas in the registry. Lower on the ladder means less shared knowledge and looser coupling. The rule that matters: the greater the distance between two components, the further down this ladder you need to be.
 
 ## [154] APPENDIX G · COUPLING · Strength in our system (sldId 409)
 
-- Intrusive (worst): two services sharing one database, or reaching into another's internals — any change can break the other invisibly. This is the shared-database anti-pattern.
-- Functional / Model: sharing business logic or a model — e.g. a shared library of types. Fine within a context; risky across teams because it forces lockstep change.
-- Contract (best across distance): integrate only through an explicit, versioned schema — our REST/gRPC/GraphQL APIs and Kafka event schemas, governed by the registry.
-- The rule: the greater the distance, the weaker the coupling must be. Across services that means contract coupling — never shared state.
+- Intrusive (worst): two services sharing one database, or reaching into another's internals: any change can break the other invisibly. This is the shared-database anti-pattern.
+- Functional / Model: sharing business logic or a model: e.g. a shared library of types. Fine within a context; risky across teams because it forces lockstep change.
+- Contract (best across distance): integrate only through an explicit, versioned schema: our REST/gRPC/GraphQL APIs and Kafka event schemas, governed by the registry.
+- The rule: the greater the distance, the weaker the coupling must be. Across services that means contract coupling: never shared state.
 
 p. 132
 
-> Map the ladder onto decisions in our system. The shared database is intrusive coupling and it's the worst precisely because the integration strength is maximal and invisible — neither side knows what the other depends on. Shared libraries are model/functional coupling: perfectly fine inside one bounded context or team, dangerous when they force two independently-deployed teams to release together. Contract coupling (APIs and event schemas in the registry) is the only strength level appropriate across service distance. The bold rule is the actionable takeaway and it's exactly why every cross-service integration in the talk went through a registered contract rather than a shared table.
+> Map the ladder onto decisions in our system. The shared database is intrusive coupling and it's the worst precisely because the integration strength is maximal and invisible: neither side knows what the other depends on. Shared libraries are model/functional coupling: perfectly fine inside one bounded context or team, dangerous when they force two independently-deployed teams to release together. Contract coupling (APIs and event schemas in the registry) is the only strength level appropriate across service distance. The bold rule is the actionable takeaway and it's exactly why every cross-service integration in the talk went through a registered contract rather than a shared table.
 
 ## [155] APPENDIX G · COUPLING · Balancing coupling: strength vs. distance (sldId 410)
 
-Strong or distant, rarely both — and put any unavoidable strong-and-distant coupling where volatility is low.
+Strong or distant, rarely both, and put any unavoidable strong-and-distant coupling where volatility is low.
 
 p. 133
 
-> This brings strength and distance together into the design rule. Read the quadrants: high strength and close together is a cohesive module — perfectly healthy, keep it local. Low strength and distant is healthy microservices — services integrating through contracts. Low strength and close is needless indirection — you've split things that could just be merged. And the danger quadrant, top-right, is high strength at high distance: the distributed monolith, global complexity, where one change ripples across services and teams. The right-hand panel adds the third dimension: even a top-right coupling is tolerable if it never changes, but on volatile core-domain code it's where slow delivery and outages come from. So the formula: balance equals strength-XOR-distance, OR low volatility.
+> This brings strength and distance together into the design rule. Read the quadrants: high strength and close together is a cohesive module: perfectly healthy, keep it local. Low strength and distant is healthy microservices: services integrating through contracts. Low strength and close is needless indirection: you've split things that could just be merged. And the danger quadrant, top-right, is high strength at high distance: the distributed monolith, global complexity, where one change ripples across services and teams. The right-hand panel adds the third dimension: even a top-right coupling is tolerable if it never changes, but on volatile core-domain code it's where slow delivery and outages come from. So the formula: balance equals strength-XOR-distance, OR low volatility.
 
 ## [156] APPENDIX G · COUPLING · Distance and volatility (sldId 411)
 
 - Distance is the cost multiplier: a change contained in one module is cheap; the same change spanning two services and two teams is slow and expensive.
 - Volatility is the trigger: a strong, distant coupling on code that never changes is harmless; on volatile core-domain code it's where outages and slow delivery originate.
-- Predict volatility from the domain: core subdomains change often — keep their couplings weak and local; generic subdomains are stable, so you can afford more coupling.
-- Balance = (strength XOR distance) OR low volatility — put any unavoidable strong-and-distant coupling where the code rarely changes.
+- Predict volatility from the domain: core subdomains change often: keep their couplings weak and local; generic subdomains are stable, so you can afford more coupling.
+- Balance = (strength XOR distance) OR low volatility: put any unavoidable strong-and-distant coupling where the code rarely changes.
 
 p. 134
 
-> Deepen distance and volatility. Distance is why the same logical change can be a one-line edit or a multi-team, multi-deploy project — it multiplies cost. Volatility decides whether a less-than-ideal coupling matters: a textbook-ugly coupling on frozen code is a non-problem; a textbook-fine coupling on hot, ever-changing core code can still hurt. The DDD connection (from Appendix F) is the practical tool: subdomain type predicts volatility, so you route your strongest couplings away from core and toward stable, generic areas. The bold formula is Khononov's balance condition — worth writing on a whiteboard in a design review.
+> Deepen distance and volatility. Distance is why the same logical change can be a one-line edit or a multi-team, multi-deploy project: it multiplies cost. Volatility decides whether a less-than-ideal coupling matters: a textbook-ugly coupling on frozen code is a non-problem; a textbook-fine coupling on hot, ever-changing core code can still hurt. The DDD connection is the practical tool: subdomain type predicts volatility, so you route your strongest couplings away from core and toward stable, generic areas. The bold formula is Khononov's balance condition, worth writing on a whiteboard in a design review.
 
 ## [157] APPENDIX G · COUPLING · Coupling and our APIs (sldId 412)
 
-- Every protocol choice we've made is a coupling choice: REST, gRPC, GraphQL and events are all contract coupling — the loosest kind that still lets services collaborate.
+- Every protocol choice we've made is a coupling choice: REST, gRPC, GraphQL and events are all contract coupling: the loosest kind that still lets services collaborate.
 - The registry is what keeps that contract coupling stable: compatibility rules stop a producer from silently raising the integration strength on its consumers.
-- Connascence (Page-Jones) is a finer lens on the same idea — API versioning is managing connascence of name and position in your schemas (why protobuf field numbers matter).
-- Every anti-pattern from section 12 is an imbalance: shared DB = intrusive at distance; chatty sync chains = strong + distant + volatile; leaky models = model coupling across a boundary.
+- Connascence (Page-Jones) is a finer lens on the same idea: API versioning is managing connascence of name and position in your schemas (why protobuf field numbers matter).
+- Every anti-pattern is an imbalance: shared DB = intrusive at distance; chatty sync chains = strong + distant + volatile; leaky models = model coupling across a boundary.
 
 p. 135
 
-> Bring it home to the talk's content. The reframe to offer: every protocol decision was secretly a coupling decision, and we kept choosing contract coupling because it's the loosest that still works across distance. The registry's compatibility gate is, in this language, a guard against a producer silently increasing integration strength on consumers — that's what a breaking change is. Mention connascence as the finer-grained classical model (Page-Jones) that versioning manages — protobuf field numbers are connascence of position made explicit and stable. The bold line re-diagnoses the anti-patterns section through the coupling model, which is a satisfying way to show these aren't separate lists of rules but one underlying principle.
+> Bring it home to the talk's content. The reframe to offer: every protocol decision was secretly a coupling decision, and we kept choosing contract coupling because it's the loosest that still works across distance. The registry's compatibility gate is, in this language, a guard against a producer silently increasing integration strength on consumers: that's what a breaking change is. Mention connascence as the finer-grained classical model (Page-Jones) that versioning manages: protobuf field numbers are connascence of position made explicit and stable. The bold line re-diagnoses the anti-patterns section through the coupling model, which is a satisfying way to show these aren't separate lists of rules but one underlying principle.
 
 ## [158] APPENDIX G · COUPLING · Heuristics for balanced coupling (sldId 413)
 
-- Don't chase zero coupling — chase balance. Strong coupling is fine when it's local and stable.
+- Don't chase zero coupling: chase balance. Strong coupling is fine when it's local and stable.
 - As distance grows, drive strength down: across services, integrate only through versioned contracts, never shared state.
 - Keep strong, volatile couplings inside a single bounded context or aggregate, where distance is small.
 - Use DDD subdomain types to predict volatility, and put your weakest couplings around the parts that change most.
-  - References: Vlad Khononov — Learning Domain-Driven Design (O'Reilly) and Balancing Coupling in Software Design (Addison-Wesley).
+  - References: Vlad Khononov, Learning Domain-Driven Design (O'Reilly) and Balancing Coupling in Software Design (Addison-Wesley).
 
 p. 136
 
-> The closing heuristics — the slide to leave up. Don't eliminate coupling, balance it; lower strength as distance rises; keep strong-and-volatile couplings local (inside an aggregate or context); and use subdomain types to predict volatility so your loosest seams are around your most-changing code. These five lines are a usable design-review checklist. Close by pointing to both Khononov books, Learning Domain-Driven Design for the boundary tools in Appendix F and Balancing Coupling in Software Design for this model, as the two references that underpin both of these appendices.
+> The closing heuristics: the slide to leave up. Don't eliminate coupling, balance it; lower strength as distance rises; keep strong-and-volatile couplings local (inside an aggregate or context); and use subdomain types to predict volatility so your loosest seams are around your most-changing code. These five lines are a usable design-review checklist. Close by pointing to both Khononov books, Learning Domain-Driven Design for the boundary tools and Balancing Coupling in Software Design for this model, the two references that underpin both appendices.
 
 ## [159] Appendix H · Graceful Shutdown (sldId 414)
 
@@ -2107,18 +2107,18 @@ H
 
 Disposability, kept as a promise.
 
-> Appendix H. This is the operational flip side of factor 9 (disposability) and the cloud-native pillars: pods are killed and replaced constantly, so a service has to be able to go away cleanly. Ungraceful exits are the source of the 5xx blips users see during otherwise-healthy rolling deploys. The thesis: graceful shutdown isn't one setting, it's a short protocol between your app and Kubernetes — stop new traffic, finish in-flight work, drain consumers and sockets, then exit before the grace period runs out.
+> Appendix H. This is the operational flip side of factor 9 (disposability) and the cloud-native pillars: pods are killed and replaced constantly, so a service has to be able to go away cleanly. Ungraceful exits are the source of the 5xx blips users see during otherwise-healthy rolling deploys. The thesis: graceful shutdown isn't one setting, it's a short protocol between your app and Kubernetes: stop new traffic, finish in-flight work, drain consumers and sockets, then exit before the grace period runs out.
 
 ## [160] APPENDIX H · SHUTDOWN · Disposability is a promise you have to keep (sldId 415)
 
-- Pods are cattle: every deploy, scale-down, autoscale event or reschedule kills and replaces them — often many times a day.
+- Pods are cattle: every deploy, scale-down, autoscale event or reschedule kills and replaces them: often many times a day.
 - An ungraceful exit drops in-flight requests, abandons unacked messages and leaves work half-done: the 5xx blips users notice during a rollout.
 - Graceful shutdown is the flip side of factor 9, disposability: stop taking new work, finish what you accepted, release resources, then exit.
 - It's a protocol between your app and the platform, not a single setting, and the platform gives you a fixed budget to do it in.
 
 p. 137
 
-> Set up the appendix by connecting it to two earlier ideas: factor 9 (disposability) from the twelve-factor arc, and the resilience pillar. The motivating story is the one every team has lived: a rolling deploy that looks healthy in tests but throws a scatter of 5xx errors in production because pods were torn down mid-request. Stress that this is not about a magic flag — it's a sequence the app and Kubernetes perform together, on a clock. This appendix walks that sequence, then shows the code on both sides of it.
+> Set up the appendix by connecting it to two earlier ideas: factor 9 (disposability) from the twelve-factor arc, and the resilience pillar. The motivating story is the one every team has lived: a rolling deploy that looks healthy in tests but throws a scatter of 5xx errors in production because pods were torn down mid-request. Stress that this is not about a magic flag: it's a sequence the app and Kubernetes perform together, on a clock. This appendix walks that sequence, then shows the code on both sides of it.
 
 ## [161] APPENDIX H · SHUTDOWN · What happens when Kubernetes stops a pod (sldId 416)
 
@@ -2126,19 +2126,19 @@ SIGTERM starts a race; readiness-down plus a short preStop keep new traffic off 
 
 p. 138
 
-> Walk the two lanes. Top, Kubernetes: it sends SIGTERM to PID 1, starts the terminationGracePeriodSeconds clock, and will SIGKILL you if you overrun. The catch is the red box — removing the pod from the Service endpoints is asynchronous (kube-proxy, kubelet, the mesh all have to catch up), so for a moment after SIGTERM traffic can still arrive. Bottom, your pod: the response is to flip readiness DOWN immediately (which starts the deregistration) and run a short preStop sleep to cover the lag, then stop accepting, drain in-flight work, stop consumers and close resources, and exit — ideally well before the grace period ends. The red arrows are the whole point: readiness + preStop are what keep new traffic off your dying pod during the race.
+> Walk the two lanes. Top, Kubernetes: it sends SIGTERM to PID 1, starts the terminationGracePeriodSeconds clock, and will SIGKILL you if you overrun. The catch is the red box: removing the pod from the Service endpoints is asynchronous (kube-proxy, kubelet, the mesh all have to catch up), so for a moment after SIGTERM traffic can still arrive. Bottom, your pod: the response is to flip readiness DOWN immediately (which starts the deregistration) and run a short preStop sleep to cover the lag, then stop accepting, drain in-flight work, stop consumers and close resources, and exit: ideally well before the grace period ends. The red arrows are the whole point: readiness + preStop are what keep new traffic off your dying pod during the race.
 
 ## [162] APPENDIX H · SHUTDOWN · The contract with Kubernetes (sldId 417)
 
 - SIGTERM is the signal: Kubernetes sends it to PID 1, then waits terminationGracePeriodSeconds (default 30s) before SIGKILL.
-- Readiness DOWN is how you stop new traffic — the pod leaves the Service endpoints but keeps running to finish in-flight work.
-- There's a race: endpoint removal is asynchronous, so traffic can still arrive briefly after SIGTERM — a short preStop sleep covers the lag.
+- Readiness DOWN is how you stop new traffic: the pod leaves the Service endpoints but keeps running to finish in-flight work.
+- There's a race: endpoint removal is asynchronous, so traffic can still arrive briefly after SIGTERM: a short preStop sleep covers the lag.
 - Liveness must stay UP during the drain, or the kubelet restarts a pod that is already winding down.
-- Set the grace period larger than your longest acceptable in-flight operation — too short cuts work off, too long stalls deploys.
+- Set the grace period larger than your longest acceptable in-flight operation: too short cuts work off, too long stalls deploys.
 
 p. 139
 
-> These five points are the rules of the protocol. The distinction that trips people up is readiness vs liveness during shutdown: readiness should fail (it stops new traffic), but liveness must not fail (the kubelet would restart a pod that is draining). The asynchronous-deregistration race is the subtle one — it's why a preStop sleep exists at all; it's not about doing work, it's about waiting for the rest of the cluster to stop routing to you. And the sizing rule on the grace period is the practical lever: it must exceed your real worst-case in-flight operation, with headroom, or you'll be SIGKILLed mid-request.
+> These five points are the rules of the protocol. The distinction that trips people up is readiness vs liveness during shutdown: readiness should fail (it stops new traffic), but liveness must not fail (the kubelet would restart a pod that is draining). The asynchronous-deregistration race is the subtle one: it's why a preStop sleep exists at all; it's not about doing work, it's about waiting for the rest of the cluster to stop routing to you. And the sizing rule on the grace period is the practical lever: it must exceed your real worst-case in-flight operation, with headroom, or you'll be SIGKILLed mid-request.
 
 ## [163] APPENDIX H · SHUTDOWN · Graceful means something different per workload (sldId 418)
 
@@ -2146,7 +2146,7 @@ Only HTTP drains automatically; Kafka consumers, WebSockets and jobs each need t
 
 p. 140
 
-> The trap is assuming 'graceful shutdown' is one thing. Only HTTP request draining tends to be automatic (the server stops accepting and finishes in-flight). Everything else you wire up yourself in your shutdown hook. Kafka consumers: stop polling, finish the records already in hand, commit offsets, and leave the group so the rebalance is clean. WebSockets (from Appendix C): you can't finish a long-lived connection, so send a close/go-away and rely on client reconnection plus the per-connection seq and backplane. Jobs and schedulers: stop starting new work and either let running jobs finish or checkpoint so they resume after restart. The green footer is the safety net under all of it — because a hard SIGKILL is always possible, idempotent handlers make a redelivered request or message harmless.
+> The trap is assuming 'graceful shutdown' is one thing. Only HTTP request draining tends to be automatic (the server stops accepting and finishes in-flight). Everything else you wire up yourself in your shutdown hook. Kafka consumers: stop polling, finish the records already in hand, commit offsets, and leave the group so the rebalance is clean. WebSockets: you can't finish a long-lived connection, so send a close/go-away and rely on client reconnection plus the per-connection seq and backplane. Jobs and schedulers: stop starting new work and either let running jobs finish or checkpoint so they resume after restart. The green footer is the safety net under all of it: because a hard SIGKILL is always possible, idempotent handlers make a redelivered request or message harmless.
 
 ## [164] APPENDIX H · SHUTDOWN · Graceful shutdown in FastAPI / uvicorn (sldId 419)
 
@@ -2218,26 +2218,26 @@ p. 142
 
 - Only HTTP drains without extra code; everything else needs explicit drain code in your shutdown hook.
 - Kafka consumers: stop polling, finish the records in hand, commit offsets, and leave the group so the rebalance is clean (ties to Event-Driven).
-- WebSockets: send a close / go-away, let clients reconnect to another pod, and lean on the per-connection seq + backplane from Appendix C.
+- WebSockets: send a close / go-away, let clients reconnect to another pod, and lean on the per-connection seq + backplane.
 - Jobs and schedulers: don't start new work; let running jobs finish or checkpoint so they resume after restart.
-- A hard SIGKILL is always possible — idempotent handlers make a redelivered request or message safe, which is your real safety net.
+- A hard SIGKILL is always possible: idempotent handlers make a redelivered request or message safe, which is your real safety net.
 
 p. 143
 
-> Reinforce the per-workload point from the diagram with the concrete drain steps. The Kafka sequence is the one to emphasize because it connects to the at-least-once delivery discussion from the Event-Driven section: committing offsets on the way out minimizes redelivery, and leaving the group makes the rebalance fast. WebSockets can't be 'finished,' so graceful there means handing the client off, which is exactly what the Appendix C reconnection design enables. The closing bold point anchors the whole appendix: you cannot guarantee a graceful exit, because the kubelet will sometimes SIGKILL you, so idempotency is what makes the system safe, and graceful shutdown makes the unsafe window rare.
+> Reinforce the per-workload point from the diagram with the concrete drain steps. The Kafka sequence is the one to emphasize because it connects to the at-least-once delivery discussion from the Event-Driven section: committing offsets on the way out minimizes redelivery, and leaving the group makes the rebalance fast. WebSockets can't be 'finished,' so graceful there means handing the client off, which is exactly what the reconnection design enables. The closing bold point anchors the whole appendix: you cannot guarantee a graceful exit, because the kubelet will sometimes SIGKILL you, so idempotency is what makes the system safe, and graceful shutdown makes the unsafe window rare.
 
 ## [167] APPENDIX H · SHUTDOWN · Graceful shutdown checklist (sldId 422)
 
 - Handle SIGTERM; flip readiness DOWN first so the Service stops routing before you stop accepting.
 - Add a short preStop sleep to cover asynchronous endpoint removal; keep liveness UP throughout the drain.
-- Drain in-flight HTTP, commit consumer offsets, close sockets and pools — all bounded by terminationGracePeriodSeconds.
+- Drain in-flight HTTP, commit consumer offsets, close sockets and pools: all bounded by terminationGracePeriodSeconds.
 - Make the work idempotent so the inevitable occasional SIGKILL is survivable.
-- Test it under a real SIGTERM during a rolling deploy — not just a happy-path integration test.
-  - References: Quarkus lifecycle guide & M. Eisele, “Quarkus Graceful Shutdown” (2026); uvicorn — --timeout-graceful-shutdown.
+- Test it under a real SIGTERM during a rolling deploy: not just a happy-path integration test.
+  - References: Quarkus lifecycle guide & M. Eisele, “Quarkus Graceful Shutdown” (2026); uvicorn: --timeout-graceful-shutdown.
 
 p. 144
 
-> The leave-up summary. Read it as an ordered runbook: readiness first, preStop to cover the race, then the actual drains, all inside the grace budget. The fourth point turns shutdown from fragile to safe: with idempotency, the occasional hard kill is a non-event. And the bold final point is the one teams skip: graceful shutdown that's never tested under a real SIGTERM during a rollout is just hopeful configuration. Encourage a small script (or a chaos test) that kills a pod mid-request and asserts the client still got an answer — exactly how the referenced Quarkus write-up proves its recipe.
+> The leave-up summary. Read it as an ordered runbook: readiness first, preStop to cover the race, then the actual drains, all inside the grace budget. The fourth point turns shutdown from fragile to safe: with idempotency, the occasional hard kill is a non-event. And the bold final point is the one teams skip: graceful shutdown that's never tested under a real SIGTERM during a rollout is just hopeful configuration. Encourage a small script (or a chaos test) that kills a pod mid-request and asserts the client still got an answer: exactly how the referenced Quarkus write-up proves its recipe.
 
 ## [168] Appendix I · L7 Routing & Traffic Management (sldId 423)
 
@@ -2245,27 +2245,27 @@ I
 
 Software-defined, north/south and east/west.
 
-> Appendix I. This one is large enough to be its own talk — the user explicitly suggested it could be cut later for that. The thesis: L7 routing isn't one box in a rack any more; it's a four-layer stack of software (edge, gateway, mesh, in-app) that makes decisions on every HTTP and gRPC envelope crossing the network, north/south and east/west. We'll walk what each layer can see and decide, show real config in HAProxy/Nginx/Istio, cover sticky sessions, traffic steering, payload modifications and latency, then go inside the app for rule-based routing with FastAPI + durable-rules, then circle back to east/west, where most routing decisions happen.
+> Appendix I. This one is large enough to be its own talk: the user explicitly suggested it could be cut later for that. The thesis: L7 routing isn't one box in a rack any more; it's a four-layer stack of software (edge, gateway, mesh, in-app) that makes decisions on every HTTP and gRPC envelope crossing the network, north/south and east/west. We'll walk what each layer can see and decide, show real config in HAProxy/Nginx/Istio, cover sticky sessions, traffic steering, payload modifications and latency, then go inside the app for rule-based routing with FastAPI + durable-rules, then circle back to east/west, where most routing decisions happen.
 
 ## [169] APPENDIX I · L7 ROUTING · L7 routing: software, not silicon (sldId 424)
 
-- The hardware load balancer used to be where routing decisions lived. In a cloud-native system that work has moved into software — programmable, observable, and runnable anywhere.
+- The hardware load balancer used to be where routing decisions lived. In a cloud-native system that work has moved into software: programmable, observable, and runnable anywhere.
 - L7 means application layer: the router sees the HTTP or gRPC envelope (host, path, method, headers, cookies, gRPC service.method) and can route on any of it.
-- It lives in four layers — edge / ingress, API gateway, service mesh, and (sometimes) inside the app itself. Each makes a different type of L7 decision.
+- It lives in four layers: edge / ingress, API gateway, service mesh, and (sometimes) inside the app itself. Each makes a different type of L7 decision.
 - It runs both directions: north/south (clients into your system) and east/west (service to service). Most L7 decisions happen on internal traffic.
-- The non-hardware stack is open source and composable: HAProxy, Nginx, Envoy, Istio, Linkerd, Kong, Traefik, FastAPI, durable-rules, Open Policy Agent — plus a YAML or two.
+- The non-hardware stack is open source and composable: HAProxy, Nginx, Envoy, Istio, Linkerd, Kong, Traefik, FastAPI, durable-rules, Open Policy Agent: plus a YAML or two.
 
 p. 145
 
-> Open the appendix by reframing what L7 routing is in 2026: not an appliance, but layered software that runs inside Kubernetes alongside everything else. The four-layer mental model (edge, gateway, mesh, in-app) is the backbone of the whole appendix — we'll touch each layer in turn. Stress north/south plus east/west early; people default to thinking about ingress, but inside a microservices system the volume of east/west calls dwarfs north/south, and that's where mTLS, retries and locality routing earn their keep. Name the open-source pieces explicitly so the audience knows the talk is about real, free, runnable software.
+> Open the appendix by reframing what L7 routing is in 2026: not an appliance, but layered software that runs inside Kubernetes alongside everything else. The four-layer mental model (edge, gateway, mesh, in-app) is the backbone of the whole appendix: we'll touch each layer in turn. Stress north/south plus east/west early; people default to thinking about ingress, but inside a microservices system the volume of east/west calls dwarfs north/south, and that's where mTLS, retries and locality routing earn their keep. Name the open-source pieces explicitly so the audience knows the talk is about real, free, runnable software.
 
 ## [170] APPENDIX I · L7 ROUTING · L4 vs L7: what each layer can decide on (sldId 425)
 
-L4 sees connections; L7 sees the conversation — paths, headers, methods, cookies, gRPC service.method.
+L4 sees connections; L7 sees the conversation: paths, headers, methods, cookies, gRPC service.method.
 
 p. 146
 
-> Anchor the discussion in the OSI model just enough to be useful. L4 is the layer of IPs, ports and TCP — a classic load balancer can pick a backend by 5-tuple and hash-balance traffic, but it cannot read URLs, headers, cookies, methods or gRPC metadata. L7 sees the full HTTP/gRPC envelope: host, path, headers, cookies, JWT claims, query parameters, methods, and the gRPC service.method pair. That's the entire menu of inputs the routing patterns in this appendix use to make routing decisions. The TLS SNI line in both columns matters: L4 LBs can route by SNI without terminating TLS (cheap, opaque), while L7 LBs typically terminate TLS so they can see everything else (richer, slightly slower).
+> Anchor the discussion in the OSI model just enough to be useful. L4 is the layer of IPs, ports and TCP: a classic load balancer can pick a backend by 5-tuple and hash-balance traffic, but it cannot read URLs, headers, cookies, methods or gRPC metadata. L7 sees the full HTTP/gRPC envelope: host, path, headers, cookies, JWT claims, query parameters, methods, and the gRPC service.method pair. That's the entire menu of inputs the routing patterns in this appendix use to make routing decisions. The TLS SNI line in both columns matters: L4 LBs can route by SNI without terminating TLS (cheap, opaque), while L7 LBs typically terminate TLS so they can see everything else (richer, slightly slower).
 
 ## [171] APPENDIX I · L7 ROUTING · The L7 capability menu (sldId 426)
 
@@ -2273,12 +2273,12 @@ p. 146
 - TLS termination: decrypt at the edge, re-encrypt (or use mTLS) inward.
 - Traffic management: canary, blue/green, A/B, header-based, geo, shadow.
 - Payload modification: inject / strip headers, rewrite URLs, transform bodies.
-- Resilience: timeouts, retries with backoff + jitter, circuit breakers, outlier ejection — the same toolkit from Appendix E, applied at the network.
+- Resilience: timeouts, retries with backoff + jitter, circuit breakers, outlier ejection: the same toolkit, applied at the network.
 - Cross-cutting: authn/authz, rate limiting, WAF, request mirroring, full traces and metrics on every hop.
 
 p. 147
 
-> Read this as the menu of L7 features you can mix and match across layers. The bold last point is the operational payoff: every L7 router emits traces and metrics, which is how you see what is happening across the four layers, and it ties back to the observability section. Most of these features used to be hardware appliances; now they're an annotation or a YAML block away. The resilience capabilities (timeouts, retries, circuit breakers) overlap with what Appendix E said about avoiding retry storms: the mesh implements many of them by default, but you still need bounded retries and budgets to prevent amplification.
+> Read this as the menu of L7 features you can mix and match across layers. The bold last point is the operational payoff: every L7 router emits traces and metrics, which is how you see what is happening across the four layers, and it ties back to the observability section. Most of these features used to be hardware appliances; now they're an annotation or a YAML block away. The resilience capabilities (timeouts, retries, circuit breakers) overlap with the guidance on avoiding retry storms: the mesh implements many of them by default, but you still need bounded retries and budgets to prevent amplification.
 
 ## [172] APPENDIX I · L7 ROUTING · Where L7 lives: the layered stack (sldId 427)
 
@@ -2286,7 +2286,7 @@ Four layers, north/south at the top, east/west at the bottom, each making a diff
 
 p. 148
 
-> This is the backbone diagram for the whole appendix. North/south traffic (clients into the system) enters through the edge/ingress layer (HAProxy, Nginx, Envoy, Traefik), where TLS terminates and coarse host/path routing happens, then through the API gateway (Kong, Istio gateway, Spring Cloud Gateway), which handles product-level concerns like auth, rate limiting and transformation. Once inside the cluster, east/west traffic is governed by the service mesh (Istio + Envoy sidecars, or Linkerd) — every internal call gets mTLS, retries, outlier detection and locality-aware load balancing. Finally, when L7 decisions need to consider business rules the platform doesn't know about, you push routing into the app itself (FastAPI + durable-rules + aiokafka). Each layer is the right place for a different type of decision; every topic in this appendix maps to one of them.
+> This is the backbone diagram for the whole appendix. North/south traffic (clients into the system) enters through the edge/ingress layer (HAProxy, Nginx, Envoy, Traefik), where TLS terminates and coarse host/path routing happens, then through the API gateway (Kong, Istio gateway, Spring Cloud Gateway), which handles product-level concerns like auth, rate limiting and transformation. Once inside the cluster, east/west traffic is governed by the service mesh (Istio + Envoy sidecars, or Linkerd): every internal call gets mTLS, retries, outlier detection and locality-aware load balancing. Finally, when L7 decisions need to consider business rules the platform doesn't know about, you push routing into the app itself (FastAPI + durable-rules + aiokafka). Each layer is the right place for a different type of decision; every topic in this appendix maps to one of them.
 
 ## [173] APPENDIX I · L7 ROUTING · A request's L7 path (sldId 428)
 
@@ -2294,7 +2294,7 @@ One HTTP request is a chain of L7 decisions made by four independent components.
 
 p. 149
 
-> Walk a single request left to right. It starts at the client — say a browser or another service. The edge load balancer terminates TLS, does host/path routing and maybe WAF; the API gateway authenticates the caller, applies rate limits and may transform; the mesh sidecar adds mTLS for the cluster's internal hop, applies retries and locality routing; and finally the service can do its own in-app routing if the business rules demand it. Each box can refuse, transform or branch the request, and each emits a trace span, so the full path is observable end to end. This is the request lifecycle from section 11, viewed through the L7 lens.
+> Walk a single request left to right. It starts at the client: say a browser or another service. The edge load balancer terminates TLS, does host/path routing and maybe WAF; the API gateway authenticates the caller, applies rate limits and may transform; the mesh sidecar adds mTLS for the cluster's internal hop, applies retries and locality routing; and finally the service can do its own in-app routing if the business rules demand it. Each box can refuse, transform or branch the request, and each emits a trace span, so the full path is observable end to end. This is the request lifecycle, viewed through the L7 lens.
 
 ## [174] APPENDIX I · L7 ROUTING · Open-source L7 building blocks (sldId 429)
 
@@ -2303,11 +2303,11 @@ p. 149
 - Envoy: the modern L7 proxy; HTTP/2, gRPC, dynamic config; the sidecar of choice.
 - Istio: a control plane built on Envoy; CRDs for routing, security, observability across the mesh.
 - Kong, Traefik, Spring Cloud Gateway: opinionated API gateways with plugin ecosystems.
-- FastAPI / Starlette + durable-rules: when the routing logic is a business rule, push it into the app — a Rete-based rule engine in pure Python.
+- FastAPI / Starlette + durable-rules: when the routing logic is a business rule, push it into the app: a Rete-based rule engine in pure Python.
 
 p. 150
 
-> Differentiate the pieces so the audience knows when to reach for which. HAProxy and Nginx are the workhorses of the edge — mature, fast, predictable. Envoy is the modern choice for sidecars because it speaks HTTP/2 and gRPC natively and supports dynamic configuration via xDS. Istio (and Linkerd) wrap Envoy in a control plane and give you the mesh CRDs (VirtualService, DestinationRule). Kong, Traefik and Spring Cloud Gateway are API gateways with plugin ecosystems and a more product-aware feature set. The bold last point introduces the rule-based routing material: when the decision is 'route based on a business rule a non-developer needs to change weekly,' the right place is a rule engine inside the app, not a YAML file in the cluster.
+> Differentiate the pieces so the audience knows when to reach for which. HAProxy and Nginx are the workhorses of the edge: mature, fast, predictable. Envoy is the modern choice for sidecars because it speaks HTTP/2 and gRPC natively and supports dynamic configuration via xDS. Istio (and Linkerd) wrap Envoy in a control plane and give you the mesh CRDs (VirtualService, DestinationRule). Kong, Traefik and Spring Cloud Gateway are API gateways with plugin ecosystems and a more product-aware feature set. The bold last point introduces the rule-based routing material: when the decision is 'route based on a business rule a non-developer needs to change weekly,' the right place is a rule engine inside the app, not a YAML file in the cluster.
 
 ## [175] APPENDIX I · L7 ROUTING · Content-based routing with HAProxy (sldId 430)
 
@@ -2331,11 +2331,11 @@ backend order_v2_pool
     server v2b 10.1.0.11:8080 check
 ```
 
-ACLs read the L7 envelope (path, header, cookie, content-type) and use_backend dispatches — classic, fast, predictable.
+ACLs read the L7 envelope (path, header, cookie, content-type) and use_backend dispatches: classic, fast, predictable.
 
 p. 151
 
-> HAProxy is the lingua franca of L7 LBs. The pattern is always the same: declare ACLs that read parts of the L7 envelope (path_beg for URL prefixes, hdr/req.hdr for headers, content-type for the body type), then use_backend dispatches based on those ACLs in order. This single frontend shows four different content-based routing decisions — by content-type (gRPC traffic goes to a gRPC pool), by cookie (canary users), by header (internal users), by path. Notice TLS terminates at this frontend; everything inside is plaintext within the cluster (or re-encrypted via mTLS at the mesh layer). HAProxy's reload semantics are graceful by default — it can drain old workers while new ones take traffic, which matters for Appendix H's shutdown discipline.
+> HAProxy is the lingua franca of L7 LBs. The pattern is always the same: declare ACLs that read parts of the L7 envelope (path_beg for URL prefixes, hdr/req.hdr for headers, content-type for the body type), then use_backend dispatches based on those ACLs in order. This single frontend shows four different content-based routing decisions: by content-type (gRPC traffic goes to a gRPC pool), by cookie (canary users), by header (internal users), by path. Notice TLS terminates at this frontend; everything inside is plaintext within the cluster (or re-encrypted via mTLS at the mesh layer). HAProxy's reload semantics are graceful by default: it can drain old workers while new ones take traffic, which matters for graceful-shutdown discipline.
 
 ## [176] APPENDIX I · L7 ROUTING · Content-based routing with Nginx (sldId 431)
 
@@ -2362,11 +2362,11 @@ server {
 }
 ```
 
-map turns a header value into an upstream pool name; location blocks dispatch by path and protocol — HTTP and gRPC side by side.
+map turns a header value into an upstream pool name; location blocks dispatch by path and protocol: HTTP and gRPC side by side.
 
 p. 152
 
-> Nginx's content-based routing is built around location blocks and the map directive. The map is the elegant bit: it converts a header value into a variable, which then drives proxy_pass — you express the routing table declaratively, then point a single location at the variable. Location blocks split HTTP from gRPC (grpc_pass) so you can run both protocols through one server. The X-Request-Id injection is a tiny example of payload modification — the L7 router can inject correlation headers so downstream traces can be stitched together. Nginx as an ingress controller in Kubernetes (the ingress-nginx project) is one of the most-deployed L7 routers in the world.
+> Nginx's content-based routing is built around location blocks and the map directive. The map is the elegant bit: it converts a header value into a variable, which then drives proxy_pass: you express the routing table declaratively, then point a single location at the variable. Location blocks split HTTP from gRPC (grpc_pass) so you can run both protocols through one server. The X-Request-Id injection is a tiny example of payload modification: the L7 router can inject correlation headers so downstream traces can be stitched together. Nginx as an ingress controller in Kubernetes (the ingress-nginx project) is one of the most-deployed L7 routers in the world.
 
 ## [177] APPENDIX I · L7 ROUTING · Content-based routing in the mesh: Istio VirtualService (sldId 432)
 
@@ -2391,15 +2391,15 @@ spec:
   - route: [{ destination: { host: orders, subset: v1 } }]   # default
 ```
 
-Match by URI prefix (gRPC service.method), header, or cookie — same L7 inputs, expressed as Kubernetes CRDs.
+Match by URI prefix (gRPC service.method), header, or cookie: same L7 inputs, expressed as Kubernetes CRDs.
 
 p. 153
 
-> The same content-based routing primitives, but expressed as Kubernetes CRDs that the mesh control plane (Istio) compiles down to Envoy sidecar configuration. Three match rules, each sending to a different DestinationRule subset: by URI prefix (which is how you route on gRPC service.method, since gRPC paths look like /package.Service/Method), by header, and by cookie. The default route at the bottom is critical; without it, unmatched requests have nowhere to go. The CRD lives in Git, gets reviewed like any other change, and Istio reconfigures every sidecar in the cluster within seconds. This is the modern face of L7 routing — declarative, GitOps-managed, distributed across thousands of pods.
+> The same content-based routing primitives, but expressed as Kubernetes CRDs that the mesh control plane (Istio) compiles down to Envoy sidecar configuration. Three match rules, each sending to a different DestinationRule subset: by URI prefix (which is how you route on gRPC service.method, since gRPC paths look like /package.Service/Method), by header, and by cookie. The default route at the bottom is critical; without it, unmatched requests have nowhere to go. The CRD lives in Git, gets reviewed like any other change, and Istio reconfigures every sidecar in the cluster within seconds. This is the modern face of L7 routing: declarative, GitOps-managed, distributed across thousands of pods.
 
 ## [178] APPENDIX I · L7 ROUTING · SSL / TLS termination at L7 (sldId 433)
 
-- Edge terminates TLS so the L7 router can read and route on the request — you cannot inspect headers or paths through an encrypted connection.
+- Edge terminates TLS so the L7 router can read and route on the request: you cannot inspect headers or paths through an encrypted connection.
 - Re-encrypt or mTLS inward: terminate at the edge, then either plaintext within the cluster (rare today) or mTLS via the mesh (the modern default).
 - Certificate management: cert-manager + Let's Encrypt for public certs; SPIFFE / SDS for service identity inside the mesh; Istio rotates pod certs automatically.
 - TLS passthrough (no termination) when you need end-to-end encryption (gRPC client mTLS, regulated payloads); route by SNI only.
@@ -2407,34 +2407,34 @@ p. 153
 
 p. 154
 
-> Cover the three modes of TLS at the edge: terminate-and-decrypt (the common case, lets you do L7 things), terminate-and-re-encrypt (most secure default in a mesh, since mTLS inside is automatic), and passthrough (when you must not see the payload, e.g. client mTLS for regulated traffic — route by SNI only). cert-manager is the standard cluster-side answer for public certificates; SPIFFE-style identity and Envoy's SDS handle service-to-service certs automatically inside the mesh. Mention the CPU cost briefly so the L7 latency budget makes sense — a TLS handshake is milliseconds, and you want to amortise it via session resumption, TLS 1.3 and HTTP/2 multiplexing.
+> Cover the three modes of TLS at the edge: terminate-and-decrypt (the common case, lets you do L7 things), terminate-and-re-encrypt (most secure default in a mesh, since mTLS inside is automatic), and passthrough (when you must not see the payload, e.g. client mTLS for regulated traffic: route by SNI only). cert-manager is the standard cluster-side answer for public certificates; SPIFFE-style identity and Envoy's SDS handle service-to-service certs automatically inside the mesh. Mention the CPU cost briefly so the L7 latency budget makes sense: a TLS handshake is milliseconds, and you want to amortise it via session resumption, TLS 1.3 and HTTP/2 multiplexing.
 
 ## [179] APPENDIX I · L7 ROUTING · Sticky sessions: cookie vs IP-hash vs none (sldId 434)
 
-Convenient for legacy state, hostile to elastic scaling — prefer stateless behind a JWT.
+Convenient for legacy state, hostile to elastic scaling: prefer stateless behind a JWT.
 
 p. 155
 
-> Three modes worth knowing about. No affinity is the default and what you want — any pod gets any request, load is even, and client state lives somewhere else (Redis, the JWT, the database). Cookie-based stickiness is what you fall back to when something stateful (a shopping cart in memory, a legacy session) has to stay with one pod; the LB sets a cookie on the first response and uses it to route subsequent requests to the same pod. It works behind any L7 LB but ties the user's session to one pod's lifetime — restart that pod, lose the session. IP-hash hashes the source IP to a pod; it needs no cookies but is fragile to NAT and mobile networks where many users share an IP, leading to skewed load. The red footer is the real cost: stickiness fights elastic scaling, hurts pod restarts and breaks scale-to-zero. Use it only for a known constraint, never as a default.
+> Three modes worth knowing about. No affinity is the default and what you want: any pod gets any request, load is even, and client state lives somewhere else (Redis, the JWT, the database). Cookie-based stickiness is what you fall back to when something stateful (a shopping cart in memory, a legacy session) has to stay with one pod; the LB sets a cookie on the first response and uses it to route subsequent requests to the same pod. It works behind any L7 LB but ties the user's session to one pod's lifetime: restart that pod, lose the session. IP-hash hashes the source IP to a pod; it needs no cookies but is fragile to NAT and mobile networks where many users share an IP, leading to skewed load. The red footer is the real cost: stickiness fights elastic scaling, hurts pod restarts and breaks scale-to-zero. Use it only for a known constraint, never as a default.
 
 ## [180] APPENDIX I · L7 ROUTING · Sticky sessions in practice (sldId 435)
 
 - When you need them: legacy session state, a stateful WebSocket that hasn't been moved off-process yet, certain rate-limit windows tied to a token bucket per pod.
 - Cookie-based is almost always the right choice over IP-hash: it survives NAT and lets clients explicitly drop the cookie.
-- What stickiness breaks: even load balancing, fast pod restarts, scale-to-zero, blue/green flips, and a clean Appendix H graceful shutdown for any stateful pod.
-- The right fix is usually upstream: move session state to Redis or the JWT, use a backplane for WebSocket fan-out (see Appendix C), and treat every pod as disposable.
+- What stickiness breaks: even load balancing, fast pod restarts, scale-to-zero, blue/green flips, and a clean graceful shutdown for any stateful pod.
+- The right fix is usually upstream: move session state to Redis or the JWT, use a backplane for WebSocket fan-out, and treat every pod as disposable.
 
 p. 156
 
-> Make stickiness a last resort, not a first reach. Cookie-based affinity is the safer of the two stickiness options because clients can drop the cookie and NAT doesn't break it. The list of things stickiness breaks is the real argument against it: it actively fights the entire cloud-native delivery model — elastic scaling, fast restarts, graceful shutdown. The bold final point is the architectural fix: externalise the state. Redis for session data, JWT claims for user identity, the WebSocket backplane from Appendix C for fan-out. With that done, your LB is back to no-affinity and the platform works the way it wants to.
+> Make stickiness a last resort, not a first reach. Cookie-based affinity is the safer of the two stickiness options because clients can drop the cookie and NAT doesn't break it. The list of things stickiness breaks is the real argument against it: it actively fights the entire cloud-native delivery model: elastic scaling, fast restarts, graceful shutdown. The bold final point is the architectural fix: externalise the state. Redis for session data, JWT claims for user identity, the WebSocket backplane for fan-out. With that done, your LB is back to no-affinity and the platform works the way it wants to.
 
 ## [181] APPENDIX I · L7 ROUTING · Intelligent traffic steering (sldId 436)
 
-Six familiar shapes — each is a header or weight rule away.
+Six familiar shapes: each is a header or weight rule away.
 
 p. 157
 
-> Six patterns that all share the same L7 primitives. Canary: 90/10 weighted routing to a new version, watching metrics and ramping. Blue/green: two identical environments, traffic flipped atomically (and rolled back atomically). A/B test: a stable cohort maps to a variant via a user identifier so the same user always sees the same variant — critical for valid measurement. Header-based: dark launches and internal-only previews by routing on x-internal or similar. Geo / latency: send EU users to EU pods for RTT and data residency. Shadow / mirror: copy a percentage of real traffic to a new version, observe its behaviour, but don't return its responses to the client; this tests the new version under realistic load. The point is they're not different things mechanically; they're the same routing rule expressed with different inputs and weights. The difficult part is the deploy discipline around them: alerts that trigger an automatic rollback, gradual ramps, and the metrics that tell you the canary is bad before users do.
+> Six patterns that all share the same L7 primitives. Canary: 90/10 weighted routing to a new version, watching metrics and ramping. Blue/green: two identical environments, traffic flipped atomically (and rolled back atomically). A/B test: a stable cohort maps to a variant via a user identifier so the same user always sees the same variant: critical for valid measurement. Header-based: dark launches and internal-only previews by routing on x-internal or similar. Geo / latency: send EU users to EU pods for RTT and data residency. Shadow / mirror: copy a percentage of real traffic to a new version, observe its behaviour, but don't return its responses to the client; this tests the new version under realistic load. The point is they're not different things mechanically; they're the same routing rule expressed with different inputs and weights. The difficult part is the deploy discipline around them: alerts that trigger an automatic rollback, gradual ramps, and the metrics that tell you the canary is bad before users do.
 
 ## [182] APPENDIX I · L7 ROUTING · Canary release: weighted Istio routing (sldId 437)
 
@@ -2465,11 +2465,11 @@ spec:
     labels: { version: v2 }
 ```
 
-VirtualService splits traffic by weight; DestinationRule defines the subsets by pod labels — the canonical canary release pattern.
+VirtualService splits traffic by weight; DestinationRule defines the subsets by pod labels: the canonical canary release pattern.
 
 p. 158
 
-> The canonical Istio canary. Two CRDs working together: DestinationRule defines subsets by pod label (version=v1 and version=v2), and VirtualService routes by weight to those subsets. Changing the weights in Git and reconciling the cluster ramps the canary — typically through 10%, 25%, 50%, 100% over hours or days, with metric gates between each step. If error rate or latency on v2 crosses a threshold, an automated controller (Flagger, Argo Rollouts) flips the weights back to 100/0 in seconds. The same weighted-routing primitive does shadow traffic, geo balance, and blue/green flips — the only thing that changes is which subsets you target and what the weights are.
+> The canonical Istio canary. Two CRDs working together: DestinationRule defines subsets by pod label (version=v1 and version=v2), and VirtualService routes by weight to those subsets. Changing the weights in Git and reconciling the cluster ramps the canary: typically through 10%, 25%, 50%, 100% over hours or days, with metric gates between each step. If error rate or latency on v2 crosses a threshold, an automated controller (Flagger, Argo Rollouts) flips the weights back to 100/0 in seconds. The same weighted-routing primitive does shadow traffic, geo balance, and blue/green flips: the only thing that changes is which subsets you target and what the weights are.
 
 ## [183] APPENDIX I · L7 ROUTING · Header-based steering: dark launches (sldId 438)
 
@@ -2494,19 +2494,19 @@ spec:
   - route: [{ destination: { host: orders, subset: v1 } }]
 ```
 
-First match wins; an internal-only header (set upstream by auth) hands real production traffic to v2 — with zero blast radius.
+First match wins; an internal-only header (set upstream by auth) hands real production traffic to v2: with zero blast radius.
 
 p. 159
 
-> Header-based steering is how you do dark launches and betas safely. An upstream identity proxy sets an x-acme-beta header for opted-in users, and the VirtualService routes those users to v2 — in real production traffic, on real data, but with zero exposure to anyone outside the beta. First match wins, so order the rules from most-specific to least, ending with the catch-all default. This is also how you do internal-only previews (route by an internal user-agent string) and per-tenant feature gates (route by an x-tenant-id). Combined with weighted routing, you can do 'roll the canary forward only for the beta cohort,' which is the most surgical release pattern in the toolbox.
+> Header-based steering is how you do dark launches and betas safely. An upstream identity proxy sets an x-acme-beta header for opted-in users, and the VirtualService routes those users to v2: in real production traffic, on real data, but with zero exposure to anyone outside the beta. First match wins, so order the rules from most-specific to least, ending with the catch-all default. This is also how you do internal-only previews (route by an internal user-agent string) and per-tenant feature gates (route by an x-tenant-id). Combined with weighted routing, you can do 'roll the canary forward only for the beta cohort,' which is the most surgical release pattern in the toolbox.
 
 ## [184] APPENDIX I · L7 ROUTING · Payload modifications (sldId 439)
 
-- Header injection: X-Request-Id, traceparent, X-Forwarded-For, identity claims — propagate context downstream so the trace stitches together.
+- Header injection: X-Request-Id, traceparent, X-Forwarded-For, identity claims: propagate context downstream so the trace stitches together.
 - Header stripping: drop Authorization or PII headers before forwarding to a less-trusted backend; strip Server / X-Powered-By outbound.
 - URL rewrites: /api/v1/orders → /orders internally; clean public URLs over messy service paths.
-- Body transformation: rare but possible — protocol translation, redaction, format conversion (Envoy filters, Starlette middleware).
-- Cost: body inspection means reading the full request into memory — the slowest L7 thing you can do. Use it sparingly, never on every request.
+- Body transformation: rare but possible: protocol translation, redaction, format conversion (Envoy filters, Starlette middleware).
+- Cost: body inspection means reading the full request into memory: the slowest L7 thing you can do. Use it sparingly, never on every request.
 
 p. 160
 
@@ -2538,7 +2538,7 @@ spec:
         remove: [ server, x-powered-by ]             # don't leak outward
 ```
 
-Rewrite paths, inject the caller address and identity, strip secrets — all declaratively in the VirtualService.
+Rewrite paths, inject the caller address and identity, strip secrets: all declaratively in the VirtualService.
 
 p. 161
 
@@ -2553,11 +2553,11 @@ p. 161
 - Sometimes the routing decision is a business rule the platform doesn't know about: route 'high-value-customer claims' here, 'European HL7 messages of type A03' there.
 - Pushing those rules into HAProxy ACLs or VirtualService matches does not scale: domain experts own them, they change often, and they depend on the payload, not just the envelope.
 - The pattern: an in-app router (FastAPI middleware, a custom dispatcher, or a faust-streaming agent for streams) calls a rule engine (durable-rules, Open Policy Agent) and routes on the result.
-- It runs inside one service, behind the mesh — not on the network. The mesh still does mTLS, retries and locality; the rule engine just decides where to send the message next.
+- It runs inside one service, behind the mesh: not on the network. The mesh still does mTLS, retries and locality; the rule engine just decides where to send the message next.
 
 p. 162
 
-> Pivot from network-layer routing to in-app routing. The threshold is roughly: if the decision can be expressed in a few YAML lines and depends only on the envelope, do it at the mesh. If it depends on the payload, requires a decision table that domain experts edit, or involves complex conditions, push it into the app. The classic example (and the one the code models) is HL7 healthcare messages: route by patient class, encounter type, message subtype — dozens of intersecting conditions a non-developer needs to maintain. That belongs in a rule engine, not a VirtualService. Stress that this isn't an alternative to the mesh; it sits behind the mesh, complementing it.
+> Pivot from network-layer routing to in-app routing. The threshold is roughly: if the decision can be expressed in a few YAML lines and depends only on the envelope, do it at the mesh. If it depends on the payload, requires a decision table that domain experts edit, or involves complex conditions, push it into the app. The classic example (and the one the code models) is HL7 healthcare messages: route by patient class, encounter type, message subtype: dozens of intersecting conditions a non-developer needs to maintain. That belongs in a rule engine, not a VirtualService. Stress that this isn't an alternative to the mesh; it sits behind the mesh, complementing it.
 
 ## [187] APPENDIX I · L7 ROUTING · FastAPI + durable-rules: routing by business rules (sldId 442)
 
@@ -2565,7 +2565,7 @@ FastAPI is the HTTP front; durable-rules is the engine; aiokafka does the dispat
 
 p. 163
 
-> This is the in-app routing pattern in Python, and it mirrors what enterprise integration frameworks do on other platforms — just composed from smaller pieces. Inputs arrive over REST (or WebSocket, or Kafka). They hit a FastAPI (or Starlette) endpoint, which gathers any extra context with an enrich step, hands the merged fact to durable-rules to evaluate the ruleset, and dispatches the result to one or more destinations via an aiokafka producer (or an HTTP client). The durable-rules box on the right is the rule engine: a Rete-based forward-chaining engine written in C with a Python ruleset DSL, and the part domain experts edit. The 'data, not code' principle still applies: the routing logic lives in the ruleset, separate from the dispatcher, and can change without redeploying the FastAPI service.
+> This is the in-app routing pattern in Python, and it mirrors what enterprise integration frameworks do on other platforms, just composed from smaller pieces. Inputs arrive over REST (or WebSocket, or Kafka). They hit a FastAPI (or Starlette) endpoint, which gathers any extra context with an enrich step, hands the merged fact to durable-rules to evaluate the ruleset, and dispatches the result to one or more destinations via an aiokafka producer (or an HTTP client). The durable-rules box on the right is the rule engine: a Rete-based forward-chaining engine written in C with a Python ruleset DSL, and the part domain experts edit. The 'data, not code' principle still applies: the routing logic lives in the ruleset, separate from the dispatcher, and can change without redeploying the FastAPI service.
 
 ## [188] APPENDIX I · L7 ROUTING · The rules, externalised: durable-rules (sldId 443)
 
@@ -2591,7 +2591,7 @@ Each @when_all is a small business statement: when X is true, set where_to to Y.
 
 p. 164
 
-> Read these as 'when ... then ...' statements. The 'when' is a pattern match on facts in the rule engine's working memory (durable-rules implements Rete forward chaining); the 'then' is the action — here, setting a where_to list of destination URIs that the dispatcher will consume. Two real rules and a default. Domain experts own this file (the same people who define what 'VIP' or 'high-value' mean), and it can be redeployed without a developer touching the FastAPI dispatcher code. For more complex decision tables, swap durable-rules for Open Policy Agent (Rego) or business-rules; the shape stays the same.
+> Read these as 'when ... then ...' statements. The 'when' is a pattern match on facts in the rule engine's working memory (durable-rules implements Rete forward chaining); the 'then' is the action: here, setting a where_to list of destination URIs that the dispatcher will consume. Two real rules and a default. Domain experts own this file (the same people who define what 'VIP' or 'high-value' mean), and it can be redeployed without a developer touching the FastAPI dispatcher code. For more complex decision tables, swap durable-rules for Open Policy Agent (Rego) or business-rules; the shape stays the same.
 
 ## [189] APPENDIX I · L7 ROUTING · The dispatcher, in FastAPI (sldId 444)
 
@@ -2619,19 +2619,19 @@ async def route(order: dict,
     return {"routed_to": fact["where_to"]}
 ```
 
-Enrich → evaluate → dispatch — the same content-based-router pattern the EIP literature describes, in plain async Python.
+Enrich → evaluate → dispatch: the same content-based-router pattern the EIP literature describes, in plain async Python.
 
 p. 165
 
-> The dispatcher is small by design. Enrich gathers any extra context the rules need (a DB lookup, an HTTP call to a customer service); the merged fact goes to post() which fires the durable-rules ruleset; each destination in the resulting where_to list is dispatched via the right transport. Note the protocol prefix in destinations ("kafka:" or "http:") — it's a tiny convention that lets one ruleset drive multiple transports. For event-shaped flows, swap the FastAPI endpoint for a faust-streaming agent or an aiokafka consumer loop; the ruleset and dispatch logic stay the same. This is the in-app L7 router in maybe 20 lines of code.
+> The dispatcher is small by design. Enrich gathers any extra context the rules need (a DB lookup, an HTTP call to a customer service); the merged fact goes to post() which fires the durable-rules ruleset; each destination in the resulting where_to list is dispatched via the right transport. Note the protocol prefix in destinations ("kafka:" or "http:"): it's a tiny convention that lets one ruleset drive multiple transports. For event-shaped flows, swap the FastAPI endpoint for a faust-streaming agent or an aiokafka consumer loop; the ruleset and dispatch logic stay the same. This is the in-app L7 router in maybe 20 lines of code.
 
 ## [190] APPENDIX I · L7 ROUTING · Every L7 hop costs time (sldId 445)
 
-Typical p50/p99 added per stage — the budget you spend before your service even runs.
+Typical p50/p99 added per stage: the budget you spend before your service even runs.
 
 p. 166
 
-> Set expectations with the numbers. Each L7 capability has a typical cost: TLS termination is sub-2ms, path/header routing is sub-1ms, auth/JWT validation is a few ms, WAF a few more, mesh sidecar another millisecond per hop, rate-limit Redis lookup is a couple of ms. Body inspection is the outlier — it can be 5 to 50 ms depending on size, which is why we say to use it sparingly. The numbers are typical, not authoritative; profile your own stack. The right-side card has the working heuristic: stay under ~10ms total L7 on hot paths. With four layers (edge, gateway, mesh sidecar in, mesh sidecar out), every layer must be lean and justify its latency. The retry-storm discipline from Appendix E applies here too — timeouts must account for the total L7 budget plus the service's own work, or retries will pile up.
+> Set expectations with the numbers. Each L7 capability has a typical cost: TLS termination is sub-2ms, path/header routing is sub-1ms, auth/JWT validation is a few ms, WAF a few more, mesh sidecar another millisecond per hop, rate-limit Redis lookup is a couple of ms. Body inspection is the outlier: it can be 5 to 50 ms depending on size, which is why we say to use it sparingly. The numbers are typical, not authoritative; profile your own stack. The right-side card has the working heuristic: stay under ~10ms total L7 on hot paths. With four layers (edge, gateway, mesh sidecar in, mesh sidecar out), every layer must be lean and justify its latency. The retry-storm discipline applies here too: timeouts must account for the total L7 budget plus the service's own work, or retries will pile up.
 
 ## [191] APPENDIX I · L7 ROUTING · L7 pitfalls and how to avoid them (sldId 446)
 
@@ -2640,11 +2640,11 @@ p. 166
 - Sticky sessions break elasticity without any error: the auto-scaler can't rebalance, restarts are painful, scale-to-zero is gone.
 - Body inspection on every request: blows memory, kills streaming. If you must transform bodies, do it on a small percentage or just at the edge.
 - Sync auth lookups on the hot path: cache validated tokens, validate JWT signatures locally, never do a per-request DB lookup for identity.
-- Misaligned timeouts and retries between layers — a 30s gateway timeout + 3 mesh retries with 10s each = a retry storm at the bottom (see Appendix E).
+- Misaligned timeouts and retries between layers: a 30s gateway timeout + 3 mesh retries with 10s each = a retry storm at the bottom.
 
 p. 167
 
-> Run quickly through the failure modes. The hop-count one is the most common: every layer feels free until you measure p99 — then you realise the request crossed seven proxies. The regex point is a perf footgun many people miss. The sticky-session one ties back to the sticky-sessions comparison. Body inspection is the latency-budget killer. The auth-lookup one is the most common cause of cascading slowdowns under load. And the timeout-misalignment is the gateway-to-mesh-to-service version of the retry storm we covered in Appendix E — the lesson is identical: bound retries, align timeouts top-down, give the deepest layer the strictest budget.
+> Run quickly through the failure modes. The hop-count one is the most common: every layer feels free until you measure p99: then you realise the request crossed seven proxies. The regex point is a perf footgun many people miss. The sticky-session one ties back to the sticky-sessions comparison. Body inspection is the latency-budget killer. The auth-lookup one is the most common cause of cascading slowdowns under load. And the timeout-misalignment is the gateway-to-mesh-to-service version of the retry storm; the lesson is identical: bound retries, align timeouts top-down, give the deepest layer the strictest budget.
 
 ## [192] APPENDIX I · L7 ROUTING · East / West: L7 between services, inside the mesh (sldId 447)
 
@@ -2652,20 +2652,20 @@ Every service-to-service call is L7-routable through the sidecars.
 
 p. 168
 
-> Most L7 decisions in a microservices system don't happen at the edge — they happen east/west, between services, every time service A calls service B. The mesh's sidecar pair handles that traffic: mTLS between services (encryption and identity), HTTP/2 multiplexing, native gRPC support, retries with backoff and jitter, outlier detection (eject misbehaving pods automatically), locality-aware load balancing (prefer same-zone pods to keep RTT low), header-based routing and canary weights for east/west versions, plus rich per-call traces and metrics. The headline is the second box: all of that, per call, with no app code. Application services keep talking plain HTTP or gRPC; the sidecars make it secure, reliable and observable in flight. This is the modern answer to 'how do you build a microservices system that works in production.'
+> Most L7 decisions in a microservices system don't happen at the edge: they happen east/west, between services, every time service A calls service B. The mesh's sidecar pair handles that traffic: mTLS between services (encryption and identity), HTTP/2 multiplexing, native gRPC support, retries with backoff and jitter, outlier detection (eject misbehaving pods automatically), locality-aware load balancing (prefer same-zone pods to keep RTT low), header-based routing and canary weights for east/west versions, plus rich per-call traces and metrics. The headline is the second box: all of that, per call, with no app code. Application services keep talking plain HTTP or gRPC; the sidecars make it secure, reliable and observable in flight. This is the modern answer to 'how do you build a microservices system that works in production.'
 
 ## [193] APPENDIX I · L7 ROUTING · Why east/west L7 matters (sldId 448)
 
 - Internal traffic dominates: in a microservices system the volume of east/west calls dwarfs north/south by 10x or more.
-- Security: mTLS everywhere by default — every internal call has an identity, encryption and an audit trail without per-service code.
+- Security: mTLS everywhere by default: every internal call has an identity, encryption and an audit trail without per-service code.
 - Resilience: timeouts, retries, circuit breakers and outlier ejection live in the sidecar, applied uniformly to every internal hop.
-- Observability: every internal call gets a span, latency histogram and per-route success rate — the request lifecycle from section 11, populated automatically.
+- Observability: every internal call gets a span, latency histogram and per-route success rate: the request lifecycle, populated automatically.
 - Locality: prefer same-zone or same-region pods so internal RTT stays in single-digit milliseconds, and graceful failover when a zone goes.
-- Routing decisions: header-based canaries and weighted releases work east/west too — you can canary a backend service that has no external traffic at all.
+- Routing decisions: header-based canaries and weighted releases work east/west too: you can canary a backend service that has no external traffic at all.
 
 p. 169
 
-> Hammer the volume point first: most production L7 routing happens between services, not at the edge. The security argument is the one that justifies the mesh on its own — mTLS everywhere is otherwise hard to retrofit. The resilience and observability arguments are the operational ones; you stop writing the same boilerplate in every service. Locality is the perf argument: with the right Istio config, two pods in the same zone talk over a few milliseconds; cross-region traffic gets degraded gracefully. And the last point is non-obvious but important: canary releases of a deeply internal service (say, a payments calculation engine that no client touches directly) are possible because the mesh can split east/west traffic by weight — you cannot canary internal services through an edge LB.
+> Hammer the volume point first: most production L7 routing happens between services, not at the edge. The security argument is the one that justifies the mesh on its own: mTLS everywhere is otherwise hard to retrofit. The resilience and observability arguments are the operational ones; you stop writing the same boilerplate in every service. Locality is the perf argument: with the right Istio config, two pods in the same zone talk over a few milliseconds; cross-region traffic gets degraded gracefully. And the last point is non-obvious but important: canary releases of a deeply internal service (say, a payments calculation engine that no client touches directly) are possible because the mesh can split east/west traffic by weight: you cannot canary internal services through an edge LB.
 
 ## [194] APPENDIX I · L7 ROUTING · Istio for east/west: DestinationRule + VirtualService (sldId 449)
 
@@ -2699,49 +2699,49 @@ spec:
     - { destination: { host: payments, subset: v2 }, weight: 5 }
 ```
 
-Same CRDs as north/south, but pointed at an internal host — outlier detection, locality LB, canary weights, all between services with no app code.
+Same CRDs as north/south, but pointed at an internal host: outlier detection, locality LB, canary weights, all between services with no app code.
 
 p. 170
 
-> Same Istio primitives as the weighted canary, but applied to an internal service (note the cluster.local host). DestinationRule sets up the connection pool (HTTP/2 multiplexing for gRPC), enables outlier detection (5 consecutive 5xxs in 30s ejects the pod), enables locality-aware load balancing (same-zone preferred), and defines version subsets. VirtualService weights east/west traffic 95/5 between v1 and v2 — a canary release of a backend service that no external client knows exists. This is what the 'mesh' is: the same routing CRDs the edge uses, applied everywhere, between every pair of services, configured centrally and enforced by the sidecars.
+> Same Istio primitives as the weighted canary, but applied to an internal service (note the cluster.local host). DestinationRule sets up the connection pool (HTTP/2 multiplexing for gRPC), enables outlier detection (5 consecutive 5xxs in 30s ejects the pod), enables locality-aware load balancing (same-zone preferred), and defines version subsets. VirtualService weights east/west traffic 95/5 between v1 and v2: a canary release of a backend service that no external client knows exists. This is what the 'mesh' is: the same routing CRDs the edge uses, applied everywhere, between every pair of services, configured centrally and enforced by the sidecars.
 
 ## [195] APPENDIX I · L7 ROUTING · gRPC east/west specifics (sldId 450)
 
 - gRPC is HTTP/2 under the hood, so it works natively in any L7 router that speaks HTTP/2 (Envoy, Istio, modern HAProxy/Nginx).
-- Route by gRPC service.method: the URI path is /package.Service/Method — use a uri prefix match in Istio, grpc_pass in Nginx, or path_beg in HAProxy.
+- Route by gRPC service.method: the URI path is /package.Service/Method: use a uri prefix match in Istio, grpc_pass in Nginx, or path_beg in HAProxy.
 - Header-based balancing matters more for gRPC: connections are long-lived and multiplexed, so least-request or per-request load balancing beats round-robin.
-- Streaming RPCs (server-streaming, client-streaming, bidi): retries are dangerous if the stream is non-idempotent — cap retries to UNARY calls in the mesh policy.
-- Trailers carry status: a 200 + a non-OK trailer is the gRPC equivalent of a 5xx — outlier detection has to be configured to read trailers, not just the status line.
+- Streaming RPCs (server-streaming, client-streaming, bidi): retries are dangerous if the stream is non-idempotent: cap retries to UNARY calls in the mesh policy.
+- Trailers carry status: a 200 + a non-OK trailer is the gRPC equivalent of a 5xx: outlier detection has to be configured to read trailers, not just the status line.
 
 p. 171
 
-> gRPC has a few sharp edges of its own. Route on the gRPC URI prefix to do per-method canaries. Use least-request (or random-3-choices) load balancing instead of round-robin because gRPC connections are long-lived — a few long-running streams can starve other backends if you round-robin connections instead of requests. Be careful with retries on streaming RPCs: the mesh can retry a UNARY call safely if it's idempotent, but retrying a half-completed streaming RPC will replay half the work — Istio lets you scope retries to specific gRPC status codes and request kinds. And the trailer point is subtle: gRPC returns its real status in HTTP trailers (a 200 with a non-OK gRPC status is a failure), so outlier detection has to know to read those, or it will think a failing service is healthy.
+> gRPC has a few sharp edges of its own. Route on the gRPC URI prefix to do per-method canaries. Use least-request (or random-3-choices) load balancing instead of round-robin because gRPC connections are long-lived: a few long-running streams can starve other backends if you round-robin connections instead of requests. Be careful with retries on streaming RPCs: the mesh can retry a UNARY call safely if it's idempotent, but retrying a half-completed streaming RPC will replay half the work: Istio lets you scope retries to specific gRPC status codes and request kinds. And the trailer point is subtle: gRPC returns its real status in HTTP trailers (a 200 with a non-OK gRPC status is a failure), so outlier detection has to know to read those, or it will think a failing service is healthy.
 
 ## [196] APPENDIX I · L7 ROUTING · When to use which L7 layer (sldId 451)
 
 - Edge / ingress: TLS termination, host/path routing, WAF, public-facing rate limits. Anything north/south that affects all clients.
-- API gateway: cross-cutting product policy — auth, per-consumer rate limits, request transformation, monetisation, key management.
+- API gateway: cross-cutting product policy: auth, per-consumer rate limits, request transformation, monetisation, key management.
 - Service mesh: east/west routing, mTLS, retries, outlier detection, canaries between internal services. The default home for service-to-service L7.
 - In-app router (FastAPI + durable-rules): when routing depends on business rules, payload content, or decisions that domain experts must own.
 - Rule of thumb: prefer the lowest layer that can fully express the decision, and never push business rules into mesh CRDs.
 
 p. 172
 
-> This is the decision guide to leave on screen for a beat. The mental model: each layer has a job it's good at, and pushing work to the wrong layer is where complexity comes from. Edge/ingress for the things every client crosses. API gateway for product-shaped policy. Mesh for east/west and everything internal. In-app for business rules. The bold rule of thumb prevents the common antipattern of growing increasingly baroque Istio VirtualService configs to encode rules that domain experts need to maintain — if it's a business rule, it belongs in a rule engine inside a service, not in a network CRD.
+> This is the decision guide to leave on screen for a beat. The mental model: each layer has a job it's good at, and pushing work to the wrong layer is where complexity comes from. Edge/ingress for the things every client crosses. API gateway for product-shaped policy. Mesh for east/west and everything internal. In-app for business rules. The bold rule of thumb prevents the common antipattern of growing increasingly baroque Istio VirtualService configs to encode rules that domain experts need to maintain: if it's a business rule, it belongs in a rule engine inside a service, not in a network CRD.
 
 ## [197] APPENDIX I · L7 ROUTING · L7 routing checklist (sldId 452)
 
-- Pick one ingress, one gateway, one mesh — don't run three competing L7 layers because each team had a favourite.
+- Pick one ingress, one gateway, one mesh: don't run three competing L7 layers because each team had a favourite.
 - TLS terminates at the edge; mTLS between services in the mesh; cert rotation is automatic (cert-manager + SDS), not a quarterly outage.
 - Routing rules live in Git, reviewed like code; GitOps reconciles them; rollback is a git revert.
-- Every L7 layer emits traces and metrics — sample the spans, alert on per-route SLOs, watch for retry budget exhaustion.
+- Every L7 layer emits traces and metrics: sample the spans, alert on per-route SLOs, watch for retry budget exhaustion.
 - Stickiness is an exception, not a default; business rules belong in a rule engine inside a service, not in network YAML.
 - Test under load and under failure: bring a pod down, eject a zone, ramp a canary, verify the mesh does what the YAML says.
   - References: HAProxy / Nginx / Envoy docs; Istio traffic management guide; durable-rules (PyPI); Open Policy Agent (OPA) and Rego docs; FastAPI / Starlette middleware docs.
 
 p. 173
 
-> Leave the checklist up at the end. The first point is the most common organisational failure — a cluster ends up running three ingress controllers because three teams each picked one. Pick one and standardise. The cert-rotation point is the one teams underestimate — expired certs are still a top-3 outage cause in many shops. GitOps for routing is the operational discipline that makes the whole thing reviewable. Observability and the load/failure-test point are non-negotiable. The references sub-bullet is the reading list: the durable-rules project on PyPI, Open Policy Agent (OPA) docs for declarative policy, and the FastAPI and Starlette middleware guides.
+> Leave the checklist up at the end. The first point is the most common organisational failure: a cluster ends up running three ingress controllers because three teams each picked one. Pick one and standardise. The cert-rotation point is the one teams underestimate: expired certs are still a top-3 outage cause in many shops. GitOps for routing is the operational discipline that makes the whole thing reviewable. Observability and the load/failure-test point are non-negotiable. The references sub-bullet is the reading list: the durable-rules project on PyPI, Open Policy Agent (OPA) docs for declarative policy, and the FastAPI and Starlette middleware guides.
 
 ## [198] Appendix K · Monolith to Microservices (sldId 453)
 
@@ -2753,15 +2753,15 @@ Patterns that survive the migration with the system still running.
 
 ## [199] APPENDIX K · MONOLITH · A monolith is a unit of deployment (sldId 454)
 
-One process, one binary, one heartbeat. All modules live or die together. Often the right starting point — don't be ashamed of it.
+One process, one binary, one heartbeat. All modules live or die together. Often the right starting point: don't be ashamed of it.
 
 p. 174
 
-> Define the term before fixing it. A monolith is not a code-organisation problem — it's a deployment-organisation property. Even a well-organised codebase with clear modules, layers, and tests is a monolith if it ships as one binary on one heartbeat. The defining property is on the slide: change anywhere, redeploy everything; bug in Reporting can take down Payments; one scaling unit for workloads that scale differently. But the second italic line is what to leave audience with: monoliths are not always wrong. For new products, small teams, or anything that fits in one team's head, they're often the simplest and fastest path to value. Premature decomposition is its own anti-pattern. The conversation is: when does this monolith start hurting more than it helps? — and that's when these patterns earn their keep.
+> Define the term before fixing it. A monolith is not a code-organisation problem: it's a deployment-organisation property. Even a well-organised codebase with clear modules, layers, and tests is a monolith if it ships as one binary on one heartbeat. The defining property is on the slide: change anywhere, redeploy everything; bug in Reporting can take down Payments; one scaling unit for workloads that scale differently. But the second italic line is what to leave audience with: monoliths are not always wrong. For new products, small teams, or anything that fits in one team's head, they're often the simplest and fastest path to value. Premature decomposition is its own anti-pattern. The conversation is: when does this monolith start hurting more than it helps?, and that's when these patterns earn their keep.
 
-## [200] APPENDIX K · MODULAR MONOLITH · The modular monolith — often the right destination (sldId 455)
+## [200] APPENDIX K · MODULAR MONOLITH · The modular monolith: often the right destination (sldId 455)
 
-Still one deployable, but with strict in-process module boundaries enforced by build tooling — not by gentlemen's agreement.
+Still one deployable, but with strict in-process module boundaries enforced by build tooling: not by gentlemen's agreement.
 
 p. 175
 
@@ -2769,11 +2769,11 @@ p. 175
 
 ## [201] APPENDIX K · DECOMPOSED DBS · Modular monolith with decomposed databases (sldId 456)
 
-Data ownership becomes per-module — the hardest part of the split, done while still one process. The next step is mechanical.
+Data ownership becomes per-module: the hardest part of the split, done while still one process. The next step is mechanical.
 
 p. 176
 
-> Splitting the database is the hard part of decomposition: schema dependencies, cross-table joins, and reporting queries all create coupling that stays invisible until you try to move data. The insight of this pattern: do that work while you're still one process. Each module gets its own Postgres / Mongo / whatever, its own connection pool, its own migration history. Cross-module data is now async or event-driven — you replace a JOIN with a service call or an event subscription. Same discipline microservices require, but with one operational target instead of N. Once this is done, promoting a module to a separate service is a refactor of the deployment topology, not a data-migration project. (Many teams discover at this point that they don't need separate services: the modular monolith with decomposed data is enough.) Practical tip: start with the highest-coupling module first; the second hardest is the database that the reporting layer joins across, so do that one early.
+> Splitting the database is the hard part of decomposition: schema dependencies, cross-table joins, and reporting queries all create coupling that stays invisible until you try to move data. The insight of this pattern: do that work while you're still one process. Each module gets its own Postgres / Mongo / whatever, its own connection pool, its own migration history. Cross-module data is now async or event-driven: you replace a JOIN with a service call or an event subscription. Same discipline microservices require, but with one operational target instead of N. Once this is done, promoting a module to a separate service is a refactor of the deployment topology, not a data-migration project. (Many teams discover at this point that they don't need separate services: the modular monolith with decomposed data is enough.) Practical tip: start with the highest-coupling module first; the second hardest is the database that the reporting layer joins across, so do that one early.
 
 ## [202] APPENDIX K · STRANGLER FIG · Identify → move → redirect (sldId 457)
 
@@ -2781,15 +2781,15 @@ Named after the strangler fig vine: grow the new system around the old until the
 
 p. 177
 
-> The Martin Fowler strangler-fig pattern, named for the vine that grows around its host tree until the host is gone and the vine stands on its own. The three steps are the unit of work you repeat. Identify: pick a bounded asset — not 'the orders subsystem,' but 'order creation' or 'order status query' specifically. The smaller and more bounded, the safer the move. Move: build the new service alongside the monolith, replicate the behaviour, test it in parallel without production traffic. REDIRECT: switch callers to the new service. Each cycle is independently reversible — if the new service is wrong, redirect back and try again. There are three ways to do the redirect: via a proxy, via a proxy plus partial routing, or via a shared database. The proxy is the foundation for the rest; almost everything starts with that step.
+> The Martin Fowler strangler-fig pattern, named for the vine that grows around its host tree until the host is gone and the vine stands on its own. The three steps are the unit of work you repeat. Identify: pick a bounded asset: not 'the orders subsystem,' but 'order creation' or 'order status query' specifically. The smaller and more bounded, the safer the move. Move: build the new service alongside the monolith, replicate the behaviour, test it in parallel without production traffic. REDIRECT: switch callers to the new service. Each cycle is independently reversible: if the new service is wrong, redirect back and try again. There are three ways to do the redirect: via a proxy, via a proxy plus partial routing, or via a shared database. The proxy is the foundation for the rest; almost everything starts with that step.
 
-## [203] APPENDIX K · STRANGLER FIG · With a proxy — step zero of every migration (sldId 458)
+## [203] APPENDIX K · STRANGLER FIG · With a proxy: step zero of every migration (sldId 458)
 
 Introduce the routing layer first, before extracting anything. Then redirection becomes a config change, not a release.
 
 p. 178
 
-> The pre-condition for incremental migration: clients hit the proxy, the proxy forwards to the monolith. Day zero, behaviour is unchanged. But you now have the lever — the proxy is where you'll later route 1% of /orders/* traffic to the extracted service, then 5%, then 100%. Without this step, every cutover requires coordinated client releases. With it, every cutover is a proxy config change. As a bonus, the proxy is also the right place for TLS termination, auth, rate-limiting, and observability — things you wanted regardless. For Python shops this is typically nginx or Envoy as a Kubernetes Service ahead of the app Pods; you could also use Traefik or HAProxy. The strangler-fig literature calls this an 'event interception' — you intercept the request before it gets to the legacy system, giving yourself a place to redirect later.
+> The pre-condition for incremental migration: clients hit the proxy, the proxy forwards to the monolith. Day zero, behaviour is unchanged. But you now have the lever: the proxy is where you'll later route 1% of /orders/* traffic to the extracted service, then 5%, then 100%. Without this step, every cutover requires coordinated client releases. With it, every cutover is a proxy config change. As a bonus, the proxy is also the right place for TLS termination, auth, rate-limiting, and observability: things you wanted regardless. For Python shops this is typically nginx or Envoy as a Kubernetes Service ahead of the app Pods; you could also use Traefik or HAProxy. The strangler-fig literature calls this an 'event interception': you intercept the request before it gets to the legacy system, giving yourself a place to redirect later.
 
 ## [204] APPENDIX K · STRANGLER FIG · With proxy + redirection (sldId 459)
 
@@ -2797,9 +2797,9 @@ The proxy splits traffic between the new service and the shrinking monolith. Rol
 
 p. 179
 
-> Now the proxy does the routing work: by path (/orders/* → new service), by header (X-Tenant: acme → new service), by percentage (1% of all traffic → new service), or by feature flag (users in the beta group → new service). The new service handles its slice; the monolith handles everything else. Clients still see one URL, one auth boundary, one TLS cert. Roll forward by widening the new-service route in the proxy config; roll back by narrowing it. The new service can fail completely and the monolith picks up — the bounded blast radius is the entire point of this pattern. Production observability matters here: instrument both paths so you can verify the new service is producing the same outcomes as the monolith before you widen the route. For Python deployments this is typically encoded in nginx server blocks, Envoy route configs, or Istio VirtualService rules — same patterns from Appendix I, used for migration instead of canary release.
+> Now the proxy does the routing work: by path (/orders/* → new service), by header (X-Tenant: acme → new service), by percentage (1% of all traffic → new service), or by feature flag (users in the beta group → new service). The new service handles its slice; the monolith handles everything else. Clients still see one URL, one auth boundary, one TLS cert. Roll forward by widening the new-service route in the proxy config; roll back by narrowing it. The new service can fail completely and the monolith picks up: the bounded blast radius is the entire point of this pattern. Production observability matters here: instrument both paths so you can verify the new service is producing the same outcomes as the monolith before you widen the route. For Python deployments this is typically encoded in nginx server blocks, Envoy route configs, or Istio VirtualService rules: same patterns, used for migration instead of canary release.
 
-## [205] APPENDIX K · STRANGLER FIG · With a shared database — a deliberate intermediate state (sldId 460)
+## [205] APPENDIX K · STRANGLER FIG · With a shared database: a deliberate intermediate state (sldId 460)
 
 Process boundary first, data boundary later. Useful intermediate state, not a destination. Schema coupling will bite eventually.
 
@@ -2841,7 +2841,7 @@ Reads the body, decides by content (tenant / region / feature flag), forwards to
 
 p. 181
 
-> The middleware shape. Reading the body costs CPU on every routed request (and you must be careful: once consumed, you must hand the bytes through to the upstream). The decision is by payload content: tenant, region, feature flag, user segment — not by URL pattern (the URL is the same). This makes the pattern more flexible than path-based proxying: you can roll out the new service to one tenant at a time, see how it behaves under real traffic, then widen. The httpx.AsyncClient is reused across requests so the connection pool is warm. For Python applications running behind a real proxy (nginx, Envoy, Istio), you'd express the same logic in Lua / WASM filters or an EnvoyFilter; the FastAPI middleware version shows the conceptual shape. The CPU cost is the only real downside — if your migration window is months, that body parse adds up; if it's days, the cost is irrelevant compared to the migration risk it controls.
+> The middleware shape. Reading the body costs CPU on every routed request (and you must be careful: once consumed, you must hand the bytes through to the upstream). The decision is by payload content: tenant, region, feature flag, user segment: not by URL pattern (the URL is the same). This makes the pattern more flexible than path-based proxying: you can roll out the new service to one tenant at a time, see how it behaves under real traffic, then widen. The httpx.AsyncClient is reused across requests so the connection pool is warm. For Python applications running behind a real proxy (nginx, Envoy, Istio), you'd express the same logic in Lua / WASM filters or an EnvoyFilter; the FastAPI middleware version shows the conceptual shape. The CPU cost is the only real downside: if your migration window is months, that body parse adds up; if it's days, the cost is irrelevant compared to the migration risk it controls.
 
 ## [207] APPENDIX K · DECORATOR · The decorating collaborator (sldId 462)
 
@@ -2849,7 +2849,7 @@ The new service wraps the legacy one, adds capability, then becomes the API. Use
 
 p. 182
 
-> Different shape from the proxy patterns: the decorator owns behaviour, not just routing. The new service sits in front of the legacy API and adds cross-cutting capability: caching, audit, validation, enrichment, fan-out to Kafka, rate-limiting, metrics. The legacy service is unaware it has been wrapped. Clients now talk to the decorator's API, which delegates to the legacy service for the underlying work but contributes everything else. Over time, the decorator can take ownership of more behaviour — once the decorator owns enough, the legacy service can be replaced without clients noticing. This is particularly useful when the legacy system is a 3rd-party product, a vendor system, or a piece of code so fragile that touching it is forbidden. The decorator is a real microservice (with its own data, its own deploy, its own scaling) — not just a router. Common Python implementations: a FastAPI app that proxies to a SOAP or legacy REST service while emitting Kafka events and caching responses.
+> Different shape from the proxy patterns: the decorator owns behaviour, not just routing. The new service sits in front of the legacy API and adds cross-cutting capability: caching, audit, validation, enrichment, fan-out to Kafka, rate-limiting, metrics. The legacy service is unaware it has been wrapped. Clients now talk to the decorator's API, which delegates to the legacy service for the underlying work but contributes everything else. Over time, the decorator can take ownership of more behaviour: once the decorator owns enough, the legacy service can be replaced without clients noticing. This is particularly useful when the legacy system is a 3rd-party product, a vendor system, or a piece of code so fragile that touching it is forbidden. The decorator is a real microservice (with its own data, its own deploy, its own scaling): not just a router. Common Python implementations: a FastAPI app that proxies to a SOAP or legacy REST service while emitting Kafka events and caching responses.
 
 ## [208] APPENDIX K · DECORATOR · A decorating collaborator in Python (sldId 463)
 
@@ -2882,17 +2882,17 @@ async def place_order(body: dict):
     return order
 ```
 
-The decorator adds caching, event emission and (if you wire it up) auditing — capabilities the legacy service can't add on its own.
+The decorator adds caching, event emission and (if you wire it up) auditing: capabilities the legacy service can't add on its own.
 
 p. 183
 
-> Tight, complete. The decorator is a real FastAPI app. The GET path adds a Redis cache with a 60-second TTL — a capability the legacy service didn't have. The POST path delegates the actual write to the legacy service (it's still the source of truth), then emits a Kafka event so downstream systems can subscribe to the new event stream, then invalidates the cache. The legacy service has no idea it's been wrapped; clients have no idea they're talking to a decorator. Over time you can move more behaviour into the decorator: validation rules, idempotency keys, dedup, multi-source reads. When you're ready to retire the legacy service, you implement the order storage inside the decorator (or in a clean new service it calls) and stop forwarding — the API stays the same for clients. This is also the right shape for adding capabilities your vendor can't provide, such as PII redaction, retention policies or multi-region failover, to a system you can't modify. The cost is one extra hop in the request path; the benefit is owning behaviour you couldn't own before.
+> Tight, complete. The decorator is a real FastAPI app. The GET path adds a Redis cache with a 60-second TTL: a capability the legacy service didn't have. The POST path delegates the actual write to the legacy service (it's still the source of truth), then emits a Kafka event so downstream systems can subscribe to the new event stream, then invalidates the cache. The legacy service has no idea it's been wrapped; clients have no idea they're talking to a decorator. Over time you can move more behaviour into the decorator: validation rules, idempotency keys, dedup, multi-source reads. When you're ready to retire the legacy service, you implement the order storage inside the decorator (or in a clean new service it calls) and stop forwarding: the API stays the same for clients. This is also the right shape for adding capabilities your vendor can't provide, such as PII redaction, retention policies or multi-region failover, to a system you can't modify. The cost is one extra hop in the request path; the benefit is owning behaviour you couldn't own before.
 
 ## [209] APPENDIX K · DECISIONS · Choosing the right migration pattern (sldId 464)
 
-- Modular monolith first, microservices later — the cheapest decomposition is often inside one process. Many systems never need to leave this state.
+- Modular monolith first, microservices later: the cheapest decomposition is often inside one process. Many systems never need to leave this state.
 - Decompose the database before decomposing the deployment. The data split is the hard part; doing it in one process is much cheaper than coordinating across services.
-- Always introduce the proxy first — the routing layer is what makes incremental cutover possible. No proxy = no incremental migration.
+- Always introduce the proxy first: the routing layer is what makes incremental cutover possible. No proxy = no incremental migration.
 - Strangler with shared database is a transition state. Plan its end before you start it. Schema coupling is debt that accrues.
 - Content-based routing when you need to cut over by tenant / region / segment instead of by URL. Costs CPU at the proxy; buys precise risk control.
 - Decorating collaborator when you need to add behaviour to a system you can't modify. Most useful for vendor / 3rd-party / legacy-mainframe wrappers.
@@ -2900,7 +2900,7 @@ p. 183
 
 p. 184
 
-> Close the appendix with the decision rules. The first point is the most important and most often skipped: a modular monolith is frequently a fine destination. Microservices have real operational cost, and not every system warrants paying it. The second point is the most underrated: the database split is where projects get stuck for years — do it early, while still one process, when it's cheaper to redo if you got the boundaries wrong. The third point is the platform discipline: no proxy, no incremental migration; every cutover is a coordinated client release; every rollback is the same. The fourth point is the schedule discipline: shared-database strangler is OK as a means but never as an end — if you don't plan its dissolution, it becomes the new monolith. The fifth and sixth are about choosing the right pattern: content-based routing for fine-grained progress, decorator for capability addition. The bold final line is the architectural take-home: design for reversibility, so every step is a config change you can undo without coordinating a release. Migrations fail when they reach an irreversible step too early.
+> Close the appendix with the decision rules. The first point is the most important and most often skipped: a modular monolith is frequently a fine destination. Microservices have real operational cost, and not every system warrants paying it. The second point is the most underrated: the database split is where projects get stuck for years: do it early, while still one process, when it's cheaper to redo if you got the boundaries wrong. The third point is the platform discipline: no proxy, no incremental migration; every cutover is a coordinated client release; every rollback is the same. The fourth point is the schedule discipline: shared-database strangler is OK as a means but never as an end: if you don't plan its dissolution, it becomes the new monolith. The fifth and sixth are about choosing the right pattern: content-based routing for fine-grained progress, decorator for capability addition. The bold final line is the architectural take-home: design for reversibility, so every step is a config change you can undo without coordinating a release. Migrations fail when they reach an irreversible step too early.
 
 ## [210] Appendix L · Caching patterns (sldId 465)
 
@@ -2908,28 +2908,28 @@ L
 
 Six patterns for keeping a cache useful and your data correct.
 
-> Appendix L is the caching reference. Five reasons to cache, then six patterns to do it well. The patterns differ in who reads/writes the cache, when, and who owns the consistency story. We use Redis as the canonical cache because it's the default open-source choice on Kubernetes — same patterns apply to in-memory caches, Memcached, or any KV store. CDN and HTTP-layer caching is mentioned in passing but isn't this appendix's focus.
+> Appendix L is the caching reference. Five reasons to cache, then six patterns to do it well. The patterns differ in who reads/writes the cache, when, and who owns the consistency story. We use Redis as the canonical cache because it's the default open-source choice on Kubernetes: same patterns apply to in-memory caches, Memcached, or any KV store. CDN and HTTP-layer caching is mentioned in passing but isn't this appendix's focus.
 
 ## [211] APPENDIX L · WHY CACHE · Five things a cache earns you (sldId 466)
 
-- Application performance — a cache hit is microseconds; a database round trip is milliseconds. The hot path becomes ~100x faster on hits.
-- Backend load — caching shields the database from repeated reads of unchanged data. Read-heavy workloads can offload 80-95% of queries with a sensible TTL.
-- Throughput — the same Pod fleet serves dramatically more requests because it spends less time waiting on the DB. Vertical scaling without buying anything.
-- Predictable performance — p99 latency stops being a function of DB load. Tail latencies flatten because the hot path doesn't contend on the same lock-bound resource as everyone else.
-- Database cost — fewer queries means smaller (or fewer) DB instances, smaller IOPS budgets, less replication bandwidth. Cache is almost always cheaper than the DB tier it offloads.
+- Application performance: a cache hit is microseconds; a database round trip is milliseconds. The hot path becomes ~100x faster on hits.
+- Backend load: caching shields the database from repeated reads of unchanged data. Read-heavy workloads can offload 80-95% of queries with a sensible TTL.
+- Throughput: the same Pod fleet serves dramatically more requests because it spends less time waiting on the DB. Vertical scaling without buying anything.
+- Predictable performance: p99 latency stops being a function of DB load. Tail latencies flatten because the hot path doesn't contend on the same lock-bound resource as everyone else.
+- Database cost: fewer queries means smaller (or fewer) DB instances, smaller IOPS budgets, less replication bandwidth. Cache is almost always cheaper than the DB tier it offloads.
   - Trade-off: every cache adds a consistency story, an invalidation story, and a failure-mode story. Pick the pattern that matches the consistency you need from the six patterns in this appendix.
 
 p. 185
 
-> Five concrete reasons that justify the caching investment. Start with application performance — the user-facing speedup is the visible win. Backend load matters more in steady state: shielding the database is what lets your DB tier stay smaller and cheaper than your app tier. Throughput follows from both — the same Pods serve more requests when they're not blocked on I/O. Predictable performance is the operational win that is hard to measure but real: a cache layer flattens p99 because most requests don't contend for DB locks. Database cost is the financial win that often pays for the entire caching infrastructure. The sub-bullet at the end is what trips teams up: every cache adds complexity. This appendix covers the six standard patterns; pick the one that matches the consistency story you need, not the one that sounds best.
+> Five concrete reasons that justify the caching investment. Start with application performance: the user-facing speedup is the visible win. Backend load matters more in steady state: shielding the database is what lets your DB tier stay smaller and cheaper than your app tier. Throughput follows from both: the same Pods serve more requests when they're not blocked on I/O. Predictable performance is the operational win that is hard to measure but real: a cache layer flattens p99 because most requests don't contend for DB locks. Database cost is the financial win that often pays for the entire caching infrastructure. The sub-bullet at the end is what trips teams up: every cache adds complexity. This appendix covers the six standard patterns; pick the one that matches the consistency story you need, not the one that sounds best.
 
-## [212] APPENDIX L · CACHE-ASIDE · Cache-aside (look-aside) — the default (sldId 467)
+## [212] APPENDIX L · CACHE-ASIDE · Cache-aside (look-aside): the default (sldId 467)
 
 The application reads cache, falls back to DB, populates cache. Explicit and simple; the most common pattern.
 
 p. 186
 
-> The pattern everyone starts with. The application is in charge: try the cache first, on a miss read the database, populate the cache on the way back, return the value. Every other pattern in this appendix differs from this one in who does the work — cache-aside is the baseline where the app does it all. Pros: explicit, debuggable, no magic. The cache is just a key-value store; the app decides what to cache and when. Cons: every read has the if/else; cache miss costs two round trips (cache check + DB read); cache logic is repeated across services if you don't extract it. The TTL is the consistency knob — longer = fewer DB hits, more stale-read risk. Use this when you want explicit control and your reads dominate writes. The cache-aside code is two functions; the discipline is to remember to invalidate on writes (covered in write-through and write-around).
+> The pattern everyone starts with. The application is in charge: try the cache first, on a miss read the database, populate the cache on the way back, return the value. Every other pattern in this appendix differs from this one in who does the work: cache-aside is the baseline where the app does it all. Pros: explicit, debuggable, no magic. The cache is just a key-value store; the app decides what to cache and when. Cons: every read has the if/else; cache miss costs two round trips (cache check + DB read); cache logic is repeated across services if you don't extract it. The TTL is the consistency knob: longer = fewer DB hits, more stale-read risk. Use this when you want explicit control and your reads dominate writes. The cache-aside code is two functions; the discipline is to remember to invalidate on writes (covered in write-through and write-around).
 
 ## [213] APPENDIX L · CACHE-ASIDE · Cache-aside in Python with Redis (sldId 468)
 
@@ -2961,19 +2961,19 @@ async def update_product(pid: str, body: dict):
     return {"ok": True}
 ```
 
-Try cache; on miss, hit DB and populate. Invalidate on write. Three operations — the rest is conventions about TTL and naming.
+Try cache; on miss, hit DB and populate. Invalidate on write. Three operations: the rest is conventions about TTL and naming.
 
 p. 187
 
-> The minimal cache-aside implementation. Three things to point out. First, the connection pool: redis.asyncio.Redis from_url returns a pool by default, so concurrent requests share connections — don't create a Redis client per request. Second, the key shape: 'product:{pid}' is a namespace convention; common practice is 'entity:type:id' so you can SCAN and delete by pattern when you need to mass-invalidate. Third, the invalidate-on-write step (step 4): if you don't invalidate, the cache will serve stale data for the full TTL. Choose: invalidate (this code) or set the new value directly (write-through). For cache failures, wrap the cache.get() in a try/except so a Redis outage doesn't take down your reads — fall back to the DB and log. For high-cardinality keys, set a maxmemory policy on Redis (allkeys-lru typical) so the cache doesn't grow unbounded.
+> The minimal cache-aside implementation. Three things to point out. First, the connection pool: redis.asyncio.Redis from_url returns a pool by default, so concurrent requests share connections: don't create a Redis client per request. Second, the key shape: 'product:{pid}' is a namespace convention; common practice is 'entity:type:id' so you can SCAN and delete by pattern when you need to mass-invalidate. Third, the invalidate-on-write step (step 4): if you don't invalidate, the cache will serve stale data for the full TTL. Choose: invalidate (this code) or set the new value directly (write-through). For cache failures, wrap the cache.get() in a try/except so a Redis outage doesn't take down your reads: fall back to the DB and log. For high-cardinality keys, set a maxmemory policy on Redis (allkeys-lru typical) so the cache doesn't grow unbounded.
 
-## [214] APPENDIX L · READ-THROUGH · Read-through — the cache fetches on miss (sldId 469)
+## [214] APPENDIX L · READ-THROUGH · Read-through: the cache fetches on miss (sldId 469)
 
 Application sees one interface; the cache library handles DB fallback transparently.
 
 p. 188
 
-> The variation where the cache library, not the application, calls the database on a miss. The app calls cache.get() and gets the value back — doesn't know or care whether the cache had it or had to fetch. Implementation requires a cache library that supports loaders (typically a callback you register at cache creation time). Pros: cleaner application code, single read interface. Cons: less control over what triggers a DB hit; the cache library must be told how to read the underlying source. For Python with Redis specifically, you don't get this out of the box from the redis client — you wrap it. Higher-level libraries like aiocache or cachetools support read-through patterns natively, or you write a thin loader wrapper. Use this pattern when read paths are repetitive across the codebase and you want to eliminate the if/else from every caller.
+> The variation where the cache library, not the application, calls the database on a miss. The app calls cache.get() and gets the value back: doesn't know or care whether the cache had it or had to fetch. Implementation requires a cache library that supports loaders (typically a callback you register at cache creation time). Pros: cleaner application code, single read interface. Cons: less control over what triggers a DB hit; the cache library must be told how to read the underlying source. For Python with Redis specifically, you don't get this out of the box from the redis client: you wrap it. Higher-level libraries like aiocache or cachetools support read-through patterns natively, or you write a thin loader wrapper. Use this pattern when read paths are repetitive across the codebase and you want to eliminate the if/else from every caller.
 
 ## [215] APPENDIX L · READ-THROUGH · Read-through in Python: a tiny loader wrapper (sldId 470)
 
@@ -3008,15 +3008,15 @@ The loader is registered once; every caller sees one .get() method. The cache mi
 
 p. 189
 
-> The wrapper is small but the discipline is significant. Callers can't accidentally bypass the cache or forget to populate it — they call products.get(pid) and get the right behaviour. Different entity types get different ReadThrough instances with different loaders and TTLs. For libraries that give you this out of the box: aiocache supports cached() decorators that work this way, and cachetools.func has TTL-based wrappers (though without async support natively). The trade vs cache-aside: you trade a few lines of if/else per caller for a wrapper layer that callers must use. In a large codebase that's worth it; in a small one it's overengineering. Note: a loader-style cache makes thundering-herd protection easier — add a Redis lock in the loader so only one caller does the DB fetch when many callers miss the same key at once (the 'cache stampede' problem).
+> The wrapper is small but the discipline is significant. Callers can't accidentally bypass the cache or forget to populate it: they call products.get(pid) and get the right behaviour. Different entity types get different ReadThrough instances with different loaders and TTLs. For libraries that give you this out of the box: aiocache supports cached() decorators that work this way, and cachetools.func has TTL-based wrappers (though without async support natively). The trade vs cache-aside: you trade a few lines of if/else per caller for a wrapper layer that callers must use. In a large codebase that's worth it; in a small one it's overengineering. Note: a loader-style cache makes thundering-herd protection easier: add a Redis lock in the loader so only one caller does the DB fetch when many callers miss the same key at once (the 'cache stampede' problem).
 
-## [216] APPENDIX L · WRITE-THROUGH · Write-through — cache and DB written synchronously (sldId 471)
+## [216] APPENDIX L · WRITE-THROUGH · Write-through: cache and DB written synchronously (sldId 471)
 
 Every write hits both the cache and the DB. Cache is never stale; writes pay both latencies.
 
 p. 190
 
-> When stale reads are not acceptable, write-through forces every write to update both stores atomically (or as close to atomically as you can manage). The application calls cache.set(...) and db.update(...) and both must succeed before the response returns. Pros: a read immediately after a write sees the new value; the cache is never stale for the writer's view. Cons: write latency is the sum of both stores; you have to handle the case where the cache write succeeds but the DB write fails (or vice versa) — there's no two-phase commit in this world. The usual discipline: write the DB first, write the cache second, accept that a failure between them means the cache may briefly hold the new value while the DB doesn't (or vice versa, depending on your order). Pair with a short TTL so any inconsistency self-heals.
+> When stale reads are not acceptable, write-through forces every write to update both stores atomically (or as close to atomically as you can manage). The application calls cache.set(...) and db.update(...) and both must succeed before the response returns. Pros: a read immediately after a write sees the new value; the cache is never stale for the writer's view. Cons: write latency is the sum of both stores; you have to handle the case where the cache write succeeds but the DB write fails (or vice versa): there's no two-phase commit in this world. The usual discipline: write the DB first, write the cache second, accept that a failure between them means the cache may briefly hold the new value while the DB doesn't (or vice versa, depending on your order). Pair with a short TTL so any inconsistency self-heals.
 
 ## [217] APPENDIX L · WRITE-THROUGH · Write-through in Python (sldId 472)
 
@@ -3049,15 +3049,15 @@ DB first (source of truth), cache second (read-back the canonical row, or trust 
 
 p. 191
 
-> Two flavours of write-through. The first reads back the row from the DB after update and caches that row — the canonical value, including any server-side defaults, triggers, or computed columns. The second writes the request body directly to the cache, which is faster (one less DB round trip) but the cached value may diverge from the DB if the DB applies server-side modifications you didn't replicate. Pick by your DB schema's complexity. Either way, the DB write goes first because the DB is the source of truth — if the cache write fails, you've lost cache freshness but not data. If the DB write fails, you return an error and don't touch the cache. The TTL is your safety net: even if cache and DB diverge briefly, they'll re-converge when the cache entry expires and the next read re-populates from the DB.
+> Two flavours of write-through. The first reads back the row from the DB after update and caches that row: the canonical value, including any server-side defaults, triggers, or computed columns. The second writes the request body directly to the cache, which is faster (one less DB round trip) but the cached value may diverge from the DB if the DB applies server-side modifications you didn't replicate. Pick by your DB schema's complexity. Either way, the DB write goes first because the DB is the source of truth: if the cache write fails, you've lost cache freshness but not data. If the DB write fails, you return an error and don't touch the cache. The TTL is your safety net: even if cache and DB diverge briefly, they'll re-converge when the cache entry expires and the next read re-populates from the DB.
 
-## [218] APPENDIX L · WRITE-AROUND · Write-around — writes skip the cache (sldId 473)
+## [218] APPENDIX L · WRITE-AROUND · Write-around: writes skip the cache (sldId 473)
 
 Writes go to the DB only. The next read populates the cache lazily. Good for write-heavy, low-re-read workloads.
 
 p. 192
 
-> When data is written far more often than it's read (audit logs, event records, telemetry), caching every write is wasteful: most cached entries expire before being read again. Write-around solves this: write the DB, leave the cache alone. The next reader pays the cache-miss cost and populates the cache. Pros: no cache pollution by write-only data; the cache holds only what is being read. Cons: the first read after every write is slow (cache miss); reads of recently-written data are slower than under cache-aside. Pair with cache-aside or read-through on the read side. Common use: any 'append-only' or 'mostly-written' workload — events, log lines, audit entries, IoT telemetry where you read summaries, not individual entries.
+> When data is written far more often than it's read (audit logs, event records, telemetry), caching every write is wasteful: most cached entries expire before being read again. Write-around solves this: write the DB, leave the cache alone. The next reader pays the cache-miss cost and populates the cache. Pros: no cache pollution by write-only data; the cache holds only what is being read. Cons: the first read after every write is slow (cache miss); reads of recently-written data are slower than under cache-aside. Pair with cache-aside or read-through on the read side. Common use: any 'append-only' or 'mostly-written' workload: events, log lines, audit entries, IoT telemetry where you read summaries, not individual entries.
 
 ## [219] APPENDIX L · WRITE-AROUND · Write-around in Python (sldId 474)
 
@@ -3092,15 +3092,15 @@ Writes skip the cache entirely; the first read populates it. Avoids cache thrash
 
 p. 193
 
-> Two write variants and the standard cache-aside read for context. The pure write-around just inserts to the DB — the cache isn't touched at all. The defensive variant deletes any sibling entry in case some concurrent process populated the cache between the start of the write and its completion — cheap insurance for high-contention paths. The read side is plain cache-aside. The pattern shines for workloads where the write-to-re-read ratio is high: a security event log might see 10,000 writes a minute and 100 reads a day for active alerts — caching every write would just churn entries. Compare to a product catalog where every read is a probable cache hit — there, write-through makes more sense because you do want the writer's update to appear immediately in subsequent reads.
+> Two write variants and the standard cache-aside read for context. The pure write-around just inserts to the DB: the cache isn't touched at all. The defensive variant deletes any sibling entry in case some concurrent process populated the cache between the start of the write and its completion: cheap insurance for high-contention paths. The read side is plain cache-aside. The pattern shines for workloads where the write-to-re-read ratio is high: a security event log might see 10,000 writes a minute and 100 reads a day for active alerts: caching every write would just churn entries. Compare to a product catalog where every read is a probable cache hit: there, write-through makes more sense because you do want the writer's update to appear immediately in subsequent reads.
 
-## [220] APPENDIX L · WRITE-BACK · Write-back (write-behind) — fast writes, eventual durability (sldId 475)
+## [220] APPENDIX L · WRITE-BACK · Write-back (write-behind): fast writes, eventual durability (sldId 475)
 
 Writes return immediately after touching the cache; a background flusher persists to the DB asynchronously.
 
 p. 194
 
-> The fastest-write pattern, with the most caveats. The client writes to the cache and gets an immediate ack — the cache is the source of truth for that window. A background process drains the cache to the DB, batching writes for efficiency. Pros: write latency equals cache latency — microseconds, not milliseconds; massive throughput on write-heavy workloads. Cons: a cache crash before the flusher catches up loses unflushed writes; the cache must be configured for persistence (Redis AOF or RDB snapshots), and even then you might lose seconds of data. Reads from outside the cache (analytics, BI) lag by the flush interval. Use this pattern only when (a) write throughput is the constraint, (b) eventual durability is acceptable, and (c) you've worked out what 'lost the last 5 seconds of writes' means for your business. Common: real-time gaming state, IoT telemetry with a downstream aggregator, write-heavy buffering before a slower backing store.
+> The fastest-write pattern, with the most caveats. The client writes to the cache and gets an immediate ack: the cache is the source of truth for that window. A background process drains the cache to the DB, batching writes for efficiency. Pros: write latency equals cache latency: microseconds, not milliseconds; massive throughput on write-heavy workloads. Cons: a cache crash before the flusher catches up loses unflushed writes; the cache must be configured for persistence (Redis AOF or RDB snapshots), and even then you might lose seconds of data. Reads from outside the cache (analytics, BI) lag by the flush interval. Use this pattern only when (a) write throughput is the constraint, (b) eventual durability is acceptable, and (c) you've worked out what 'lost the last 5 seconds of writes' means for your business. Common: real-time gaming state, IoT telemetry with a downstream aggregator, write-heavy buffering before a slower backing store.
 
 ## [221] APPENDIX L · WRITE-BACK · Write-back with a background flusher in Python (sldId 476)
 
@@ -3140,7 +3140,7 @@ p. 195
 
 > Write-back has more moving parts than the other patterns; the slide shows the shape of Example 25. (1) PUT /write-back/metrics/{mid} writes the metric to a Redis hash, adds the id to a 'dirty set', which tells the flusher which ids still have to reach the database, and answers 202 Accepted: the value is queued, not yet durable. (2) The flusher runs as a background asyncio task: it SPOPs up to FLUSH_BATCH dirty ids and writes them in one executemany upsert (ON CONFLICT (id) DO UPDATE), so an id flushed twice stays one row. SPOP is atomic, so two flusher instances each get a distinct subset of ids and the flusher scales out. (3) When the flush fails, each id's count in the metric:attempts hash goes up and the id goes back on the dirty set; after five attempts it moves to metric:failed with its value still in the cache and the failure in the log, so an outage never loses a write without a trace. The sleep between cycles doubles after each failed flush, from one second to at most eight. Caveats: this is only safe with Redis persistence (AOF, appendonly yes); without it a Redis crash loses unflushed writes. For data that must not be lost, use write-through. For high-throughput telemetry where losing the last second is acceptable, write-back is what lets the service scale.
 
-## [222] APPENDIX L · REFRESH-AHEAD · Refresh-ahead — keep hot keys warm (sldId 477)
+## [222] APPENDIX L · REFRESH-AHEAD · Refresh-ahead: keep hot keys warm (sldId 477)
 
 A background task refreshes hot keys before their TTL expires. Users never see a cold miss on popular items.
 
@@ -3184,16 +3184,16 @@ Track 'hot' keys in a Redis sorted set scored by last-access time. Refresh those
 
 p. 197
 
-> The implementation uses a Redis sorted set (ZADD) to track which keys are 'hot' — scored by the last-access timestamp. The background refresher periodically checks each hot key's TTL; when it falls under REFRESH_BEFORE_S, the refresher re-reads the DB and re-populates the cache before the user-facing path would see a miss. Keys not accessed in the last 5 minutes are removed from the hot set (so we don't refresh products no one is asking for). Two tuning knobs: REFRESH_BEFORE_S (how early to refresh; longer = more safety, more DB load) and the hot-key window (how recent counts as hot). Variants: instead of tracking hot keys explicitly, you can use Redis's keyspace notifications to subscribe to TTL-expiry events and refresh reactively — cleaner but more setup. This pattern shines for read-heavy workloads where a small set of keys serves most traffic (the 80/20 product page, the top tweets, the trending articles) and miss latency is user-visible. For low-skew read patterns where every key is equally likely, refresh-ahead is wasted effort.
+> The implementation uses a Redis sorted set (ZADD) to track which keys are 'hot': scored by the last-access timestamp. The background refresher periodically checks each hot key's TTL; when it falls under REFRESH_BEFORE_S, the refresher re-reads the DB and re-populates the cache before the user-facing path would see a miss. Keys not accessed in the last 5 minutes are removed from the hot set (so we don't refresh products no one is asking for). Two tuning knobs: REFRESH_BEFORE_S (how early to refresh; longer = more safety, more DB load) and the hot-key window (how recent counts as hot). Variants: instead of tracking hot keys explicitly, you can use Redis's keyspace notifications to subscribe to TTL-expiry events and refresh reactively: cleaner but more setup. This pattern shines for read-heavy workloads where a small set of keys serves most traffic (the 80/20 product page, the top tweets, the trending articles) and miss latency is user-visible. For low-skew read patterns where every key is equally likely, refresh-ahead is wasted effort.
 
 ## [224] APPENDIX L · ANTI-PATTERNS · When not to cache, and what to watch for (sldId 479)
 
-- Don't cache by default. Caching adds a consistency story, an invalidation story, and a failure-mode story. If reads are already fast, just don't add a cache — the cheapest cache is no cache.
+- Don't cache by default. Caching adds a consistency story, an invalidation story, and a failure-mode story. If reads are already fast, just don't add a cache: the cheapest cache is no cache.
 - Don't cache rarely-read data. Caching write-once-read-never data thrashes your cache and gains nothing. Profile your read patterns first.
 - Don't cache without a TTL. Unbounded caches grow until they evict at random, which gives you the worst type of failure: unpredictable. Always set an explicit TTL or maxmemory-policy on Redis (allkeys-lru typical).
 - Avoid cache stampedes (thundering herd): when a hot key expires and many concurrent readers all miss at once, they all hit the DB simultaneously. Mitigate with per-key locks in the loader, or with refresh-ahead, or by jittering TTLs slightly per-entry.
-- Watch for cache aside + write-around without invalidation — the write goes to the DB, but a stale cached value can persist for the full TTL. Invalidate on every write, or use a shorter TTL.
-- Treat the cache as a performance optimisation, never as the source of truth. A cache outage must mean slower reads, not data loss — always have a DB fallback path. Test this by stopping Redis in staging.
+- Watch for cache aside + write-around without invalidation: the write goes to the DB, but a stale cached value can persist for the full TTL. Invalidate on every write, or use a shorter TTL.
+- Treat the cache as a performance optimisation, never as the source of truth. A cache outage must mean slower reads, not data loss: always have a DB fallback path. Test this by stopping Redis in staging.
 
 p. 198
 
@@ -3201,12 +3201,12 @@ p. 198
 
 ## [225] APPENDIX L · DECISIONS · Choosing the right caching pattern (sldId 480)
 
-- Cache-aside — the default. Use when you want explicit control and reads dominate writes. The pattern everyone should know first.
-- Read-through — use when the read path is repetitive across the codebase and you want to factor out the if/else. Same semantics as cache-aside; cleaner code.
-- Write-through — use when zero stale-read risk after a write matters more than write latency. Read-heavy with infrequent writes is the sweet spot.
-- Write-around — use when writes far outnumber re-reads. Avoids cache pollution by write-once data.
-- Write-back — use only when extreme write throughput is the constraint, eventual durability is acceptable and your cache is configured for persistence.
-- Refresh-ahead — use when a small set of hot keys serves most traffic and miss latency is unacceptable. Adds DB load for the hot set; eliminates user-visible misses on it.
+- Cache-aside: the default. Use when you want explicit control and reads dominate writes. The pattern everyone should know first.
+- Read-through: use when the read path is repetitive across the codebase and you want to factor out the if/else. Same semantics as cache-aside; cleaner code.
+- Write-through: use when zero stale-read risk after a write matters more than write latency. Read-heavy with infrequent writes is the sweet spot.
+- Write-around: use when writes far outnumber re-reads. Avoids cache pollution by write-once data.
+- Write-back: use only when extreme write throughput is the constraint, eventual durability is acceptable and your cache is configured for persistence.
+- Refresh-ahead: use when a small set of hot keys serves most traffic and miss latency is unacceptable. Adds DB load for the hot set; eliminates user-visible misses on it.
 - Most production systems use cache-aside for 95% of cases, with refresh-ahead on a small set of identified hot keys and write-through where stale-read is forbidden. Mix patterns; don't pick one as the rule.
 
 p. 199
@@ -3217,13 +3217,13 @@ p. 199
 
 M
 
-Where it all breaks — and the patterns that hold.
+Where it all breaks, and the patterns that hold.
 
-> Appendix M is the synthesis appendix — it brings together error handling, graceful shutdown, observability and the resilience patterns from across the deck, and points them at the specific ways distributed systems fail. If you can only take one slide from this appendix, take the matrix at the end: it maps each failure mode to the patterns that address it. This appendix references section 11 (Observability), section 12 (Security — bulkheads), and Appendix H (Graceful shutdown); it is the place where those threads are tied together. If this runs long in your session, it stands alone and can be presented on its own.
+> Appendix M is the synthesis appendix: it brings together error handling, graceful shutdown, observability and the resilience patterns from across the deck, and points them at the specific ways distributed systems fail. If you can only take one slide from this appendix, take the matrix at the end: it maps each failure mode to the patterns that address it. This appendix references observability, security bulkheads, and graceful shutdown; it is the place where those threads are tied together. If this runs long in your session, it stands alone and can be presented on its own.
 
 ## [227] APPENDIX M · Distributed systems fail differently (sldId 482)
 
-- In a single process, an operation succeeds or it throws. Across a network, a call can succeed, fail, hang forever, succeed-but-the-response-is-lost, or succeed-slowly — and you often cannot tell which.
+- In a single process, an operation succeeds or it throws. Across a network, a call can succeed, fail, hang forever, succeed-but-the-response-is-lost, or succeed-slowly, and you often cannot tell which.
 - Partial failure is the defining trait: some dependencies are up, some down, some degraded, all at the same time. There is no global 'the system is up'.
 - Failures are not independent: one slow component can exhaust a caller's resources and take down healthy services around it. Failure spreads.
 - Some failures lie: a node passes its own health check while failing real traffic (gray failure). What the system believes about itself and what users experience diverge.
@@ -3232,15 +3232,15 @@ Where it all breaks — and the patterns that hold.
 
 p. 200
 
-> Set the frame. The single most important conceptual shift for developers moving from monoliths is partial failure: in a monolith a function call either returns or throws, synchronously, in-process. Across a network there is a whole spectrum of failure, including the worst kind — the call that hangs, or the one that succeeded on the server but whose response was lost, leaving the client unsure whether to retry. Emphasise that failures are correlated (one failure causes others) and that some failures are actively deceptive (gray failures). Land the bold point hard: we are not trying to prevent failure, we are trying to bound it and recover. This reframes everything that follows from 'how do we stop failures' to 'how do we contain and survive them.'
+> Set the frame. The single most important conceptual shift for developers moving from monoliths is partial failure: in a monolith a function call either returns or throws, synchronously, in-process. Across a network there is a whole spectrum of failure, including the worst kind: the call that hangs, or the one that succeeded on the server but whose response was lost, leaving the client unsure whether to retry. Emphasise that failures are correlated (one failure causes others) and that some failures are actively deceptive (gray failures). Land the bold point hard: we are not trying to prevent failure, we are trying to bound it and recover. This reframes everything that follows from 'how do we stop failures' to 'how do we contain and survive them.'
 
 ## [228] APPENDIX M · A taxonomy of failure modes (sldId 483)
 
-Network failures, component failures, load failures — and the defensive toolkit that addresses them.
+Network failures, component failures, load failures, and the defensive toolkit that addresses them.
 
 p. 201
 
-> The map for the appendix. Three families. NETWORK failures: partition (nodes alive but unreachable) and split-brain (both sides act as leader). COMPONENT failures: partial (some deps fail) and gray (some degrade and are perceived differently by different observers). LOAD failures: amplification (a failure feeds on itself) and cascading (failure spreads to neighbours). Underneath sits the defensive toolkit — timeouts and deadlines, retry with backoff and jitter, circuit breakers, bulkheads (section 12), load shedding, fallback/degradation, quorum/consensus, Istio mesh policies, graceful shutdown (Appendix H), and observability (section 11). Every pattern addresses specific failure modes; the closing matrix maps which to which. Reconnect to the section-1 maxim: all management is risk management — you manage the distribution of failures, not their existence.
+> The map for the appendix. Three families. NETWORK failures: partition (nodes alive but unreachable) and split-brain (both sides act as leader). COMPONENT failures: partial (some deps fail) and gray (some degrade and are perceived differently by different observers). LOAD failures: amplification (a failure feeds on itself) and cascading (failure spreads to neighbours). Underneath sits the defensive toolkit: timeouts and deadlines, retry with backoff and jitter, circuit breakers, bulkheads, load shedding, fallback/degradation, quorum/consensus, Istio mesh policies, graceful shutdown, and observability. Every pattern addresses specific failure modes; the closing matrix maps which to which. Reconnect to the opening maxim: all management is risk management: you manage the distribution of failures, not their existence.
 
 ## [229] APPENDIX M · NETWORK · Network partition (sldId 484)
 
@@ -3248,7 +3248,7 @@ Nodes are alive and healthy; they cannot reach each other. CAP forces a choice: 
 
 p. 202
 
-> See the diagram notes. The key teaching point: a partition is not a crash. Every node is healthy and running; the network between them is the thing that failed. This is what makes partitions so confusing to debug — every individual component looks fine. CAP theorem becomes concrete here: while partitioned, you choose to stay consistent (the minority side refuses writes, sacrificing availability) or available (both sides accept writes, sacrificing consistency, reconciling later). Most data systems let you tune this. Kubernetes itself uses etcd, which chooses consistency (the minority side of a control-plane partition stops accepting writes). Address with quorum/consensus, idempotent writes (so a retried write after heal is safe), and partition-tolerant design.
+> See the diagram notes. The key teaching point: a partition is not a crash. Every node is healthy and running; the network between them is the thing that failed. This is what makes partitions so confusing to debug: every individual component looks fine. CAP theorem becomes concrete here: while partitioned, you choose to stay consistent (the minority side refuses writes, sacrificing availability) or available (both sides accept writes, sacrificing consistency, reconciling later). Most data systems let you tune this. Kubernetes itself uses etcd, which chooses consistency (the minority side of a control-plane partition stops accepting writes). Address with quorum/consensus, idempotent writes (so a retried write after heal is safe), and partition-tolerant design.
 
 ## [230] APPENDIX M · NETWORK · Split-brain (sldId 485)
 
@@ -3256,7 +3256,7 @@ A partition where both sides think they are the leader and both accept writes. S
 
 p. 203
 
-> See the diagram notes. Split-brain is the specific catastrophic outcome of a partition in a system that elects a leader or primary. Both sides lose contact, each assumes the other died, each promotes itself, and now you have two primaries accepting conflicting writes. On heal you have divergent state and no clean way to merge. The prevention is quorum: an action requires a majority (N/2 + 1) of nodes to agree, so a minority partition mathematically cannot act — it knows it is the minority and steps down. This is why cluster sizes are odd (3, 5, 7): to always have a clear majority. Fencing tokens (monotonically increasing IDs that let resources reject a stale leader's writes) and leases are complementary. etcd/Raft give the Kubernetes control plane this property out of the box.
+> See the diagram notes. Split-brain is the specific catastrophic outcome of a partition in a system that elects a leader or primary. Both sides lose contact, each assumes the other died, each promotes itself, and now you have two primaries accepting conflicting writes. On heal you have divergent state and no clean way to merge. The prevention is quorum: an action requires a majority (N/2 + 1) of nodes to agree, so a minority partition mathematically cannot act: it knows it is the minority and steps down. This is why cluster sizes are odd (3, 5, 7): to always have a clear majority. Fencing tokens (monotonically increasing IDs that let resources reject a stale leader's writes) and leases are complementary. etcd/Raft give the Kubernetes control plane this property out of the box.
 
 ## [231] APPENDIX M · COMPONENT · Partial failure (sldId 486)
 
@@ -3264,7 +3264,7 @@ The defining trait of distributed systems: some dependencies fail while others k
 
 p. 204
 
-> See the diagram notes. This is the slide for developers moving from monoliths. In a monolith, the order service and the inventory service are function calls in the same process — if one is 'down' the whole process is down. Distributed, the order service calls inventory (healthy), payment (down), and shipping (slow) and must make a per-dependency decision for each: use the healthy result, fall back or fail for the down one, time out and fall back for the slow one. The mistake that causes most production incidents is treating a remote call like a local one, with no timeout, no fallback and no circuit breaker, so a single down dependency hangs the caller. Address with per-call timeouts, per-dependency circuit breakers, fallbacks, and bulkheads. The next several slides are exactly these patterns, with code.
+> See the diagram notes. This is the slide for developers moving from monoliths. In a monolith, the order service and the inventory service are function calls in the same process: if one is 'down' the whole process is down. Distributed, the order service calls inventory (healthy), payment (down), and shipping (slow) and must make a per-dependency decision for each: use the healthy result, fall back or fail for the down one, time out and fall back for the slow one. The mistake that causes most production incidents is treating a remote call like a local one, with no timeout, no fallback and no circuit breaker, so a single down dependency hangs the caller. Address with per-call timeouts, per-dependency circuit breakers, fallbacks, and bulkheads. The next several slides are exactly these patterns, with code.
 
 ## [232] APPENDIX M · COMPONENT · Gray failure (sldId 487)
 
@@ -3272,7 +3272,7 @@ The insidious one: a component is degraded and is perceived differently by diffe
 
 p. 205
 
-> See the diagram notes. Gray failure is the failure mode that defeats naive health checking. The classic shape: a node is slow or dropping a fraction of requests, but its liveness probe (GET /healthz returning 200 from a trivial handler) still passes, so Kubernetes keeps it in rotation and the load balancer keeps sending it traffic. The system believes it is healthy; users experience errors and latency. This is 'differential observability' — the observer that matters (the client) sees something different from the observer that decides (the probe). The fixes are all about observing from the right vantage point: deep health checks that exercise real dependencies, RED metrics measured on live traffic, SLO burn-rate alerts, and, most important, Istio outlier detection, which ejects a host from the pool when it returns consecutive errors, regardless of what its health check claims. This ties directly to section 11.
+> See the diagram notes. Gray failure is the failure mode that defeats naive health checking. The classic shape: a node is slow or dropping a fraction of requests, but its liveness probe (GET /healthz returning 200 from a trivial handler) still passes, so Kubernetes keeps it in rotation and the load balancer keeps sending it traffic. The system believes it is healthy; users experience errors and latency. This is 'differential observability': the observer that matters (the client) sees something different from the observer that decides (the probe). The fixes are all about observing from the right vantage point: deep health checks that exercise real dependencies, RED metrics measured on live traffic, SLO burn-rate alerts, and, most important, Istio outlier detection, which ejects a host from the pool when it returns consecutive errors, regardless of what its health check claims. This ties directly to observability.
 
 ## [233] APPENDIX M · LOAD · Amplification loops & retry storms (sldId 488)
 
@@ -3280,30 +3280,30 @@ A failure triggers retries, which add load, which cause more failures. Backoff, 
 
 p. 206
 
-> See the diagram notes. Amplification is a positive feedback loop: the system's own defensive behaviour (retrying) becomes the attack. Two compounding effects. First, retry multiplication across layers: if the gateway retries 3x, and it calls a service that retries 3x, which calls a service that retries 3x, one user request becomes 27 requests to the bottom of the stack. Second, synchronisation: every client that failed at the same moment retries at the same moment, creating a thundering herd. The result can be metastable — the system stays collapsed even after the original trigger is gone, because the retry load alone sustains the failure. Breaking it: exponential backoff with jitter (de-synchronise), retry budgets (cap retries to a small percentage of live traffic so they can never multiply unboundedly), retry at exactly one layer, and circuit breakers to stop the doomed calls entirely. This is the failure mode most often caused by well-intentioned resilience code.
+> See the diagram notes. Amplification is a positive feedback loop: the system's own defensive behaviour (retrying) becomes the attack. Two compounding effects. First, retry multiplication across layers: if the gateway retries 3x, and it calls a service that retries 3x, which calls a service that retries 3x, one user request becomes 27 requests to the bottom of the stack. Second, synchronisation: every client that failed at the same moment retries at the same moment, creating a thundering herd. The result can be metastable: the system stays collapsed even after the original trigger is gone, because the retry load alone sustains the failure. Breaking it: exponential backoff with jitter (de-synchronise), retry budgets (cap retries to a small percentage of live traffic so they can never multiply unboundedly), retry at exactly one layer, and circuit breakers to stop the doomed calls entirely. This is the failure mode most often caused by well-intentioned resilience code.
 
 ## [234] APPENDIX M · LOAD · Cascading failure (sldId 489)
 
-One component's failure overloads its neighbours, which fail in turn — the domino effect up the call graph.
+One component's failure overloads its neighbours, which fail in turn: the domino effect up the call graph.
 
 p. 207
 
-> See the diagram notes. Cascading failure is how a single slow dependency takes down an entire system. The mechanism: a slow database causes the calling service's request threads (or async tasks, or connection pool) to fill up waiting; with its resources exhausted, that service now fails or slows for all callers, not just the ones touching the database; its callers' resources then fill up waiting on it; and so on up the graph until the user-facing edge is down. The amplifiers are synchronous call chains and unbounded resources (unbounded queues, unbounded thread pools, no timeouts). Each defensive pattern breaks one link: timeouts stop threads blocking forever; bulkheads isolate the pool so the database calls can't consume all of it; circuit breakers stop calling the slow dependency entirely; load shedding rejects excess work at the edge before it propagates. This is the failure mode bulkheads (section 12) were invented for.
+> See the diagram notes. Cascading failure is how a single slow dependency takes down an entire system. The mechanism: a slow database causes the calling service's request threads (or async tasks, or connection pool) to fill up waiting; with its resources exhausted, that service now fails or slows for all callers, not just the ones touching the database; its callers' resources then fill up waiting on it; and so on up the graph until the user-facing edge is down. The amplifiers are synchronous call chains and unbounded resources (unbounded queues, unbounded thread pools, no timeouts). Each defensive pattern breaks one link: timeouts stop threads blocking forever; bulkheads isolate the pool so the database calls can't consume all of it; circuit breakers stop calling the slow dependency entirely; load shedding rejects excess work at the edge before it propagates. This is the failure mode bulkheads were invented for.
 
-## [235] APPENDIX M · The defensive toolkit — patterns and what they buy (sldId 490)
+## [235] APPENDIX M · The defensive toolkit: patterns and what they buy (sldId 490)
 
-- Timeout + deadline propagation — never wait forever; pass the remaining budget downstream so nobody does doomed work. Defends: partial, cascading.
-- Retry with backoff + jitter — ride out transient failures without building a storm; only for idempotent calls; use a retry budget. Defends: partial, amplification (if done right).
-- Circuit breaker — stop calling a failing dependency; fail fast; test for recovery. Defends: cascading, amplification, gray.
-- Bulkhead (§12) — isolate resources by tenant/call/priority so one failure can't starve the rest. Defends: partial, cascading.
-- Load shedding — when overloaded, reject excess early (503) rather than collapsing. Defends: amplification, cascading.
-- Quorum / consensus — majority-required action; the only real answer to split-brain. Defends: partition, split-brain.
-- Fallback / graceful degradation — return a useful degraded response (cache, default, queue-for-later) instead of an error. Defends: partial, gray.
+- Timeout + deadline propagation: never wait forever; pass the remaining budget downstream so nobody does doomed work. Defends: partial, cascading.
+- Retry with backoff + jitter: ride out transient failures without building a storm; only for idempotent calls; use a retry budget. Defends: partial, amplification (if done right).
+- Circuit breaker: stop calling a failing dependency; fail fast; test for recovery. Defends: cascading, amplification, gray.
+- Bulkhead: isolate resources by tenant/call/priority so one failure can't starve the rest. Defends: partial, cascading.
+- Load shedding: when overloaded, reject excess early (503) rather than collapsing. Defends: amplification, cascading.
+- Quorum / consensus: majority-required action; the only real answer to split-brain. Defends: partition, split-brain.
+- Fallback / graceful degradation: return a useful degraded response (cache, default, queue-for-later) instead of an error. Defends: partial, gray.
 - Istio mesh policies + graceful shutdown + observability: the platform layer underneath all of these patterns. Each one gets code, and a matrix maps patterns to modes.
 
 p. 208
 
-> The toolkit overview before the deep dives. Each line names a pattern and the failure modes it defends against — this is the verbal version of the closing matrix. The thing to stress: no pattern is sufficient alone, and several patterns interact (retry without a circuit breaker amplifies; a circuit breaker without a fallback just fails faster; bulkheads without timeouts still let threads block within a pool). Production resilience is the composition of several of these, tuned together. Each gets its own diagram and per-language code so developers can implement them; the bold line flags that the platform-level pieces (Istio, shutdown, observability) sit underneath the application-level patterns.
+> The toolkit overview before the deep dives. Each line names a pattern and the failure modes it defends against: this is the verbal version of the closing matrix. The thing to stress: no pattern is sufficient alone, and several patterns interact (retry without a circuit breaker amplifies; a circuit breaker without a fallback just fails faster; bulkheads without timeouts still let threads block within a pool). Production resilience is the composition of several of these, tuned together. Each gets its own diagram and per-language code so developers can implement them; the bold line flags that the platform-level pieces (Istio, shutdown, observability) sit underneath the application-level patterns.
 
 ## [236] APPENDIX M · TIMEOUTS · Timeouts + deadline propagation (sldId 491)
 
@@ -3311,7 +3311,7 @@ Every remote call needs a timeout; the remaining budget should travel downstream
 
 p. 209
 
-> See the diagram notes. Two ideas. First, every remote call must have a timeout — the default in many HTTP clients is infinite, which is how a single slow dependency hangs a whole service. Second, deadline propagation: the original deadline (say 1000ms) travels with the request, and each hop subtracts the time it has used and passes the remainder downstream. When the remaining budget is too small to plausibly finish, the downstream fails immediately rather than starting work that will be thrown away. gRPC does this natively with deadlines; for HTTP you pass a deadline header and honour it. The waste this prevents is real: without it, your database spends 500ms on a query for a request the user abandoned 450ms ago, and that wasted work is exactly what tips an overloaded system over. The code example shows the language-specific mechanics.
+> See the diagram notes. Two ideas. First, every remote call must have a timeout: the default in many HTTP clients is infinite, which is how a single slow dependency hangs a whole service. Second, deadline propagation: the original deadline (say 1000ms) travels with the request, and each hop subtracts the time it has used and passes the remainder downstream. When the remaining budget is too small to plausibly finish, the downstream fails immediately rather than starting work that will be thrown away. gRPC does this natively with deadlines; for HTTP you pass a deadline header and honour it. The waste this prevents is real: without it, your database spends 500ms on a query for a request the user abandoned 450ms ago, and that wasted work is exactly what tips an overloaded system over. The code example shows the language-specific mechanics.
 
 ## [237] APPENDIX M · TIMEOUTS · Timeouts + deadlines (sldId 492)
 
@@ -3346,11 +3346,11 @@ p. 210
 
 ## [238] APPENDIX M · RETRY · Retry with exponential backoff + jitter (sldId 493)
 
-Retry transient failures — but spread retries with exponential backoff + jitter, cap them, and only for idempotent calls.
+Retry transient failures, but spread retries with exponential backoff + jitter, cap them, and only for idempotent calls.
 
 p. 211
 
-> See the diagram notes. Retry is the most abused resilience pattern because the naive version (retry immediately, a fixed number of times, at every layer) is precisely how you build the amplification storm from the amplification-loop discussion. The correct version has four properties: exponential backoff (each retry waits longer: 100ms, 200ms, 400ms), jitter (add randomness so clients don't synchronise), a cap on both attempts and total time, and a retry budget (retries may never exceed, say, 10% of live traffic). And it only applies to idempotent operations — retrying a non-idempotent POST without an idempotency key can double-charge a customer. Always pair retry with a circuit breaker so that once a dependency is clearly down, you stop retrying entirely. The code example shows the idiomatic library for each language.
+> See the diagram notes. Retry is the most abused resilience pattern because the naive version (retry immediately, a fixed number of times, at every layer) is precisely how you build the amplification storm from the amplification-loop discussion. The correct version has four properties: exponential backoff (each retry waits longer: 100ms, 200ms, 400ms), jitter (add randomness so clients don't synchronise), a cap on both attempts and total time, and a retry budget (retries may never exceed, say, 10% of live traffic). And it only applies to idempotent operations: retrying a non-idempotent POST without an idempotency key can double-charge a customer. Always pair retry with a circuit breaker so that once a dependency is clearly down, you stop retrying entirely. The code example shows the idiomatic library for each language.
 
 ## [239] APPENDIX M · RETRY · Retry with backoff + jitter (sldId 494)
 
@@ -3382,7 +3382,7 @@ p. 212
 
 > tenacity's AsyncRetrying works as an async for loop around the call, so the attempt number is available inside it. raise_for_status turns a 5xx into HTTPStatusError, which is retried along with transport errors; three attempts in all, with exponentially growing waits from 100 ms to 2 seconds plus jitter, and reraise hands the last real error back once the attempts run out. Retry only idempotent calls, and pair the retry with a circuit breaker.
 
-## [240] APPENDIX M · CIRCUIT BREAKER · Circuit breaker — the state machine (sldId 495)
+## [240] APPENDIX M · CIRCUIT BREAKER · Circuit breaker: the state machine (sldId 495)
 
 Closed → Open (fail fast) → Half-Open (test) → Closed. Stops doomed calls; gives the dependency room to recover.
 
@@ -3421,39 +3421,39 @@ p. 214
 
 > pybreaker counts consecutive failures: five open the breaker for ten seconds, and two successful trial calls in half-open close it. Its calling() context manager checks the state on entry and records the outcome on exit, so it works around an awaited httpx call; an open breaker raises CircuitBreakerError before the backend is touched. throw_new_error_on_trip=False keeps the real cause on the call that trips it, so the fallback reason stays accurate. One breaker per dependency.
 
-## [242] APPENDIX M · BULKHEAD · Bulkhead — isolate so one failure can't sink the rest (sldId 497)
+## [242] APPENDIX M · BULKHEAD · Bulkhead: isolate so one failure can't sink the rest (sldId 497)
 
-- Covered in depth in section 12 (Security) as a blast-radius pattern; it is equally a resilience pattern, so it appears here in the failure-mode context.
+- Covered in depth as a security blast-radius pattern; it is equally a resilience pattern, so it appears here in the failure-mode context.
 - Isolate resources (connection pools, thread pools, async semaphores, queues) by tenant, by call type, or by priority. A storm in one pool exhausts only that pool.
-- Against cascading failure: if database calls have their own bounded pool, a slow database exhausts that pool and returns errors for DB-backed calls — but the service's other endpoints keep serving from their own pools.
+- Against cascading failure: if database calls have their own bounded pool, a slow database exhausts that pool and returns errors for DB-backed calls, but the service's other endpoints keep serving from their own pools.
 - Against partial failure: a single misbehaving tenant or dependency is contained to its own compartment instead of consuming the shared resource.
-- Implementation (from §12): asyncio.Semaphore plus per-tenant aiohttp/httpx connection pools — lightweight in-process bulkheads paired with per-call timeouts. At the mesh: Istio DestinationRule connectionPool gives the same isolation at the network layer.
+- Implementation: asyncio.Semaphore plus per-tenant aiohttp/httpx connection pools, lightweight in-process bulkheads paired with per-call timeouts. At the mesh: Istio DestinationRule connectionPool gives the same isolation at the network layer.
   - Pair with timeouts: a bulkhead bounds how many calls run concurrently, but without a timeout those calls can still block forever and keep the bulkhead full. The two patterns need each other.
 
 p. 215
 
-> Bulkhead got full treatment in section 12, so here we just re-frame it in the failure-mode context and cross-reference. The key insight to land: a bulkhead bounds concurrency, but concurrency-bounding alone doesn't help if the bounded calls block forever — you must combine bulkhead (limit how many) with timeout (limit how long). Point back to section 12 for the per-language code (we don't repeat it here to save slides), and forward to the Istio slide for mesh-level bulkheading via connectionPool limits.
+> Bulkhead got full treatment earlier as a security pattern, so here we just re-frame it in the failure-mode context and cross-reference. The key insight to land: a bulkhead bounds concurrency, but concurrency-bounding alone doesn't help if the bounded calls block forever: you must combine bulkhead (limit how many) with timeout (limit how long). The per-language code is not repeated here to save slides; the Istio slide covers mesh-level bulkheading via connectionPool limits.
 
 ## [243] APPENDIX M · SHEDDING & FALLBACK · Load shedding and graceful degradation (sldId 498)
 
-- Load shedding — when you are over capacity, reject excess work immediately (HTTP 503 + Retry-After) at the edge, before it consumes resources. A system that sheds 20% of load stays up for the other 80%; a system that accepts everything collapses for 100%.
+- Load shedding: when you are over capacity, reject excess work immediately (HTTP 503 + Retry-After) at the edge, before it consumes resources. A system that sheds 20% of load stays up for the other 80%; a system that accepts everything collapses for 100%.
 - Shed by priority: drop health-check-style or low-value traffic first, protect revenue-critical paths. Adaptive concurrency limits (e.g. Netflix's, or Envoy's) shed automatically based on observed latency.
-- Graceful degradation — when a dependency is unavailable, return a useful reduced response instead of an error: serve stale cache, omit the personalised section, queue the write for later, show a default recommendation.
-- Degradation turns a hard failure into a soft one the user may barely notice. A product page that can't reach the reviews service should still show the product — just without reviews.
+- Graceful degradation: when a dependency is unavailable, return a useful reduced response instead of an error: serve stale cache, omit the personalised section, queue the write for later, show a default recommendation.
+- Degradation turns a hard failure into a soft one the user may barely notice. A product page that can't reach the reviews service should still show the product, just without reviews.
 - Both are the application-level complement to the circuit breaker: the breaker decides to stop calling; the fallback decides what to return instead; load shedding decides what not to accept in the first place.
-  - Reference §11: you cannot shed or degrade intelligently without observability — you shed based on measured saturation, and you alert when degradation rates climb.
+  - The observability tie-in: you cannot shed or degrade intelligently without it; you shed based on measured saturation, and you alert when degradation rates climb.
 
 p. 216
 
-> Two related patterns that often get skipped. Load shedding is counter-intuitive to engineers, because rejecting requests feels like giving up, but it is the difference between a system that degrades and one that collapses. The maths is simple: if you are at 120% of capacity and accept everything, everything is slow and timing out (0% goodput); if you shed the excess 20%, the 80% you accept is served well. Adaptive limiters do this automatically based on latency. Graceful degradation is the product-level decision about what to return when you can't return everything — it requires the product/design team's input on what's essential vs nice-to-have. The bold line ties shedding, breakers and fallback together as a system: stop accepting (shed), stop calling (break), return something useful (fall back).
+> Two related patterns that often get skipped. Load shedding is counter-intuitive to engineers, because rejecting requests feels like giving up, but it is the difference between a system that degrades and one that collapses. The maths is simple: if you are at 120% of capacity and accept everything, everything is slow and timing out (0% goodput); if you shed the excess 20%, the 80% you accept is served well. Adaptive limiters do this automatically based on latency. Graceful degradation is the product-level decision about what to return when you can't return everything: it requires the product/design team's input on what's essential vs nice-to-have. The bold line ties shedding, breakers and fallback together as a system: stop accepting (shed), stop calling (break), return something useful (fall back).
 
-## [244] APPENDIX M · ISTIO · Istio — resilience at the mesh layer (sldId 499)
+## [244] APPENDIX M · ISTIO · Istio: resilience at the mesh layer (sldId 499)
 
-Timeouts, retries, outlier detection (gray-failure ejection) and circuit breaking — uniform, config-driven, no app code.
+Timeouts, retries, outlier detection (gray-failure ejection) and circuit breaking: uniform, config-driven, no app code.
 
 p. 217
 
-> See the diagram notes. The service mesh gives you a large slice of the resilience toolkit without writing code in every service, in every language. VirtualService configures per-route timeouts and retries (with Envoy adding backoff and jitter automatically, and retryOn conditions controlling which failures are retried). DestinationRule configures connectionPool limits (mesh-level bulkheading) and outlierDetection — which is the mesh's answer to gray failure: it watches each host, and when one returns consecutive errors it ejects that host from the load-balancing pool for a cooldown period, regardless of what the host's own health check claims. That is exactly the gray-failure defence the health-check can't provide. The important discipline: don't double up. If Istio is retrying, don't also retry in the app (that's amplification). Decide where each concern lives — typically: timeouts and outlier detection at the mesh, business-aware retries and fallbacks in the app.
+> See the diagram notes. The service mesh gives you a large slice of the resilience toolkit without writing code in every service, in every language. VirtualService configures per-route timeouts and retries (with Envoy adding backoff and jitter automatically, and retryOn conditions controlling which failures are retried). DestinationRule configures connectionPool limits (mesh-level bulkheading) and outlierDetection: which is the mesh's answer to gray failure: it watches each host, and when one returns consecutive errors it ejects that host from the load-balancing pool for a cooldown period, regardless of what the host's own health check claims. That is exactly the gray-failure defence the health-check can't provide. The important discipline: don't double up. If Istio is retrying, don't also retry in the app (that's amplification). Decide where each concern lives: typically: timeouts and outlier detection at the mesh, business-aware retries and fallbacks in the app.
 
 ## [245] APPENDIX M · SHUTDOWN · Graceful shutdown (see App. H) (sldId 500)
 
@@ -3486,21 +3486,21 @@ async def readyz():
 
 p. 218
 
-> The shutdown sequence that prevents dropped requests during a rolling deploy, from Example 21. One SIGTERM starts it: (1) the handler flips a flag so /readyz returns 503 and Kubernetes stops sending new traffic, while /healthz stays 200; (2) the service keeps serving for DRAIN_DELAY_SECONDS so the load balancer's removal propagates; (3) the handler then hands over to uvicorn, which stops accepting and finishes in-flight requests within --timeout-graceful-shutdown; (4) the lifespan exit closes the pools and the process exits 0. The ordering matters: stop taking new work before draining existing work. This is the application half; Appendix H covers the Kubernetes half (preStop hook, terminationGracePeriodSeconds). Together they give zero-downtime rollouts.
+> The shutdown sequence that prevents dropped requests during a rolling deploy, from Example 21. One SIGTERM starts it: (1) the handler flips a flag so /readyz returns 503 and Kubernetes stops sending new traffic, while /healthz stays 200; (2) the service keeps serving for DRAIN_DELAY_SECONDS so the load balancer's removal propagates; (3) the handler then hands over to uvicorn, which stops accepting and finishes in-flight requests within --timeout-graceful-shutdown; (4) the lifespan exit closes the pools and the process exits 0. The ordering matters: stop taking new work before draining existing work. This is the application half; the Kubernetes half (preStop hook, terminationGracePeriodSeconds) is its counterpart. Together they give zero-downtime rollouts.
 
-## [246] APPENDIX M · OBSERVE · Observing failure modes (see §11) (sldId 501)
+## [246] APPENDIX M · OBSERVE · Observing failure modes (sldId 501)
 
-- Network partition — watch peer-connectivity and cross-zone error metrics; alert on quorum-loss events from etcd / your datastore.
-- Split-brain — alert on more-than-one-leader conditions, divergent-replica metrics, and fencing-token rejections in logs.
-- Partial failure — RED metrics per dependency (rate, errors, duration), not just per service. A spike in errors to one downstream is the early signal.
-- Gray failure — the hard one: compare health-check status against real-traffic SLOs. Latency percentiles (p99) diverging from the average, and Istio outlier-ejection counts, are your tells.
-- Amplification — watch request-rate against user-action-rate (if requests >> actions, retries are multiplying), retry-count metrics, and goodput falling while load rises.
-- Cascading — a distributed trace shows the error spreading service-to-service; saturation metrics (thread pools, queue depth, connection pools) climb together across services.
-  - The unifying tool is the trace_id from §11: when an alert fires, pivot from the metric to an exemplar trace to its logs to find which leg failed first and how it spread.
+- Network partition: watch peer-connectivity and cross-zone error metrics; alert on quorum-loss events from etcd / your datastore.
+- Split-brain: alert on more-than-one-leader conditions, divergent-replica metrics, and fencing-token rejections in logs.
+- Partial failure: RED metrics per dependency (rate, errors, duration), not just per service. A spike in errors to one downstream is the early signal.
+- Gray failure: the hard one: compare health-check status against real-traffic SLOs. Latency percentiles (p99) diverging from the average, and Istio outlier-ejection counts, are your tells.
+- Amplification: watch request-rate against user-action-rate (if requests >> actions, retries are multiplying), retry-count metrics, and goodput falling while load rises.
+- Cascading: a distributed trace shows the error spreading service-to-service; saturation metrics (thread pools, queue depth, connection pools) climb together across services.
+  - The unifying tool is the trace_id: when an alert fires, pivot from the metric to an exemplar trace to its logs to find which leg failed first and how it spread.
 
 p. 219
 
-> Tie the appendix back to section 11. Each failure mode has characteristic signals, and you must instrument for them explicitly: a default dashboard of CPU and memory will not show you a gray failure or an amplification loop. The most important specific guidance: measure RED per dependency (so partial failures are visible), compare health-check status to real-traffic SLOs (so gray failures are visible), and watch request-rate vs user-action-rate (so amplification is visible). The sub-bullet is the workflow: the trace_id is what lets you pivot from 'something is wrong' (a metric) to 'here is the request that shows it' (a trace) to 'here is what failed' (the logs on that trace), the correlation story from section 11 applied to incident response.
+> Tie the appendix back to observability. Each failure mode has characteristic signals, and you must instrument for them explicitly: a default dashboard of CPU and memory will not show you a gray failure or an amplification loop. The most important specific guidance: measure RED per dependency (so partial failures are visible), compare health-check status to real-traffic SLOs (so gray failures are visible), and watch request-rate vs user-action-rate (so amplification is visible). The sub-bullet is the workflow: the trace_id is what lets you pivot from 'something is wrong' (a metric) to 'here is the request that shows it' (a trace) to 'here is what failed' (the logs on that trace), the correlation story applied to incident response.
 
 ## [247] APPENDIX M · Which pattern addresses which failure mode (sldId 502)
 
@@ -3508,7 +3508,7 @@ Read a row to defend a failure mode; read a column to see what a pattern buys yo
 
 p. 220
 
-> The synthesis slide — if the audience keeps one thing, keep this. Reading across a row tells you the portfolio of patterns that defend a given failure mode (e.g. cascading failure is addressed by timeouts, circuit breakers, bulkheads, load shedding, and graceful shutdown together). Reading down a column tells you what a given pattern buys you across failure modes. Two observations: first, quorum/consensus is the only real answer to split-brain; no amount of retrying or circuit-breaking helps when the problem is two leaders, so you need a majority rule. Second, almost every other cell is about assembling a portfolio — there is no single pattern that handles partial, gray, amplification and cascading failures; you layer timeouts, retries-with-budget, breakers, bulkheads, shedding and fallbacks, and you observe the result. Defence in depth, exactly as in the security section, applied to reliability.
+> The synthesis slide: if the audience keeps one thing, keep this. Reading across a row tells you the portfolio of patterns that defend a given failure mode (e.g. cascading failure is addressed by timeouts, circuit breakers, bulkheads, load shedding, and graceful shutdown together). Reading down a column tells you what a given pattern buys you across failure modes. Two observations: first, quorum/consensus is the only real answer to split-brain; no amount of retrying or circuit-breaking helps when the problem is two leaders, so you need a majority rule. Second, almost every other cell is about assembling a portfolio: there is no single pattern that handles partial, gray, amplification and cascading failures; you layer timeouts, retries-with-budget, breakers, bulkheads, shedding and fallbacks, and you observe the result. Defence in depth, exactly as in the security section, applied to reliability.
 
 ## [248] APPENDIX M · Take-aways and references (sldId 503)
 
@@ -3517,8 +3517,8 @@ p. 220
 - Bound the blast radius: bulkheads isolate, circuit breakers stop the bleeding, load shedding protects capacity, fallbacks keep the user served.
 - Quorum is the only cure for split-brain. Let etcd / Raft / your datastore handle consensus; don't invent your own.
 - Push uniform concerns (timeouts, outlier detection, mesh bulkheads) to Istio; keep business-aware concerns (fallbacks, idempotency) in the app. Don't double-retry.
-- Observe from the client's vantage point (RED per dependency, SLOs, outlier ejections) — gray failures are invisible to naive health checks. Drain on shutdown (App. H).
-  - References: Google SRE Book (chapters on Addressing Cascading Failures, Handling Overload); 'Release It!' (Nygard — circuit breaker, bulkhead origin); the gRPC retry design, gRFC A6 (retry policy, backoff with jitter, retry throttling); Istio traffic-management docs; the metastable-failures research (Bronson et al., 2021).
+- Observe from the client's vantage point (RED per dependency, SLOs, outlier ejections): gray failures are invisible to naive health checks. Drain on shutdown (App. H).
+  - References: Google SRE Book (chapters on Addressing Cascading Failures, Handling Overload); 'Release It!' (Nygard: circuit breaker, bulkhead origin); the gRPC retry design, gRFC A6 (retry policy, backoff with jitter, retry throttling); Istio traffic-management docs; the metastable-failures research (Bronson et al., 2021).
 
 p. 221
 
@@ -3528,7 +3528,7 @@ p. 221
 
 N
 
-Progressive delivery, decoupled from deploy — OpenFeature + flagd
+Progressive delivery, decoupled from deploy: OpenFeature + flagd
 
 > This appendix adds the runtime switch that separates shipping code from releasing a feature. It is a deep-dive you keep open when you are about to roll something out gradually. The whole section is built on two CNCF, open-source projects - OpenFeature for the vendor-neutral SDK and flagd for the backend - so it runs on plain Kubernetes with no managed SaaS, like every other example in the book. The arc: why deploy is not release, the four kinds of flag, how evaluation works, the code to evaluate and target and roll out, flags as a control plane over patterns we already covered, and the lifecycle discipline that keeps flags from becoming debt.
 
@@ -3536,7 +3536,7 @@ Progressive delivery, decoupled from deploy — OpenFeature + flagd
 
 p. 222
 
-the artifact ships dark; releasing is a runtime flag flip — and so is rollback
+the artifact ships dark; releasing is a runtime flag flip, and so is rollback
 
 > The reframe that makes everything else work: deploying an artifact and releasing a feature are different events, and a flag is what splits them. The artifact ships to production with the new path turned off - a non-event, visible only in the deploy log. Releasing is then a runtime flag flip: on for one percent, then a wider cohort, then everyone, each step reversible by narrowing the flag rather than rolling back a deployment. This is what lets a team merge to main many times a day yet release on its own cadence, and it is the mechanism behind every canary and every safe cutover in the book. Rollback stops being a redeploy and becomes a config change measured in seconds.
 
@@ -3544,7 +3544,7 @@ the artifact ships dark; releasing is a runtime flag flip — and so is rollback
 
 p. 223
 
-by lifetime and owner — each wants different defaults and lifecycle
+by lifetime and owner: each wants different defaults and lifecycle
 
 > Feature flag covers four different tools, and conflating them is the root of most flag messes. They differ along two axes - how long the flag lives, and who decides to flip it. Release flags are temporary and developer-owned: they ship new code dark, ramp it, and are then removed. Experiment or A/B flags are temporary and data-owned: they split traffic across variants so a metric can be measured, and they require sticky assignment. Ops or kill-switch flags are long-lived and SRE-owned: a permanent control to disable a feature or dependency fast under load or incident. Permission or entitlement flags are long-lived and product-owned: they gate functionality by plan, tier, or region. The defaults differ too - a release flag fails off, so half-shipped code stays dark, while a kill-switch usually fails on, so the feature survives a flag-system outage.
 
@@ -3611,7 +3611,7 @@ p. 226
 }
 ```
 
-Enterprise plans always on (entitlement); everyone else split 25/75 (sticky rollout) — no code change.
+Enterprise plans always on (entitlement); everyone else split 25/75 (sticky rollout): no code change.
 
 > Because the rules live in flagd, changing who sees a feature never touches the application. A flag definition is a set of variants, a default, and a targeting expression. Two operators do most of the work: a conditional for segmentation - here, the enterprise plan always gets the new checkout, an entitlement - and the fractional operator for percentage rollouts, here splitting everyone else 25/75. The fractional operator buckets on the targeting key, which is what gives sticky assignment: the same user hashes to the same bucket every time. Ramping the rollout is editing the 25 upward; rolling back is editing it down - both take effect in the running fleet within flagd's sync interval, with no redeploy. A kill switch is the same file: set a flag's state to DISABLED and it stops evaluating entirely.
 
@@ -3795,7 +3795,7 @@ Reporters target the audience; --bail gates fast; --iteration-data drives edge c
 
 p. 239
 
-one request set, many inputs — boundary values and negative cases from a table
+one request set, many inputs: boundary values and negative cases from a table
 
 > Data-driven testing runs the same requests once per row of a CSV. The columns become variables in the requests, and a column can carry the expected status so a single assertion checks status against the row's expectation. This is how a handful of requests becomes broad coverage: the happy path, a zero-quantity order that must be rejected with a 422, an over-stock order that must also be rejected - all without copy-pasting requests. Keeping the cases in data rather than in duplicated requests is what makes the suite maintainable as the API grows.
 
